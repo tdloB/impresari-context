@@ -1,0 +1,28 @@
+{
+  "schema_name": "resource-policy-profile",
+  "schema_version": "1.0.0",
+  "profile_name": "conservative-local-v1",
+  "profile_version": "1.0.0",
+  "authority": "engine_owner",
+  "platform_classes": ["linux", "macos", "windows"],
+  "limits": {
+    "output_bytes": {"minimum": "1024", "default": "65536", "maximum": "4194304"},
+    "evidence_items": {"minimum": "1", "default": "100", "maximum": "10000"},
+    "files": {"minimum": "1", "default": "10000", "maximum": "1000000"},
+    "file_bytes": {"minimum": "1", "default": "1048576", "maximum": "16777216"},
+    "workspace_bytes": {"minimum": "1", "default": "536870912", "maximum": "2147483648"},
+    "excerpt_bytes_per_item": {"minimum": "1", "default": "4096", "maximum": "65536"},
+    "matches": {"minimum": "1", "default": "1000", "maximum": "10000"},
+    "traversal_depth": {"minimum": "1", "default": "32", "maximum": "256"},
+    "elapsed_ms": {"minimum": "1", "default": "30000", "maximum": "300000"},
+    "memory_bytes": {"minimum": "1048576", "default": "536870912", "maximum": "2147483648"}
+  },
+  "retention": {
+    "cache_bytes_default": "1073741824",
+    "cache_bytes_maximum": "10737418240",
+    "audit_bytes_default": "10485760",
+    "audit_bytes_maximum": "104857600",
+    "audit_days_default": "7",
+    "audit_days_maximum": "30"
+  }
+}

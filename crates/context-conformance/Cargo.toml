@@ -14,3 +14,4 @@ workspace = true
 [dev-dependencies]
 jsonschema = { version = "=0.50.0", default-features = false }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+sha2 = { version = "=0.11.0", default-features = false }

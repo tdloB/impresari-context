@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/resource-policy-profile.schema.json",
+  "title": "Versioned runtime resource-policy profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_name", "profile_version", "authority", "platform_classes", "limits", "retention"],
+  "properties": {
+    "schema_name": {"const": "resource-policy-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_name": {"const": "conservative-local-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "authority": {"const": "engine_owner"},
+    "platform_classes": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "uniqueItems": true,
+      "items": {"type": "string", "enum": ["macos", "linux", "windows"]}
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output_bytes", "evidence_items", "files", "file_bytes", "workspace_bytes", "excerpt_bytes_per_item", "matches", "traversal_depth", "elapsed_ms", "memory_bytes"],
+      "properties": {
+        "output_bytes": {"$ref": "#/$defs/range"},
+        "evidence_items": {"$ref": "#/$defs/range"},
+        "files": {"$ref": "#/$defs/range"},
+        "file_bytes": {"$ref": "#/$defs/range"},
+        "workspace_bytes": {"$ref": "#/$defs/range"},
+        "excerpt_bytes_per_item": {"$ref": "#/$defs/range"},
+        "matches": {"$ref": "#/$defs/range"},
+        "traversal_depth": {"$ref": "#/$defs/range"},
+        "elapsed_ms": {"$ref": "#/$defs/range"},
+        "memory_bytes": {"$ref": "#/$defs/range"}
+      }
+    },
+    "retention": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cache_bytes_default", "cache_bytes_maximum", "audit_bytes_default", "audit_bytes_maximum", "audit_days_default", "audit_days_maximum"],
+      "properties": {
+        "cache_bytes_default": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "cache_bytes_maximum": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "audit_bytes_default": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "audit_bytes_maximum": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "audit_days_default": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "audit_days_maximum": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    }
+  },
+  "$defs": {
+    "range": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["minimum", "default", "maximum"],
+      "properties": {
+        "minimum": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "default": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "maximum": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    }
+  }
+}

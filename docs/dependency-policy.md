@@ -11,6 +11,7 @@ scrutiny than test-only dependencies.
 | --- | --- | --- | --- | --- | --- | --- |
 | `serde_json` | 1.0.151 | Test only | `std`; defaults disabled | MIT OR Apache-2.0 | 1.71 | Parse schema and fixture JSON |
 | `jsonschema` | 0.50.0 | Test only | No features; defaults disabled | MIT | 1.85 | Full Draft 2020-12 conformance validation |
+| `sha2` | 0.11.0 | Test only | Defaults disabled | MIT OR Apache-2.0 | 1.85 | Reproduce published SHA-256 identity vectors |
 
 `jsonschema` default features are prohibited because they add HTTP, file, and TLS
 resolvers. The test harness supplies every schema through an in-memory prepared

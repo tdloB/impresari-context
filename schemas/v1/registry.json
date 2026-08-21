@@ -6,6 +6,7 @@
     {"name": "common", "path": "common.schema.json", "identity_object_kind": null},
     {"name": "path-identity", "path": "path-identity.schema.json", "identity_object_kind": null},
     {"name": "resource-budget", "path": "resource-budget.schema.json", "identity_object_kind": null},
+    {"name": "resource-policy-profile", "path": "resource-policy-profile.schema.json", "identity_object_kind": null},
     {"name": "workspace-handle", "path": "workspace-handle.schema.json", "identity_object_kind": null},
     {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
     {"name": "search", "path": "search.schema.json", "identity_object_kind": null},

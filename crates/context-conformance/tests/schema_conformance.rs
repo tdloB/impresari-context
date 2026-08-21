@@ -2,16 +2,24 @@
 #![forbid(unsafe_code)]
 #![doc = "Full Draft 2020-12 validation of the published conformance manifest."]
 
-use std::{collections::BTreeMap, fs, path::PathBuf};
+use std::{collections::BTreeMap, fmt::Write as _, fs, path::PathBuf};
 
 use jsonschema::Registry;
 use serde_json::Value;
+use sha2::{Digest, Sha256};
 
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
         .canonicalize()
         .expect("the workspace root should exist during tests")
+}
+
+fn lowercase_hex(bytes: impl AsRef<[u8]>) -> String {
+    bytes.as_ref().iter().fold(String::new(), |mut hex, byte| {
+        write!(hex, "{byte:02x}").expect("writing to a string cannot fail");
+        hex
+    })
 }
 
 fn read_json(path: &PathBuf) -> Value {
@@ -81,5 +89,118 @@ fn declared_fixture_verdicts_match_draft_2020_12() {
         let instance = read_json(&fixture_root.join(fixture));
         let actual = validator.is_valid(&instance);
         assert_eq!(actual, expected, "unexpected schema verdict for {fixture}");
+    }
+}
+
+#[test]
+fn identity_vectors_reproduce_exact_preimages_and_digests() {
+    let root = repository_root();
+    let document = read_json(&root.join("tests/conformance/v1/identity-vectors.json"));
+    let vectors = document["vectors"]
+        .as_array()
+        .expect("vectors should be an array");
+
+    assert_eq!(
+        vectors.len(),
+        10,
+        "every initial object kind needs one vector"
+    );
+    for vector in vectors {
+        let object_kind = vector["object_kind"].as_str().expect("object kind");
+        let payload = vector["canonical_payload"]
+            .as_str()
+            .expect("canonical payload");
+        let preimage = ["impresari-context", object_kind, "1.0.0", payload].join("\0");
+        assert_eq!(lowercase_hex(preimage.as_bytes()), vector["preimage_hex"]);
+        let digest = format!(
+            "sha256:{}",
+            lowercase_hex(Sha256::digest(preimage.as_bytes()))
+        );
+        assert_eq!(
+            digest, vector["digest"],
+            "digest mismatch for {object_kind}"
+        );
+    }
+}
+
+#[test]
+fn resource_profile_is_valid_ordered_and_fingerprinted() {
+    let root = repository_root();
+    let profile_path = root.join("profiles/v1/conservative-local-v1.json");
+    let profile_bytes = fs::read(&profile_path).expect("resource profile should be readable");
+    let profile: Value = serde_json::from_slice(&profile_bytes).expect("resource profile JSON");
+    let schema = read_json(&root.join("schemas/v1/resource-policy-profile.schema.json"));
+    let mut registry = Registry::new();
+    let common = read_json(&root.join("schemas/v1/common.schema.json"));
+    let common_id = common["$id"].as_str().expect("common schema id").to_owned();
+    registry = registry
+        .add(common_id, common)
+        .expect("register common schema");
+    let registry = registry.prepare().expect("prepare profile registry");
+    let validator = jsonschema::draft202012::options()
+        .with_registry(&registry)
+        .build(&schema)
+        .expect("compile resource profile schema");
+    assert!(
+        validator.is_valid(&profile),
+        "resource profile must satisfy its schema"
+    );
+
+    for (name, range) in profile["limits"].as_object().expect("profile limits") {
+        let parse = |field: &str| {
+            range[field]
+                .as_str()
+                .unwrap_or_else(|| panic!("{name}.{field} must be a string"))
+                .parse::<u64>()
+                .unwrap_or_else(|error| panic!("{name}.{field}: {error}"))
+        };
+        let (minimum, default, maximum) = (parse("minimum"), parse("default"), parse("maximum"));
+        assert!(
+            minimum <= default && default <= maximum,
+            "unordered range: {name}"
+        );
+    }
+
+    let sidecar = fs::read_to_string(root.join("profiles/v1/conservative-local-v1.sha256"))
+        .expect("profile digest sidecar");
+    let expected = sidecar.split_whitespace().next().expect("sidecar digest");
+    assert_eq!(lowercase_hex(Sha256::digest(profile_bytes)), expected);
+}
+
+#[test]
+fn resource_policy_boundary_vectors_match_the_profile() {
+    let root = repository_root();
+    let profile = read_json(&root.join("profiles/v1/conservative-local-v1.json"));
+    let vectors = read_json(&root.join("tests/conformance/v1/resource-policy-boundaries.json"));
+
+    for case in vectors["cases"].as_array().expect("boundary cases") {
+        let name = case["limit"].as_str().expect("limit name");
+        let value = case["value"]
+            .as_str()
+            .expect("limit value")
+            .parse::<u64>()
+            .expect("u64 value");
+        let range = &profile["limits"][name];
+        let minimum = range["minimum"]
+            .as_str()
+            .expect("minimum")
+            .parse::<u64>()
+            .expect("u64 minimum");
+        let maximum = range["maximum"]
+            .as_str()
+            .expect("maximum")
+            .parse::<u64>()
+            .expect("u64 maximum");
+        let actual = if value < minimum {
+            "below_minimum"
+        } else if value > maximum {
+            "above_maximum"
+        } else {
+            "allowed"
+        };
+        assert_eq!(
+            actual, case["verdict"],
+            "boundary verdict mismatch for {name}={value}"
+        );
     }
 }
