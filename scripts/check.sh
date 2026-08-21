@@ -8,6 +8,7 @@ cd "$repo_root"
 ./scripts/check-repository.sh
 ruby ./scripts/check-contracts.rb
 ruby ./scripts/check-identity-vectors.rb
+ruby ./scripts/check-path-vectors.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked

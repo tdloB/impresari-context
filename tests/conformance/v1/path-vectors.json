@@ -1,0 +1,26 @@
+{
+  "schema_name": "path-vectors",
+  "schema_version": "1.0.0",
+  "cases": [
+    {"name":"unix-utf8","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjL2xpYi5ycw","valid":true},
+    {"name":"unix-non-utf8","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjL_8ucnM","valid":true},
+    {"name":"unix-dot","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjLy4vbGliLnJz","valid":false},
+    {"name":"unix-parent","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjLy4uL2xpYi5ycw","valid":false},
+    {"name":"unix-rooted","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"L2V0Yy9wYXNzd2Q","valid":false},
+    {"name":"unix-nul","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjLwB4","valid":false},
+    {"name":"unix-trailing-separator","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjLw","valid":false},
+    {"name":"windows-bmp","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXABjAGEAZgDpAC4AcgBzAA","valid":true},
+    {"name":"windows-supplementary-pair","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXAA92ADeLgByAHMA","valid":true},
+    {"name":"windows-unpaired-surrogate","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXAAA2C4AcgBzAA","valid":true},
+    {"name":"windows-dot","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXAAuAFwAeAA","valid":false},
+    {"name":"windows-parent","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXAAuAC4AXAB4AA","valid":false},
+    {"name":"windows-drive","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"QwA6AFwAeAA","valid":false},
+    {"name":"windows-unc","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"XABcAGgAbwBzAHQAXAB4AA","valid":false},
+    {"name":"windows-alternate-separator","platform_family":"windows","unit_encoding":"windows_utf16le","encoded":"cwByAGMALwB4AA","valid":false},
+    {"name":"empty","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"","valid":false},
+    {"name":"padded","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjL2xpYi5ycw==","valid":false},
+    {"name":"malformed-alphabet","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"c3JjL2xpYi5ycw+","valid":false},
+    {"name":"noncanonical-length","platform_family":"unix","unit_encoding":"unix_bytes","encoded":"A","valid":false},
+    {"name":"platform-encoding-mismatch","platform_family":"unix","unit_encoding":"windows_utf16le","encoded":"cwByAGMAXAB4AA","valid":false}
+  ]
+}
