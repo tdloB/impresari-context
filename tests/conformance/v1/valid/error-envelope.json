@@ -1,0 +1,11 @@
+{
+  "schema_name": "error-envelope",
+  "schema_version": "1.0.0",
+  "code": "root_not_allowed",
+  "message": "The requested root is outside the authorized scope.",
+  "retryable": false,
+  "operation": "workspace.open",
+  "request_id": "req_12345678",
+  "partial_result": false,
+  "recovery_action": "request_authorization"
+}

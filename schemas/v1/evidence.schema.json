@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/evidence.schema.json",
+  "title": "Exact evidence reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "evidence_id", "workspace_snapshot",
+    "artifact", "span", "kind", "extraction", "confidence", "trust", "freshness"
+  ],
+  "properties": {
+    "schema_name": {"const": "evidence"},
+    "schema_version": {"const": "1.0.0"},
+    "evidence_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "artifact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "content_hash", "file_kind", "decoding"],
+      "properties": {
+        "path": {"$ref": "path-identity.schema.json"},
+        "content_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+        "file_kind": {"type": "string", "enum": ["regular_file"]},
+        "decoding": {"type": "string", "enum": ["utf8", "utf8_bom", "unsupported"]}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_byte", "end_byte"],
+      "properties": {
+        "start_byte": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "end_byte": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "start_line": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "start_column": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "end_line": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "end_column": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      },
+      "dependentRequired": {
+        "start_line": ["start_column", "end_line", "end_column"],
+        "start_column": ["start_line", "end_line", "end_column"],
+        "end_line": ["start_line", "start_column", "end_column"],
+        "end_column": ["start_line", "start_column", "end_line"]
+      }
+    },
+    "kind": {"type": "string", "enum": ["exact_source", "exact_file"]},
+    "extraction": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "version"],
+      "properties": {
+        "method": {"type": "string", "enum": ["exact_read", "literal_search", "lexical_search", "permitted_pattern"]},
+        "version": {"$ref": "common.schema.json#/$defs/schemaVersion"}
+      }
+    },
+    "confidence": {"type": "string", "enum": ["confirmed"]},
+    "trust": {"const": "untrusted_workspace_content"},
+    "freshness": {"$ref": "common.schema.json#/$defs/freshness"},
+    "sensitivity": {"type": "string", "enum": ["normal", "sensitive", "secret_like", "redacted"]}
+  }
+}

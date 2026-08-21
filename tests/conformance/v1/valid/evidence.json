@@ -1,0 +1,31 @@
+{
+  "schema_name": "evidence",
+  "schema_version": "1.0.0",
+  "evidence_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "artifact": {
+    "path": {
+      "display_path": "src/lib.rs",
+      "platform_family": "unix",
+      "unit_encoding": "unix_bytes",
+      "relative_units_base64url": "c3JjL2xpYi5ycw"
+    },
+    "content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "file_kind": "regular_file",
+    "decoding": "utf8"
+  },
+  "span": {
+    "start_byte": "0",
+    "end_byte": "12",
+    "start_line": "1",
+    "start_column": "1",
+    "end_line": "1",
+    "end_column": "13"
+  },
+  "kind": "exact_source",
+  "extraction": {"method": "exact_read", "version": "1.0.0"},
+  "confidence": "confirmed",
+  "trust": "untrusted_workspace_content",
+  "freshness": "current",
+  "sensitivity": "normal"
+}

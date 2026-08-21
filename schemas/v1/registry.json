@@ -1,0 +1,19 @@
+{
+  "schema_name": "schema-registry",
+  "schema_version": "1.0.0",
+  "dialect": "https://json-schema.org/draft/2020-12/schema",
+  "schemas": [
+    {"name": "common", "path": "common.schema.json", "identity_object_kind": null},
+    {"name": "path-identity", "path": "path-identity.schema.json", "identity_object_kind": null},
+    {"name": "resource-budget", "path": "resource-budget.schema.json", "identity_object_kind": null},
+    {"name": "workspace-handle", "path": "workspace-handle.schema.json", "identity_object_kind": null},
+    {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
+    {"name": "search", "path": "search.schema.json", "identity_object_kind": null},
+    {"name": "evidence", "path": "evidence.schema.json", "identity_object_kind": "evidence"},
+    {"name": "policy-decision", "path": "policy-decision.schema.json", "identity_object_kind": "policy-decision"},
+    {"name": "context-packet", "path": "context-packet.schema.json", "identity_object_kind": "context-packet"},
+    {"name": "packet-validation", "path": "packet-validation.schema.json", "identity_object_kind": null},
+    {"name": "error-envelope", "path": "error-envelope.schema.json", "identity_object_kind": null},
+    {"name": "audit-event", "path": "audit-event.schema.json", "identity_object_kind": null}
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/audit-event.schema.json",
+  "title": "Metadata-first local audit event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "event_id", "request_id", "occurred_at",
+    "capability", "outcome", "policy_decision", "limits", "duration_ms", "engine_version"
+  ],
+  "properties": {
+    "schema_name": {"const": "audit-event"},
+    "schema_version": {"const": "1.0.0"},
+    "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "occurred_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "snapshot_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "capability": {"$ref": "common.schema.json#/$defs/capability"},
+    "outcome": {"type": "string", "enum": ["allowed", "denied", "limited", "failed", "cancelled"]},
+    "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+    "limits": {"$ref": "resource-budget.schema.json"},
+    "duration_ms": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "engine_version": {"$ref": "common.schema.json#/$defs/schemaVersion"}
+  }
+}

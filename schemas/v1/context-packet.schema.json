@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/context-packet.schema.json",
+  "title": "Immutable bounded context packet",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "packet_id", "workspace_snapshot",
+    "request_id", "purpose", "created_at", "freshness", "completeness",
+    "policy_decision", "budget", "accounting", "observed_evidence",
+    "assumptions", "conflicts", "unknowns", "redactions", "truncations",
+    "packager_version"
+  ],
+  "properties": {
+    "schema_name": {"const": "context-packet"},
+    "schema_version": {"const": "1.0.0"},
+    "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "purpose": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000]*$"},
+    "created_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "freshness": {"$ref": "common.schema.json#/$defs/freshness"},
+    "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
+    "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+    "budget": {"$ref": "resource-budget.schema.json"},
+    "accounting": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requested_bytes", "reserved_bytes", "delivered_bytes", "omitted_items", "accounting_version"],
+      "properties": {
+        "requested_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "reserved_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "delivered_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "omitted_items": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "accounting_version": {"$ref": "common.schema.json#/$defs/schemaVersion"}
+      }
+    },
+    "observed_evidence": {"type": "array", "maxItems": 10000, "items": {"$ref": "evidence.schema.json"}},
+    "assumptions": {"$ref": "common.schema.json#/$defs/stringList"},
+    "conflicts": {"$ref": "common.schema.json#/$defs/stringList"},
+    "unknowns": {"$ref": "common.schema.json#/$defs/stringList"},
+    "redactions": {"$ref": "common.schema.json#/$defs/stringList"},
+    "truncations": {"$ref": "common.schema.json#/$defs/stringList"},
+    "packager_version": {"$ref": "common.schema.json#/$defs/schemaVersion"}
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/error-envelope.schema.json",
+  "title": "Safe structured error envelope",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "code", "message", "retryable", "operation", "request_id", "partial_result"],
+  "properties": {
+    "schema_name": {"const": "error-envelope"},
+    "schema_version": {"const": "1.0.0"},
+    "code": {
+      "type": "string",
+      "enum": [
+        "path_not_found", "root_not_allowed", "symlink_escape", "unsupported_filesystem_object",
+        "policy_denied", "invalid_input", "budget_too_small", "budget_exceeded", "resource_limit",
+        "stale_state", "corrupt_cache", "incompatible_cache", "unsupported_capability",
+        "unsupported_artifact", "integrity_failure", "partial_result", "internal_failure",
+        "evidence_unavailable"
+      ]
+    },
+    "message": {"$ref": "common.schema.json#/$defs/safeMessage"},
+    "retryable": {"type": "boolean"},
+    "operation": {"$ref": "common.schema.json#/$defs/capability"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "snapshot_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "partial_result": {"type": "boolean"},
+    "recovery_action": {"type": "string", "enum": ["none", "retry", "refresh_snapshot", "rebuild_index", "reduce_scope", "increase_budget", "request_authorization"]}
+  }
+}

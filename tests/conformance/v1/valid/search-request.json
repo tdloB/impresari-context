@@ -1,0 +1,21 @@
+{
+  "schema_name": "search-request",
+  "schema_version": "1.0.0",
+  "request_id": "req_12345678",
+  "workspace_handle": "ws_12345678",
+  "snapshot_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "query": {"kind": "literal", "text": "workspace.open", "case_sensitive": true},
+  "budget": {
+    "unit_kind": "utf8_bytes",
+    "requested": "12000",
+    "hard": true,
+    "max_evidence_items": "50",
+    "max_files": "20",
+    "max_excerpt_bytes_per_item": "2000",
+    "max_matches": "200",
+    "max_traversal_depth": "32",
+    "max_elapsed_ms": "5000",
+    "max_memory_bytes": "67108864",
+    "policy_profile": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  }
+}

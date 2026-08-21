@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/resource-budget.schema.json",
+  "title": "Bounded request resource budget",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "unit_kind", "requested", "hard", "max_evidence_items", "max_files",
+    "max_excerpt_bytes_per_item", "max_matches", "max_traversal_depth",
+    "max_elapsed_ms", "max_memory_bytes", "policy_profile"
+  ],
+  "properties": {
+    "unit_kind": {"const": "utf8_bytes"},
+    "requested": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "hard": {"const": true},
+    "max_evidence_items": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_files": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_excerpt_bytes_per_item": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_matches": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_traversal_depth": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_elapsed_ms": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "max_memory_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "policy_profile": {"$ref": "common.schema.json#/$defs/sha256"}
+  }
+}

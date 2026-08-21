@@ -29,6 +29,12 @@ formatting, Clippy with warnings denied, unit-target compilation and tests,
 documentation tests, locked Cargo metadata, and repository policy checks on
 Rust 1.96.0, 1.97.0, and 1.98.0 on 2026-08-21.
 
+Contract phase one now includes a draft v1 JSON Schema registry, initial positive
+and negative conformance fixtures, and a dependency-free offline contract check.
+These are not yet a stable public contract: a pinned full Draft 2020-12 validator,
+expanded adversarial corpus, identity digest vectors, and resource-policy profile
+remain required before Rust serialization or runtime behavior is implemented.
+
 ## Design documents
 
 - [Architecture](docs/architecture.md): responsibilities, components, data

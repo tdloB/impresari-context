@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/workspace-handle.schema.json",
+  "title": "Authorized local workspace handle metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "workspace_handle", "workspace_identity", "policy_decision", "state"],
+  "properties": {
+    "schema_name": {"const": "workspace-handle"},
+    "schema_version": {"const": "1.0.0"},
+    "workspace_handle": {"$ref": "common.schema.json#/$defs/identifier"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+    "state": {"type": "string", "enum": ["ready", "current", "partial", "stale", "failed", "closed"]}
+  }
+}

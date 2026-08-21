@@ -1,0 +1,19 @@
+{
+  "schema_name": "evidence",
+  "schema_version": "1.0.0",
+  "evidence_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "artifact": {
+    "path": {"display_path": "a", "platform_family": "unix", "unit_encoding": "unix_bytes", "relative_units_base64url": "YQ"},
+    "content_hash": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+    "file_kind": "regular_file",
+    "decoding": "utf8"
+  },
+  "span": {"start_byte": "0", "end_byte": "1"},
+  "kind": "exact_source",
+  "extraction": {"method": "exact_read", "version": "1.0.0"},
+  "confidence": "confirmed",
+  "trust": "untrusted_workspace_content",
+  "freshness": "current",
+  "authority_override": true
+}

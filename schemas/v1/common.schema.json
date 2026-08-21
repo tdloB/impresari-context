@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/common.schema.json",
+  "title": "Impresari Context common contract definitions",
+  "$defs": {
+    "schemaName": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{0,63}$"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "identifier": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]{0,31}_[A-Za-z0-9_-]{8,128}$"
+    },
+    "sha256": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "unsignedDecimal": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]*)$"
+    },
+    "rfc3339Utc": {
+      "type": "string",
+      "format": "date-time",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]{1,9})?Z$"
+    },
+    "capability": {
+      "type": "string",
+      "enum": [
+        "workspace.open",
+        "snapshot.status",
+        "index.build",
+        "code.search",
+        "code.describe",
+        "context.build",
+        "evidence.expand",
+        "context.validate",
+        "handoff.export"
+      ]
+    },
+    "freshness": {
+      "type": "string",
+      "enum": ["current", "stale", "unavailable", "unknown"]
+    },
+    "completeness": {
+      "type": "string",
+      "enum": ["complete", "partial", "unavailable"]
+    },
+    "trustClassification": {
+      "type": "string",
+      "enum": [
+        "trusted_control_data",
+        "untrusted_workspace_content",
+        "untrusted_derived_data"
+      ]
+    },
+    "safeMessage": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 1024,
+      "pattern": "^[^\\u0000]*$"
+    },
+    "stringList": {
+      "type": "array",
+      "items": {"type": "string", "maxLength": 256},
+      "maxItems": 256,
+      "uniqueItems": true
+    }
+  }
+}

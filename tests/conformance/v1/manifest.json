@@ -1,0 +1,12 @@
+{
+  "schema_name": "conformance-manifest",
+  "schema_version": "1.0.0",
+  "cases": [
+    {"fixture": "valid/evidence.json", "schema": "evidence.schema.json", "valid": true},
+    {"fixture": "valid/error-envelope.json", "schema": "error-envelope.schema.json", "valid": true},
+    {"fixture": "valid/search-request.json", "schema": "search.schema.json#/$defs/request", "valid": true},
+    {"fixture": "invalid/evidence-unknown-field.json", "schema": "evidence.schema.json", "valid": false},
+    {"fixture": "invalid/path-platform-mismatch.json", "schema": "path-identity.schema.json", "valid": false},
+    {"fixture": "invalid/search-leading-zero-budget.json", "schema": "search.schema.json#/$defs/request", "valid": false}
+  ]
+}

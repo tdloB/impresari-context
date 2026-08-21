@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/packet-validation.schema.json",
+  "title": "Context packet validation result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "packet_id", "status", "checks", "validated_at"],
+  "properties": {
+    "schema_name": {"const": "packet-validation"},
+    "schema_version": {"const": "1.0.0"},
+    "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "status": {"type": "string", "enum": ["valid_current", "valid_stale", "corrupt", "incompatible", "denied", "partially_unavailable"]},
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "outcome"],
+        "properties": {
+          "name": {"type": "string", "enum": ["schema", "integrity", "authorization", "workspace", "snapshot", "evidence", "freshness"]},
+          "outcome": {"type": "string", "enum": ["pass", "fail", "unavailable"]},
+          "reason_code": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+        }
+      }
+    },
+    "validated_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"}
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/snapshot-status.schema.json",
+  "title": "Workspace snapshot status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "workspace_identity", "snapshot_id",
+    "state", "freshness", "completeness", "discovery_policy", "engine_version",
+    "eligible_files", "eligible_bytes", "skipped"
+  ],
+  "properties": {
+    "schema_name": {"const": "snapshot-status"},
+    "schema_version": {"const": "1.0.0"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "snapshot_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "state": {"type": "string", "enum": ["current", "partial", "stale", "failed"]},
+    "freshness": {"$ref": "common.schema.json#/$defs/freshness"},
+    "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
+    "discovery_policy": {"$ref": "common.schema.json#/$defs/sha256"},
+    "engine_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "eligible_files": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "eligible_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "repository_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+    "working_tree": {"type": "string", "enum": ["clean", "dirty", "unknown", "not_applicable"]},
+    "skipped": {
+      "type": "array",
+      "maxItems": 128,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["reason", "count", "affects_completeness"],
+        "properties": {
+          "reason": {"type": "string", "enum": ["policy_excluded", "ignored", "oversized", "unsupported_encoding", "binary", "special_file", "limit_reached", "read_failed", "changed_during_read"]},
+          "count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+          "affects_completeness": {"type": "boolean"}
+        }
+      }
+    }
+  }
+}

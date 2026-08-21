@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/path-identity.schema.json",
+  "title": "Native relative path identity",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["display_path", "platform_family", "unit_encoding", "relative_units_base64url"],
+  "properties": {
+    "display_path": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 32768,
+      "pattern": "^[^\\u0000]*$"
+    },
+    "platform_family": {"type": "string", "enum": ["unix", "windows"]},
+    "unit_encoding": {"type": "string", "enum": ["unix_bytes", "windows_utf16le"]},
+    "relative_units_base64url": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 87382,
+      "pattern": "^[A-Za-z0-9_-]+$"
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"platform_family": {"const": "unix"}}, "required": ["platform_family"]},
+      "then": {"properties": {"unit_encoding": {"const": "unix_bytes"}}}
+    },
+    {
+      "if": {"properties": {"platform_family": {"const": "windows"}}, "required": ["platform_family"]},
+      "then": {"properties": {"unit_encoding": {"const": "windows_utf16le"}}}
+    }
+  ]
+}

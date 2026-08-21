@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/search.schema.json",
+  "title": "Bounded search request and result",
+  "$defs": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "request_id", "workspace_handle", "snapshot_id", "query", "budget"],
+      "properties": {
+        "schema_name": {"const": "search-request"},
+        "schema_version": {"const": "1.0.0"},
+        "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "workspace_handle": {"$ref": "common.schema.json#/$defs/identifier"},
+        "snapshot_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "query": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["kind", "text"],
+          "properties": {
+            "kind": {"type": "string", "enum": ["exact_path", "filename", "literal", "lexical", "permitted_pattern"]},
+            "text": {"type": "string", "minLength": 1, "maxLength": 8192, "pattern": "^[^\\u0000]*$"},
+            "case_sensitive": {"type": "boolean"}
+          }
+        },
+        "budget": {"$ref": "resource-budget.schema.json"}
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "request_id", "snapshot_id", "freshness", "completeness", "matches", "truncated", "unknowns"],
+      "properties": {
+        "schema_name": {"const": "search-result"},
+        "schema_version": {"const": "1.0.0"},
+        "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "snapshot_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "freshness": {"$ref": "common.schema.json#/$defs/freshness"},
+        "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
+        "matches": {"type": "array", "maxItems": 10000, "items": {"$ref": "evidence.schema.json"}},
+        "truncated": {"type": "boolean"},
+        "truncation_reasons": {"$ref": "common.schema.json#/$defs/stringList"},
+        "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+      }
+    }
+  }
+}
