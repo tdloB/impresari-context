@@ -24,9 +24,10 @@ source import, host configuration, or external service integration has been
 implemented or authorized by this scaffold.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
-the complete local quality gate with `./scripts/check.sh`. The machine creating
-this scaffold did not have Rust installed, so compilation remains a required
-verification before the first implementation commit.
+the complete local quality gate with `./scripts/check.sh`. The scaffold passed
+formatting, Clippy with warnings denied, unit-target compilation and tests,
+documentation tests, locked Cargo metadata, and repository policy checks on
+Rust 1.98.0 on 2026-08-21.
 
 ## Design documents
 
