@@ -437,7 +437,7 @@ copy of source or evidence.
 | Primary language/runtime and compiler policy | Resolved by [ADR-0002](../decisions/0002-rust-core-runtime.md) |
 | Operating-system and CPU architecture matrix | Resolved by [ADR-0003](../decisions/0003-supported-platform-matrix.md) |
 | Source-language and parser strategy | Resolved by [ADR-0004](../decisions/0004-source-language-and-parser-strategy.md) |
-| Snapshot hashing, serialization, schemas, paths, and spans | Resolved by [ADR-0005](../decisions/0005-hashing-serialization-and-schema.md) |
+| Snapshot hashing, serialization, schemas, paths, and spans | Resolved by [ADR-0005](../decisions/0005-hashing-serialization-and-schema.md) and [ADR-0009](../decisions/0009-path-and-identity-encoding.md) |
 | Cache/index persistence and migration policy | Resolved by [ADR-0006](../decisions/0006-local-cache-and-storage.md) |
 | Context-budget unit and accounting | Resolved by [ADR-0007](../decisions/0007-context-budget-accounting.md) |
 | License, contributions, attribution, and governance | Resolved with owner/counsel gate by [ADR-0008](../decisions/0008-license-contributions-and-governance.md) |
@@ -447,8 +447,6 @@ copy of source or evidence.
 
 ## Open Questions
 
-- Which exact stable Rust release becomes the bootstrap pin and initial MSRV
-  under ADR-0002's policy?
 - What absolute performance ceilings should be recorded after the first baseline
   run?
 - Which policies belong in a portable declarative format versus consumer code?

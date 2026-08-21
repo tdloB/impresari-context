@@ -67,6 +67,31 @@ The packet's own accounting fields are included in final measurement. The
 implementation must converge through a bounded deterministic procedure rather
 than estimating and occasionally exceeding the limit.
 
+The initial packager uses a monotonic removal procedure: optional items are
+ordered once by the versioned priority/tie-break rules; an oversized result
+removes or shortens at least one optional item before the next serialization.
+It performs no more than `optional_item_count + 1` complete serializations. If a
+required-only payload still exceeds the budget, it returns `budget_too_small`.
+It never adds an item back during the same build. Golden vectors define excerpt
+shortening boundaries and accounting-field digit transitions.
+
+### Resource-policy profile gate
+
+Absolute minimum/maximum byte, item, file, match, traversal, time, memory, and
+cache-retention values are runtime security policy, not arbitrary caller
+preferences. Before runtime implementation, the project must publish a
+versioned initial resource-policy profile with:
+
+- safe defaults and absolute ceilings for each Tier A platform class;
+- benchmark/evaluation evidence or a conservative rationale for every value;
+- configuration authority and rejection behavior;
+- a fingerprint included in policy decisions and applicable packet identity;
+- conformance fixtures at below-minimum, exact-boundary, and above-maximum values.
+
+Schemas may define the types and required fields before values are selected, but
+no implementation or release may imply resource enforcement until this profile
+is accepted and tested.
+
 ### Evidence selection order
 
 The MVP packager uses this priority order, with stable score/path/span
@@ -166,6 +191,8 @@ hide the actual context delivered.
 - Golden fixtures for canonical serialized byte counts.
 - Property tests proving delivered bytes never exceed hard request budget.
 - Boundary cases where accounting fields change digit length.
+- A proof-by-test that each retry monotonically reduces optional content and the
+  serialization count never exceeds `optional_item_count + 1`.
 - Unicode, escaping, long-path, redaction, conflict, and unknowns fixtures.
 - Determinism across repeated and cross-client conformance runs.
 - Budget curves in IC-EVAL-001 pairing context reduction with evidence recall.

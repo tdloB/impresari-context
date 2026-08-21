@@ -14,6 +14,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0006](0006-local-cache-and-storage.md) | Per-workspace SQLite derived cache with FTS5 and rollback journaling | Accepted |
 | [ADR-0007](0007-context-budget-accounting.md) | UTF-8 serialized bytes as the MVP hard context-budget unit | Accepted |
 | [ADR-0008](0008-license-contributions-and-governance.md) | Apache-2.0, DCO 1.1, founder-led initial governance, owner/counsel gate | Accepted with gate |
+| [ADR-0009](0009-path-and-identity-encoding.md) | Lossless native path units, canonical base64url/JCS profile, workspace identity, and exact hash envelopes | Accepted |
 
 ## Change Rules
 

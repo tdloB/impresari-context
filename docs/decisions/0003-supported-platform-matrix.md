@@ -33,6 +33,13 @@ evaluation smoke, clean-install, and source-immutability suites on:
 Support means the project runs its own required suites; it does not inherit
 support merely because Rust labels a target Tier 1.
 
+“Currently vendor-supported” is evaluated at each release and recorded as the
+exact OS version/build in release evidence. The project supports the latest
+generally available vendor-supported major release exercised by CI or the
+documented release rehearsal; it does not promise an untested newly released
+major version. Dropping the only previously supported major version requires
+release notes and a support-policy review.
+
 ### Tier B — Build or community supported
 
 These may receive compile checks or community testing but are not release
@@ -80,6 +87,7 @@ has explicitly promoted the target.
 For every Tier A target, the release record includes:
 
 - exact OS, architecture, filesystem, Rust toolchain, and dependency lock;
+- whether evidence came from hosted CI or a named maintainer-run rehearsal;
 - clean source build or verified artifact installation;
 - path, symlink/reparse, traversal, case, Unicode, permissions, special-file,
   cancellation, cache-corruption, and export tests applicable to the platform;

@@ -93,6 +93,22 @@ policy/control process.
 If a supported platform cannot enforce a claimed resource control, the
 limitation must be explicit and evaluated rather than silently ignored.
 
+Before Slice B implementation, a dedicated worker-protocol ADR must fix:
+
+- message framing, schema versions, maximum request/response bytes, and rejection
+  behavior for unknown or duplicate fields;
+- worker executable and grammar identity verification;
+- inherited handle, environment, current-directory, filesystem, network, and
+  standard-stream policy for every Tier A platform;
+- wall-time, CPU, memory, nesting/depth, input, output, and restart limits;
+- cancellation, crash, panic, malformed-output, partial-output, and repeated-
+  failure behavior;
+- the exact distinction between enforced OS isolation, application-enforced
+  limits, and unsupported claims on each platform.
+
+The policy process treats all worker bytes as hostile, validates the complete
+response before use, and never promotes partial worker output.
+
 ## Rationale
 
 TypeScript/JavaScript is the best first structural family because the reference
@@ -166,6 +182,8 @@ provenance model, or passing evaluation suite.
   extraction method, and confidence.
 - TypeScript/JavaScript structural quality gates added to IC-EVAL-001 before
   Slice B release.
+- Worker-protocol conformance, malformed-frame, capability-denial, crash-loop,
+  and platform resource-enforcement evidence.
 
 ## Official References
 

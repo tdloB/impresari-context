@@ -60,7 +60,9 @@ configured-cache-root/
 ### SQLite journal and concurrency policy
 
 Use SQLite's default rollback-journal family for the MVP, with a project-selected
-durability setting validated by fault tests. Do **not** enable WAL by default.
+durability setting validated by fault tests. The initial baseline is
+`journal_mode=DELETE`, `synchronous=FULL`, foreign-key enforcement enabled, a
+bounded busy timeout, and no shared-cache mode. Do **not** enable WAL by default.
 
 Rationale:
 
@@ -74,6 +76,11 @@ Rationale:
 One process holds the workspace writer lock during index generation/promotion.
 Concurrent readers may use the last complete generation. They never observe a
 partially built generation as current.
+
+The writer lock uses an OS-backed exclusive advisory lock on the resolved lock
+file; a PID or timestamp file alone is not authority. Process death releases the
+OS lock. Metadata may aid diagnostics but cannot authorize breaking a live lock.
+If locking semantics cannot be demonstrated on a filesystem, writes fail closed.
 
 ### Schema and generations
 
@@ -118,6 +125,10 @@ partially built generation as current.
   indexes so a cache rebuild does not erase the local decision trail.
 - The MVP audit database is local, bounded, rotated/retained by explicit policy,
   and contains no source/query/secret content by default.
+- Audit rows use opaque workspace identity and never contain absolute workspace
+  paths. Query text, excerpts, native path bytes, and environment values are
+  prohibited by default. Per-workspace deletion and retention selection must not
+  expose or delete another workspace's records.
 - Audit integrity is transactional but is not represented as cryptographic
   non-repudiation. A hash-chain or signed audit design requires a later decision.
 
@@ -130,6 +141,18 @@ partially built generation as current.
 - Purge never touches the source workspace.
 - Crash, disk-full, corruption, and cancellation tests prove that the last valid
   generation remains readable or the cache fails visibly and can rebuild.
+
+### Confidentiality and retention
+
+- The MVP does not claim cache encryption at rest. A user or process able to read
+  the cache account may infer sensitive paths, terms, offsets, or graph facts.
+- Diagnostics and documentation disclose that residual risk before cache
+  creation and provide the resolved cache location and purge command.
+- Default retention is bounded and configuration is explicit; “forever” cannot
+  be an undocumented default. Exact durations and size caps are fixed in the
+  versioned resource-policy profile before runtime implementation.
+- Operating-system full-disk encryption may reduce device-loss risk but is not a
+  project control and is never inferred.
 
 ## Rationale
 
@@ -195,6 +218,8 @@ duplicated sensitive content reduces recovery and privacy risk.
   cancellation, kill/restart, and atomic-promotion fault tests.
 - Cache-size, build-time, and query evaluation across corpus scale.
 - Purge dry-run/target validation and source-immutability tests.
+- Lock ownership/death, busy timeout, journal cleanup, `synchronous=FULL`, foreign
+  key, audit partition, retention, and unencrypted-cache disclosure tests.
 
 ## Official References
 

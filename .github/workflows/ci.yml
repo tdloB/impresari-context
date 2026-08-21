@@ -23,6 +23,8 @@ jobs:
             rust: 1.98.0
           - os: ubuntu-24.04
             rust: 1.96.0
+          - os: ubuntu-24.04
+            rust: 1.97.0
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out source

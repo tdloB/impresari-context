@@ -43,6 +43,24 @@ The OS owns:
 The adapter translates between the two without copying the core into the OS or
 compiling OS-specific policies into the public engine.
 
+### Boundary fitness checks
+
+- Core crates cannot depend on an AI App Builder OS package, prompt, agent,
+  workflow, approval record, or private schema.
+- Every public capability is invocable through the neutral serialized contract
+  and at least one non-OS conformance harness.
+- The OS adapter may translate identity, purpose, policy, and result fields but
+  cannot reimplement authorization, snapshot, evidence, budget, or integrity
+  semantics owned by the core.
+- Core and adapter versions negotiate supported contract major versions and fail
+  closed on an unknown major version. Version mismatch cannot silently drop
+  policy, provenance, unknown, conflict, or budget fields.
+- Cross-repository compatibility tests cover the oldest supported adapter/core
+  pairing and the current pairing before an adapter release.
+- If adapter-only code duplicates a core invariant or exceeds the core-facing
+  integration code for two consecutive releases, L03 must review whether the
+  boundary or capability contract is wrong; line count alone does not decide it.
+
 ## Consequences
 
 ### Positive
@@ -93,4 +111,6 @@ Review this decision if:
 - the adapter must duplicate substantial engine logic;
 - an OS requirement cannot be expressed without weakening a core security
   invariant;
+- compatibility tests require consumer-specific exceptions in the core;
+- adapter translation duplicates authorization, evidence, or budgeting logic;
 - a hosted multi-tenant deployment becomes an approved project objective.

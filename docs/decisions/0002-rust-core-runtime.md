@@ -30,6 +30,8 @@ Implement the core engine and CLI in **stable Rust using the Rust 2024 edition**
 - At initial release, the minimum supported Rust version (MSRV) will be the
   greater of Rust 1.85, which introduced Rust 2024 edition support, or the
   oldest of the three stable releases tested by project CI.
+- The bootstrap baseline is Rust 1.98.0 with MSRV 1.96.0; CI tests 1.96.0,
+  1.97.0, and 1.98.0 until a documented MSRV change supersedes that matrix.
 - Raising MSRV requires release notes, dependency evidence, and a normal minor
   release unless a security fix requires faster movement.
 
@@ -80,6 +82,26 @@ abstractions, but capability and trust boundaries must remain visible.
 - No stable C ABI is promised in early releases.
 - Errors use typed codes and safe details; panics must not be part of normal
   input or policy handling.
+
+### Failure, arithmetic, and dependency policy
+
+- Input-dependent `unwrap`, `expect`, unchecked indexing, unreachable branches,
+  and deliberate panics are prohibited in non-test code. Infallible construction
+  may use them only when the invariant is local, documented, and enforced by a
+  test or type boundary.
+- Hostile sizes, counts, offsets, and allocation calculations use checked or
+  saturating arithmetic as semantically appropriate. Overflow, conversion
+  failure, or allocation beyond policy returns a typed limited/invalid state.
+- Panics in a worker or library boundary are contained as failures where Rust and
+  process boundaries allow; unwinding is never used as ordinary control flow.
+- New dependencies require a documented purpose, license/provenance review,
+  minimal feature set, default features disabled unless justified, lockfile
+  update, advisory evidence, and duplicate/unused dependency review.
+- Parsers, decoders, path handling, query compilation, canonicalization, and
+  packet parsing receive fuzz or property coverage before their release slice.
+- Public types prefer ownership and lifetime designs that do not force callers
+  to clone source-sized content. Performance claims require measurement rather
+  than unsafe code or concurrency by intuition.
 
 ## Rationale
 
@@ -143,6 +165,9 @@ before the core contract is stable.
   tests, documentation tests, conformance tests, and security tests are required.
 - Dependency inventory, advisories, license checks, and unused-feature review
   are release evidence.
+- CI covers all three stable versions named by the active bootstrap/MSRV matrix.
+- Static review rejects input-dependent panic paths and unchecked size/offset
+  arithmetic in trust-boundary code.
 - A repository check fails if first-party unsafe code appears without an
   approved exception.
 

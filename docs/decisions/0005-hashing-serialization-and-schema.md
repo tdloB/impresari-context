@@ -17,6 +17,10 @@ binary implementation detail the public contract.
 
 ## Decision
 
+ADR-0009 fixes the byte-level path, workspace, canonical-value, hash-envelope,
+and compatibility details required to implement this decision. The two records
+form one contract baseline.
+
 ### Public serialization
 
 - Use UTF-8 JSON for public requests, responses, packets, policies, validation

@@ -27,7 +27,7 @@ The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. The scaffold passed
 formatting, Clippy with warnings denied, unit-target compilation and tests,
 documentation tests, locked Cargo metadata, and repository policy checks on
-Rust 1.98.0 on 2026-08-21.
+Rust 1.96.0, 1.97.0, and 1.98.0 on 2026-08-21.
 
 ## Design documents
 
@@ -39,6 +39,8 @@ Rust 1.98.0 on 2026-08-21.
   acknowledgment and rules that preserve an independent implementation.
 - [ADR-0001](docs/decisions/0001-independent-core-and-thin-adapters.md): the
   decision to build one neutral core with thin consumer-specific adapters.
+- [ADR-0009](docs/decisions/0009-path-and-identity-encoding.md): exact native
+  path, workspace identity, canonical JSON value, and hash-envelope contracts.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,
