@@ -1,0 +1,18 @@
+{
+  "schema_name": "jcs-vectors",
+  "schema_version": "1.0.0",
+  "cases": [
+    {"name":"object-ordering","input":"{\"z\":0,\"a\":1,\"m\":2}","valid":true,"canonical":"{\"a\":1,\"m\":2,\"z\":0}"},
+    {"name":"nested-ordering","input":"{\"b\":{\"y\":2,\"x\":1},\"a\":[3,2,1]}","valid":true,"canonical":"{\"a\":[3,2,1],\"b\":{\"x\":1,\"y\":2}}"},
+    {"name":"escaping","input":"{\"text\":\"quote: \\\" slash: / newline: \\n tab: \\t\"}","valid":true,"canonical":"{\"text\":\"quote: \\\" slash: / newline: \\n tab: \\t\"}"},
+    {"name":"safe-positive-boundary","input":"{\"n\":9007199254740991}","valid":true,"canonical":"{\"n\":9007199254740991}"},
+    {"name":"safe-negative-boundary","input":"{\"n\":-9007199254740991}","valid":true,"canonical":"{\"n\":-9007199254740991}"},
+    {"name":"unsafe-positive","input":"{\"n\":9007199254740992}","valid":false},
+    {"name":"unsafe-negative","input":"{\"n\":-9007199254740992}","valid":false},
+    {"name":"negative-zero","input":"{\"n\":-0}","valid":false},
+    {"name":"duplicate-key","input":"{\"a\":1,\"a\":2}","valid":false},
+    {"name":"lone-surrogate","input":"{\"text\":\"\\uD800\"}","valid":false},
+    {"name":"infinite-number","input":"{\"n\":1e999}","valid":false},
+    {"name":"invalid-number-leading-zero","input":"{\"n\":01}","valid":false}
+  ]
+}

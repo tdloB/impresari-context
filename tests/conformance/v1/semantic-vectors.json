@@ -1,0 +1,20 @@
+{
+  "schema_name": "semantic-vectors",
+  "schema_version": "1.0.0",
+  "cases": [
+    {"name":"span-empty","kind":"span","start":"0","end":"0","valid":true},
+    {"name":"span-forward","kind":"span","start":"7","end":"19","valid":true},
+    {"name":"span-reversed","kind":"span","start":"19","end":"7","valid":false},
+    {"name":"accounting-exact","kind":"accounting","reserved":"200","delivered":"1024","requested":"1024","valid":true},
+    {"name":"accounting-under","kind":"accounting","reserved":"200","delivered":"800","requested":"1024","valid":true},
+    {"name":"accounting-over","kind":"accounting","reserved":"200","delivered":"1025","requested":"1024","valid":false},
+    {"name":"accounting-reserved-over-delivered","kind":"accounting","reserved":"801","delivered":"800","requested":"1024","valid":false},
+    {"name":"decimal-leading-zero","kind":"decimal","value":"01","valid":false},
+    {"name":"decimal-canonical-zero","kind":"decimal","value":"0","valid":true},
+    {"name":"decimal-sign","kind":"decimal","value":"+1","valid":false},
+    {"name":"line-span-forward","kind":"line_span","start_line":"1","start_column":"0","end_line":"2","end_column":"0","valid":true},
+    {"name":"line-span-reversed","kind":"line_span","start_line":"2","start_column":"0","end_line":"1","end_column":"9","valid":false},
+    {"name":"same-line-column-forward","kind":"line_span","start_line":"2","start_column":"4","end_line":"2","end_column":"9","valid":true},
+    {"name":"same-line-column-reversed","kind":"line_span","start_line":"2","start_column":"9","end_line":"2","end_column":"4","valid":false}
+  ]
+}
