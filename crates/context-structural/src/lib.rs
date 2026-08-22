@@ -56,6 +56,8 @@ pub enum FactClass {
     Export,
     /// A syntax-confirmed call expression.
     Call,
+    /// A syntax-confirmed identifier use outside a declaration-name position.
+    Reference,
 }
 
 /// Lossless capability-relative source path supplied by the control process.
@@ -419,7 +421,7 @@ fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralErr
 fn valid_edge_kind(kind: &str) -> bool {
     matches!(
         kind,
-        "declares" | "contains" | "imports" | "exports" | "calls"
+        "declares" | "contains" | "imports" | "exports" | "calls" | "references"
     )
 }
 
@@ -623,6 +625,7 @@ fn add_declarations(
     Ok(local_nodes)
 }
 
+#[allow(clippy::too_many_lines)]
 fn add_relationships(
     workspace_snapshot: &str,
     file: &GraphFileInput,
@@ -719,8 +722,63 @@ fn add_relationships(
                     unknowns.push("unresolved_call_target".into());
                 }
             }
+            FactClass::Reference => {
+                add_reference(
+                    workspace_snapshot,
+                    fact,
+                    file,
+                    file_id,
+                    local_nodes,
+                    edges,
+                    unknowns,
+                )?;
+            }
             FactClass::Declaration => {}
         }
+    }
+    Ok(())
+}
+
+fn add_reference(
+    workspace_snapshot: &str,
+    fact: &StructuralFact,
+    file: &GraphFileInput,
+    file_id: &str,
+    local_nodes: &BTreeMap<String, String>,
+    edges: &mut Vec<GraphEdge>,
+    unknowns: &mut Vec<String>,
+) -> Result<(), StructuralError> {
+    let source = fact
+        .parent_key
+        .as_ref()
+        .and_then(|key| local_nodes.get(key))
+        .map_or(file_id, String::as_str);
+    let candidates = fact.name.as_ref().map_or_else(Vec::new, |name| {
+        file.response
+            .facts
+            .iter()
+            .filter(|candidate| {
+                candidate.class == FactClass::Declaration && candidate.name.as_ref() == Some(name)
+            })
+            .filter_map(|candidate| local_nodes.get(&candidate.local_key))
+            .collect::<Vec<_>>()
+    });
+    let target = (candidates.len() == 1).then(|| candidates[0]);
+    edges.push(graph_edge(
+        workspace_snapshot,
+        "references",
+        source,
+        target,
+        None,
+        if target.is_some() {
+            "heuristic"
+        } else {
+            "unresolved"
+        },
+        fact,
+    )?);
+    if target.is_none() {
+        unknowns.push("unresolved_reference_target".into());
     }
     Ok(())
 }
@@ -1406,6 +1464,9 @@ fn fact_for_node(
             };
             (FactClass::Call, name, None)
         }
+        "identifier" if !is_declaration_name(node) && !is_call_callee(node) => {
+            (FactClass::Reference, text(node, source), None)
+        }
         _ => return None,
     };
     if !request.fact_classes.contains(&class) {
@@ -1433,6 +1494,35 @@ fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>>
         .find(|child| child.kind() == kind)
 }
 
+fn is_declaration_name(node: Node<'_>) -> bool {
+    node.parent().is_some_and(|parent| {
+        ["name", "property"]
+            .iter()
+            .filter_map(|field| parent.child_by_field_name(field))
+            .any(|candidate| candidate.id() == node.id())
+            && matches!(
+                parent.kind(),
+                "function_declaration"
+                    | "class_declaration"
+                    | "interface_declaration"
+                    | "type_alias_declaration"
+                    | "enum_declaration"
+                    | "method_definition"
+                    | "abstract_method_signature"
+                    | "variable_declarator"
+            )
+    })
+}
+
+fn is_call_callee(node: Node<'_>) -> bool {
+    node.parent().is_some_and(|parent| {
+        parent.kind() == "call_expression"
+            && parent
+                .child_by_field_name("function")
+                .is_some_and(|candidate| candidate.id() == node.id())
+    })
+}
+
 fn text(node: Node<'_>, source: &[u8]) -> Option<String> {
     std::str::from_utf8(source.get(node.byte_range())?)
         .ok()
@@ -1450,6 +1540,7 @@ const fn class_name(class: FactClass) -> &'static str {
         FactClass::Import => "import",
         FactClass::Export => "export",
         FactClass::Call => "call",
+        FactClass::Reference => "reference",
     }
 }
 
@@ -1546,6 +1637,7 @@ mod tests {
                 FactClass::Import,
                 FactClass::Export,
                 FactClass::Call,
+                FactClass::Reference,
             ],
             max_facts: 100,
             max_nesting_depth: 128,
@@ -1651,7 +1743,7 @@ class Example { method() {} }
     fn graph_is_snapshot_bound_deterministic_and_explicitly_partial() {
         let source = br#"import { value } from "./dep";
 function helper() { return 1; }
-export function outer() { const nested = value(); helper(); }
+export function outer() { const nested = value(); const alias = helper; helper(); }
 "#;
         let request = request(source, StructuralLanguage::TypeScript);
         let response = process_request(&request).expect("parse");
@@ -1683,6 +1775,11 @@ export function outer() { const nested = value(); helper(); }
             .expect("helper node");
         assert!(first.edges.iter().any(|edge| {
             edge.kind == "calls"
+                && edge.resolution == "heuristic"
+                && edge.target_node.as_deref() == Some(helper.node_id.as_str())
+        }));
+        assert!(first.edges.iter().any(|edge| {
+            edge.kind == "references"
                 && edge.resolution == "heuristic"
                 && edge.target_node.as_deref() == Some(helper.node_id.as_str())
         }));

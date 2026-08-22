@@ -1539,6 +1539,7 @@ fn structural_request(
             FactClass::Import,
             FactClass::Export,
             FactClass::Call,
+            FactClass::Reference,
         ],
         max_facts: limits.facts,
         max_nesting_depth: limits.depth,
