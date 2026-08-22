@@ -69,7 +69,8 @@ stdout contains only protocol messages. No release blocker was found.
 
 The release-candidate workflow:
 
-- builds an explicitly supplied 40-character commit SHA;
+- builds the trusted commit identity supplied by GitHub for the selected
+  workflow ref, with no free-form commit input;
 - verifies the checked-out commit;
 - uses the pinned Rust toolchain and locked dependencies;
 - uses read-only GitHub permissions;

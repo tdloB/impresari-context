@@ -2,10 +2,11 @@ name: Release candidate rehearsal
 
 on:
   workflow_dispatch:
-    inputs:
-      source_sha:
-        description: Exact 40-character commit SHA to build
-        required: true
+
+env:
+  # GitHub binds this value to the ref selected when the workflow is dispatched.
+  # It is not supplied through a free-form workflow input.
+  SOURCE_SHA: ${{ github.sha }}
 
 permissions:
   contents: read
@@ -25,21 +26,17 @@ jobs:
             target: x86_64-pc-windows-msvc
     runs-on: ${{ matrix.os }}
     steps:
-      - name: Validate requested source
+      - name: Validate workflow source identity
         shell: bash
-        env:
-          SOURCE_SHA: ${{ inputs.source_sha }}
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
       - name: Check out exact source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ inputs.source_sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Verify checkout identity
         shell: bash
-        env:
-          SOURCE_SHA: ${{ inputs.source_sha }}
         run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
       - name: Install pinned Rust toolchain
         shell: bash
@@ -55,8 +52,6 @@ jobs:
         run: cargo build --release --locked --offline --bins
       - name: Package exact candidate
         shell: bash
-        env:
-          SOURCE_SHA: ${{ inputs.source_sha }}
         run: ruby scripts/package-release.rb "${{ matrix.target }}" dist "$SOURCE_SHA"
       - name: Rehearse clean installation
         shell: bash
