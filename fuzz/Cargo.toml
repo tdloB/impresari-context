@@ -1,0 +1,23 @@
+[package]
+name = "impresari-context-fuzz"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+context-core = { path = "../crates/context-core" }
+libfuzzer-sys = "=0.4.13"
+serde_json = "=1.0.151"
+
+[[bin]]
+name = "context_packet"
+path = "fuzz_targets/context_packet.rs"
+test = false
+doc = false
+bench = false
+
+[workspace]
+members = ["."]

@@ -34,8 +34,10 @@ This is a release candidate, not yet a published release. Executable or
 privileged extensions and long-lived transports remain separately gated, and
 package publication remains gated. The complete local gate and
 hosted Tier A matrix and native clean-install release-candidate rehearsals pass.
-The release provenance/signing decision and independent review remain
-public-release requirements.
+The repository also runs CodeQL, OpenSSF Scorecard, dependency and license
+audits, secret protection, and a bounded coverage-guided Rust fuzz target. The
+release provenance/signing decision and independent review remain public-release
+requirements.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
@@ -149,5 +151,6 @@ Give AI agents the repository evidence they need and give humans a reliable way 
 
 Original project work is licensed under Apache License 2.0. Contributions use
 DCO 1.1 sign-off and contributor-retained copyright. Security concerns should
-be reported through GitHub's private vulnerability reporting channel after the
-repository becomes public; they should never be placed in a public issue.
+be reported through [GitHub's private vulnerability reporting
+channel](https://github.com/tdloB/impresari-context/security/advisories/new);
+they should never be placed in a public issue.
