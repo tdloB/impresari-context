@@ -15,7 +15,12 @@ abort "invalid source SHA" unless source_sha.match?(/\A[0-9a-f]{40}\z/)
 
 exe = target.include?("windows") ? ".exe" : ""
 names = ["impresari-context", "impresari-context-structural-worker", "impresari-context-mcp"]
-package_name = "impresari-context-0.0.0-#{target}"
+workspace_manifest = File.read(File.join(root, "Cargo.toml"))
+project_version = workspace_manifest[/\[workspace\.package\].*?^version\s*=\s*"([^"]+)"/m, 1]
+abort "missing workspace project version" unless project_version
+abort "invalid project version" unless project_version.match?(/\A\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?\z/)
+
+package_name = "impresari-context-#{project_version}-#{target}"
 stage = File.join(output, package_name)
 FileUtils.rm_rf(stage)
 FileUtils.mkdir_p(File.join(stage, "bin"))
@@ -36,7 +41,7 @@ files = Dir.glob(File.join(stage, "**", "*"), File::FNM_DOTMATCH).select { |path
 manifest = {
   "schema_name" => "release-candidate-manifest",
   "schema_version" => "1.0.0",
-  "project_version" => "0.0.0",
+  "project_version" => project_version,
   "target" => target,
   "source_commit" => source_sha,
   "rust_toolchain" => File.read(File.join(root, "rust-toolchain.toml")).match(/channel\s*=\s*"([^"]+)"/)&.captures&.first,

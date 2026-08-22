@@ -1,0 +1,135 @@
+name: Publish release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing protected release tag to publish
+        required: true
+        default: v0.1.0
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: ${{ inputs.tag }}
+  SOURCE_SHA: ${{ github.sha }}
+
+jobs:
+  validate:
+    name: Validate release identity
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.identity.outputs.version }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Validate tag, commit, and manifest version
+        id: identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          version="${RELEASE_TAG#v}"
+          test "$(git rev-list -n 1 "$RELEASE_TAG")" = "$SOURCE_SHA"
+          grep -Fq "version = \"$version\"" Cargo.toml
+          grep -Fq "## [$version] - " CHANGELOG.md
+          if grep -Fq "## [$version] - Unreleased" CHANGELOG.md; then
+            echo "CHANGELOG.md still marks $version as unreleased" >&2
+            exit 2
+          fi
+          printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
+
+  package:
+    name: Package / ${{ matrix.target }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-gnu
+          - os: windows-2025
+            target: x86_64-pc-windows-msvc
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out exact source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify checkout identity
+        shell: bash
+        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Fetch locked dependencies
+        shell: bash
+        run: cargo fetch --locked
+      - name: Run complete gate
+        shell: bash
+        run: ./scripts/check.sh
+      - name: Build release binaries
+        shell: bash
+        run: cargo build --release --locked --offline --bins
+      - name: Package exact release
+        shell: bash
+        run: ruby scripts/package-release.rb "${{ matrix.target }}" dist "$SOURCE_SHA"
+      - name: Rehearse clean installation
+        shell: bash
+        run: ruby scripts/rehearse-release.rb "dist/impresari-context-${{ needs.validate.outputs.version }}-${{ matrix.target }}.tar.gz"
+      - name: Upload release candidate
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: release-${{ matrix.target }}
+          path: |
+            dist/impresari-context-${{ needs.validate.outputs.version }}-${{ matrix.target }}.tar.gz
+            dist/impresari-context-${{ needs.validate.outputs.version }}-${{ matrix.target }}.tar.gz.sha256
+          if-no-files-found: error
+
+  publish:
+    name: Attest and publish
+    needs: [validate, package]
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    environment: release
+    steps:
+      - name: Check out release notes
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Download exact release artifacts
+        uses: actions/download-artifact@634f93cb2916e3fdff6788551b99b062d0335ce0 # v5
+        with:
+          pattern: release-*
+          path: dist
+          merge-multiple: true
+      - name: Verify checksums
+        shell: bash
+        working-directory: dist
+        run: sha256sum --check *.sha256
+      - name: Attest archives
+        uses: actions/attest-build-provenance@43d14bc2b83dec42d39ecae14e916627a18bb661 # v3
+        with:
+          subject-path: dist/*.tar.gz
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          gh release create "$RELEASE_TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --verify-tag \
+            --title "$RELEASE_TAG" \
+            --notes-file CHANGELOG.md

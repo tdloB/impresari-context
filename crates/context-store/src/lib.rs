@@ -1058,7 +1058,7 @@ mod tests {
             ResourceBudget::conservative(4096, 10, 10, 128, 100, 32, 30_000, 536_870_912)
                 .expect("budget"),
             12,
-            "0.0.0",
+            "0.1.0",
         )
         .expect("event")
     }

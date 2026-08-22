@@ -145,7 +145,7 @@ checksum = "9330f8b2ff13f34540b44e946ef35111825727b38d33286ef986142615121801"
 
 [[package]]
 name = "context-adapters"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "context-engine",
@@ -156,7 +156,7 @@ dependencies = [
 
 [[package]]
 name = "context-cli"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "context-engine",
@@ -169,7 +169,7 @@ dependencies = [
 
 [[package]]
 name = "context-conformance"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "jsonschema",
@@ -179,7 +179,7 @@ dependencies = [
 
 [[package]]
 name = "context-core"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "serde",
@@ -190,7 +190,7 @@ dependencies = [
 
 [[package]]
 name = "context-engine"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "context-core",
@@ -205,7 +205,7 @@ dependencies = [
 
 [[package]]
 name = "context-evaluation"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "context-adapters",
@@ -224,7 +224,7 @@ dependencies = [
 
 [[package]]
 name = "context-extensions"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "serde",
  "serde_json",
@@ -233,7 +233,7 @@ dependencies = [
 
 [[package]]
 name = "context-mcp"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "context-engine",
@@ -246,7 +246,7 @@ dependencies = [
 
 [[package]]
 name = "context-reference-client"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "context-engine",
@@ -256,7 +256,7 @@ dependencies = [
 
 [[package]]
 name = "context-retrieval"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "context-core",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "context-session"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "serde",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "context-store"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "context-core",
  "rusqlite",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "context-structural"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "serde",
@@ -298,7 +298,7 @@ dependencies = [
 
 [[package]]
 name = "context-workspace"
-version = "0.0.0"
+version = "0.1.0"
 dependencies = [
  "base64",
  "cap-std",
