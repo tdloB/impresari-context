@@ -1354,6 +1354,39 @@ fn validate_success(
     Ok(())
 }
 
+/// Revalidates an untrusted cached worker response against the exact current request.
+///
+/// # Errors
+///
+/// Returns a contract or resource failure for any identity, ordering, span, or limit mismatch.
+pub fn validate_worker_success(
+    success: &WorkerSuccess,
+    request: &WorkerRequest,
+) -> Result<(), StructuralError> {
+    validate_success(success, request)
+}
+
+/// Computes the cache identity for every parser setting that can affect facts.
+///
+/// # Errors
+///
+/// Returns an error if canonical serialization fails.
+pub fn worker_toolchain_identity(request: &WorkerRequest) -> Result<String, StructuralError> {
+    graph_identity(
+        "structural-worker-toolchain",
+        &serde_json::json!({
+            "protocol_version": request.schema_version,
+            "language": request.language,
+            "fact_classes": request.fact_classes,
+            "max_nesting_depth": request.max_nesting_depth,
+            "parser_version": request.parser_version,
+            "grammar_version": request.grammar_version,
+            "resolver_version": request.resolver_version,
+            "graph_version": request.graph_version,
+        }),
+    )
+}
+
 impl std::error::Error for StructuralError {}
 
 /// Reads exactly one length-prefixed frame and requires EOF afterward.
@@ -1872,6 +1905,29 @@ class Example { method() {} }
         assert_eq!(
             process_request(&limited),
             Err(StructuralError::ResourceLimit)
+        );
+    }
+
+    #[test]
+    fn cached_worker_identity_covers_fact_affecting_settings() {
+        let source = b"const value = 1;";
+        let request = request(source, StructuralLanguage::TypeScript);
+        let response = process_request(&request).expect("response");
+        validate_worker_success(&response, &request).expect("valid cached response");
+        let identity = worker_toolchain_identity(&request).expect("identity");
+
+        let mut changed = request.clone();
+        changed.fact_classes = vec![FactClass::Declaration];
+        assert_ne!(
+            identity,
+            worker_toolchain_identity(&changed).expect("changed identity")
+        );
+
+        let mut corrupt = response;
+        corrupt.content_hash = sha256(b"different");
+        assert_eq!(
+            validate_worker_success(&corrupt, &request),
+            Err(StructuralError::ContractMismatch)
         );
     }
 

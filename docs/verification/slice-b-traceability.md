@@ -18,13 +18,13 @@ confinement evidence remain open.
 | Bounded trace queries | Deterministic outbound traversal enforces node, edge, depth, and serialized-output budgets | Query limit and unresolved-target assertions; engine resource mapping |
 | Repository-map views | A bounded graph projection reports transitive directory counts and only manifest-confirmed package boundaries; missing manifests are explicit | Deterministic map and limit tests; closed public schema |
 | Isolated graph persistence | A successful graph atomically replaces the prior opaque graph payload in the existing workspace cache; every load is snapshot-scoped, decoded, and content-identity revalidated | Cache replace/scope tests and repository gate |
+| Deterministic incremental refresh | Per-file worker results are keyed by lossless path, exact content hash, and all fact-affecting toolchain settings; every reuse is decoded and fully revalidated against the current bounded request | Exact-key cache tests, worker response validation, mutation/rebuild behavior |
 | Public contracts | Closed Draft 2020-12 structural graph and query-result schemas | Contract registry check and offline schema compilation |
 | Thin CLI adapter | Explicit structural build takes a worker path/hash/empty directory; query consumes a graph file and bounded edge selection | Shared engine gateway, CLI parsing, workspace tests, and Clippy |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
 
 ## Open Slice B Work
 
-- Support deterministic incremental graph refresh.
 - Produce native macOS, Linux, and Windows confinement/resource evidence without
   overstating application-enforced isolation.
 - Extend the evaluation corpus and release thresholds for structural tasks.

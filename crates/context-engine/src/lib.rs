@@ -21,11 +21,14 @@ use context_retrieval::{
     RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_record,
     expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
 };
-use context_store::{AuditRetention, AuditStore, CacheErrorCode, CachedGraph, WorkspaceCache};
+use context_store::{
+    AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
+};
 use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
     StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher, WorkerPath,
-    WorkerRequest, build_graph_with_unknowns, query_graph, validate_graph,
+    WorkerRequest, build_graph_with_unknowns, query_graph, validate_graph, validate_worker_success,
+    worker_toolchain_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -337,6 +340,20 @@ impl LocalEngine {
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| {
+                        cache_error(
+                            context,
+                            Capability::StructureBuild,
+                            error.code(),
+                            Some(self.ids()),
+                        )
+                    },
+                )?,
+            );
+        }
         let result = self
             .build_structure_internal(context, budget, launcher, started)
             .and_then(|graph| {
@@ -353,19 +370,6 @@ impl LocalEngine {
                         None,
                     )
                 })?;
-                if self.cache.is_none() {
-                    self.cache = Some(
-                        WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
-                            .map_err(|error| {
-                                cache_error(
-                                    context,
-                                    Capability::StructureBuild,
-                                    error.code(),
-                                    Some(self.ids()),
-                                )
-                            })?,
-                    );
-                }
                 self.cache
                     .as_mut()
                     .ok_or_else(|| {
@@ -516,23 +520,27 @@ impl LocalEngine {
     }
 
     fn build_structure_internal(
-        &self,
+        &mut self,
         context: &RequestContext,
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
         started: Instant,
     ) -> Result<StructuralGraph, EngineError> {
-        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
-            failure(
-                context,
-                Capability::StructureBuild,
-                PublicErrorCode::StaleState,
-                "workspace snapshot is unavailable",
-                Some(self.workspace.identity()),
-                None,
-                Some(RecoveryAction::RefreshSnapshot),
-            )
-        })?;
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
         let limits = structural_limits(context, budget, self.ids())?;
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
@@ -575,14 +583,8 @@ impl LocalEngine {
                 ));
             }
             let request = structural_request(context, language, exact, limits);
-            let response = launcher.execute(&request).map_err(|error| {
-                structural_failure(
-                    context,
-                    error,
-                    self.workspace.identity(),
-                    &snapshot.snapshot_id,
-                )
-            })?;
+            let response =
+                self.load_or_parse_structural(context, &snapshot.snapshot_id, &request, launcher)?;
             files.push(GraphFileInput {
                 path: request.path,
                 response,
@@ -599,6 +601,75 @@ impl LocalEngine {
                 &snapshot.snapshot_id,
             )
         })
+    }
+
+    fn load_or_parse_structural(
+        &mut self,
+        context: &RequestContext,
+        snapshot_id: &str,
+        request: &WorkerRequest,
+        launcher: &WorkerLauncher,
+    ) -> Result<context_structural::WorkerSuccess, EngineError> {
+        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
+            structural_failure(context, error, self.workspace.identity(), snapshot_id)
+        })?;
+        let cached = self
+            .cache
+            .as_ref()
+            .ok_or_else(|| {
+                structural_cache_unavailable(context, self.workspace.identity(), snapshot_id)
+            })?
+            .structural_file(
+                &request.path.relative_units_base64url,
+                &request.content_hash,
+                &toolchain_identity,
+            )
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?;
+        let response = cached
+            .and_then(|record| serde_json::from_slice(&record.payload).ok())
+            .filter(|success| validate_worker_success(success, request).is_ok())
+            .map_or_else(|| launcher.execute(request), Ok)
+            .map_err(|error| {
+                structural_failure(context, error, self.workspace.identity(), snapshot_id)
+            })?;
+        let payload = serde_json::to_vec(&response).map_err(|_| {
+            failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InternalFailure,
+                "structural result serialization failed",
+                Some(self.workspace.identity()),
+                Some(snapshot_id),
+                None,
+            )
+        })?;
+        self.cache
+            .as_mut()
+            .ok_or_else(|| {
+                structural_cache_unavailable(context, self.workspace.identity(), snapshot_id)
+            })?
+            .store_structural_file(&CachedStructuralFile {
+                path_units: request.path.relative_units_base64url.clone(),
+                content_hash: request.content_hash.clone(),
+                toolchain_identity,
+                payload,
+            })
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some((Some(self.workspace.identity()), Some(snapshot_id))),
+                )
+            })?;
+        Ok(response)
     }
 
     /// Traverses a current snapshot-bound structural graph through the audited gateway.
@@ -1776,6 +1847,22 @@ fn structural_failure(
         Some(workspace),
         Some(snapshot),
         Some(recovery),
+    )
+}
+
+fn structural_cache_unavailable(
+    context: &RequestContext,
+    workspace: &str,
+    snapshot: &str,
+) -> EngineError {
+    failure(
+        context,
+        Capability::StructureBuild,
+        PublicErrorCode::InternalFailure,
+        "structural cache is unavailable",
+        Some(workspace),
+        Some(snapshot),
+        None,
     )
 }
 

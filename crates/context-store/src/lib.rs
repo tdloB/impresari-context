@@ -117,6 +117,19 @@ pub struct CachedGraph {
     pub payload: Vec<u8>,
 }
 
+/// One content- and toolchain-bound structural worker result.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CachedStructuralFile {
+    /// Lossless relative path units used by the worker request.
+    pub path_units: String,
+    /// Exact authoritative source content identity.
+    pub content_hash: String,
+    /// Content identity of parser, grammar, resolver, graph, and protocol versions.
+    pub toolchain_identity: String,
+    /// Serialized worker response; revalidation by the structural layer is mandatory.
+    pub payload: Vec<u8>,
+}
+
 /// Exclusive writer over one exact workspace cache namespace.
 #[derive(Debug)]
 pub struct WorkspaceCache {
@@ -684,6 +697,72 @@ impl WorkspaceCache {
         }
         Ok(Some(graph))
     }
+
+    /// Loads one exact structural worker result candidate.
+    ///
+    /// # Errors
+    ///
+    /// Fails for malformed keys, corrupt rows, or storage errors.
+    pub fn structural_file(
+        &self,
+        path_units: &str,
+        content_hash: &str,
+        toolchain_identity: &str,
+    ) -> Result<Option<CachedStructuralFile>, CacheError> {
+        validate_structural_key(path_units, content_hash, toolchain_identity)?;
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT path_units,content_hash,toolchain_identity,payload FROM structural_files
+             WHERE path_units=?1 AND content_hash=?2 AND toolchain_identity=?3",
+            )
+            .map_err(CacheError::storage)?;
+        let mut rows = statement
+            .query(params![path_units, content_hash, toolchain_identity])
+            .map_err(CacheError::storage)?;
+        let Some(row) = rows.next().map_err(CacheError::storage)? else {
+            return Ok(None);
+        };
+        let record = CachedStructuralFile {
+            path_units: row.get(0).map_err(CacheError::storage)?,
+            content_hash: row.get(1).map_err(CacheError::storage)?,
+            toolchain_identity: row.get(2).map_err(CacheError::storage)?,
+            payload: row.get(3).map_err(CacheError::storage)?,
+        };
+        if rows.next().map_err(CacheError::storage)?.is_some()
+            || record.payload.is_empty()
+            || record.payload.len() > 16 * 1024 * 1024
+        {
+            return Err(CacheError::new(CacheErrorCode::CorruptCache));
+        }
+        Ok(Some(record))
+    }
+
+    /// Stores one validated structural worker result candidate for later revalidation.
+    ///
+    /// # Errors
+    ///
+    /// Fails for malformed keys, oversized payload, or storage errors.
+    pub fn store_structural_file(
+        &mut self,
+        record: &CachedStructuralFile,
+    ) -> Result<(), CacheError> {
+        validate_structural_key(
+            &record.path_units,
+            &record.content_hash,
+            &record.toolchain_identity,
+        )?;
+        if record.payload.is_empty() || record.payload.len() > 16 * 1024 * 1024 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        self.connection.execute(
+            "INSERT INTO structural_files(path_units,content_hash,toolchain_identity,payload)
+             VALUES(?1,?2,?3,?4)
+             ON CONFLICT(path_units,content_hash,toolchain_identity) DO UPDATE SET payload=excluded.payload",
+            params![record.path_units, record.content_hash, record.toolchain_identity, record.payload],
+        ).map_err(CacheError::storage)?;
+        Ok(())
+    }
 }
 
 /// Purges one exact workspace cache namespace after acquiring its writer lock.
@@ -748,7 +827,8 @@ fn initialize(connection: &Connection, workspace_identity: &str) -> Result<(), C
          CREATE TABLE IF NOT EXISTS artifacts(generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,display_path TEXT NOT NULL,content_hash TEXT NOT NULL,size_bytes TEXT NOT NULL,PRIMARY KEY(generation_id,path_units)) WITHOUT ROWID;
          CREATE TABLE IF NOT EXISTS artifact_search_keys(search_id INTEGER PRIMARY KEY,generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,UNIQUE(generation_id,path_units));
          CREATE VIRTUAL TABLE IF NOT EXISTS artifact_terms USING fts5(terms,content='');
-         CREATE TABLE IF NOT EXISTS structural_graphs(graph_id TEXT PRIMARY KEY,snapshot_id TEXT NOT NULL UNIQUE,payload BLOB NOT NULL CHECK(length(payload)>0 AND length(payload)<=16777216));",
+         CREATE TABLE IF NOT EXISTS structural_graphs(graph_id TEXT PRIMARY KEY,snapshot_id TEXT NOT NULL UNIQUE,payload BLOB NOT NULL CHECK(length(payload)>0 AND length(payload)<=16777216));
+         CREATE TABLE IF NOT EXISTS structural_files(path_units TEXT NOT NULL,content_hash TEXT NOT NULL,toolchain_identity TEXT NOT NULL,payload BLOB NOT NULL CHECK(length(payload)>0 AND length(payload)<=16777216),PRIMARY KEY(path_units,content_hash,toolchain_identity)) WITHOUT ROWID;",
     ).map_err(CacheError::storage)?;
     connection
         .execute(
@@ -891,6 +971,23 @@ fn validate_identity(value: &str) -> Result<(), CacheError> {
     }
 }
 
+fn validate_structural_key(
+    path_units: &str,
+    content_hash: &str,
+    toolchain_identity: &str,
+) -> Result<(), CacheError> {
+    if path_units.is_empty()
+        || path_units.len() > 87_382
+        || !path_units
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-'))
+    {
+        return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+    }
+    validate_identity(content_hash)?;
+    validate_identity(toolchain_identity)
+}
+
 fn workspace_namespace_name(identity: &str) -> String {
     format!("sha256-{}", &identity[7..])
 }
@@ -1013,6 +1110,39 @@ mod tests {
         cache.promote_graph(&second).expect("replace");
         assert!(cache.graph_for_snapshot(B).expect("retired").is_none());
         assert_eq!(cache.graph_for_snapshot(C).expect("current"), Some(second));
+    }
+
+    #[test]
+    fn structural_file_cache_is_exactly_keyed_and_replaceable() {
+        let root = TestRoot::new();
+        let mut cache = WorkspaceCache::open(&root.0, A).expect("open");
+        let mut record = CachedStructuralFile {
+            path_units: "c3JjL2xpYi50cw".into(),
+            content_hash: B.into(),
+            toolchain_identity: C.into(),
+            payload: b"{\"facts\":[]}".to_vec(),
+        };
+        cache.store_structural_file(&record).expect("store");
+        assert_eq!(
+            cache
+                .structural_file(&record.path_units, B, C)
+                .expect("load"),
+            Some(record.clone())
+        );
+        assert!(
+            cache
+                .structural_file(&record.path_units, A, C)
+                .expect("miss")
+                .is_none()
+        );
+        record.payload = b"{\"facts\":[1]}".to_vec();
+        cache.store_structural_file(&record).expect("replace");
+        assert_eq!(
+            cache
+                .structural_file(&record.path_units, B, C)
+                .expect("reload"),
+            Some(record)
+        );
     }
 
     #[test]
