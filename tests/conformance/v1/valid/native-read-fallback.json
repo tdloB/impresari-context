@@ -1,0 +1,8 @@
+{
+  "schema_name": "native-read-fallback-decision",
+  "schema_version": "1.0.0",
+  "native_read_may_be_considered": true,
+  "consumer_authorization_required": true,
+  "decision_reason": "consumer_policy_evaluation_required",
+  "authority_added": false
+}

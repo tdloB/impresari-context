@@ -1265,7 +1265,7 @@ impl WorkerLauncher {
 }
 
 fn validate_launcher(launcher: &WorkerLauncher) -> Result<(), StructuralError> {
-    if launcher.timeout.is_zero() || launcher.timeout > Duration::from_secs(300) {
+    if launcher.timeout.is_zero() || launcher.timeout > Duration::from_mins(5) {
         return Err(StructuralError::ResourceLimit);
     }
     let executable = fs::metadata(&launcher.executable).map_err(|_| StructuralError::Io)?;

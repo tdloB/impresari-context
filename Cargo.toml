@@ -1,11 +1,13 @@
 [workspace]
 members = [
     "crates/context-cli",
+    "crates/context-adapters",
     "crates/context-conformance",
     "crates/context-core",
     "crates/context-engine",
     "crates/context-evaluation",
     "crates/context-retrieval",
+    "crates/context-reference-client",
     "crates/context-session",
     "crates/context-store",
     "crates/context-structural",

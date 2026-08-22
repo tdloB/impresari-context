@@ -126,7 +126,8 @@ pub struct SnapshotStatus {
 }
 
 /// Supported MVP query strategies.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
 pub enum QueryKind {
     /// Resolve one exact relative path.
     ExactPath,
@@ -136,6 +137,24 @@ pub enum QueryKind {
     Literal,
     /// Use lexical candidates followed by exact source verification.
     Lexical,
+}
+
+/// One deterministic retrieval step in a task-specific context plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ContextPlanStep {
+    /// Bounded retrieval strategy.
+    pub kind: QueryKind,
+    /// Strategy input. Repository text remains untrusted data.
+    pub query: String,
+}
+
+/// Adapter-neutral multi-strategy context plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ContextPlan {
+    /// Ordered retrieval steps. V1 accepts between one and eight.
+    pub steps: Vec<ContextPlanStep>,
 }
 
 /// Public bounded search result.
@@ -906,37 +925,156 @@ impl LocalEngine {
         query: &str,
         budget: ResourceBudget,
     ) -> Result<ContextPacket, EngineError> {
+        self.build_planned_context(
+            context,
+            &ContextPlan {
+                steps: vec![ContextPlanStep {
+                    kind,
+                    query: query.to_owned(),
+                }],
+            },
+            budget,
+        )
+    }
+
+    /// Builds one packet from an ordered, bounded set of deterministic retrieval
+    /// strategies. Exact evidence is deduplicated by identity before packaging;
+    /// empty and limited steps remain visible as unknowns and truncations.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured gateway, plan, retrieval, packet, or audit failure.
+    pub fn build_planned_context(
+        &mut self,
+        context: &RequestContext,
+        plan: &ContextPlan,
+        budget: ResourceBudget,
+    ) -> Result<ContextPacket, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
-        let result = self
-            .search_internal(context, Capability::ContextBuild, kind, query, &budget)
-            .and_then(|search| {
-                build_packet(PacketDraft {
-                    workspace_identity: self.workspace.identity().to_owned(),
-                    workspace_snapshot: search.snapshot_id,
-                    request_id: context.request_id.clone(),
-                    purpose: context.subject.purpose.clone(),
-                    created_at: context.occurred_at.clone(),
-                    policy_decision: decision.decision_id.clone(),
-                    budget,
-                    evidence: search.matches,
-                    assumptions: Vec::new(),
-                    conflicts: Vec::new(),
-                    unknowns: search.unknowns,
-                    redactions: Vec::new(),
-                })
-                .map_err(|error| {
-                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
-                })
-            });
+        let result = self.build_planned_context_internal(
+            context,
+            plan,
+            budget,
+            &decision.decision_id,
+            started,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
         self.finalize(
             context,
             &decision,
             Capability::ContextBuild,
-            AuditOutcome::Allowed,
+            outcome,
             result,
             elapsed_ms(started),
         )
+    }
+
+    fn build_planned_context_internal(
+        &mut self,
+        context: &RequestContext,
+        plan: &ContextPlan,
+        budget: ResourceBudget,
+        policy_decision: &str,
+        started: Instant,
+    ) -> Result<ContextPacket, EngineError> {
+        if plan.steps.is_empty() || plan.steps.len() > 8 {
+            Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid context retrieval plan",
+                Some(self.workspace.identity()),
+                self.snapshot
+                    .as_ref()
+                    .map(|value| value.snapshot_id.as_str()),
+                Some(RecoveryAction::ReduceScope),
+            ))
+        } else {
+            let mut evidence = std::collections::BTreeMap::new();
+            let mut unknowns = Vec::new();
+            let mut snapshot_id = None;
+            let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
+                core_error(context, Capability::ContextBuild, error.code(), self.ids())
+            })?;
+            for (index, step) in plan.steps.iter().enumerate() {
+                if elapsed_ms(started) >= plan_elapsed_limit {
+                    return Err(failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::ResourceLimit,
+                        "context planning resource limit exceeded",
+                        Some(self.workspace.identity()),
+                        snapshot_id.as_deref(),
+                        Some(RecoveryAction::ReduceScope),
+                    ));
+                }
+                let search = self.search_internal(
+                    context,
+                    Capability::ContextBuild,
+                    step.kind,
+                    &step.query,
+                    &budget,
+                )?;
+                if snapshot_id
+                    .as_ref()
+                    .is_some_and(|expected| expected != &search.snapshot_id)
+                {
+                    return Err(failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::StaleState,
+                        "workspace changed during context planning",
+                        Some(self.workspace.identity()),
+                        Some(&search.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    ));
+                }
+                snapshot_id = Some(search.snapshot_id);
+                if search.matches.is_empty() {
+                    unknowns.push(format!("plan_step_{index}_no_evidence"));
+                }
+                if search.truncated {
+                    unknowns.push(format!("plan_step_{index}_limited"));
+                }
+                unknowns.extend(search.unknowns);
+                for item in search.matches {
+                    evidence.entry(item.evidence_id.clone()).or_insert(item);
+                }
+            }
+            let snapshot_id = snapshot_id.ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid context retrieval plan",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::ReduceScope),
+                )
+            })?;
+            unknowns.sort();
+            unknowns.dedup();
+            build_packet(PacketDraft {
+                workspace_identity: self.workspace.identity().to_owned(),
+                workspace_snapshot: snapshot_id,
+                request_id: context.request_id.clone(),
+                purpose: context.subject.purpose.clone(),
+                created_at: context.occurred_at.clone(),
+                policy_decision: policy_decision.to_owned(),
+                budget,
+                evidence: evidence.into_values().collect(),
+                assumptions: Vec::new(),
+                conflicts: Vec::new(),
+                unknowns,
+                redactions: Vec::new(),
+            })
+            .map_err(|error| {
+                core_error(context, Capability::ContextBuild, error.code(), self.ids())
+            })
+        }
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -2409,6 +2547,46 @@ mod tests {
                 .parse::<u64>()
                 .is_ok_and(|duration| duration > 0)
         }));
+    }
+
+    #[test]
+    fn planned_context_deduplicates_evidence_and_reports_empty_steps() {
+        let source = TestRoot::new("planned-source");
+        let cache = TestRoot::new("planned-cache");
+        fs::write(source.0.join("sample.rs"), b"pub fn alpha() {}\n").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![
+                ContextPlanStep {
+                    kind: QueryKind::Literal,
+                    query: "alpha".into(),
+                },
+                ContextPlanStep {
+                    kind: QueryKind::Lexical,
+                    query: "alpha".into(),
+                },
+                ContextPlanStep {
+                    kind: QueryKind::Literal,
+                    query: "missing_symbol".into(),
+                },
+            ],
+        };
+        let packet = engine
+            .build_planned_context(&request(3, "planned_review"), &plan, budget())
+            .expect("planned packet");
+        validate_packet(&packet).expect("valid planned packet");
+        assert_eq!(packet.observed_evidence.len(), 1, "deduplicated evidence");
+        assert!(packet.unknowns.contains(&"plan_step_2_no_evidence".into()));
     }
 
     #[test]

@@ -1,0 +1,26 @@
+{
+  "adapter_contract_version": "1.0.0",
+  "request_id": "req_12345678",
+  "event_id": "evt_12345678",
+  "consumer_id": "consumer_12345678",
+  "role": "orchestrator",
+  "purpose": "implementation_review",
+  "occurred_at": "2026-08-22T00:00:00Z",
+  "steps": [
+    {"kind": "filename", "query": "authentication"},
+    {"kind": "lexical", "query": "authentication"}
+  ],
+  "budget": {
+    "unit_kind": "utf8_bytes",
+    "requested": "12000",
+    "hard": true,
+    "max_evidence_items": "50",
+    "max_files": "20",
+    "max_excerpt_bytes_per_item": "2000",
+    "max_matches": "200",
+    "max_traversal_depth": "32",
+    "max_elapsed_ms": "5000",
+    "max_memory_bytes": "67108864",
+    "policy_profile": "sha256:4444444444444444444444444444444444444444444444444444444444444444"
+  }
+}

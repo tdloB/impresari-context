@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/consumer-context-acquisition.schema.json",
+  "title": "Thin consumer context acquisition request",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["adapter_contract_version", "request_id", "event_id", "consumer_id", "role", "purpose", "occurred_at", "steps", "budget"],
+  "properties": {
+    "adapter_contract_version": {"const": "1.0.0"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "consumer_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "role": {"type": "string", "minLength": 1, "maxLength": 128},
+    "purpose": {"type": "string", "minLength": 1, "maxLength": 256},
+    "occurred_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "steps": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 8,
+      "items": {"$ref": "#/$defs/planStep"}
+    },
+    "budget": {"$ref": "resource-budget.schema.json"}
+  },
+  "$defs": {
+    "planStep": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["kind", "query"],
+      "properties": {
+        "kind": {"enum": ["exact_path", "filename", "literal", "lexical"]},
+        "query": {"type": "string", "minLength": 1, "maxLength": 4096}
+      }
+    },
+    "response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["adapter_contract_version", "packet", "orchestration_authority_added"],
+      "properties": {
+        "adapter_contract_version": {"const": "1.0.0"},
+        "packet": {"$ref": "context-packet.schema.json"},
+        "orchestration_authority_added": {"const": false}
+      }
+    },
+    "fallbackDecision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "native_read_may_be_considered", "consumer_authorization_required", "decision_reason", "authority_added"],
+      "properties": {
+        "schema_name": {"const": "native-read-fallback-decision"},
+        "schema_version": {"const": "1.0.0"},
+        "native_read_may_be_considered": {"type": "boolean"},
+        "consumer_authorization_required": {"type": "boolean"},
+        "decision_reason": {"enum": ["consumer_policy_evaluation_required", "fallback_prohibited"]},
+        "authority_added": {"const": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"native_read_may_be_considered": {"const": true}}},
+          "then": {"properties": {"consumer_authorization_required": {"const": true}, "decision_reason": {"const": "consumer_policy_evaluation_required"}}}
+        }
+      ]
+    }
+  }
+}

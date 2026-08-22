@@ -17,6 +17,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0009](0009-path-and-identity-encoding.md) | Lossless native path units, canonical base64url/JCS profile, workspace identity, and exact hash envelopes | Accepted |
 | [ADR-0010](0010-structural-worker-protocol-and-isolation.md) | Length-framed, capability-reduced, all-or-nothing structural parsing workers | Accepted |
 | [ADR-0011](0011-process-local-session-references.md) | Consumer-scoped in-memory immutable packet references with no durable authority | Accepted |
+| [ADR-0012](0012-context-plans-consumer-adapters-and-fallback.md) | Multi-strategy context plans, thin adapters, and fail-closed native-read fallback | Accepted |
 
 ## Change Rules
 

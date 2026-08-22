@@ -11,8 +11,9 @@ Impresari Context is an independent implementation informed by publicly demonstr
 
 ## Status
 
-The approved local Verifiable Context Slice A is implemented and Slice B
-structural intelligence is under active implementation.
+The approved local Verifiable Context Slice A and the implemented portions of
+Slice B structural intelligence are joined by the first Slice C lifecycle
+milestone.
 The Rust workspace now includes capability-scoped workspace reads,
 deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
 path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
@@ -20,7 +21,10 @@ context packets, packet validation, no-overwrite handoff export, one shared
 in-process capability service, and a thin JSON CLI. The first Slice B milestone
 adds pinned, short-lived TypeScript/JavaScript parser workers, a canonical
 snapshot-bound structural graph, and bounded deterministic graph traversal with
-explicit unresolved and truncated states.
+explicit unresolved and truncated states. Slice C adds deterministic
+multi-strategy context plans, consumer-scoped packet references, a thin
+OS-shaped adapter contract, an independent non-OS reference client, and a
+fail-closed native-read fallback decision that never grants filesystem access.
 
 This is not a public release. The name remains provisional, additional Slice B
 capabilities and external integrations remain incomplete, and remote repository
@@ -72,6 +76,9 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
 - [ADR-0010](docs/decisions/0010-structural-worker-protocol-and-isolation.md):
   the pinned, capability-reduced parser-worker boundary and all-or-nothing
   structural promotion contract.
+- [ADR-0012](docs/decisions/0012-context-plans-consumer-adapters-and-fallback.md):
+  deterministic context plans, thin consumer integration, and governed
+  native-read fallback.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,

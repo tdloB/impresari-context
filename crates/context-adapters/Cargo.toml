@@ -1,0 +1,21 @@
+[package]
+name = "context-adapters"
+description = "Thin consumer integration and governed fallback contracts"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[lints]
+workspace = true
+
+[dependencies]
+context-core = { version = "=0.0.0", path = "../context-core" }
+context-engine = { version = "=0.0.0", path = "../context-engine" }
+serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
+
+[dev-dependencies]
+context-store = { version = "=0.0.0", path = "../context-store" }
+context-workspace = { version = "=0.0.0", path = "../context-workspace" }
