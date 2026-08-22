@@ -341,11 +341,11 @@ impl AuthorizedWorkspace {
     }
 
     fn git_head_revision(&self) -> Option<String> {
-        let head_path = PathIdentity::from_relative_path(Path::new(".git/HEAD")).ok()?;
+        let head_path = PathIdentity::from_relative_path(&Path::new(".git").join("HEAD")).ok()?;
         let head = self.read_exact(&head_path, 4096).ok()?;
         let value = std::str::from_utf8(&head.bytes).ok()?.trim();
         if let Some(reference) = value.strip_prefix("ref: ") {
-            let relative = PathBuf::from(".git").join(reference);
+            let relative = git_metadata_path(reference)?;
             let identity = PathIdentity::from_relative_path(&relative).ok()?;
             if let Ok(reference_bytes) = self.read_exact(&identity, 4096) {
                 return normalized_git_object(
@@ -358,7 +358,7 @@ impl AuthorizedWorkspace {
     }
 
     fn packed_git_reference(&self, reference: &str) -> Option<String> {
-        let path = PathIdentity::from_relative_path(Path::new(".git/packed-refs")).ok()?;
+        let path = PathIdentity::from_relative_path(&Path::new(".git").join("packed-refs")).ok()?;
         let packed = self.read_exact(&path, 1_048_576).ok()?;
         let text = std::str::from_utf8(&packed.bytes).ok()?;
         text.lines().find_map(|line| {
@@ -654,6 +654,20 @@ fn normalized_git_object(value: &str) -> Option<String> {
     }
 }
 
+fn git_metadata_path(reference: &str) -> Option<PathBuf> {
+    if reference.is_empty() || reference.contains(['\\', ':', '\0']) {
+        return None;
+    }
+    let mut path = PathBuf::from(".git");
+    for component in reference.split('/') {
+        if component.is_empty() || matches!(component, "." | "..") {
+            return None;
+        }
+        path.push(component);
+    }
+    Some(path)
+}
+
 fn snapshot_identity(
     workspace_identity: &str,
     policy_identity: &str,
@@ -937,11 +951,11 @@ mod tests {
     fn exact_read_is_relative_bounded_and_hashed() {
         let root = TestRoot::new();
         fs::create_dir(root.0.join("src")).expect("create source directory");
-        fs::write(root.0.join("src/lib.rs"), b"pub fn answer() -> u8 { 42 }\n")
+        let source_path = Path::new("src").join("lib.rs");
+        fs::write(root.0.join(&source_path), b"pub fn answer() -> u8 { 42 }\n")
             .expect("write fixture");
         let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
-        let identity =
-            PathIdentity::from_relative_path(Path::new("src/lib.rs")).expect("path identity");
+        let identity = PathIdentity::from_relative_path(&source_path).expect("path identity");
         let exact = workspace
             .read_exact(&identity, 1024)
             .expect("bounded exact read");
@@ -1072,10 +1086,11 @@ mod tests {
     fn git_metadata_is_bounded_capability_relative_and_never_executes_git() {
         const REVISION: &str = "0123456789abcdef0123456789abcdef01234567";
         let branch = TestRoot::new();
-        fs::create_dir_all(branch.0.join(".git/refs/heads")).expect("refs");
-        fs::write(branch.0.join(".git/HEAD"), b"ref: refs/heads/main\n").expect("head");
+        let git = branch.0.join(".git");
+        fs::create_dir_all(git.join("refs").join("heads")).expect("refs");
+        fs::write(git.join("HEAD"), b"ref: refs/heads/main\n").expect("head");
         fs::write(
-            branch.0.join(".git/refs/heads/main"),
+            git.join("refs").join("heads").join("main"),
             format!("{REVISION}\n"),
         )
         .expect("branch ref");
@@ -1085,7 +1100,7 @@ mod tests {
         assert_eq!(metadata.revision.as_deref(), Some(REVISION));
         assert_eq!(metadata.working_tree, "unknown");
 
-        fs::write(branch.0.join(".git/HEAD"), format!("{REVISION}\n")).expect("detached head");
+        fs::write(git.join("HEAD"), format!("{REVISION}\n")).expect("detached head");
         assert_eq!(
             AuthorizedWorkspace::open(&branch.0)
                 .expect("workspace")
@@ -1097,9 +1112,13 @@ mod tests {
 
         let packed = TestRoot::new();
         fs::create_dir(packed.0.join(".git")).expect("git directory");
-        fs::write(packed.0.join(".git/HEAD"), b"ref: refs/heads/release\n").expect("head");
         fs::write(
-            packed.0.join(".git/packed-refs"),
+            packed.0.join(".git").join("HEAD"),
+            b"ref: refs/heads/release\n",
+        )
+        .expect("head");
+        fs::write(
+            packed.0.join(".git").join("packed-refs"),
             format!("# pack-refs\n{REVISION} refs/heads/release\n"),
         )
         .expect("packed refs");
