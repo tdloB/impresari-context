@@ -55,5 +55,5 @@ document = {
 }
 
 FileUtils.mkdir_p(File.dirname(OUTPUT)) unless Dir.exist?(File.dirname(OUTPUT))
-File.write(OUTPUT, JSON.pretty_generate(document) + "\n")
+File.binwrite(OUTPUT, JSON.pretty_generate(document) + "\n")
 puts "wrote #{packages.length} locked packages to #{OUTPUT}"
