@@ -92,6 +92,27 @@ Acceptance evidence:
 - Applicable fixed project vulnerabilities and identifiers are explicitly
   listed, or the notes explicitly state that none are known for that release.
 
+### New-functionality test policy (`test_policy`, `tests_are_added`, `tests_documented_added`)
+
+The project has extensive automated tests, but its public contribution rules do
+not yet explicitly require major new functionality to add corresponding tests.
+
+Required work:
+
+- State in `CONTRIBUTING.md` that major new functionality must include suitable
+  automated tests unless a documented exception is approved.
+- Add a pull-request checklist item confirming that new or changed behavior has
+  tests, or explaining why tests are not applicable.
+- Link representative recent feature changes to the tests added with them so
+  adherence to the policy can be verified.
+
+Acceptance evidence:
+
+- The public contribution instructions contain the test policy.
+- The pull-request template asks contributors to confirm compliance.
+- At least one recent material feature change has reviewable commits or pull
+  request evidence connecting the functionality to its automated tests.
+
 ## Tracking rule
 
 Add any later unknown or unmet badge criterion to this file with its criterion
