@@ -1190,6 +1190,7 @@ fn set_private_directory(path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)] // Keep the cross-platform fallible helper contract uniform.
 fn set_private_directory(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
@@ -1201,6 +1202,7 @@ fn set_private_file(path: &Path) -> std::io::Result<()> {
 }
 
 #[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)] // Keep the cross-platform fallible helper contract uniform.
 fn set_private_file(_path: &Path) -> std::io::Result<()> {
     Ok(())
 }
