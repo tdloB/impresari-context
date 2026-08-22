@@ -7,7 +7,8 @@ require "open3"
 
 root = File.expand_path("..", __dir__)
 stdout, stderr, status = Open3.capture3(
-  "cargo", "run", "-q", "-p", "context-evaluation", "--locked", "--offline", chdir: root
+  "cargo", "run", "-q", "-p", "context-evaluation", "--bin", "impresari-context-eval",
+  "--locked", "--offline", chdir: root
 )
 abort stderr unless status.success?
 actual = JSON.parse(stdout)

@@ -978,6 +978,25 @@ mod tests {
         );
     }
 
+    #[cfg(unix)]
+    #[test]
+    fn permission_loss_fails_safely_and_recovers_after_operator_restore() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let root = TestRoot::new();
+        let cache = WorkspaceCache::open(&root.0, A).expect("open");
+        let database = cache.namespace().join("index.sqlite3");
+        drop(cache);
+        fs::set_permissions(&database, fs::Permissions::from_mode(0o000)).expect("remove access");
+        let denied = WorkspaceCache::open(&root.0, A);
+        fs::set_permissions(&database, fs::Permissions::from_mode(0o600)).expect("restore access");
+        if let Err(error) = denied {
+            assert_eq!(error.code(), CacheErrorCode::StorageFailure);
+            assert_eq!(error.to_string(), "cache operation failed");
+        }
+        WorkspaceCache::open(&root.0, A).expect("recover after restore");
+    }
+
     #[test]
     fn writer_lock_and_namespaces_are_isolated() {
         let root = TestRoot::new();

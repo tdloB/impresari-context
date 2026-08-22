@@ -1367,6 +1367,34 @@ mod tests {
     }
 
     #[test]
+    fn deterministic_malformed_packet_fuzz_corpus_never_bypasses_validation() {
+        let mut state = 0x9e37_79b9_7f4a_7c15_u64;
+        for length in 0..=1024_usize {
+            let mut bytes = Vec::with_capacity(length);
+            for _ in 0..length {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                bytes.push(state.to_le_bytes()[0]);
+            }
+            if let Ok(packet) = serde_json::from_slice::<ContextPacket>(&bytes) {
+                assert!(validate_packet(&packet).is_err());
+            }
+        }
+
+        let valid = build_packet(draft(4096, vec![evidence('a', 32)])).expect("packet");
+        let mut canonical = packet_bytes(&valid).expect("canonical packet");
+        for index in (0..canonical.len()).step_by(17) {
+            let original = canonical[index];
+            canonical[index] ^= 0x5a;
+            if let Ok(packet) = serde_json::from_slice::<ContextPacket>(&canonical) {
+                assert!(validate_packet(&packet).is_err());
+            }
+            canonical[index] = original;
+        }
+    }
+
+    #[test]
     fn utc_timestamp_validation_rejects_noncanonical_and_impossible_dates() {
         for valid in [
             "2024-02-29T23:59:59Z",

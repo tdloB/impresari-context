@@ -240,6 +240,78 @@ fn cross_workspace_evidence_and_export_never_disclose_or_resolve() {
     assert!(!export_b.0.join("forbidden.json").exists());
 }
 
+#[test]
+fn handoff_export_rejects_workspace_traversal_and_overwrite() {
+    let source = TestRoot::new("export-source");
+    let cache = TestRoot::new("export-cache");
+    let export = TestRoot::new("export-target");
+    fs::write(source.0.join("source.txt"), b"export-marker").expect("source");
+    let (mut engine, _) = LocalEngine::open(
+        config(&cache.0, 10),
+        &context(1, "local_user", "open"),
+        &source.0,
+    )
+    .expect("open");
+    engine
+        .build_snapshot(&context(2, "local_user", "snapshot"), budget(8192, 10, 10))
+        .expect("snapshot");
+    let packet = engine
+        .build_context(
+            &context(3, "local_user", "packet"),
+            QueryKind::Literal,
+            "export-marker",
+            budget(8192, 10, 10),
+        )
+        .expect("packet");
+    let workspace_error = engine
+        .export_handoff(
+            &context(4, "local_user", "workspace export"),
+            &packet,
+            &budget(8192, 10, 10),
+            &source.0,
+            "packet.json",
+        )
+        .expect_err("workspace export denied");
+    assert_eq!(
+        workspace_error.envelope().code,
+        PublicErrorCode::RootNotAllowed
+    );
+    let traversal = engine
+        .export_handoff(
+            &context(5, "local_user", "traversal export"),
+            &packet,
+            &budget(8192, 10, 10),
+            &export.0,
+            "../packet.json",
+        )
+        .expect_err("traversal denied");
+    assert_eq!(traversal.envelope().code, PublicErrorCode::InvalidInput);
+    engine
+        .export_handoff(
+            &context(6, "local_user", "valid export"),
+            &packet,
+            &budget(8192, 10, 10),
+            &export.0,
+            "packet.json",
+        )
+        .expect("first export");
+    let before = fs::read(export.0.join("packet.json")).expect("first bytes");
+    let overwrite = engine
+        .export_handoff(
+            &context(7, "local_user", "overwrite export"),
+            &packet,
+            &budget(8192, 10, 10),
+            &export.0,
+            "packet.json",
+        )
+        .expect_err("overwrite denied");
+    assert_eq!(overwrite.envelope().code, PublicErrorCode::InvalidInput);
+    assert_eq!(
+        fs::read(export.0.join("packet.json")).expect("preserved bytes"),
+        before
+    );
+}
+
 #[cfg(unix)]
 #[test]
 fn links_special_files_hostile_names_and_limits_are_visible_without_following() {

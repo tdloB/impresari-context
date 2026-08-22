@@ -845,6 +845,46 @@ mod tests {
     }
 
     #[test]
+    fn literal_search_matches_a_deterministic_naive_property_corpus() {
+        let source = TestRoot::new("property-source");
+        let mut expected = std::collections::BTreeMap::new();
+        for index in 0_u8..32 {
+            let marker = format!("marker-{index:02}");
+            let bytes = format!("prefix {marker} middle {marker} suffix").into_bytes();
+            fs::write(source.0.join(format!("case-{index:02}.txt")), &bytes).expect("fixture");
+            expected.insert(marker, bytes);
+        }
+        let workspace = AuthorizedWorkspace::open(&source.0).expect("workspace");
+        let snapshot = workspace
+            .snapshot(DiscoveryPolicy::new(100, 1_048_576, 65_536, 8).expect("policy"))
+            .expect("snapshot");
+        for (marker, bytes) in expected {
+            let result = search_literal(
+                &workspace,
+                &snapshot,
+                marker.as_bytes(),
+                SearchBudget::new(100, 100, 64, Duration::from_secs(1)).expect("budget"),
+            )
+            .expect("search");
+            let naive = bytes
+                .windows(marker.len())
+                .enumerate()
+                .filter(|(_, value)| *value == marker.as_bytes())
+                .map(|(offset, _)| u64::try_from(offset).expect("small offset"))
+                .collect::<Vec<_>>();
+            assert_eq!(result.matches.len(), naive.len());
+            assert_eq!(
+                result
+                    .matches
+                    .iter()
+                    .map(|item| item.start_byte)
+                    .collect::<Vec<_>>(),
+                naive
+            );
+        }
+    }
+
+    #[test]
     fn exact_path_and_filename_lookup_revalidate_current_source() {
         let (_source, _cache_root, workspace, snapshot, _cache) = setup();
         let budget = SearchBudget::new(10, 10, 8, Duration::from_secs(1)).expect("budget");
