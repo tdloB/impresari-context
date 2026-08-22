@@ -17,14 +17,24 @@ jobs:
         include:
           - os: macos-14
             rust: 1.98.0
+            target: aarch64-apple-darwin
+            filesystem: hosted-macos-apfs-profile
           - os: ubuntu-24.04
             rust: 1.98.0
+            target: x86_64-unknown-linux-gnu
+            filesystem: hosted-ubuntu-local-filesystem
           - os: windows-2025
             rust: 1.98.0
+            target: x86_64-pc-windows-msvc
+            filesystem: hosted-windows-ntfs-profile
           - os: ubuntu-24.04
             rust: 1.96.0
+            target: x86_64-unknown-linux-gnu
+            filesystem: hosted-ubuntu-local-filesystem
           - os: ubuntu-24.04
             rust: 1.97.0
+            target: x86_64-unknown-linux-gnu
+            filesystem: hosted-ubuntu-local-filesystem
     runs-on: ${{ matrix.os }}
     steps:
       - name: Check out source
@@ -40,3 +50,9 @@ jobs:
       - name: Run quality checks
         shell: bash
         run: ./scripts/check.sh
+      - name: Record bounded platform evidence
+        shell: bash
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+          FILESYSTEM_PROFILE: ${{ matrix.filesystem }}
+        run: ruby ./scripts/platform-evidence.rb | tee -a "$GITHUB_STEP_SUMMARY"

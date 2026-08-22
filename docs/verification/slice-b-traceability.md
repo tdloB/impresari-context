@@ -23,8 +23,9 @@ confinement evidence remain open.
 | Thin CLI adapter | Explicit structural build takes a worker path/hash/empty directory; query consumes a graph file and bounded edge selection | Shared engine gateway, CLI parsing, workspace tests, and Clippy |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
 | Frozen structural evaluation | Six original TypeScript cases with a 33% held-out split gate required symbol/edge recall, identity validity, determinism, map availability, and confirmed-target honesty | `structural_evaluation` invoked by the evaluation gate |
+| Native platform evidence harness | Tier-A CI runs the full repository gate on macOS/Apple silicon, Linux/x86-64, and Windows/x86-64 and emits bounded OS/architecture/toolchain/filesystem-profile evidence while disclaiming OS-sandbox guarantees | Hosted CI job summaries; release evidence remains gated on successful external runs |
 
 ## Open Slice B Work
 
-- Produce native macOS, Linux, and Windows confinement/resource evidence without
-  overstating application-enforced isolation.
+- Archive successful native CI run links and any filesystem-specific release
+  rehearsal evidence in the release record; configuration alone is not a pass.
