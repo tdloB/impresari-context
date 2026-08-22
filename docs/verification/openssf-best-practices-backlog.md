@@ -46,6 +46,100 @@ Acceptance evidence:
 - The reference documentation links to the normative schemas and is checked
   against the implemented interface during CI or release verification.
 
+### Release versioning and tags (`version_unique`, `version_semver`, `version_tags`)
+
+Each public release must have a unique Semantic Versioning identifier and a
+matching protected Git tag, with public evidence connecting the source commit,
+release artifacts, checksums, and provenance.
+
+Required work:
+
+- Publish the first approved release as `v0.1.0` rather than the internal
+  `0.0.0` development version.
+- Create the matching Git tag through the approved release workflow.
+- Protect release tags against unauthorized modification or deletion.
+- Link the GitHub release, tag, checksums, attestations, and exact source commit
+  from the release evidence documentation.
+
+Acceptance evidence:
+
+- The public release and tag use the same valid Semantic Versioning identifier.
+- Release artifacts and checksums are reproducible from the tagged commit.
+- GitHub artifact attestations bind the published artifacts to the repository,
+  workflow, and source commit.
+- The protected tag and release evidence URLs are publicly accessible.
+
+### Human-readable release notes (`release_notes`)
+
+Every public release must include human-readable release notes that explain its
+major changes, upgrade relevance, and expected user impact. A raw commit log is
+not sufficient.
+
+Required work:
+
+- Create release notes for `v0.1.0` as part of the approved release process.
+- Summarize added capabilities, compatibility or migration considerations,
+  security-relevant changes, known limitations, and unresolved risks.
+- For later releases, identify every publicly known project vulnerability fixed
+  by that release, including its CVE or equivalent identifier when one exists.
+- Link the notes from the GitHub release and release evidence documentation.
+
+Acceptance evidence:
+
+- The public GitHub release contains reviewed prose rather than an unedited
+  version-control log.
+- The notes allow a user to understand whether and how to adopt or upgrade.
+- Applicable fixed project vulnerabilities and identifiers are explicitly
+  listed, or the notes explicitly state that none are known for that release.
+
+### New-functionality test policy (`test_policy`, `tests_are_added`, `tests_documented_added`)
+
+The project has extensive automated tests, but its public contribution rules do
+not yet explicitly require major new functionality to add corresponding tests.
+
+Required work:
+
+- State in `CONTRIBUTING.md` that major new functionality must include suitable
+  automated tests unless a documented exception is approved.
+- Add a pull-request checklist item confirming that new or changed behavior has
+  tests, or explaining why tests are not applicable.
+- Link representative recent feature changes to the tests added with them so
+  adherence to the policy can be verified.
+
+Acceptance evidence:
+
+- The public contribution instructions contain the test policy.
+- The pull-request template asks contributors to confirm compliance.
+- At least one recent material feature change has reviewable commits or pull
+  request evidence connecting the functionality to its automated tests.
+
+### Human secure-development knowledge (`know_secure_design`, `know_common_errors`)
+
+AI-assisted analysis and automated security tooling do not establish that a
+primary human developer satisfies the OpenSSF secure-development knowledge
+criteria.
+
+Required work:
+
+- Designate at least one primary human developer who can substantiate secure
+  software design knowledge appropriate to a local repository-context engine.
+- Ensure that developer can identify the project's common vulnerability classes
+  and at least one practical mitigation for each, including path traversal and
+  link attacks, resource exhaustion, injection and untrusted-content handling,
+  stale or substituted evidence, sensitive-data disclosure, unsafe dependency
+  behavior, and process or protocol boundary failures.
+- Record suitable training, demonstrated experience, or an independent
+  security-review relationship without publishing unnecessary personal data.
+
+Acceptance evidence:
+
+- A named primary human developer or retained security reviewer satisfies the
+  applicable OpenSSF criterion details.
+- The public security or governance documentation identifies the responsible
+  role and relevant secure-development process.
+- The badge justification cites verifiable, non-sensitive evidence rather than
+  treating AI output or scanners as human expertise.
+
 ## Tracking rule
 
 Add any later unknown or unmet badge criterion to this file with its criterion
