@@ -157,6 +157,100 @@ pub struct SearchResult {
     pub truncation_reasons: Vec<&'static str>,
 }
 
+/// Resolves one exact path identity to verified current-source evidence.
+///
+/// # Errors
+///
+/// Fails when the path is absent from the snapshot, source changed, or a hard
+/// read/output limit is exceeded.
+pub fn lookup_exact_path(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    path: &PathIdentity,
+    budget: SearchBudget,
+) -> Result<SearchResult, RetrievalError> {
+    let artifact = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.path == *path)
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::EvidenceUnavailable))?;
+    reference_results(workspace, snapshot, [artifact], budget)
+}
+
+/// Finds filename/path-display matches and verifies each against current source.
+/// Matching is ASCII case-insensitive and results use stable native-path order.
+///
+/// # Errors
+///
+/// Fails for invalid input, changed source, or hard resource limits.
+pub fn search_filename(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    query: &str,
+    budget: SearchBudget,
+) -> Result<SearchResult, RetrievalError> {
+    if query.is_empty() || query.len() > 8192 || query.contains('\0') {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    let query = query.as_bytes();
+    let candidates = snapshot.artifacts.iter().filter(|artifact| {
+        !find_bounded(artifact.path.display_path.as_bytes(), query, true, 1).is_empty()
+    });
+    reference_results(workspace, snapshot, candidates, budget)
+}
+
+fn reference_results<'a>(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    artifacts: impl IntoIterator<Item = &'a context_workspace::ArtifactRecord>,
+    budget: SearchBudget,
+) -> Result<SearchResult, RetrievalError> {
+    if workspace.identity() != snapshot.workspace_identity {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    let started = Instant::now();
+    let mut matches = Vec::new();
+    let mut truncated = false;
+    let mut reasons = Vec::new();
+    for (examined, artifact) in artifacts.into_iter().enumerate() {
+        if started.elapsed() >= budget.max_elapsed {
+            truncated = true;
+            reasons.push("elapsed_limit");
+            break;
+        }
+        if u64::try_from(examined).unwrap_or(u64::MAX) >= budget.max_files {
+            truncated = true;
+            reasons.push("file_limit");
+            break;
+        }
+        if u64::try_from(matches.len()).unwrap_or(u64::MAX) >= budget.max_matches {
+            truncated = true;
+            reasons.push("match_limit");
+            break;
+        }
+        let exact = workspace
+            .read_exact(&artifact.path, artifact.size_bytes.max(1))
+            .map_err(map_workspace)?;
+        if exact.content_hash != artifact.content_hash {
+            return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+        }
+        matches.push(make_evidence(
+            snapshot,
+            artifact,
+            &exact.bytes,
+            0,
+            0,
+            budget.max_excerpt_bytes,
+            "exact_read",
+        ));
+    }
+    Ok(SearchResult {
+        matches,
+        truncated,
+        truncation_reasons: reasons,
+    })
+}
+
 /// Builds and atomically promotes the contentless lexical candidate generation.
 ///
 /// # Errors
@@ -620,6 +714,26 @@ mod tests {
             (6, 11)
         );
         assert!(!result.truncated);
+    }
+
+    #[test]
+    fn exact_path_and_filename_lookup_revalidate_current_source() {
+        let (_source, _cache_root, workspace, snapshot, _cache) = setup();
+        let budget = SearchBudget::new(10, 10, 8, Duration::from_secs(1)).expect("budget");
+        let path = snapshot.artifacts[0].path.clone();
+        let exact = lookup_exact_path(&workspace, &snapshot, &path, budget).expect("exact");
+        assert_eq!(exact.matches.len(), 1);
+        assert_eq!(exact.matches[0].extraction_method, "exact_read");
+        assert_eq!(
+            (exact.matches[0].start_byte, exact.matches[0].end_byte),
+            (0, 0)
+        );
+        assert_eq!(
+            search_filename(&workspace, &snapshot, "SAMPLE", budget)
+                .expect("filename")
+                .matches,
+            exact.matches
+        );
     }
 
     #[test]

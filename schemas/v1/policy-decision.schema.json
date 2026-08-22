@@ -5,7 +5,7 @@
   "type": "object",
   "additionalProperties": false,
   "required": [
-    "schema_name", "schema_version", "decision_id", "request_id", "capability",
+    "schema_name", "schema_version", "decision_id", "request_id", "caller_id", "role", "purpose", "capability",
     "outcome", "reason_codes", "policy_profile", "evaluated_at"
   ],
   "properties": {
@@ -13,6 +13,9 @@
     "schema_version": {"const": "1.0.0"},
     "decision_id": {"$ref": "common.schema.json#/$defs/sha256"},
     "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "caller_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]*$"},
+    "purpose": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000]*$"},
     "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
     "capability": {"$ref": "common.schema.json#/$defs/capability"},
     "outcome": {"type": "string", "enum": ["allow", "deny", "limit"]},

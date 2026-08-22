@@ -10,8 +10,8 @@ use sha2::{Digest, Sha256};
 
 use context_core::{
     AuditOutcome, Capability, ContextPacket, EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction,
-    EvidencePath, EvidenceRecord, EvidenceSpan, PacketDraft, ResourceBudget, audit_event,
-    build_packet, packet_bytes, packet_validation_result,
+    EvidencePath, EvidenceRecord, EvidenceSpan, PacketDraft, PolicySubject, ResourceBudget,
+    audit_event, build_packet, decide, packet_bytes, packet_validation_result,
 };
 
 fn repository_root() -> PathBuf {
@@ -334,4 +334,29 @@ fn rust_packet_output_satisfies_the_published_schema() {
     audit_validator
         .validate(&serde_json::to_value(audit).expect("audit JSON"))
         .unwrap_or_else(|error| panic!("Rust event must satisfy audit-event.schema.json: {error}"));
+
+    let decision = decide(
+        "req_12345678",
+        &PolicySubject {
+            caller_id: "caller_12345678".into(),
+            role: "local_user".into(),
+            purpose: "conformance".into(),
+        },
+        Some(hash_a),
+        Capability::ContextValidate,
+        Some(packet.budget),
+        "2026-08-21T00:00:03Z",
+    )
+    .expect("policy decision");
+    let decision_schema = read_json(&schema_root.join("policy-decision.schema.json"));
+    let decision_validator = jsonschema::draft202012::options()
+        .with_registry(&registry)
+        .should_validate_formats(true)
+        .build(&decision_schema)
+        .expect("decision validator");
+    decision_validator
+        .validate(&serde_json::to_value(decision).expect("decision JSON"))
+        .unwrap_or_else(|error| {
+            panic!("Rust decision must satisfy policy-decision.schema.json: {error}")
+        });
 }

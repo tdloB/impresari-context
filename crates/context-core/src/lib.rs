@@ -204,6 +204,12 @@ pub struct PolicyDecision {
     pub decision_id: String,
     /// Caller request identifier.
     pub request_id: String,
+    /// Opaque validated caller identifier.
+    pub caller_id: String,
+    /// Validated local policy role, treated only as data.
+    pub role: String,
+    /// Validated operation purpose, treated only as data.
+    pub purpose: String,
     /// Optional authorized workspace.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_identity: Option<String>,
@@ -222,6 +228,17 @@ pub struct PolicyDecision {
     pub evaluated_at: String,
 }
 
+/// Policy-relevant caller data supplied by a consumer adapter.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct PolicySubject {
+    /// Opaque caller identity.
+    pub caller_id: String,
+    /// Local policy role.
+    pub role: String,
+    /// Operation purpose.
+    pub purpose: String,
+}
+
 /// Evaluates one local capability request deterministically.
 ///
 /// # Errors
@@ -229,12 +246,26 @@ pub struct PolicyDecision {
 /// Fails for malformed identifiers/timestamps or canonicalization errors.
 pub fn decide(
     request_id: &str,
+    subject: &PolicySubject,
     workspace_identity: Option<&str>,
     capability: Capability,
     budget: Option<ResourceBudget>,
     evaluated_at: &str,
 ) -> Result<PolicyDecision, CoreError> {
     validate_identifier(request_id)?;
+    validate_identifier(&subject.caller_id)?;
+    if subject.role.is_empty()
+        || subject.role.len() > 64
+        || !subject.role.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_lowercase()
+                || (index > 0 && (byte.is_ascii_digit() || byte == b'_' || byte == b'-'))
+        })
+        || subject.purpose.is_empty()
+        || subject.purpose.len() > 256
+        || subject.purpose.contains('\0')
+    {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
     if let Some(identity) = workspace_identity {
         validate_sha256(identity)?;
     }
@@ -255,6 +286,9 @@ pub fn decide(
         schema_version: VERSION.into(),
         decision_id: zero_hash(),
         request_id: request_id.into(),
+        caller_id: subject.caller_id.clone(),
+        role: subject.role.clone(),
+        purpose: subject.purpose.clone(),
         workspace_identity: workspace_identity.map(str::to_owned),
         capability,
         outcome,
@@ -1008,6 +1042,13 @@ mod tests {
         ResourceBudget::conservative(bytes, 100, 20, 2000, 1000, 32, 30_000, 536_870_912)
             .expect("budget")
     }
+    fn subject() -> PolicySubject {
+        PolicySubject {
+            caller_id: "caller_12345678".into(),
+            role: "local_user".into(),
+            purpose: "test".into(),
+        }
+    }
     fn evidence(id: char, excerpt: usize) -> EvidenceRecord {
         EvidenceRecord {
             schema_name: "evidence".into(),
@@ -1066,6 +1107,7 @@ mod tests {
     fn policy_decision_is_deterministic_and_workspace_gated() {
         let first = decide(
             "req_12345678",
+            &subject(),
             Some(A),
             Capability::CodeSearch,
             Some(budget(4096)),
@@ -1074,6 +1116,7 @@ mod tests {
         .expect("decision");
         let second = decide(
             "req_12345678",
+            &subject(),
             Some(A),
             Capability::CodeSearch,
             Some(budget(4096)),
@@ -1084,6 +1127,7 @@ mod tests {
         assert_eq!(
             decide(
                 "req_12345678",
+                &subject(),
                 None,
                 Capability::CodeSearch,
                 None,
