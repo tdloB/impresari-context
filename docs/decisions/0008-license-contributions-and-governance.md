@@ -82,9 +82,10 @@ material governance decision requiring a new ADR and contributor impact review.
   the project lead decides within the published scope and records the rationale
   and opposing evidence.
 - Before a second maintainer exists, the founder may merge ordinary changes after
-  CI and a recorded self-review. Public release still requires all independent
-  security/evaluation gates promised by the PRDs; solo governance cannot waive
-  them silently.
+  CI and a recorded self-review. Public release still requires every applicable
+  security and evaluation gate promised by the PRDs and superseding ADRs; solo
+  governance cannot waive them silently. ADR-0017 makes independent review an
+  assurance target rather than a mandatory `v0.1.0` gate.
 - Once two qualified maintainers exist, changes to authorization, evidence
   identity, canonicalization, parser/extension execution, release credentials,
   security policy, and governance require review by a second maintainer.
@@ -153,7 +154,7 @@ The local scaffold will include:
   unnecessarily.
 - A maintainer cannot waive an MVP hard security gate without a public ADR,
   founder/steward approval, explicit residual-risk disclosure, and any required
-  independent review; critical authorization/data-isolation failures remain
+  independent review. Critical authorization/data-isolation failures remain
   non-waivable for release.
 - No remote kill switch or silent update is permitted.
 

@@ -1,8 +1,15 @@
 # Independent Security And Release Review Guide
 
-Impresari Context requires a human review independent of the primary
-implementation process before publishing `v0.1.0`. Automated scanners and
-AI-assisted review provide useful evidence, but they do not satisfy this gate.
+This guide defines the recommended scope for a future human review independent
+of the primary implementation process. Under ADR-0017, that review is encouraged
+but is not required for `v0.1.0`. It becomes mandatory before `v1.0.0`, or
+earlier if the project adds network access, remote transport, privileged or
+executable extensions, source mutation, hosted or multi-tenant operation,
+durable memory, authentication, or another materially higher-risk capability.
+
+Automated scanners and AI-assisted review provide useful evidence, but they are
+not equivalent to an independent audit and do not satisfy a mandatory review
+trigger when one applies.
 
 ## Reviewer qualification
 
@@ -20,7 +27,7 @@ published.
 
 The review must cover at least:
 
-- the threat model and every public-release security gate;
+- the threat model and every applicable security and release gate;
 - workspace containment, path and symlink handling, and source immutability;
 - treatment of repository content as untrusted data;
 - packet evidence integrity, completeness accounting, and stale-state failure;
@@ -37,13 +44,14 @@ candidate run, CodeQL and OpenSSF results, and the packaged archives. Findings
 must identify severity, evidence, recommended disposition, and whether they
 block release.
 
-Before release, every blocker must be fixed and reverified. Other accepted
-risks require a written, time-bounded maintainer disposition. The final review
-record may redact exploit details while a vulnerability remains under embargo.
+Before a release for which independent review is mandatory, every review
+blocker must be fixed and reverified. Other accepted risks require a written,
+time-bounded maintainer disposition. The final review record may redact exploit
+details while a vulnerability remains under embargo.
 
 ## OpenSSF questionnaire boundary
 
-This review can support the project's independent-release gate. It does not by
+This review can satisfy an applicable independent-review gate. It does not by
 itself prove that the primary developer meets OpenSSF's secure-development
 knowledge criteria. Those criteria should remain `Unmet` until a qualifying
 human primary developer or documented ongoing security-review relationship is
