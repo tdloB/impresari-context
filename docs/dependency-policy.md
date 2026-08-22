@@ -20,11 +20,18 @@ scrutiny than test-only dependencies.
 | `base64` | 0.22.1 | `context-workspace` | `std`; defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Canonical unpadded base64url native-path units |
 | `cap-std` | 4.0.2 | `context-workspace` | No features; defaults disabled | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Upstream documents Rust 1.70 with defaults; verified by the project Rust 1.96 gate | Capability-relative, cross-platform filesystem access resistant to path escapes |
 | `sha2` | 0.11.0 | `context-workspace` and conformance tests | Defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Domain-separated workspace and content identities |
+| `rusqlite` | 0.40.2 | `context-store` | `bundled`, `limits`; defaults disabled | MIT | Verified by the project Rust 1.96 gate | Transactional isolated cache with a pinned bundled SQLite and runtime limits |
 
 `cap-std` is admitted because ambient `std::fs` canonicalize/open sequences
 cannot close symlink-swap races portably. Ambient authority is used exactly once
 when an explicitly supplied root is opened; subsequent reads are relative to the
 held directory capability. Network and UTF-8 path features are not enabled.
+
+`rusqlite` defaults are disabled. The `bundled` feature avoids an unknown system
+SQLite and supplies FTS5; `limits` permits defensive SQLite runtime ceilings.
+`bundled-full`, `load_extension`, `loadable_extension`, WASM, SQLCipher, and
+serialization/integration features are prohibited. SQL is project-authored and
+callers never receive a raw SQL or FTS query surface.
 
 `jsonschema` default features are prohibited because they add HTTP, file, and TLS
 resolvers. The test harness supplies every schema through an in-memory prepared
