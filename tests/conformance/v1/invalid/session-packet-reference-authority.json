@@ -1,0 +1,11 @@
+{
+  "schema_name": "session-packet-reference",
+  "schema_version": "1.0.0",
+  "session_id": "session_12345678",
+  "packet_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_identity": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "workspace_snapshot": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "purpose": "local consumer handoff",
+  "packet_bytes": "4096",
+  "authority_added": true
+}

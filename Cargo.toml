@@ -6,6 +6,7 @@ members = [
     "crates/context-engine",
     "crates/context-evaluation",
     "crates/context-retrieval",
+    "crates/context-session",
     "crates/context-store",
     "crates/context-structural",
     "crates/context-workspace",

@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/session-packet-reference.schema.json",
+  "title": "Process-local session packet reference",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "session_id", "packet_id", "workspace_identity", "workspace_snapshot", "purpose", "packet_bytes", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "session-packet-reference"},
+    "schema_version": {"const": "1.0.0"},
+    "session_id": {"type": "string", "minLength": 8, "maxLength": 128, "pattern": "^[A-Za-z0-9_-]+$"},
+    "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "purpose": {"type": "string", "minLength": 1, "maxLength": 256},
+    "packet_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "authority_added": {"const": false}
+  }
+}

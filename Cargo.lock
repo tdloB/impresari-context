@@ -150,6 +150,7 @@ dependencies = [
  "context-core",
  "context-engine",
  "context-store",
+ "context-structural",
  "context-workspace",
  "serde",
  "serde_json",
@@ -213,6 +214,14 @@ dependencies = [
  "context-store",
  "context-workspace",
  "sha2",
+]
+
+[[package]]
+name = "context-session"
+version = "0.0.0"
+dependencies = [
+ "context-core",
+ "serde",
 ]
 
 [[package]]
