@@ -380,24 +380,28 @@ impl WorkspaceCache {
         if !namespace.starts_with(&root) {
             return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
         }
+        let lock_path = namespace.join("lock");
         let writer_lock = OpenOptions::new()
             .create(true)
             .read(true)
             .write(true)
             .truncate(false)
-            .open(namespace.join("lock"))
+            .open(&lock_path)
             .map_err(CacheError::storage)?;
+        set_private_file_permissions(&lock_path)?;
         writer_lock.try_lock().map_err(|error| match error {
             std::fs::TryLockError::WouldBlock => CacheError::new(CacheErrorCode::WriterBusy),
             std::fs::TryLockError::Error(error) => CacheError::storage(error),
         })?;
+        let database_path = namespace.join("index.sqlite3");
         let connection = Connection::open_with_flags(
-            namespace.join("index.sqlite3"),
+            &database_path,
             OpenFlags::SQLITE_OPEN_READ_WRITE
                 | OpenFlags::SQLITE_OPEN_CREATE
                 | OpenFlags::SQLITE_OPEN_NO_MUTEX,
         )
         .map_err(CacheError::storage)?;
+        set_private_file_permissions(&database_path)?;
         configure(&connection)?;
         initialize(&connection, workspace_identity)?;
         verify_integrity(&connection)?;
@@ -896,6 +900,81 @@ mod tests {
                 .expect("present")
                 .snapshot_id,
             C
+        );
+    }
+
+    #[test]
+    fn tampered_and_incompatible_cache_state_fails_closed() {
+        let root = TestRoot::new();
+        let cache = WorkspaceCache::open(&root.0, A).expect("open");
+        let database = cache.namespace().join("index.sqlite3");
+        cache
+            .connection
+            .execute(
+                "UPDATE cache_metadata SET schema_version='forged' WHERE singleton=1",
+                [],
+            )
+            .expect("tamper metadata");
+        drop(cache);
+        assert_eq!(
+            WorkspaceCache::open(&root.0, A)
+                .expect_err("incompatible metadata")
+                .code(),
+            CacheErrorCode::IncompatibleCache
+        );
+
+        fs::write(&database, b"not a sqlite database").expect("corrupt database");
+        let error = WorkspaceCache::open(&root.0, A).expect_err("corrupt database");
+        assert!(matches!(
+            error.code(),
+            CacheErrorCode::CorruptCache | CacheErrorCode::StorageFailure
+        ));
+        assert_eq!(error.to_string(), "cache operation failed");
+        assert!(
+            !error
+                .to_string()
+                .contains(database.to_string_lossy().as_ref())
+        );
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn cache_and_lock_permissions_are_private() {
+        use std::os::unix::fs::PermissionsExt as _;
+
+        let root = TestRoot::new();
+        let cache = WorkspaceCache::open(&root.0, A).expect("open");
+        assert_eq!(
+            fs::metadata(&root.0)
+                .expect("root mode")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        assert_eq!(
+            fs::metadata(cache.namespace())
+                .expect("namespace mode")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o700
+        );
+        assert_eq!(
+            fs::metadata(cache.namespace().join("lock"))
+                .expect("lock mode")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
+        );
+        assert_eq!(
+            fs::metadata(cache.namespace().join("index.sqlite3"))
+                .expect("database mode")
+                .permissions()
+                .mode()
+                & 0o777,
+            0o600
         );
     }
 
