@@ -17,7 +17,7 @@ use context_core::{
     packet_bytes, packet_validation_result, validate_packet,
 };
 use context_retrieval::{
-    RetrievalErrorCode, SearchBudget, build_lexical_generation, evidence_record,
+    RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_record,
     expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
 };
 use context_store::{AuditRetention, AuditStore, CacheErrorCode, WorkspaceCache};
@@ -283,10 +283,12 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<SnapshotStatus, EngineError> {
         let started = Instant::now();
+        let (discovery, max_elapsed) = bounded_discovery(self.config.discovery, &budget)
+            .map_err(|code| core_error(context, Capability::SnapshotBuild, code, self.ids()))?;
         let decision = self.authorize(context, Capability::SnapshotBuild, Some(budget))?;
         let result = self
             .workspace
-            .snapshot(self.config.discovery)
+            .snapshot_bounded(discovery, max_elapsed)
             .map_err(|error| {
                 self.workspace_failure(context, Capability::SnapshotBuild, error.code())
             })
@@ -789,9 +791,18 @@ impl LocalEngine {
                             .map_err(|error| {
                                 cache_error(context, capability, error.code(), Some(self.ids()))
                             })?;
-                    build_lexical_generation(&self.workspace, snapshot, &mut cache).map_err(
-                        |error| retrieval_error(context, capability, error.code(), self.ids()),
-                    )?;
+                    let max_memory = budget.max_memory_bytes_u64().map_err(|error| {
+                        core_error(context, capability, error.code(), self.ids())
+                    })?;
+                    build_lexical_generation_bounded(
+                        &self.workspace,
+                        snapshot,
+                        &mut cache,
+                        max_memory,
+                    )
+                    .map_err(|error| {
+                        retrieval_error(context, capability, error.code(), self.ids())
+                    })?;
                     self.cache = Some(cache);
                 }
                 search_lexical(
@@ -1037,13 +1048,34 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
             .parse::<u64>()
             .map_err(|_| context_core::CoreErrorCode::InvalidInput)
     };
-    SearchBudget::new(
+    SearchBudget::with_memory_limit(
         parse(&budget.max_files)?,
         parse(&budget.max_matches)?,
         parse(&budget.max_excerpt_bytes_per_item)?,
         Duration::from_millis(parse(&budget.max_elapsed_ms)?),
+        parse(&budget.max_memory_bytes)?,
     )
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn bounded_discovery(
+    configured: DiscoveryPolicy,
+    budget: &ResourceBudget,
+) -> Result<(DiscoveryPolicy, Duration), context_core::CoreErrorCode> {
+    let map = |_| context_core::CoreErrorCode::InvalidInput;
+    let max_files = budget.max_files_u64().map_err(map)?;
+    let max_depth = budget.max_traversal_depth_u64().map_err(map)?;
+    let max_memory = budget.max_memory_bytes_u64().map_err(map)?;
+    let max_elapsed = budget.max_elapsed_ms_u64().map_err(map)?;
+    let max_total_bytes = configured.max_total_bytes.min(max_memory);
+    let policy = DiscoveryPolicy::new(
+        configured.max_files.min(max_files),
+        max_total_bytes,
+        configured.max_file_bytes.min(max_total_bytes),
+        configured.max_depth.min(max_depth),
+    )
+    .map_err(|_| context_core::CoreErrorCode::ResourceLimit)?;
+    Ok((policy, Duration::from_millis(max_elapsed)))
 }
 
 fn default_budget() -> ResourceBudget {
@@ -1674,5 +1706,56 @@ mod tests {
         assert!(events.iter().any(|event| {
             event.event_id == "evt_00000002" && event.outcome == AuditOutcome::Failed
         }));
+    }
+
+    #[test]
+    fn request_memory_and_traversal_limits_narrow_configured_scope() {
+        let source = TestRoot::new("request-limits-source");
+        let cache = TestRoot::new("request-limits-cache");
+        fs::create_dir_all(source.0.join("one/two")).expect("nested directories");
+        fs::write(source.0.join("one/two/deep.txt"), b"deep-marker").expect("deep file");
+        fs::write(source.0.join("large.txt"), vec![b'x'; 1_100_000]).expect("large file");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(100, 4_194_304, 2_097_152, 16).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 100, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(20, "open"), &source.0).expect("open");
+        let shallow = ResourceBudget::conservative(8192, 20, 100, 128, 100, 1, 30_000, 1_048_576)
+            .expect("shallow budget");
+        let status = engine
+            .build_snapshot(&request(21, "limited_snapshot"), shallow)
+            .expect("partial snapshot");
+        assert_eq!(status.completeness, "partial");
+        assert!(
+            status
+                .skipped
+                .iter()
+                .any(|item| item.reason == "limit_reached")
+        );
+        assert!(status.skipped.iter().any(|item| item.reason == "oversized"));
+
+        let broad = ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 4_194_304)
+            .expect("broad budget");
+        engine
+            .build_snapshot(&request(22, "broad_snapshot"), broad)
+            .expect("broad snapshot");
+        let memory_limited =
+            ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 1_048_576)
+                .expect("memory budget");
+        let result = engine
+            .search(
+                &request(23, "memory_search"),
+                QueryKind::Filename,
+                "large.txt",
+                &memory_limited,
+            )
+            .expect("limited search");
+        assert!(result.truncated);
+        assert_eq!(result.completeness, "partial");
+        assert_eq!(result.truncation_reasons, vec!["memory_limit"]);
+        assert!(result.matches.is_empty());
     }
 }

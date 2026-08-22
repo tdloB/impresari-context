@@ -85,6 +85,8 @@ pub struct SearchBudget {
     pub max_excerpt_bytes: u64,
     /// Wall-clock ceiling.
     pub max_elapsed: Duration,
+    /// Maximum accounted source-plus-evidence bytes held by one search.
+    pub max_memory_bytes: u64,
 }
 
 impl SearchBudget {
@@ -99,6 +101,27 @@ impl SearchBudget {
         max_excerpt_bytes: u64,
         max_elapsed: Duration,
     ) -> Result<Self, RetrievalError> {
+        Self::with_memory_limit(
+            max_files,
+            max_matches,
+            max_excerpt_bytes,
+            max_elapsed,
+            2_147_483_648,
+        )
+    }
+
+    /// Creates a validated search budget with an explicit memory ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Fails when any limit is outside the accepted resource profile.
+    pub fn with_memory_limit(
+        max_files: u64,
+        max_matches: u64,
+        max_excerpt_bytes: u64,
+        max_elapsed: Duration,
+        max_memory_bytes: u64,
+    ) -> Result<Self, RetrievalError> {
         if max_files == 0
             || max_files > 1_000_000
             || max_matches == 0
@@ -107,6 +130,7 @@ impl SearchBudget {
             || max_excerpt_bytes > 65_536
             || max_elapsed.is_zero()
             || max_elapsed > Duration::from_mins(5)
+            || !(1_048_576..=2_147_483_648).contains(&max_memory_bytes)
         {
             return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
         }
@@ -115,6 +139,7 @@ impl SearchBudget {
             max_matches,
             max_excerpt_bytes,
             max_elapsed,
+            max_memory_bytes,
         })
     }
 }
@@ -212,6 +237,7 @@ fn reference_results<'a>(
     let mut matches = Vec::new();
     let mut truncated = false;
     let mut reasons = Vec::new();
+    let mut retained_bytes = 0_u64;
     for (examined, artifact) in artifacts.into_iter().enumerate() {
         if started.elapsed() >= budget.max_elapsed {
             truncated = true;
@@ -228,13 +254,18 @@ fn reference_results<'a>(
             reasons.push("match_limit");
             break;
         }
+        if retained_bytes.saturating_add(artifact.size_bytes) > budget.max_memory_bytes {
+            truncated = true;
+            reasons.push("memory_limit");
+            break;
+        }
         let exact = workspace
             .read_exact(&artifact.path, artifact.size_bytes.max(1))
             .map_err(map_workspace)?;
         if exact.content_hash != artifact.content_hash {
             return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
         }
-        matches.push(make_evidence(
+        let evidence = make_evidence(
             snapshot,
             artifact,
             &exact.bytes,
@@ -242,7 +273,15 @@ fn reference_results<'a>(
             0,
             budget.max_excerpt_bytes,
             "exact_read",
-        ));
+        );
+        retained_bytes = retained_bytes
+            .saturating_add(u64::try_from(evidence.excerpt.len()).unwrap_or(u64::MAX));
+        if retained_bytes > budget.max_memory_bytes {
+            truncated = true;
+            reasons.push("memory_limit");
+            break;
+        }
+        matches.push(evidence);
     }
     Ok(SearchResult {
         matches,
@@ -262,13 +301,35 @@ pub fn build_lexical_generation(
     snapshot: &WorkspaceSnapshot,
     cache: &mut WorkspaceCache,
 ) -> Result<(), RetrievalError> {
+    build_lexical_generation_bounded(workspace, snapshot, cache, 2_147_483_648)
+}
+
+/// Builds lexical candidates under an explicit accounted-memory ceiling.
+///
+/// # Errors
+///
+/// Fails for stale source/cache state, invalid source, storage failure, or when
+/// retained derived metadata plus the current source read exceeds the ceiling.
+pub fn build_lexical_generation_bounded(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    cache: &mut WorkspaceCache,
+    max_memory_bytes: u64,
+) -> Result<(), RetrievalError> {
+    if !(1_048_576..=2_147_483_648).contains(&max_memory_bytes) {
+        return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+    }
     if workspace.identity() != snapshot.workspace_identity
         || cache.workspace_identity() != snapshot.workspace_identity
     {
         return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
     }
     let mut cached = Vec::with_capacity(snapshot.artifacts.len());
+    let mut retained_bytes = 0_u64;
     for artifact in &snapshot.artifacts {
+        if retained_bytes.saturating_add(artifact.size_bytes) > max_memory_bytes {
+            return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+        }
         let exact = workspace
             .read_exact(&artifact.path, artifact.size_bytes.max(1))
             .map_err(map_workspace)?;
@@ -277,12 +338,26 @@ pub fn build_lexical_generation(
         {
             return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
         }
+        let terms = lexical_document(&exact.bytes)?;
+        retained_bytes = retained_bytes
+            .saturating_add(u64::try_from(terms.len()).unwrap_or(u64::MAX))
+            .saturating_add(
+                u64::try_from(
+                    artifact.path.relative_units_base64url.len()
+                        + artifact.path.display_path.len()
+                        + artifact.content_hash.len(),
+                )
+                .unwrap_or(u64::MAX),
+            );
+        if retained_bytes > max_memory_bytes {
+            return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+        }
         cached.push(CachedArtifact {
             path_units: artifact.path.relative_units_base64url.clone(),
             display_path: artifact.path.display_path.clone(),
             content_hash: artifact.content_hash.clone(),
             size_bytes: artifact.size_bytes,
-            terms: lexical_document(&exact.bytes)?,
+            terms,
         });
     }
     cache
@@ -590,6 +665,7 @@ fn search_candidates(
     let started = Instant::now();
     let mut evidence = Vec::new();
     let mut reasons = Vec::new();
+    let mut retained_bytes = 0_u64;
     let file_limit = usize::try_from(budget.max_files).unwrap_or(usize::MAX);
     for path_units in candidates.iter().take(file_limit) {
         if started.elapsed() > budget.max_elapsed {
@@ -601,6 +677,10 @@ fn search_candidates(
             .iter()
             .find(|artifact| artifact.path.relative_units_base64url == *path_units)
             .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::StaleState))?;
+        if retained_bytes.saturating_add(artifact.size_bytes) > budget.max_memory_bytes {
+            reasons.push("memory_limit");
+            break;
+        }
         let exact = workspace
             .read_exact(&artifact.path, artifact.size_bytes.max(1))
             .map_err(map_workspace)?;
@@ -623,7 +703,7 @@ fn search_candidates(
                 reasons.push("match_limit");
             }
             for start in starts.into_iter().take(remaining_usize) {
-                evidence.push(make_evidence(
+                let item = make_evidence(
                     snapshot,
                     artifact,
                     &exact.bytes,
@@ -631,13 +711,20 @@ fn search_candidates(
                     start + needle.len(),
                     budget.max_excerpt_bytes,
                     extraction_method,
-                ));
+                );
+                let item_bytes = u64::try_from(item.excerpt.len()).unwrap_or(u64::MAX);
+                if retained_bytes.saturating_add(item_bytes) > budget.max_memory_bytes {
+                    reasons.push("memory_limit");
+                    break;
+                }
+                retained_bytes += item_bytes;
+                evidence.push(item);
             }
-            if reasons.contains(&"match_limit") {
+            if reasons.contains(&"match_limit") || reasons.contains(&"memory_limit") {
                 break;
             }
         }
-        if reasons.contains(&"match_limit") {
+        if reasons.contains(&"match_limit") || reasons.contains(&"memory_limit") {
             break;
         }
     }
@@ -882,6 +969,30 @@ mod tests {
                 naive
             );
         }
+    }
+
+    #[test]
+    fn invalid_utf8_evidence_is_exact_but_explicitly_unsupported_for_decoding() {
+        let source = TestRoot::new("unsupported-encoding");
+        fs::write(
+            source.0.join("bytes.bin"),
+            [0xff, b'n', b'e', b'e', b'd', b'l', b'e'],
+        )
+        .expect("binary source");
+        let workspace = AuthorizedWorkspace::open(&source.0).expect("workspace");
+        let snapshot = workspace
+            .snapshot(DiscoveryPolicy::new(10, 1024, 1024, 8).expect("policy"))
+            .expect("snapshot");
+        let result = search_literal(
+            &workspace,
+            &snapshot,
+            b"needle",
+            SearchBudget::new(10, 10, 32, Duration::from_secs(1)).expect("budget"),
+        )
+        .expect("exact byte search");
+        assert_eq!(result.matches.len(), 1);
+        assert_eq!(result.matches[0].decoding, "unsupported");
+        assert_eq!(result.matches[0].extraction_method, "literal_search");
     }
 
     #[test]

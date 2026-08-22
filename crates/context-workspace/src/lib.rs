@@ -9,6 +9,7 @@ use std::{
     fmt,
     io::{self, Read},
     path::{Component, Path, PathBuf},
+    time::{Duration, Instant},
 };
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
@@ -378,7 +379,25 @@ impl AuthorizedWorkspace {
     /// Returns an error only when the authorized root itself cannot be read.
     /// Individual hostile or unreadable entries are recorded as omissions.
     pub fn snapshot(&self, policy: DiscoveryPolicy) -> Result<WorkspaceSnapshot, WorkspaceError> {
-        let mut state = DiscoveryState::new(self, policy);
+        self.snapshot_bounded(policy, Duration::from_mins(5))
+    }
+
+    /// Discovers a snapshot under an additional monotonic elapsed-time ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a zero/excessive deadline or when the authorized
+    /// root itself cannot be read. Deadline exhaustion produces a partial
+    /// snapshot with an explicit limit omission.
+    pub fn snapshot_bounded(
+        &self,
+        policy: DiscoveryPolicy,
+        max_elapsed: Duration,
+    ) -> Result<WorkspaceSnapshot, WorkspaceError> {
+        if max_elapsed.is_zero() || max_elapsed > Duration::from_mins(5) {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::ResourceLimit));
+        }
+        let mut state = DiscoveryState::new(self, policy, max_elapsed);
         discover_directory(&self.root, Path::new(""), 0, &mut state)?;
         state.artifacts.sort_by(|left, right| {
             left.path
@@ -414,16 +433,26 @@ struct DiscoveryState<'workspace> {
     artifacts: Vec<ArtifactRecord>,
     eligible_bytes: u64,
     skipped: BTreeMap<SkipReason, u64>,
+    started: Instant,
+    max_elapsed: Duration,
+    timed_out: bool,
 }
 
 impl<'workspace> DiscoveryState<'workspace> {
-    fn new(workspace: &'workspace AuthorizedWorkspace, policy: DiscoveryPolicy) -> Self {
+    fn new(
+        workspace: &'workspace AuthorizedWorkspace,
+        policy: DiscoveryPolicy,
+        max_elapsed: Duration,
+    ) -> Self {
         Self {
             workspace,
             policy,
             artifacts: Vec::new(),
             eligible_bytes: 0,
             skipped: BTreeMap::new(),
+            started: Instant::now(),
+            max_elapsed,
+            timed_out: false,
         }
     }
 
@@ -443,6 +472,11 @@ fn discover_directory(
         .map_err(|error| WorkspaceError::io(WorkspaceErrorCode::IoFailure, error))?;
     let mut entries_ok = Vec::new();
     for entry in entries {
+        if state.started.elapsed() >= state.max_elapsed {
+            state.skip(SkipReason::LimitReached);
+            state.timed_out = true;
+            break;
+        }
         match entry {
             Ok(entry) => entries_ok.push(entry),
             Err(_) => state.skip(SkipReason::ReadFailed),
@@ -476,6 +510,9 @@ fn discover_directory(
             match entry.open_dir() {
                 Ok(child) => discover_directory(&child, &relative, depth + 1, state)?,
                 Err(_) => state.skip(SkipReason::ReadFailed),
+            }
+            if state.timed_out {
+                break;
             }
             continue;
         }

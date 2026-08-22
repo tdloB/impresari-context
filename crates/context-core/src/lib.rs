@@ -313,6 +313,42 @@ impl ResourceBudget {
     fn requested_u64(&self) -> Result<u64, CoreError> {
         decimal(&self.requested)
     }
+
+    /// Returns the validated per-request file ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a deserialized budget contains an invalid decimal.
+    pub fn max_files_u64(&self) -> Result<u64, CoreError> {
+        decimal(&self.max_files)
+    }
+
+    /// Returns the validated traversal-depth ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a deserialized budget contains an invalid decimal.
+    pub fn max_traversal_depth_u64(&self) -> Result<u64, CoreError> {
+        decimal(&self.max_traversal_depth)
+    }
+
+    /// Returns the validated elapsed-time ceiling in milliseconds.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a deserialized budget contains an invalid decimal.
+    pub fn max_elapsed_ms_u64(&self) -> Result<u64, CoreError> {
+        decimal(&self.max_elapsed_ms)
+    }
+
+    /// Returns the validated accounted-memory ceiling.
+    ///
+    /// # Errors
+    ///
+    /// Fails if a deserialized budget contains an invalid decimal.
+    pub fn max_memory_bytes_u64(&self) -> Result<u64, CoreError> {
+        decimal(&self.max_memory_bytes)
+    }
 }
 
 /// Policy outcome.

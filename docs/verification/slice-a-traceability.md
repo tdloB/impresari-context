@@ -31,8 +31,8 @@ environment outside approval A-0029 and do not authorize that action.
 | MVP-FR-015 | Pass | Bounded literal and lexical search with exact spans and deterministic oracle comparison. |
 | MVP-FR-016 | Not applicable | Pattern/regex search is not an advertised or accepted query kind in Slice A. |
 | MVP-FR-017 | Pass | Source-verified results sort by native path identity and byte span; deterministic fixtures pass. |
-| MVP-FR-018 | Partial | Time/file/match/excerpt/output ceilings are exercised; request memory and snapshot traversal ceilings are not yet fully threaded/enforced. |
-| MVP-FR-019 | Partial | Truncation, elapsed/file/match limits and skipped files are explicit; unsupported-encoding classification needs a direct fixture/verdict. |
+| MVP-FR-018 | Pass | Request time/file/traversal/memory/match/excerpt/output ceilings narrow configured policy; snapshot/search/index tests exercise partial/failure outcomes. |
+| MVP-FR-019 | Pass | Truncation and elapsed/file/match/memory/skipped states are explicit; invalid UTF-8 exact evidence is labeled `unsupported`. |
 | MVP-FR-020 | Pass | Public kinds are exact path, filename, literal, lexical; unknowns avoid semantic/graph authority. |
 | MVP-FR-021 | Pass | Evidence schema and conformance tests require snapshot/path/hash/span/kind/extraction/confidence/trust. |
 | MVP-FR-022 | Pass | Byte spans and lossless platform path units are specified and tested with Unicode/newline/binary-safe evidence. |
@@ -67,7 +67,7 @@ environment outside approval A-0029 and do not authorize that action.
 | IDs | Status | Evidence or gap |
 | --- | --- | --- |
 | SEC-REQ-001–004 | Pass | Capability paths, object restrictions, immutability, and workspace/snapshot binding suites. |
-| SEC-REQ-005 | Partial | Declared ceilings exist, but FR-018 request memory/traversal closure is outstanding. |
+| SEC-REQ-005 | Pass | Configured policy is monotonically narrowed by request file/traversal/time/memory limits; search/index/output/cache/audit/export ceilings are tested. |
 | SEC-REQ-006–009 | Pass | Structured separation, runtime capability denial, leakage tests, and corrupt-cache/packet behavior. |
 | SEC-REQ-010 | Partial | Adversarial, deterministic fuzz/property/mutation, restart, permission, and network-denied cases pass locally; native platform and coverage-guided campaign evidence remain. |
 | SEC-REQ-011 | Pass locally | Reproducible SPDX SBOM plus Cargo deny/RustSec evidence; repeat at release candidate. |
@@ -78,7 +78,7 @@ environment outside approval A-0029 and do not authorize that action.
 | IDs | Status | Evidence or gap |
 | --- | --- | --- |
 | EVAL-G-001–010 | Pass for frozen local corpus | `context-evaluation`, adversarial suite, source-state gate, and network-denied run. |
-| EVAL-G-011 | Partial | Controlled partial states pass; unsupported-encoding verdict remains tied to FR-019. |
+| EVAL-G-011 | Pass for frozen local corpus | Controlled partial/limit states and unsupported-decoding evidence are explicitly labeled. |
 | EVAL-G-012 | Pass | Full normalized CLI/library semantic suite. |
 | EVAL-Q-001 | Pass for frozen local corpus | Required-evidence recall 1.00. |
 | EVAL-Q-002 | Partial | Native baseline byte totals exist, but matched baseline recall is not independently emitted. |
@@ -98,15 +98,13 @@ environment outside approval A-0029 and do not authorize that action.
 
 ## Remaining Authorized Local Work
 
-1. Close per-request memory/traversal enforcement and unsupported-encoding
-   visibility (`MVP-FR-018`, `MVP-FR-019`, `SEC-REQ-005`).
-2. Emit an independently calculated native-baseline recall metric
+1. Emit an independently calculated native-baseline recall metric
    (`EVAL-Q-002`).
-3. Add two generated scale profiles with cold/warm p50/p95, disk/time/memory
+2. Add two generated scale profiles with cold/warm p50/p95, disk/time/memory
    evidence and explicit deviations.
-4. Decide and implement safe optional Git revision/working-tree metadata without
+3. Decide and implement safe optional Git revision/working-tree metadata without
    process execution (`MVP-FR-009`), or record a scoped deferral before release.
-5. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
+4. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
 
 ## Preserved Gates
 
