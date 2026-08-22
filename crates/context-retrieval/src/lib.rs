@@ -617,7 +617,7 @@ fn search_candidates(
                 remaining_usize.saturating_add(1),
             );
             if starts.is_empty() {
-                return Err(RetrievalError::new(RetrievalErrorCode::CacheFailure));
+                continue;
             }
             if starts.len() > remaining_usize {
                 reasons.push("match_limit");
@@ -822,6 +822,26 @@ mod tests {
             (6, 11)
         );
         assert!(!result.truncated);
+    }
+
+    #[test]
+    fn literal_search_skips_nonmatching_files_without_claiming_cache_failure() {
+        let source = TestRoot::new("mixed-source");
+        fs::write(source.0.join("match.txt"), b"needle").expect("matching source");
+        fs::write(source.0.join("other.txt"), b"unrelated").expect("other source");
+        let workspace = AuthorizedWorkspace::open(&source.0).expect("workspace");
+        let snapshot = workspace
+            .snapshot(DiscoveryPolicy::new(10, 1024, 1024, 8).expect("policy"))
+            .expect("snapshot");
+        let result = search_literal(
+            &workspace,
+            &snapshot,
+            b"needle",
+            SearchBudget::new(10, 10, 32, Duration::from_secs(1)).expect("budget"),
+        )
+        .expect("search");
+        assert_eq!(result.matches.len(), 1);
+        assert_eq!(result.matches[0].path.display_path, "match.txt");
     }
 
     #[test]

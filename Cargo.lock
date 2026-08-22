@@ -190,6 +190,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-evaluation"
+version = "0.0.0"
+dependencies = [
+ "context-core",
+ "context-engine",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "context-retrieval"
 version = "0.0.0"
 dependencies = [

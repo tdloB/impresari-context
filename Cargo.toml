@@ -4,6 +4,7 @@ members = [
     "crates/context-conformance",
     "crates/context-core",
     "crates/context-engine",
+    "crates/context-evaluation",
     "crates/context-retrieval",
     "crates/context-store",
     "crates/context-workspace",

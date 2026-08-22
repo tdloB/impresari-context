@@ -1,0 +1,16 @@
+{
+  "schema_name": "evaluation-report",
+  "schema_version": "1.0.0",
+  "manifest_sha256": "sha256:00c1489d2d7f94f39d68bdc0872cce6b02576fa6266bb5d9d12e4f6d9a0a100c",
+  "fixture_count": 12,
+  "heldout_count": 3,
+  "required_evidence_recall": 1.0,
+  "evidence_precision": 1.0,
+  "context_reduction": 0.9987585403136586,
+  "exact_recovery_rate": 1.0,
+  "stale_detection_rate": 1.0,
+  "budget_compliance_rate": 1.0,
+  "deterministic_fixture_rate": 1.0,
+  "false_exact_authority_count": 0,
+  "failures": []
+}
