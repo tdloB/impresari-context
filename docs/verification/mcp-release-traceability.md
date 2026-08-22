@@ -2,8 +2,8 @@
 
 Date: 2026-08-22
 
-Status: implemented and locally gated. Native hosted candidate rehearsal is
-required before these three targets can be recorded as release evidence.
+Status: implemented and gated locally and on all three Tier A native targets.
+The exact hosted evidence is recorded in `release-evidence.md`.
 
 ## Local MCP
 

@@ -13,7 +13,7 @@ Impresari Context is an independent implementation informed by publicly demonstr
 
 The approved implementation roadmap through the safe, declarative portion of
 Slice D is complete and gated. Release-candidate engineering and the local
-stdio MCP transport are implemented and undergoing native hosted rehearsal.
+stdio MCP transport are implemented and have passed native hosted rehearsal.
 The Rust workspace now includes capability-scoped workspace reads,
 deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
 path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
@@ -36,9 +36,9 @@ broaden them.
 This is not a public release. The name remains provisional, executable or
 privileged extensions and long-lived transports remain separately gated, and
 package publication and release remain gated. The complete local gate and
-hosted Tier A matrix pass, and local clean-install package rehearsal passes.
-Native release-candidate rehearsal, the release provenance/signing decision,
-and independent review remain public-release requirements.
+hosted Tier A matrix and native clean-install release-candidate rehearsals pass.
+The release provenance/signing decision and independent review remain
+public-release requirements.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones

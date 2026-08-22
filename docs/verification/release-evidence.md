@@ -24,7 +24,6 @@ decision to publish a release.
 
 ## Open release evidence
 
-- Native clean-install binary rehearsal from all three release-candidate targets.
 - Release provenance/signing decision and implementation.
 - Independent security and release review.
 
@@ -40,3 +39,25 @@ substitute for the exact-commit hosted native candidate matrix.
 - This run includes the frozen OS-adapter semantic-equivalence gate and the
   adversarial extension-output quarantine gate in addition to the complete
   evidence suite listed above.
+
+## 2026-08-22 — Local MCP and release-candidate matrix
+
+- Candidate commit: `3310b8da66a81cc280c582d534832616e6481fc4`
+- Normal CI: [GitHub Actions 32577444138](https://github.com/tdloB/impresari-context/actions/runs/32577444138), success in all five jobs.
+- Candidate rehearsal: [GitHub Actions 32577840031](https://github.com/tdloB/impresari-context/actions/runs/32577840031), success on all three native targets.
+- Candidate targets and temporary artifacts:
+  - `aarch64-apple-darwin`, 3,818,818-byte workflow artifact;
+  - `x86_64-unknown-linux-gnu`, 4,420,492-byte workflow artifact;
+  - `x86_64-pc-windows-msvc`, 4,151,983-byte workflow artifact.
+- Each target passed the complete repository gate, release compilation,
+  exact-source manifest generation, archive checksum verification, clean
+  extraction, CLI smoke check, real MCP initialize/tools exchange, tracked
+  source immutability check, and candidate-only artifact upload.
+- The MCP release evaluation requires direct-engine packet equivalence, hostile
+  repository text to remain untrusted data, no source mutation, bounded framing,
+  strict lifecycle handling, and no orchestration or filesystem authority.
+- Artifacts have seven-day retention. This run created no tag, GitHub release,
+  package publication, signature, or release credential.
+- An earlier candidate run exposed and rejected a Windows-only GNU tar drive-
+  prefix ambiguity. Commit `3310b8d` changed archive arguments to relative names;
+  the successful matrix above verifies the correction.
