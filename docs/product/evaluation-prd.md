@@ -58,6 +58,12 @@ comparison baseline.
   execution, or other privileged grants: zero for the approved v1 milestone.
 - Accepted extension output trust label: `untrusted_derived_data` in 100% of
   accepted cases.
+- MCP lifecycle/framing/tool conformance: 100% on the frozen protocol suite,
+  with zero non-MCP stdout bytes and zero source-workspace mutations.
+- Direct-engine/MCP packet semantic equivalence: 100% on the frozen transport
+  corpus.
+- Native release-candidate package build and clean-install smoke pass: 100% of
+  Tier A targets before publication.
 
 ## Evaluation Principles
 

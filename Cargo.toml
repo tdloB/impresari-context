@@ -6,6 +6,7 @@ members = [
     "crates/context-core",
     "crates/context-engine",
     "crates/context-extensions",
+    "crates/context-mcp",
     "crates/context-evaluation",
     "crates/context-retrieval",
     "crates/context-reference-client",
@@ -21,7 +22,7 @@ version = "0.0.0"
 edition = "2024"
 rust-version = "1.96"
 license = "Apache-2.0"
-repository = "https://github.com/OWNER/impresari-context"
+repository = "https://github.com/tdloB/impresari-context"
 publish = false
 
 [workspace.lints.rust]

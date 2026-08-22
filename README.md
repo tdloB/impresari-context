@@ -12,7 +12,8 @@ Impresari Context is an independent implementation informed by publicly demonstr
 ## Status
 
 The approved implementation roadmap through the safe, declarative portion of
-Slice D is complete and gated.
+Slice D is complete and gated. Release-candidate engineering and the local
+stdio MCP transport are implemented and undergoing native hosted rehearsal.
 The Rust workspace now includes capability-scoped workspace reads,
 deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
 path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
@@ -25,14 +26,19 @@ multi-strategy context plans, consumer-scoped packet references, a thin
 OS-shaped adapter contract, an independent non-OS reference client, and a
 fail-closed native-read fallback decision that never grants filesystem access.
 The first Slice D milestone adds integrity-pinned extension declarations and
-metadata-only output quarantine while keeping all artifact loading, execution,
-network, model, environment, and filesystem capabilities disabled.
+metadata-only output quarantine while keeping all extension artifact loading,
+execution, network, model, environment, and filesystem capabilities disabled.
+The MCP adapter exposes the existing engine and process-local session
+capabilities over bounded newline-delimited JSON-RPC. Its launch configuration
+fixes the authorized workspace, cache, consumer identity, and role; MCP cannot
+broaden them.
 
 This is not a public release. The name remains provisional, executable or
 privileged extensions and long-lived transports remain separately gated, and
 package publication and release remain gated. The complete local gate and
-hosted Tier A matrix pass; clean-install release rehearsal, release
-provenance/signing, and independent review remain public-release requirements.
+hosted Tier A matrix pass, and local clean-install package rehearsal passes.
+Native release-candidate rehearsal, the release provenance/signing decision,
+and independent review remain public-release requirements.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
@@ -63,6 +69,27 @@ handoff export, and structural forms. Structural build never downloads or
 discovers a parser: the embedding distribution must provide the exact worker,
 its expected SHA-256 identity, and an existing empty non-workspace directory.
 
+## Local MCP
+
+`impresari-context-mcp` is a local child-process transport pinned to MCP
+revision `2025-11-25`. It communicates only through stdin/stdout, emits only MCP
+messages on stdout, has no HTTP listener, and adds no orchestration, execution,
+approval, model, network, or filesystem authority.
+
+```text
+cargo run -p context-mcp -- \
+  --workspace <workspace-root> \
+  --cache <cache-root> \
+  --consumer-id <consumer-id> \
+  --role <policy-role> \
+  --occurred-at <UTC-timestamp>
+```
+
+The client must complete MCP initialization before using the four tools:
+`context_session_open`, `context_build`, `context_packet_resolve`, and
+`context_session_close`. The process is intentionally single-client and
+process-local. It is not a remote service or an agent runtime.
+
 ## Design documents
 
 - [Architecture](docs/architecture.md): responsibilities, components, data
@@ -83,6 +110,10 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
   native-read fallback.
 - [ADR-0013](docs/decisions/0013-extension-contracts-without-code-loading.md):
   pinned extension contracts and output quarantine without a plugin runtime.
+- [ADR-0014](docs/decisions/0014-local-stdio-mcp-transport.md): local-only MCP
+  over stdio as a bounded, authority-neutral transport.
+- [ADR-0015](docs/decisions/0015-release-candidate-builds-and-provenance.md):
+  exact-commit native release candidates, manifests, checksums, and rehearsal.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,
@@ -95,6 +126,8 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted
   native-matrix results and explicitly open release gates.
+- [MCP and release traceability](docs/verification/mcp-release-traceability.md):
+  direct-engine equivalence, transport hardening, and packaging evidence.
 
 ## Mission
 

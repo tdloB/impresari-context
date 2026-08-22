@@ -1,6 +1,6 @@
 [package]
-name = "context-evaluation"
-description = "Reproducible Impresari Context evaluation harness"
+name = "context-mcp"
+description = "Local stdio MCP transport for Impresari Context"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -14,20 +14,12 @@ workspace = true
 [dependencies]
 context-core = { version = "=0.0.0", path = "../context-core" }
 context-engine = { version = "=0.0.0", path = "../context-engine" }
+context-session = { version = "=0.0.0", path = "../context-session" }
 context-store = { version = "=0.0.0", path = "../context-store" }
 context-workspace = { version = "=0.0.0", path = "../context-workspace" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
-sha2 = { version = "=0.11.0", default-features = false }
-
-[dev-dependencies]
-base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
-context-adapters = { version = "=0.0.0", path = "../context-adapters" }
-context-extensions = { version = "=0.0.0", path = "../context-extensions" }
-context-mcp = { version = "=0.0.0", path = "../context-mcp" }
-context-session = { version = "=0.0.0", path = "../context-session" }
-context-structural = { version = "=0.0.0", path = "../context-structural" }
 
 [[bin]]
-name = "impresari-context-eval"
+name = "impresari-context-mcp"
 path = "src/main.rs"

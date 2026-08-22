@@ -266,6 +266,9 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-036 | Provenance/license contamination | Upstream code copied without compliance | Contribution rules, review checklist, dependency notices, original fixtures, source-reuse gate | Review + inventory | Contributor misrepresentation |
 | SEC-T-037 | Unsafe automatic update | Binary/extensions update during sensitive work | No self-update; explicit user-controlled upgrade; version surfaced | Network/behavior test | Package manager policy outside engine |
 | SEC-T-038 | Extension declaration/output spoofing | Untrusted manifest or output claims a trusted identity, exact evidence, control authority, or excessive payload | Closed manifest/output schemas; exact local digest pins; zero privileged grants; pre-parse length bound; identity matching; untrusted-derived label; metadata-only quarantine | Contract, pinning, spoofing, authority, unknown-field, and size tests | Digest pin is not publisher authentication; downstream consumers can still misuse untrusted payload text |
+| SEC-T-039 | MCP framing/lifecycle abuse | Client sends oversized, malformed, batched, duplicated, out-of-order, or hostile JSON-RPC messages | Local stdio only; bounded newline framing; strict schemas; lifecycle state machine; unique request IDs; fixed tools; stdout purity; fail-closed errors | Protocol and adversarial process tests | Launching host controls inherited environment and process identity |
+| SEC-T-040 | MCP authority confusion | Tool arguments or repository text attempt to select roots, grant access, orchestrate agents, or trigger execution | Roots fixed at process launch; thin delegation; constant no-authority results; no sampling/elicitation/network/execution; source treated as data | Equivalence, hostile-text, immutability, and capability tests | Authorized client may disclose returned evidence after receipt |
+| SEC-T-041 | Release candidate substitution | Artifact is built from unexpected source, altered after build, or mislabeled as published/trusted | Exact source SHA; locked build; package manifest; checksums; SBOM; pinned CI actions; read-only workflow permissions; manual publication | Native package/rehearsal workflow | CI platform compromise; SHA-256 is integrity, not publisher authentication |
 
 ### Future-scope threats
 
@@ -299,6 +302,8 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-REQ-012 | Document local-user, filesystem, backup, and host-compromise residual risks |
 | SEC-REQ-013 | Launch structural parsing only through the pinned ADR-0010 worker and validate complete output before graph promotion |
 | SEC-REQ-014 | Keep general extension loading and privileged grants absent while enforcing closed digest-pinned declarations and metadata-only quarantine for submitted output |
+| SEC-REQ-015 | Keep MCP local to bounded stdio, enforce lifecycle/framing/tool schemas, and grant no roots, network, model, execution, or orchestration authority |
+| SEC-REQ-016 | Build release candidates from exact commits with locked inputs, checksums, SBOM, native clean-install rehearsal, and no automatic publication |
 
 ## Verification Strategy
 

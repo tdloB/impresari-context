@@ -19,6 +19,8 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0011](0011-process-local-session-references.md) | Consumer-scoped in-memory immutable packet references with no durable authority | Accepted |
 | [ADR-0012](0012-context-plans-consumer-adapters-and-fallback.md) | Multi-strategy context plans, thin adapters, and fail-closed native-read fallback | Accepted |
 | [ADR-0013](0013-extension-contracts-without-code-loading.md) | Pinned extension declarations and metadata-only quarantine without code loading | Accepted |
+| [ADR-0014](0014-local-stdio-mcp-transport.md) | Local stdio MCP as a thin authority-neutral transport | Accepted |
+| [ADR-0015](0015-release-candidate-builds-and-provenance.md) | Manual release-candidate builds, checksums, provenance, and rehearsal | Accepted |
 
 ## Change Rules
 

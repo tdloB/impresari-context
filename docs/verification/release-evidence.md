@@ -24,9 +24,13 @@ decision to publish a release.
 
 ## Open release evidence
 
-- Clean-install binary rehearsal from a release artifact.
+- Native clean-install binary rehearsal from all three release-candidate targets.
 - Release provenance/signing decision and implementation.
 - Independent security and release review.
+
+Local packaging and clean-install rehearsal pass on macOS ARM64, including a
+real MCP initialize/tools exchange. This is implementation evidence, not a
+substitute for the exact-commit hosted native candidate matrix.
 
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 

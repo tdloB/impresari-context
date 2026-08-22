@@ -212,6 +212,8 @@ dependencies = [
  "context-core",
  "context-engine",
  "context-extensions",
+ "context-mcp",
+ "context-session",
  "context-store",
  "context-structural",
  "context-workspace",
@@ -227,6 +229,19 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+]
+
+[[package]]
+name = "context-mcp"
+version = "0.0.0"
+dependencies = [
+ "context-core",
+ "context-engine",
+ "context-session",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
