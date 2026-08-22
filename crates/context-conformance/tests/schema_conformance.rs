@@ -9,9 +9,9 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 
 use context_core::{
-    ContextPacket, EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction, EvidencePath,
-    EvidenceRecord, EvidenceSpan, PacketDraft, ResourceBudget, build_packet, packet_bytes,
-    packet_validation_result,
+    AuditOutcome, Capability, ContextPacket, EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction,
+    EvidencePath, EvidenceRecord, EvidenceSpan, PacketDraft, ResourceBudget, audit_event,
+    build_packet, packet_bytes, packet_validation_result,
 };
 
 fn repository_root() -> PathBuf {
@@ -33,6 +33,60 @@ fn read_json(path: &PathBuf) -> Value {
         fs::read(path).unwrap_or_else(|error| panic!("failed to read {}: {error}", path.display()));
     serde_json::from_slice(&bytes)
         .unwrap_or_else(|error| panic!("invalid JSON in {}: {error}", path.display()))
+}
+
+fn conformance_packet(snapshot: &str, other_hash: &str) -> ContextPacket {
+    let evidence = EvidenceRecord {
+        schema_name: "evidence".into(),
+        schema_version: "1.0.0".into(),
+        evidence_id: other_hash.into(),
+        workspace_snapshot: snapshot.into(),
+        artifact: EvidenceArtifact {
+            path: EvidencePath {
+                display_path: "a.rs".into(),
+                platform_family: "unix".into(),
+                unit_encoding: "unix_bytes".into(),
+                relative_units_base64url: "YS5ycw".into(),
+            },
+            content_hash: other_hash.into(),
+            file_kind: "regular_file".into(),
+            decoding: "utf8".into(),
+        },
+        span: EvidenceSpan {
+            start_byte: "0".into(),
+            end_byte: "1".into(),
+        },
+        excerpt: EvidenceExcerpt {
+            encoding: "base64url".into(),
+            bytes_base64url: "eA".into(),
+            match_start_byte: "0".into(),
+            match_end_byte: "1".into(),
+        },
+        kind: "exact_source".into(),
+        extraction: EvidenceExtraction {
+            method: "literal_search".into(),
+            version: "1.0.0".into(),
+        },
+        confidence: "confirmed".into(),
+        trust: "untrusted_workspace_content".into(),
+        freshness: "current".into(),
+        sensitivity: Some("normal".into()),
+    };
+    build_packet(PacketDraft {
+        workspace_snapshot: snapshot.into(),
+        request_id: "req_12345678".into(),
+        purpose: "conformance".into(),
+        created_at: "2026-08-21T00:00:00Z".into(),
+        policy_decision: other_hash.into(),
+        budget: ResourceBudget::conservative(4096, 10, 10, 128, 100, 32, 30_000, 536_870_912)
+            .expect("budget"),
+        evidence: vec![evidence],
+        assumptions: Vec::new(),
+        conflicts: Vec::new(),
+        unknowns: Vec::new(),
+        redactions: Vec::new(),
+    })
+    .expect("build packet")
 }
 
 #[test]
@@ -234,58 +288,7 @@ fn rust_packet_output_satisfies_the_published_schema() {
         .expect("packet validator");
     let hash_a = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     let hash_b = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
-    let budget = ResourceBudget::conservative(4096, 10, 10, 128, 100, 32, 30_000, 536_870_912)
-        .expect("budget");
-    let evidence = EvidenceRecord {
-        schema_name: "evidence".into(),
-        schema_version: "1.0.0".into(),
-        evidence_id: hash_b.into(),
-        workspace_snapshot: hash_a.into(),
-        artifact: EvidenceArtifact {
-            path: EvidencePath {
-                display_path: "a.rs".into(),
-                platform_family: "unix".into(),
-                unit_encoding: "unix_bytes".into(),
-                relative_units_base64url: "YS5ycw".into(),
-            },
-            content_hash: hash_b.into(),
-            file_kind: "regular_file".into(),
-            decoding: "utf8".into(),
-        },
-        span: EvidenceSpan {
-            start_byte: "0".into(),
-            end_byte: "1".into(),
-        },
-        excerpt: EvidenceExcerpt {
-            encoding: "base64url".into(),
-            bytes_base64url: "eA".into(),
-            match_start_byte: "0".into(),
-            match_end_byte: "1".into(),
-        },
-        kind: "exact_source".into(),
-        extraction: EvidenceExtraction {
-            method: "literal_search".into(),
-            version: "1.0.0".into(),
-        },
-        confidence: "confirmed".into(),
-        trust: "untrusted_workspace_content".into(),
-        freshness: "current".into(),
-        sensitivity: Some("normal".into()),
-    };
-    let packet: ContextPacket = build_packet(PacketDraft {
-        workspace_snapshot: hash_a.into(),
-        request_id: "req_12345678".into(),
-        purpose: "conformance".into(),
-        created_at: "2026-08-21T00:00:00Z".into(),
-        policy_decision: hash_b.into(),
-        budget,
-        evidence: vec![evidence],
-        assumptions: Vec::new(),
-        conflicts: Vec::new(),
-        unknowns: Vec::new(),
-        redactions: Vec::new(),
-    })
-    .expect("build packet");
+    let packet = conformance_packet(hash_a, hash_b);
     let value: Value = serde_json::from_slice(&packet_bytes(&packet).expect("canonical packet"))
         .expect("packet JSON");
     validator.validate(&value).unwrap_or_else(|error| {
@@ -307,4 +310,28 @@ fn rust_packet_output_satisfies_the_published_schema() {
         .unwrap_or_else(|error| {
             panic!("Rust result must satisfy packet-validation.schema.json: {error}")
         });
+
+    let audit = audit_event(
+        "evt_12345678",
+        "req_12345678",
+        "2026-08-21T00:00:02Z",
+        Some(hash_a),
+        Some(hash_a),
+        Capability::ContextValidate,
+        AuditOutcome::Allowed,
+        hash_b,
+        packet.budget.clone(),
+        3,
+        "0.0.0",
+    )
+    .expect("audit event");
+    let audit_schema = read_json(&schema_root.join("audit-event.schema.json"));
+    let audit_validator = jsonschema::draft202012::options()
+        .with_registry(&registry)
+        .should_validate_formats(true)
+        .build(&audit_schema)
+        .expect("audit validator");
+    audit_validator
+        .validate(&serde_json::to_value(audit).expect("audit JSON"))
+        .unwrap_or_else(|error| panic!("Rust event must satisfy audit-event.schema.json: {error}"));
 }

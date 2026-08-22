@@ -10,9 +10,11 @@ use std::{
     time::Duration,
 };
 
+use context_core::{AuditEvent, validate_audit_event, validate_utc_timestamp};
 use rusqlite::{Connection, OpenFlags, TransactionBehavior, limits::Limit, params};
 
 const CACHE_SCHEMA_VERSION: &str = "1.0.0";
+const AUDIT_SCHEMA_VERSION: &str = "1.0.0";
 
 /// Stable cache failure categories.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -111,6 +113,247 @@ pub struct WorkspaceCache {
     _writer_lock: File,
     workspace_identity: String,
     namespace: PathBuf,
+}
+
+/// Explicit bounded retention applied on every audit append.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditRetention {
+    /// Delete records strictly older than this UTC timestamp.
+    pub cutoff_utc: String,
+    /// Maximum retained records after an append.
+    pub max_events: u64,
+    /// Maximum physical audit database bytes after an append.
+    pub max_bytes: u64,
+}
+
+impl AuditRetention {
+    /// Creates a validated retention policy.
+    ///
+    /// # Errors
+    ///
+    /// Fails for malformed UTC timestamps or limits outside the local profile.
+    pub fn new(cutoff_utc: &str, max_events: u64, max_bytes: u64) -> Result<Self, CacheError> {
+        if validate_utc_timestamp(cutoff_utc).is_err()
+            || max_events == 0
+            || max_events > 1_000_000
+            || !(1_048_576..=104_857_600).contains(&max_bytes)
+        {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        Ok(Self {
+            cutoff_utc: cutoff_utc.into(),
+            max_events,
+            max_bytes,
+        })
+    }
+}
+
+/// Result of one transactional audit append and retention pass.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditAppendResult {
+    /// Whether the appended event survived retention.
+    pub retained: bool,
+    /// Total retained event count.
+    pub retained_events: u64,
+    /// Physical database size after retention.
+    pub database_bytes: u64,
+}
+
+/// Exclusive writer for the separate metadata-only audit database.
+#[derive(Debug)]
+pub struct AuditStore {
+    connection: Connection,
+    _writer_lock: File,
+    database_path: PathBuf,
+}
+
+impl AuditStore {
+    /// Opens the audit database below a validated cache root.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for unsafe roots, symlinks, active writers, incompatible
+    /// metadata, corruption, or storage errors.
+    pub fn open(cache_root: &Path) -> Result<Self, CacheError> {
+        let root = prepare_cache_root(cache_root)?;
+        let audit = root.join("audit");
+        if audit.try_exists().map_err(CacheError::storage)? {
+            reject_symlink(&audit)?;
+        }
+        fs::create_dir_all(&audit).map_err(CacheError::storage)?;
+        set_private_permissions(&audit)?;
+        let audit = audit.canonicalize().map_err(CacheError::storage)?;
+        if audit.parent() != Some(root.as_path()) {
+            return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
+        }
+        let lock_path = audit.join("lock");
+        let writer_lock = OpenOptions::new()
+            .create(true)
+            .read(true)
+            .write(true)
+            .truncate(false)
+            .open(&lock_path)
+            .map_err(CacheError::storage)?;
+        set_private_file_permissions(&lock_path)?;
+        writer_lock.try_lock().map_err(|error| match error {
+            std::fs::TryLockError::WouldBlock => CacheError::new(CacheErrorCode::WriterBusy),
+            std::fs::TryLockError::Error(error) => CacheError::storage(error),
+        })?;
+        let database_path = audit.join("audit.sqlite3");
+        let connection = Connection::open_with_flags(
+            &database_path,
+            OpenFlags::SQLITE_OPEN_READ_WRITE
+                | OpenFlags::SQLITE_OPEN_CREATE
+                | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(CacheError::storage)?;
+        set_private_file_permissions(&database_path)?;
+        configure(&connection)?;
+        initialize_audit(&connection)?;
+        verify_integrity(&connection)?;
+        Ok(Self {
+            connection,
+            _writer_lock: writer_lock,
+            database_path,
+        })
+    }
+
+    /// Transactionally appends a validated metadata event and applies age,
+    /// count, and physical-byte retention.
+    ///
+    /// # Errors
+    ///
+    /// Fails for an invalid event, duplicate identity, policy limit, or storage
+    /// failure. No source/query/path fields exist in the accepted type.
+    pub fn append(
+        &mut self,
+        event: &AuditEvent,
+        retention: &AuditRetention,
+    ) -> Result<AuditAppendResult, CacheError> {
+        validate_audit_event(event)
+            .map_err(|_| CacheError::new(CacheErrorCode::IncompatibleCache))?;
+        let payload = serde_json::to_vec(event).map_err(CacheError::storage)?;
+        if payload.len() > 65_536 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(CacheError::storage)?;
+        transaction
+            .execute(
+                "DELETE FROM audit_events WHERE occurred_at < ?1",
+                [&retention.cutoff_utc],
+            )
+            .map_err(CacheError::storage)?;
+        transaction
+            .execute(
+                "INSERT INTO audit_events(event_id,occurred_at,workspace_identity,payload) VALUES(?1,?2,?3,?4)",
+                params![event.event_id, event.occurred_at, event.workspace_identity, payload],
+            )
+            .map_err(CacheError::storage)?;
+        let maximum = i64::try_from(retention.max_events)
+            .map_err(|_| CacheError::new(CacheErrorCode::ResourceLimit))?;
+        transaction
+            .execute(
+                "DELETE FROM audit_events WHERE sequence IN (
+                   SELECT sequence FROM audit_events ORDER BY occurred_at DESC,event_id DESC LIMIT -1 OFFSET ?1
+                 )",
+                [maximum],
+            )
+            .map_err(CacheError::storage)?;
+        transaction.commit().map_err(CacheError::storage)?;
+        self.enforce_audit_bytes(retention.max_bytes)?;
+        let retained = self
+            .connection
+            .query_row(
+                "SELECT EXISTS(SELECT 1 FROM audit_events WHERE event_id=?1)",
+                [&event.event_id],
+                |row| row.get::<_, bool>(0),
+            )
+            .map_err(CacheError::storage)?;
+        Ok(AuditAppendResult {
+            retained,
+            retained_events: self.event_count()?,
+            database_bytes: database_len(&self.database_path)?,
+        })
+    }
+
+    /// Returns at most `limit` newest events in deterministic order.
+    ///
+    /// # Errors
+    ///
+    /// Fails for an invalid limit, corrupt payload, or storage error.
+    pub fn recent(&self, limit: u64) -> Result<Vec<AuditEvent>, CacheError> {
+        if limit == 0 || limit > 10_000 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let limit =
+            i64::try_from(limit).map_err(|_| CacheError::new(CacheErrorCode::ResourceLimit))?;
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT payload FROM audit_events ORDER BY occurred_at DESC,event_id DESC LIMIT ?1",
+            )
+            .map_err(CacheError::storage)?;
+        statement
+            .query_map([limit], |row| row.get::<_, Vec<u8>>(0))
+            .map_err(CacheError::storage)?
+            .map(|row| {
+                let bytes = row.map_err(CacheError::storage)?;
+                let event: AuditEvent =
+                    serde_json::from_slice(&bytes).map_err(CacheError::storage)?;
+                validate_audit_event(&event)
+                    .map_err(|_| CacheError::new(CacheErrorCode::CorruptCache))?;
+                Ok(event)
+            })
+            .collect()
+    }
+
+    /// Deletes records for one exact opaque workspace identity.
+    ///
+    /// # Errors
+    ///
+    /// Fails for an invalid identity or storage error.
+    pub fn purge_workspace(&mut self, workspace_identity: &str) -> Result<u64, CacheError> {
+        validate_identity(workspace_identity)?;
+        let removed = self
+            .connection
+            .execute(
+                "DELETE FROM audit_events WHERE workspace_identity=?1",
+                [workspace_identity],
+            )
+            .map_err(CacheError::storage)?;
+        Ok(u64::try_from(removed).unwrap_or(u64::MAX))
+    }
+
+    fn event_count(&self) -> Result<u64, CacheError> {
+        let count = self
+            .connection
+            .query_row("SELECT COUNT(*) FROM audit_events", [], |row| {
+                row.get::<_, i64>(0)
+            })
+            .map_err(CacheError::storage)?;
+        u64::try_from(count).map_err(|_| CacheError::new(CacheErrorCode::CorruptCache))
+    }
+
+    fn enforce_audit_bytes(&mut self, maximum: u64) -> Result<(), CacheError> {
+        while database_len(&self.database_path)? > maximum {
+            let removed = self
+                .connection
+                .execute(
+                    "DELETE FROM audit_events WHERE sequence IN (
+                       SELECT sequence FROM audit_events ORDER BY occurred_at,event_id LIMIT 100
+                     )",
+                    [],
+                )
+                .map_err(CacheError::storage)?;
+            if removed == 0 {
+                return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+            }
+        }
+        Ok(())
+    }
 }
 
 impl WorkspaceCache {
@@ -444,6 +687,44 @@ fn initialize(connection: &Connection, workspace_identity: &str) -> Result<(), C
     Ok(())
 }
 
+fn initialize_audit(connection: &Connection) -> Result<(), CacheError> {
+    connection
+        .execute_batch(
+            "PRAGMA auto_vacuum=FULL;
+             CREATE TABLE IF NOT EXISTS audit_metadata(
+               singleton INTEGER PRIMARY KEY CHECK(singleton=1),schema_version TEXT NOT NULL
+             );
+             CREATE TABLE IF NOT EXISTS audit_events(
+               sequence INTEGER PRIMARY KEY,
+               event_id TEXT NOT NULL UNIQUE,
+               occurred_at TEXT NOT NULL,
+               workspace_identity TEXT,
+               payload BLOB NOT NULL CHECK(length(payload)<=65536)
+             );
+             CREATE INDEX IF NOT EXISTS audit_by_time ON audit_events(occurred_at,event_id);
+             CREATE INDEX IF NOT EXISTS audit_by_workspace ON audit_events(workspace_identity,occurred_at,event_id);",
+        )
+        .map_err(CacheError::storage)?;
+    connection
+        .execute(
+            "INSERT OR IGNORE INTO audit_metadata VALUES(1,?1)",
+            [AUDIT_SCHEMA_VERSION],
+        )
+        .map_err(CacheError::storage)?;
+    let version: String = connection
+        .query_row(
+            "SELECT schema_version FROM audit_metadata WHERE singleton=1",
+            [],
+            |row| row.get(0),
+        )
+        .map_err(CacheError::storage)?;
+    if version == AUDIT_SCHEMA_VERSION {
+        Ok(())
+    } else {
+        Err(CacheError::new(CacheErrorCode::IncompatibleCache))
+    }
+}
+
 fn verify_integrity(connection: &Connection) -> Result<(), CacheError> {
     let verdict: String = connection
         .query_row("PRAGMA integrity_check(1)", [], |row| row.get(0))
@@ -491,9 +772,26 @@ fn set_private_permissions(path: &Path) -> Result<(), CacheError> {
     fs::set_permissions(path, fs::Permissions::from_mode(0o700)).map_err(CacheError::storage)
 }
 
+#[cfg(unix)]
+fn set_private_file_permissions(path: &Path) -> Result<(), CacheError> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600)).map_err(CacheError::storage)
+}
+
 #[cfg(windows)]
 fn set_private_permissions(_path: &Path) -> Result<(), CacheError> {
     Ok(())
+}
+
+#[cfg(windows)]
+fn set_private_file_permissions(_path: &Path) -> Result<(), CacheError> {
+    Ok(())
+}
+
+fn database_len(path: &Path) -> Result<u64, CacheError> {
+    fs::metadata(path)
+        .map(|metadata| metadata.len())
+        .map_err(CacheError::storage)
 }
 
 fn validate_identity(value: &str) -> Result<(), CacheError> {
@@ -528,6 +826,7 @@ fn validate_artifact(artifact: &CachedArtifact) -> Result<(), CacheError> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use context_core::{AuditOutcome, Capability, ResourceBudget, audit_event};
     use std::sync::atomic::{AtomicU64, Ordering};
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
@@ -559,6 +858,24 @@ mod tests {
             size_bytes: 12,
             terms: format!("{name} rust example"),
         }
+    }
+
+    fn event(id: &str, workspace: &str, occurred_at: &str) -> AuditEvent {
+        audit_event(
+            id,
+            "req_12345678",
+            occurred_at,
+            Some(workspace),
+            Some(B),
+            Capability::CodeSearch,
+            AuditOutcome::Allowed,
+            C,
+            ResourceBudget::conservative(4096, 10, 10, 128, 100, 32, 30_000, 536_870_912)
+                .expect("budget"),
+            12,
+            "0.0.0",
+        )
+        .expect("event")
     }
 
     #[test]
@@ -656,6 +973,78 @@ mod tests {
         assert!(!namespace.exists());
         assert!(root.0.exists());
         assert!(!purge_workspace(&root.0, A).expect("idempotent"));
+    }
+
+    #[test]
+    fn audit_is_separate_metadata_only_and_retention_is_deterministic() {
+        let root = TestRoot::new();
+        let mut audit = AuditStore::open(&root.0).expect("audit");
+        let retention =
+            AuditRetention::new("2026-08-20T00:00:00Z", 2, 1_048_576).expect("retention");
+        audit
+            .append(
+                &event("evt_00000001", A, "2026-08-19T23:59:59Z"),
+                &retention,
+            )
+            .expect("first");
+        audit
+            .append(
+                &event("evt_00000002", B, "2026-08-20T02:00:00Z"),
+                &retention,
+            )
+            .expect("second");
+        let result = audit
+            .append(
+                &event("evt_00000003", A, "2026-08-20T03:00:00Z"),
+                &retention,
+            )
+            .expect("third");
+        assert_eq!(result.retained_events, 2);
+        assert!(result.database_bytes <= retention.max_bytes);
+        assert_eq!(
+            audit
+                .recent(10)
+                .expect("recent")
+                .iter()
+                .map(|event| event.event_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["evt_00000003", "evt_00000002"]
+        );
+        assert!(!root.0.join("workspaces").exists());
+        let bytes = fs::read(root.0.join("audit/audit.sqlite3")).expect("database");
+        assert!(
+            !bytes
+                .windows(b"sample query".len())
+                .any(|part| part == b"sample query")
+        );
+    }
+
+    #[test]
+    fn audit_workspace_purge_is_exact_and_writer_is_exclusive() {
+        let root = TestRoot::new();
+        let mut audit = AuditStore::open(&root.0).expect("audit");
+        assert_eq!(
+            AuditStore::open(&root.0).expect_err("exclusive").code(),
+            CacheErrorCode::WriterBusy
+        );
+        let retention =
+            AuditRetention::new("2026-08-20T00:00:00Z", 10, 1_048_576).expect("retention");
+        audit
+            .append(
+                &event("evt_00000001", A, "2026-08-20T01:00:00Z"),
+                &retention,
+            )
+            .expect("a");
+        audit
+            .append(
+                &event("evt_00000002", B, "2026-08-20T02:00:00Z"),
+                &retention,
+            )
+            .expect("b");
+        assert_eq!(audit.purge_workspace(A).expect("purge a"), 1);
+        let remaining = audit.recent(10).expect("remaining");
+        assert_eq!(remaining.len(), 1);
+        assert_eq!(remaining[0].workspace_identity.as_deref(), Some(B));
     }
 
     #[cfg(unix)]

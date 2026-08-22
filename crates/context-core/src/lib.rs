@@ -238,7 +238,7 @@ pub fn decide(
     if let Some(identity) = workspace_identity {
         validate_sha256(identity)?;
     }
-    validate_timestamp(evaluated_at)?;
+    validate_utc_timestamp(evaluated_at)?;
     let requires_workspace = !matches!(capability, Capability::WorkspaceOpen);
     let outcome = if requires_workspace && workspace_identity.is_none() {
         PolicyOutcome::Deny
@@ -341,7 +341,7 @@ pub fn audit_event(
 ) -> Result<AuditEvent, CoreError> {
     validate_identifier(event_id)?;
     validate_identifier(request_id)?;
-    validate_timestamp(occurred_at)?;
+    validate_utc_timestamp(occurred_at)?;
     validate_sha256(policy_decision)?;
     if let Some(value) = workspace_identity {
         validate_sha256(value)?;
@@ -356,7 +356,7 @@ pub fn audit_event(
     {
         return Err(CoreError::new(CoreErrorCode::InvalidInput));
     }
-    Ok(AuditEvent {
+    let event = AuditEvent {
         schema_name: "audit-event".into(),
         schema_version: VERSION.into(),
         event_id: event_id.into(),
@@ -370,7 +370,50 @@ pub fn audit_event(
         limits,
         duration_ms: duration_ms.to_string(),
         engine_version: engine_version.into(),
-    })
+    };
+    validate_audit_event(&event)?;
+    Ok(event)
+}
+
+/// Revalidates a potentially deserialized audit event before persistence.
+///
+/// # Errors
+///
+/// Fails when any public contract invariant is invalid.
+pub fn validate_audit_event(event: &AuditEvent) -> Result<(), CoreError> {
+    if event.schema_name != "audit-event" || event.schema_version != VERSION {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
+    validate_identifier(&event.event_id)?;
+    validate_identifier(&event.request_id)?;
+    validate_utc_timestamp(&event.occurred_at)?;
+    validate_sha256(&event.policy_decision)?;
+    if let Some(value) = &event.workspace_identity {
+        validate_sha256(value)?;
+    }
+    if let Some(value) = &event.snapshot_id {
+        validate_sha256(value)?;
+    }
+    decimal(&event.duration_ms)?;
+    ResourceBudget::conservative(
+        decimal(&event.limits.requested)?,
+        decimal(&event.limits.max_evidence_items)?,
+        decimal(&event.limits.max_files)?,
+        decimal(&event.limits.max_excerpt_bytes_per_item)?,
+        decimal(&event.limits.max_matches)?,
+        decimal(&event.limits.max_traversal_depth)?,
+        decimal(&event.limits.max_elapsed_ms)?,
+        decimal(&event.limits.max_memory_bytes)?,
+    )?;
+    if event.engine_version.split('.').count() != 3
+        || !event
+            .engine_version
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || byte == b'.')
+    {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
+    Ok(())
 }
 
 /// Serialized path identity embedded in evidence.
@@ -518,7 +561,7 @@ pub fn build_packet(mut draft: PacketDraft) -> Result<ContextPacket, CoreError> 
     validate_sha256(&draft.workspace_snapshot)?;
     validate_sha256(&draft.policy_decision)?;
     validate_identifier(&draft.request_id)?;
-    validate_timestamp(&draft.created_at)?;
+    validate_utc_timestamp(&draft.created_at)?;
     if draft.purpose.is_empty() || draft.purpose.len() > 256 || draft.purpose.contains('\0') {
         return Err(CoreError::new(CoreErrorCode::InvalidInput));
     }
@@ -647,7 +690,7 @@ pub fn packet_validation_result(
     evidence_available: bool,
     validated_at: &str,
 ) -> Result<PacketValidationResult, CoreError> {
-    validate_timestamp(validated_at)?;
+    validate_utc_timestamp(validated_at)?;
     let mut checks = Vec::with_capacity(6);
     let compatible = packet.schema_name == "context-packet" && packet.schema_version == VERSION;
     checks.push(validation_check(
@@ -880,15 +923,53 @@ fn validate_identifier(value: &str) -> Result<(), CoreError> {
     }
     Ok(())
 }
-fn validate_timestamp(value: &str) -> Result<(), CoreError> {
-    if value.len() >= 20
+/// Validates normalized UTC RFC 3339 used by deterministic ordering and retention.
+///
+/// # Errors
+///
+/// Fails for invalid shape, fractional precision, clock values, or calendar dates.
+pub fn validate_utc_timestamp(value: &str) -> Result<(), CoreError> {
+    let bytes = value.as_bytes();
+    let shape = (value.len() == 20 || (22..=30).contains(&value.len()))
         && value.ends_with('Z')
-        && value.as_bytes().get(4) == Some(&b'-')
-        && value.as_bytes().get(10) == Some(&b'T')
-    {
-        Ok(())
-    } else {
+        && bytes.get(4) == Some(&b'-')
+        && bytes.get(7) == Some(&b'-')
+        && bytes.get(10) == Some(&b'T')
+        && bytes.get(13) == Some(&b':')
+        && bytes.get(16) == Some(&b':')
+        && (value.len() == 20 || bytes.get(19) == Some(&b'.'))
+        && bytes.iter().enumerate().all(|(index, byte)| {
+            matches!(index, 4 | 7 | 10 | 13 | 16 | 19)
+                || index == value.len() - 1
+                || byte.is_ascii_digit()
+        });
+    if !shape {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
+    let number = |range: std::ops::Range<usize>| -> Result<u32, CoreError> {
+        std::str::from_utf8(&bytes[range])
+            .map_err(|_| CoreError::new(CoreErrorCode::InvalidInput))?
+            .parse()
+            .map_err(|_| CoreError::new(CoreErrorCode::InvalidInput))
+    };
+    let year = number(0..4)?;
+    let month = number(5..7)?;
+    let day = number(8..10)?;
+    let hour = number(11..13)?;
+    let minute = number(14..16)?;
+    let second = number(17..19)?;
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    let maximum_day = match month {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => 0,
+    };
+    if year == 0 || day == 0 || day > maximum_day || hour > 23 || minute > 59 || second > 59 {
         Err(CoreError::new(CoreErrorCode::InvalidInput))
+    } else {
+        Ok(())
     }
 }
 
@@ -1100,5 +1181,26 @@ mod tests {
             status(&incompatible, true, Some(A), true),
             PacketValidationStatus::Incompatible
         );
+    }
+
+    #[test]
+    fn utc_timestamp_validation_rejects_noncanonical_and_impossible_dates() {
+        for valid in [
+            "2024-02-29T23:59:59Z",
+            "2026-08-21T00:00:00.1Z",
+            "2026-08-21T00:00:00.123456789Z",
+        ] {
+            validate_utc_timestamp(valid).expect("valid UTC timestamp");
+        }
+        for invalid in [
+            "2023-02-29T00:00:00Z",
+            "2026-13-01T00:00:00Z",
+            "2026-01-01T24:00:00Z",
+            "2026-01-01T00:00:00+00:00",
+            "2026-01-01T00:00:00.Z",
+            "2026-01-01T00:00:00.1234567890Z",
+        ] {
+            assert!(validate_utc_timestamp(invalid).is_err(), "{invalid}");
+        }
     }
 }
