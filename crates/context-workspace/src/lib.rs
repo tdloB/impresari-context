@@ -824,23 +824,24 @@ fn validate_native_units(bytes: &[u8]) -> Result<(), WorkspaceError> {
 
 #[cfg(windows)]
 fn validate_native_units(bytes: &[u8]) -> Result<(), WorkspaceError> {
-    if bytes.is_empty() || bytes.len() % 2 != 0 {
+    let (pairs, remainder) = bytes.as_chunks::<2>();
+    if bytes.is_empty() || !remainder.is_empty() {
         return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
     }
-    let units = bytes
-        .chunks_exact(2)
+    let units = pairs
+        .iter()
         .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
         .collect::<Vec<_>>();
-    let separator = b'\\' as u16;
+    let separator = u16::from(b'\\');
     let invalid = units.contains(&0)
-        || units.contains(&(b'/' as u16))
+        || units.contains(&u16::from(b'/'))
         || units.first() == Some(&separator)
         || units.last() == Some(&separator)
-        || (units.len() >= 2 && units[1] == b':' as u16)
+        || (units.len() >= 2 && units[1] == u16::from(b':'))
         || units.split(|unit| *unit == separator).any(|component| {
             component.is_empty()
-                || component == [b'.' as u16]
-                || component == [b'.' as u16, b'.' as u16]
+                || component == [u16::from(b'.')]
+                || component == [u16::from(b'.'), u16::from(b'.')]
         });
     if invalid {
         Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity))
@@ -923,14 +924,15 @@ fn path_from_native_units(bytes: &[u8]) -> Result<PathBuf, WorkspaceError> {
 #[cfg(windows)]
 fn path_from_native_units(bytes: &[u8]) -> Result<PathBuf, WorkspaceError> {
     use std::os::windows::ffi::OsStringExt as _;
-    if bytes.len() % 2 != 0 {
+    let (pairs, remainder) = bytes.as_chunks::<2>();
+    if !remainder.is_empty() {
         return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
     }
-    let units = bytes
-        .chunks_exact(2)
+    let units = pairs
+        .iter()
         .map(|chunk| u16::from_le_bytes([chunk[0], chunk[1]]))
         .collect::<Vec<_>>();
-    if units.contains(&0) || units.contains(&(b'/' as u16)) {
+    if units.contains(&0) || units.contains(&u16::from(b'/')) {
         return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
     }
     Ok(PathBuf::from(OsString::from_wide(&units)))

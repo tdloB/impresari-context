@@ -785,11 +785,13 @@ fn set_private_file_permissions(path: &Path) -> Result<(), CacheError> {
 }
 
 #[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)] // Keep the cross-platform fallible helper contract uniform.
 fn set_private_permissions(_path: &Path) -> Result<(), CacheError> {
     Ok(())
 }
 
 #[cfg(windows)]
+#[allow(clippy::unnecessary_wraps)] // Keep the cross-platform fallible helper contract uniform.
 fn set_private_file_permissions(_path: &Path) -> Result<(), CacheError> {
     Ok(())
 }
