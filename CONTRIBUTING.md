@@ -10,6 +10,12 @@ Run `./scripts/check.sh` before submitting a change. If dependency manifests or
 the lockfile change, also run `./scripts/audit-dependencies.sh`. Changes must
 preserve the security boundaries and acceptance requirements in `docs/`.
 
+Major new functionality and changes to observable behavior must include
+suitable automated tests. Tests should cover the normal path and applicable
+boundary, failure, and security behavior. If automated tests are not practical
+or applicable, explain why in the pull request and obtain maintainer approval
+for the documented exception before merge.
+
 ## Developer Certificate of Origin
 
 Every contribution submitted after the public contribution process begins must
