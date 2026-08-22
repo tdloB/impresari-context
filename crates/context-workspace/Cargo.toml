@@ -10,3 +10,8 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
+cap-std = { version = "=4.0.2", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
