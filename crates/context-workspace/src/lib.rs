@@ -104,6 +104,33 @@ pub struct PathIdentity {
 }
 
 impl PathIdentity {
+    /// Decodes a serialized native path identity for this platform and derives
+    /// its diagnostic display value from the authoritative native units.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a platform/encoding mismatch or malformed,
+    /// non-canonical, or unsafe native units.
+    pub fn from_encoded_native_units(
+        encoded_platform_family: &str,
+        encoded_unit_encoding: &str,
+        relative_units_base64url: &str,
+    ) -> Result<Self, WorkspaceError> {
+        if encoded_platform_family != platform_family() || encoded_unit_encoding != unit_encoding()
+        {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
+        }
+        let mut identity = Self {
+            display_path: String::new(),
+            platform_family: platform_family(),
+            unit_encoding: unit_encoding(),
+            relative_units_base64url: relative_units_base64url.to_owned(),
+        };
+        let path = identity.to_relative_path()?;
+        identity.display_path = escaped_display(&path);
+        Ok(identity)
+    }
+
     /// Encodes a portable UTF-8 relative path whose components are separated
     /// by `/`, independent of the host platform.
     ///
@@ -991,6 +1018,13 @@ mod tests {
     fn portable_relative_paths_use_native_components() {
         let portable = PathIdentity::from_portable_relative_path("policies/access.txt")
             .expect("portable nested path");
+        let decoded = PathIdentity::from_encoded_native_units(
+            portable.platform_family,
+            portable.unit_encoding,
+            &portable.relative_units_base64url,
+        )
+        .expect("decode serialized identity");
+        assert_eq!(decoded, portable);
         assert_eq!(
             portable.to_relative_path().expect("decode portable path"),
             Path::new("policies").join("access.txt")
@@ -1005,6 +1039,14 @@ mod tests {
         ] {
             assert!(PathIdentity::from_portable_relative_path(invalid).is_err());
         }
+        assert!(
+            PathIdentity::from_encoded_native_units(
+                "foreign-platform",
+                portable.unit_encoding,
+                &portable.relative_units_base64url,
+            )
+            .is_err()
+        );
     }
 
     #[test]

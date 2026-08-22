@@ -13,7 +13,7 @@ use std::{
 use context_core::{PolicySubject, ResourceBudget};
 use context_engine::{EngineConfig, LocalEngine, QueryKind, RequestContext};
 use context_store::AuditRetention;
-use context_workspace::DiscoveryPolicy;
+use context_workspace::{DiscoveryPolicy, PathIdentity};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
@@ -246,11 +246,29 @@ fn run() -> Result<Report, String> {
                 &budget(),
             )
             .map_err(|error| format!("{} repeat search: {error}", fixture.id))?;
-        let found: BTreeSet<_> = first
-            .matches
-            .iter()
-            .map(|item| item.artifact.path.display_path.as_str())
-            .collect();
+        let mut found = BTreeSet::new();
+        for item in &first.matches {
+            let identity = PathIdentity::from_encoded_native_units(
+                &item.artifact.path.platform_family,
+                &item.artifact.path.unit_encoding,
+                &item.artifact.path.relative_units_base64url,
+            )
+            .map_err(|error| format!("{} returned invalid path identity: {error}", fixture.id))?;
+            let native = identity.to_relative_path().map_err(|error| {
+                format!("{} returned undecodable path identity: {error}", fixture.id)
+            })?;
+            let portable = native
+                .components()
+                .map(|component| {
+                    component
+                        .as_os_str()
+                        .to_str()
+                        .ok_or_else(|| format!("{} returned a non-UTF-8 fixture path", fixture.id))
+                })
+                .collect::<Result<Vec<_>, _>>()?
+                .join("/");
+            found.insert(portable);
+        }
         required += fixture.required_paths.len();
         retrieved += found.len();
         relevant += fixture
