@@ -3,7 +3,8 @@
 ## Milestone B1 — Isolated parser, canonical graph, and bounded traversal
 
 Status: implemented and gated. Hosted native-platform evidence is archived
-below; independent release review remains open.
+below. Independent review is a deferred assurance target under ADR-0017, not an
+open `v0.1.0` blocker.
 
 | Requirement | Implementation | Verification |
 | --- | --- | --- |
@@ -27,8 +28,9 @@ below; independent release review remains open.
 
 ## Open Slice B Work
 
-- Complete independent release review and any maintainer-run filesystem-specific
-  release rehearsal selected for the first public binary release.
+- Complete any maintainer-run filesystem-specific release rehearsal selected
+  for the first public binary release. Complete independent review before
+  `v1.0.0`, or earlier if ADR-0017's risk trigger is reached.
 
 ## Hosted Native Evidence
 

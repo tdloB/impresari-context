@@ -38,7 +38,10 @@ The repository also runs CodeQL, OpenSSF Scorecard, dependency and license
 audits, secret protection, and a bounded coverage-guided Rust fuzz target. The
 release workflow implements the approved SHA-256 checksum and GitHub artifact
 attestation design. Independent human security and release review remains a
-public-release requirement.
+documented assurance target before `v1.0.0`, or earlier if the project
+materially expands its trust boundary. It is encouraged but is not a mandatory
+gate for `v0.1.0`; that release must disclose the absence of an independent
+third-party security audit.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
@@ -136,6 +139,8 @@ versioning, limits, and security boundaries.
   over stdio as a bounded, authority-neutral transport.
 - [ADR-0015](docs/decisions/0015-release-candidate-builds-and-provenance.md):
   exact-commit native release candidates, manifests, checksums, and rehearsal.
+- [ADR-0017](docs/decisions/0017-v0.1-release-assurance-policy.md): the
+  independent-review assurance target and exact `v0.1.0` disclosure policy.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,

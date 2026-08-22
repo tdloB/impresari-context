@@ -49,4 +49,7 @@ artifacts additionally use GitHub's keyless artifact attestations under
 
 Creating a version tag, changing repository visibility, publishing a GitHub
 Release, or uploading to Cargo/Homebrew/Winget/Scoop remains a manual owner
-action after independent security/release review.
+action after all applicable release gates and release-evidence review pass.
+Under ADR-0017, independent review is encouraged but is not mandatory for
+`v0.1.0`; the GitHub release environment and required owner approval remain in
+force.

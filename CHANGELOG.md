@@ -24,6 +24,12 @@ All notable changes to Impresari Context are documented here. The project uses
 
 ### Security
 
+Security review status: This release has not undergone an independent
+third-party security audit. It has passed the project's documented automated,
+AI-assisted internal, native-platform, dependency, static-analysis,
+secret-scanning, fuzzing, packaging, checksum, and provenance checks. These
+controls reduce risk but are not a substitute for independent review.
+
 - Repository content is always treated as untrusted data and receives no
   policy, execution, network, or orchestration authority.
 - The initial release does not load executable extensions, grant privileged
