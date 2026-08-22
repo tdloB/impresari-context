@@ -54,6 +54,8 @@ pub enum FactClass {
     Import,
     /// An ES module export.
     Export,
+    /// A syntax-confirmed call expression.
+    Call,
 }
 
 /// Lossless capability-relative source path supplied by the control process.
@@ -356,15 +358,15 @@ pub fn query_graph(
                 unknowns.push("traversal_edge_limit_reached".into());
                 break;
             }
-            selected_edges.push((*edge).clone());
             let Some(target) = edge.target_node.as_deref() else {
+                selected_edges.push((*edge).clone());
                 unknowns.push("unresolved_traversal_target".into());
                 continue;
             };
             let Some(target_node) = nodes_by_id.get(target) else {
                 return Err(StructuralError::ContractMismatch);
             };
-            if visited.insert(target.to_owned()) {
+            if !visited.contains(target) {
                 if selected_nodes.len()
                     >= usize::try_from(max_nodes).map_err(|_| StructuralError::ResourceLimit)?
                 {
@@ -372,9 +374,11 @@ pub fn query_graph(
                     unknowns.push("traversal_node_limit_reached".into());
                     continue;
                 }
+                visited.insert(target.to_owned());
                 selected_nodes.push((*target_node).clone());
                 queue.push_back((target.to_owned(), depth.saturating_add(1)));
             }
+            selected_edges.push((*edge).clone());
         }
     }
     unknowns.sort();
@@ -413,7 +417,10 @@ fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralErr
 }
 
 fn valid_edge_kind(kind: &str) -> bool {
-    matches!(kind, "declares" | "contains" | "imports" | "exports")
+    matches!(
+        kind,
+        "declares" | "contains" | "imports" | "exports" | "calls"
+    )
 }
 
 /// Builds one deterministic graph from fully validated worker results.
@@ -677,6 +684,39 @@ fn add_relationships(
                 )?);
                 if target.is_none() {
                     unknowns.push("unresolved_export_target".into());
+                }
+            }
+            FactClass::Call => {
+                let source = fact
+                    .parent_key
+                    .as_ref()
+                    .and_then(|key| local_nodes.get(key))
+                    .map_or(file_id, String::as_str);
+                let target = fact.name.as_ref().and_then(|name| {
+                    file.response
+                        .facts
+                        .iter()
+                        .find(|candidate| {
+                            candidate.class == FactClass::Declaration
+                                && candidate.name.as_ref() == Some(name)
+                        })
+                        .and_then(|candidate| local_nodes.get(&candidate.local_key))
+                });
+                edges.push(graph_edge(
+                    workspace_snapshot,
+                    "calls",
+                    source,
+                    target,
+                    None,
+                    if target.is_some() {
+                        "heuristic"
+                    } else {
+                        "unresolved"
+                    },
+                    fact,
+                )?);
+                if target.is_none() {
+                    unknowns.push("unresolved_call_target".into());
                 }
             }
             FactClass::Declaration => {}
@@ -1357,6 +1397,15 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Export, name, module)
         }
+        "call_expression" => {
+            let function = node.child_by_field_name("function")?;
+            let name = if function.kind() == "identifier" {
+                text(function, source)
+            } else {
+                None
+            };
+            (FactClass::Call, name, None)
+        }
         _ => return None,
     };
     if !request.fact_classes.contains(&class) {
@@ -1400,6 +1449,7 @@ const fn class_name(class: FactClass) -> &'static str {
         FactClass::Contains => "contains",
         FactClass::Import => "import",
         FactClass::Export => "export",
+        FactClass::Call => "call",
     }
 }
 
@@ -1495,6 +1545,7 @@ mod tests {
                 FactClass::Contains,
                 FactClass::Import,
                 FactClass::Export,
+                FactClass::Call,
             ],
             max_facts: 100,
             max_nesting_depth: 128,
@@ -1509,7 +1560,7 @@ mod tests {
     #[test]
     fn extracts_typescript_declarations_imports_exports_and_containment() {
         let source = br#"import { value } from "./dep";
-export function outer() { const nested = value; }
+export function outer() { const nested = value(); }
 class Example { method() {} }
 "#;
         let output =
@@ -1537,6 +1588,12 @@ class Example { method() {} }
         assert!(output.facts.iter().any(
             |fact| fact.class == FactClass::Contains && fact.name.as_deref() == Some("nested")
         ));
+        assert!(
+            output
+                .facts
+                .iter()
+                .any(|fact| fact.class == FactClass::Call && fact.name.as_deref() == Some("value"))
+        );
     }
 
     #[test]
@@ -1593,7 +1650,8 @@ class Example { method() {} }
     #[test]
     fn graph_is_snapshot_bound_deterministic_and_explicitly_partial() {
         let source = br#"import { value } from "./dep";
-export function outer() { const nested = value; }
+function helper() { return 1; }
+export function outer() { const nested = value(); helper(); }
 "#;
         let request = request(source, StructuralLanguage::TypeScript);
         let response = process_request(&request).expect("parse");
@@ -1618,6 +1676,16 @@ export function outer() { const nested = value; }
                 .iter()
                 .any(|edge| edge.kind == "contains" && edge.resolution == "confirmed")
         );
+        let helper = first
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some("helper"))
+            .expect("helper node");
+        assert!(first.edges.iter().any(|edge| {
+            edge.kind == "calls"
+                && edge.resolution == "heuristic"
+                && edge.target_node.as_deref() == Some(helper.node_id.as_str())
+        }));
         assert!(
             first
                 .nodes
@@ -1661,7 +1729,7 @@ export function outer() { const nested = value; }
     #[test]
     fn relative_imports_resolve_only_to_snapshot_files() {
         let entry_source = br#"import { value } from "./dep";
-export function outer() { return value; }
+export function outer() { return value(); }
 "#;
         let dep_source = b"export const value = 1;\n";
         let entry_request = request(entry_source, StructuralLanguage::TypeScript);

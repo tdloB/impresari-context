@@ -55,7 +55,7 @@
       "required": ["edge_id", "kind", "source_node", "resolution", "span", "provenance"],
       "properties": {
         "edge_id": {"$ref": "common.schema.json#/$defs/sha256"},
-        "kind": {"type": "string", "enum": ["declares", "contains", "imports", "exports"]},
+        "kind": {"type": "string", "enum": ["declares", "contains", "imports", "exports", "calls"]},
         "source_node": {"$ref": "common.schema.json#/$defs/sha256"},
         "target_node": {"$ref": "common.schema.json#/$defs/sha256"},
         "module": {"type": "string", "maxLength": 4096},

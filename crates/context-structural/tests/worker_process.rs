@@ -55,6 +55,7 @@ fn request(source: &[u8]) -> WorkerRequest {
             FactClass::Contains,
             FactClass::Import,
             FactClass::Export,
+            FactClass::Call,
         ],
         max_facts: 100,
         max_nesting_depth: 128,

@@ -13,13 +13,14 @@ confinement evidence remain open.
 | Canonical graph per snapshot | Content-derived graph/node/edge identities bind facts to exact snapshot, path, span, and provenance | Determinism and snapshot-binding unit test |
 | Confirmed versus unresolved relationships | Graph edges record resolution; unknowns make unresolved imports/exports and syntax recovery visible | Partial-graph assertions |
 | Relative module resolution | Snapshot-only resolver maps supported `./` and `../` TypeScript/JavaScript specifiers to exact file nodes; bare packages and missing files remain unresolved | Two-file resolution and unresolved-state tests |
+| Local call evidence | Syntax-confirmed call sites are emitted with exact spans; unambiguous same-file name matches are heuristic targets and every other target remains unresolved | Extraction, graph-resolution, confidence, and unknown-state tests |
 | Bounded trace queries | Deterministic outbound traversal enforces node, edge, depth, and serialized-output budgets | Query limit and unresolved-target assertions; engine resource mapping |
 | Public contracts | Closed Draft 2020-12 structural graph and query-result schemas | Contract registry check and offline schema compilation |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
 
 ## Open Slice B Work
 
-- Add references and calls only where syntax and resolver evidence support them.
+- Add reference relationships only where syntax and resolver evidence support them.
 - Add package/directory repository-map views.
 - Persist the derived graph in the isolated replaceable cache.
 - Support deterministic incremental graph refresh.
