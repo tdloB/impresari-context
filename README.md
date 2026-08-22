@@ -11,9 +11,8 @@ Impresari Context is an independent implementation informed by publicly demonstr
 
 ## Status
 
-The approved local Verifiable Context Slice A and the implemented portions of
-Slice B structural intelligence are joined by the first Slice C lifecycle
-milestone.
+The approved implementation roadmap through the safe, declarative portion of
+Slice D is complete and gated.
 The Rust workspace now includes capability-scoped workspace reads,
 deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
 path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
@@ -29,11 +28,11 @@ The first Slice D milestone adds integrity-pinned extension declarations and
 metadata-only output quarantine while keeping all artifact loading, execution,
 network, model, environment, and filesystem capabilities disabled.
 
-This is not a public release. The name remains provisional, additional Slice B
-capabilities and external integrations remain incomplete, and remote repository
-creation, package publication, and release remain gated. Security/evaluation
-evidence and native Tier A release rehearsals must still pass before release
-readiness can be claimed.
+This is not a public release. The name remains provisional, executable or
+privileged extensions and long-lived transports remain separately gated, and
+package publication and release remain gated. The complete local gate and
+hosted Tier A matrix pass; clean-install release rehearsal, release
+provenance/signing, and independent review remain public-release requirements.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones

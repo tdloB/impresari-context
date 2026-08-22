@@ -24,3 +24,11 @@ authorized.
 
 Those items require their own ADR and the `SEC-F-002`/`SEC-F-003` analysis
 before implementation. A declared extension kind is not runtime authorization.
+
+## Hosted Native Evidence
+
+- Successful full matrix: [GitHub Actions run 32560518924](https://github.com/tdloB/impresari-context/actions/runs/32560518924), commit
+  `70b71ca2bf77797fd594aa64191314252e36848b`, 2026-08-22.
+- All five macOS, Windows, Linux, MSRV, compatibility, and stable-toolchain jobs
+  passed with the consumer-equivalence and extension-quarantine evaluation in
+  the mandatory repository gate.

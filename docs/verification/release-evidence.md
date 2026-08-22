@@ -24,7 +24,15 @@ decision to publish a release.
 
 ## Open release evidence
 
-- Successful full native matrix for the Slice D/evaluation-gate commit.
 - Clean-install binary rehearsal from a release artifact.
 - Release provenance/signing decision and implementation.
 - Independent security and release review.
+
+## 2026-08-22 — Slice D and expanded evaluation matrix
+
+- Commit: `70b71ca2bf77797fd594aa64191314252e36848b`
+- Run: [GitHub Actions 32560518924](https://github.com/tdloB/impresari-context/actions/runs/32560518924)
+- Result: success in all five jobs.
+- This run includes the frozen OS-adapter semantic-equivalence gate and the
+  adversarial extension-output quarantine gate in addition to the complete
+  evidence suite listed above.
