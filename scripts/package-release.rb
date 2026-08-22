@@ -49,7 +49,9 @@ File.write(File.join(stage, "MANIFEST.json"), "#{JSON.pretty_generate(manifest)}
 FileUtils.mkdir_p(output)
 archive = File.join(output, "#{package_name}.tar.gz")
 FileUtils.rm_f(archive)
-tar_output, tar_status = Open3.capture2e("tar", "-czf", archive, "-C", output, package_name)
+tar_output, tar_status = Open3.capture2e(
+  "tar", "-czf", File.basename(archive), package_name, chdir: output
+)
 abort tar_output unless tar_status.success?
 checksum = Digest::SHA256.file(archive).hexdigest
 File.write("#{archive}.sha256", "#{checksum}  #{File.basename(archive)}\n")

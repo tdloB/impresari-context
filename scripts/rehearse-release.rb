@@ -14,7 +14,9 @@ expected = File.read(checksum_path).split.first
 abort "archive checksum mismatch" unless expected == Digest::SHA256.file(archive).hexdigest
 
 Dir.mktmpdir("impresari-release-rehearsal-") do |directory|
-  output, status = Open3.capture2e("tar", "-xzf", archive, "-C", directory)
+  output, status = Open3.capture2e(
+    "tar", "-xzf", File.basename(archive), "-C", directory, chdir: File.dirname(archive)
+  )
   abort output unless status.success?
   root = Dir.glob(File.join(directory, "impresari-context-*")).fetch(0)
   manifest = JSON.parse(File.read(File.join(root, "MANIFEST.json")))
