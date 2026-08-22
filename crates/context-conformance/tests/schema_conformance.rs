@@ -323,7 +323,7 @@ fn rust_packet_output_satisfies_the_published_schema() {
         hash_b,
         packet.budget.clone(),
         3,
-        "0.0.0",
+        "0.1.0",
     )
     .expect("audit event");
     let audit_schema = read_json(&schema_root.join("audit-event.schema.json"));

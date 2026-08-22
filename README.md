@@ -36,8 +36,9 @@ package publication remains gated. The complete local gate and
 hosted Tier A matrix and native clean-install release-candidate rehearsals pass.
 The repository also runs CodeQL, OpenSSF Scorecard, dependency and license
 audits, secret protection, and a bounded coverage-guided Rust fuzz target. The
-release provenance/signing decision and independent review remain public-release
-requirements.
+release workflow implements the approved SHA-256 checksum and GitHub artifact
+attestation design. Independent human security and release review remains a
+public-release requirement.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones

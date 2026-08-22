@@ -12,5 +12,5 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-core = { version = "=0.0.0", path = "../context-core" }
+context-core = { version = "=0.1.0", path = "../context-core" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }

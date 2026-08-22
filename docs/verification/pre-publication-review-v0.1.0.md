@@ -121,8 +121,9 @@ available.
 
 ## Required actions before publication
 
-1. Change the workspace and package version from `0.0.0` to `0.1.0` and update
-   release filenames/tests.
+1. Merge the prepared workspace/package version change from `0.0.0` to `0.1.0`
+   together with matching release filenames, release notes, and the guarded
+   attested-publication workflow.
 2. Run normal CI and the native release-candidate matrix for the final commit.
 3. Make the repository public only with explicit owner approval.
 4. Immediately enable GitHub private vulnerability reporting, Dependabot
@@ -132,6 +133,11 @@ available.
 6. Configure branch protection/rules once GitHub makes enforcement available.
 7. Publish/tag `v0.1.0` only after explicit owner approval and successful final
    evidence review.
+
+The required independent human review is defined in
+`docs/security/independent-review-guide.md`. AI-assisted review, CodeQL,
+Scorecard, dependency analysis, and fuzzing are complementary evidence and do
+not satisfy that gate by themselves.
 
 ## Evidence
 

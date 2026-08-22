@@ -2,7 +2,7 @@
   "schema_name": "scale-evaluation-report",
   "schema_version": "1.0.0",
   "runner_version": "1.0.0",
-  "engine_version": "0.0.0",
+  "engine_version": "0.1.0",
   "samples_per_profile": 5,
   "platform_os": "macos",
   "platform_arch": "aarch64",

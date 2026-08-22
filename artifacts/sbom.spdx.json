@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-9b9688478b4f",
-  "documentNamespace": "https://impresari-context.invalid/sbom/9b9688478b4fe3a966ef8409a7c65a049a9cb06086bdef1198ebd011f54877ee",
+  "name": "impresari-context-cargo-lock-ff5efbdd735f",
+  "documentNamespace": "https://impresari-context.invalid/sbom/ff5efbdd735f7986e942278c0063c716d4ec531ab32cd5a7920f7dc1e73c1646",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
@@ -482,7 +482,7 @@
     {
       "SPDXID": "SPDXRef-Package-18",
       "name": "context-adapters",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -492,14 +492,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-adapters@0.0.0"
+          "referenceLocator": "pkg:cargo/context-adapters@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-19",
       "name": "context-cli",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -509,14 +509,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-cli@0.0.0"
+          "referenceLocator": "pkg:cargo/context-cli@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-20",
       "name": "context-conformance",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -526,14 +526,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-conformance@0.0.0"
+          "referenceLocator": "pkg:cargo/context-conformance@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-21",
       "name": "context-core",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -543,14 +543,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-core@0.0.0"
+          "referenceLocator": "pkg:cargo/context-core@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-22",
       "name": "context-engine",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -560,14 +560,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-engine@0.0.0"
+          "referenceLocator": "pkg:cargo/context-engine@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-23",
       "name": "context-evaluation",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -577,14 +577,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-evaluation@0.0.0"
+          "referenceLocator": "pkg:cargo/context-evaluation@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-24",
       "name": "context-extensions",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -594,14 +594,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-extensions@0.0.0"
+          "referenceLocator": "pkg:cargo/context-extensions@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-25",
       "name": "context-mcp",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -611,14 +611,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-mcp@0.0.0"
+          "referenceLocator": "pkg:cargo/context-mcp@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-26",
       "name": "context-reference-client",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -628,14 +628,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-reference-client@0.0.0"
+          "referenceLocator": "pkg:cargo/context-reference-client@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-27",
       "name": "context-retrieval",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -645,14 +645,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-retrieval@0.0.0"
+          "referenceLocator": "pkg:cargo/context-retrieval@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-28",
       "name": "context-session",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -662,14 +662,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-session@0.0.0"
+          "referenceLocator": "pkg:cargo/context-session@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-29",
       "name": "context-store",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -679,14 +679,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-store@0.0.0"
+          "referenceLocator": "pkg:cargo/context-store@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-30",
       "name": "context-structural",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -696,14 +696,14 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-structural@0.0.0"
+          "referenceLocator": "pkg:cargo/context-structural@0.1.0"
         }
       ]
     },
     {
       "SPDXID": "SPDXRef-Package-31",
       "name": "context-workspace",
-      "versionInfo": "0.0.0",
+      "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
@@ -713,7 +713,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/context-workspace@0.0.0"
+          "referenceLocator": "pkg:cargo/context-workspace@0.1.0"
         }
       ]
     },

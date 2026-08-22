@@ -74,6 +74,9 @@ Acceptance evidence:
 - Applicable fixed project vulnerabilities and identifiers are explicitly
   listed, or the notes explicitly state that none are known for that release.
 
+Preparation status: `CHANGELOG.md` contains reviewed draft `v0.1.0` notes. The
+criterion remains open until those notes are attached to the published release.
+
 ### Human secure-development knowledge (`know_secure_design`, `know_common_errors`)
 
 AI-assisted analysis and automated security tooling do not establish that a
@@ -100,6 +103,10 @@ Acceptance evidence:
   role and relevant secure-development process.
 - The badge justification cites verifiable, non-sensitive evidence rather than
   treating AI output or scanners as human expertise.
+
+The independent-review scope and evidence requirements are now documented in
+`docs/security/independent-review-guide.md`. These questionnaire criteria remain
+`Unmet` until the human qualification or review-relationship evidence exists.
 
 ## Tracking rule
 
