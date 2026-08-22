@@ -1,0 +1,30 @@
+{
+  "schema_name": "structural-query-result",
+  "schema_version": "1.0.0",
+  "graph_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "start_node": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "nodes": [
+    {
+      "node_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "kind": "file",
+      "path": {
+        "display_path": "src/example.ts",
+        "platform_family": "unix",
+        "unit_encoding": "unix_bytes",
+        "relative_units_base64url": "c3JjL2V4YW1wbGUudHM"
+      },
+      "confidence": "confirmed",
+      "provenance": {
+        "method": "tree_sitter_syntax",
+        "parser_version": "tree-sitter-0.26.12",
+        "grammar_version": "tree-sitter-typescript-0.23.2",
+        "resolver_version": "0.1.0",
+        "graph_version": "1.0.0"
+      }
+    }
+  ],
+  "edges": [],
+  "truncated": false,
+  "unknowns": []
+}

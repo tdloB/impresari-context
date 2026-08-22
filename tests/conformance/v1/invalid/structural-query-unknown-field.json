@@ -1,0 +1,12 @@
+{
+  "schema_name": "structural-query-result",
+  "schema_version": "1.0.0",
+  "graph_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "start_node": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "nodes": [],
+  "edges": [],
+  "truncated": false,
+  "unknowns": [],
+  "authority": "expanded"
+}

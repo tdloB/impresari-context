@@ -5,8 +5,11 @@
     {"fixture": "valid/evidence.json", "schema": "evidence.schema.json", "valid": true},
     {"fixture": "valid/error-envelope.json", "schema": "error-envelope.schema.json", "valid": true},
     {"fixture": "valid/search-request.json", "schema": "search.schema.json#/$defs/request", "valid": true},
+    {"fixture": "valid/structural-graph.json", "schema": "structural-graph.schema.json", "valid": true},
+    {"fixture": "valid/structural-query.json", "schema": "structural-query.schema.json", "valid": true},
     {"fixture": "invalid/evidence-unknown-field.json", "schema": "evidence.schema.json", "valid": false},
     {"fixture": "invalid/path-platform-mismatch.json", "schema": "path-identity.schema.json", "valid": false},
-    {"fixture": "invalid/search-leading-zero-budget.json", "schema": "search.schema.json#/$defs/request", "valid": false}
+    {"fixture": "invalid/search-leading-zero-budget.json", "schema": "search.schema.json#/$defs/request", "valid": false},
+    {"fixture": "invalid/structural-query-unknown-field.json", "schema": "structural-query.schema.json", "valid": false}
   ]
 }

@@ -25,7 +25,6 @@ confinement evidence remain open.
 - Add package/directory repository-map views.
 - Persist the derived graph in the isolated replaceable cache.
 - Support deterministic incremental graph refresh.
-- Add independent conformance fixtures for structural build/query.
 - Produce native macOS, Linux, and Windows confinement/resource evidence without
   overstating application-enforced isolation.
 - Extend the evaluation corpus and release thresholds for structural tasks.
