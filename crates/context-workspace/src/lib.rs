@@ -104,6 +104,27 @@ pub struct PathIdentity {
 }
 
 impl PathIdentity {
+    /// Encodes a portable UTF-8 relative path whose components are separated
+    /// by `/`, independent of the host platform.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for empty or ambiguous components, backslashes, or any
+    /// path that fails the native relative-path validation rules.
+    pub fn from_portable_relative_path(path: &str) -> Result<Self, WorkspaceError> {
+        if path.is_empty() || path.contains('\\') {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
+        }
+        let mut native = PathBuf::new();
+        for component in path.split('/') {
+            if component.is_empty() {
+                return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
+            }
+            native.push(component);
+        }
+        Self::from_relative_path(&native)
+    }
+
     /// Encodes a validated native relative path.
     ///
     /// # Errors
@@ -964,6 +985,26 @@ mod tests {
         assert_eq!(exact.path, identity);
         assert_eq!(exact.content_hash.len(), 71);
         assert!(workspace.identity().starts_with("sha256:"));
+    }
+
+    #[test]
+    fn portable_relative_paths_use_native_components() {
+        let portable = PathIdentity::from_portable_relative_path("policies/access.txt")
+            .expect("portable nested path");
+        assert_eq!(
+            portable.to_relative_path().expect("decode portable path"),
+            Path::new("policies").join("access.txt")
+        );
+        for invalid in [
+            "",
+            "/root",
+            "trailing/",
+            "double//slash",
+            "../escape",
+            "a\\b",
+        ] {
+            assert!(PathIdentity::from_portable_relative_path(invalid).is_err());
+        }
     }
 
     #[test]

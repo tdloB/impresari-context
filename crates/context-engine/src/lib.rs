@@ -774,7 +774,7 @@ impl LocalEngine {
         })?;
         let result = match kind {
             QueryKind::ExactPath => {
-                let path = PathIdentity::from_relative_path(Path::new(query)).map_err(|error| {
+                let path = PathIdentity::from_portable_relative_path(query).map_err(|error| {
                     workspace_error(
                         context,
                         capability,
