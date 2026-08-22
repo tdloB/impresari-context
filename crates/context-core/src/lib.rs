@@ -584,6 +584,178 @@ pub fn packet_bytes(packet: &ContextPacket) -> Result<Vec<u8>, CoreError> {
     canonical_bytes(packet)
 }
 
+/// Stable packet-validation status taxonomy.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PacketValidationStatus {
+    /// Packet is valid and bound to the current snapshot.
+    ValidCurrent,
+    /// Packet is internally valid but refers to an older snapshot.
+    ValidStale,
+    /// Packet identity or accounting is corrupt.
+    Corrupt,
+    /// Packet contract version is unsupported.
+    Incompatible,
+    /// Caller is not authorized to validate against the workspace.
+    Denied,
+    /// Packet is valid but one or more evidence checks are unavailable.
+    PartiallyUnavailable,
+}
+
+/// One stable validation check.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PacketValidationCheck {
+    /// Contract-defined check name.
+    pub name: String,
+    /// `pass`, `fail`, or `unavailable`.
+    pub outcome: String,
+    /// Optional machine-readable reason.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reason_code: Option<String>,
+}
+
+/// Versioned packet-validation result.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct PacketValidationResult {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Claimed packet identity.
+    pub packet_id: String,
+    /// Overall validation status.
+    pub status: PacketValidationStatus,
+    /// Ordered validation checks.
+    pub checks: Vec<PacketValidationCheck>,
+    /// UTC validation time supplied by the trusted caller.
+    pub validated_at: String,
+}
+
+/// Produces the complete validation taxonomy without substituting evidence.
+///
+/// `current_snapshot` must come from an authorized current workspace snapshot.
+/// `evidence_available` reports whether every evidence reference was rechecked
+/// successfully by the workspace layer.
+///
+/// # Errors
+///
+/// Fails only when the trusted validation timestamp is malformed.
+pub fn packet_validation_result(
+    packet: &ContextPacket,
+    authorized: bool,
+    current_snapshot: Option<&str>,
+    evidence_available: bool,
+    validated_at: &str,
+) -> Result<PacketValidationResult, CoreError> {
+    validate_timestamp(validated_at)?;
+    let mut checks = Vec::with_capacity(6);
+    let compatible = packet.schema_name == "context-packet" && packet.schema_version == VERSION;
+    checks.push(validation_check(
+        "schema",
+        compatible,
+        "unsupported_packet_version",
+    ));
+    if !compatible {
+        return Ok(validation_result(
+            packet,
+            PacketValidationStatus::Incompatible,
+            checks,
+            validated_at,
+        ));
+    }
+    let intact = validate_packet(packet).is_ok();
+    checks.push(validation_check("integrity", intact, "packet_integrity"));
+    if !intact {
+        return Ok(validation_result(
+            packet,
+            PacketValidationStatus::Corrupt,
+            checks,
+            validated_at,
+        ));
+    }
+    checks.push(validation_check("authorization", authorized, "denied"));
+    if !authorized {
+        return Ok(validation_result(
+            packet,
+            PacketValidationStatus::Denied,
+            checks,
+            validated_at,
+        ));
+    }
+    let Some(snapshot) = current_snapshot else {
+        checks.push(unavailable_check(
+            "snapshot",
+            "current_snapshot_unavailable",
+        ));
+        return Ok(validation_result(
+            packet,
+            PacketValidationStatus::PartiallyUnavailable,
+            checks,
+            validated_at,
+        ));
+    };
+    let current = packet.workspace_snapshot == snapshot;
+    checks.push(validation_check("snapshot", current, "snapshot_stale"));
+    if !current {
+        checks.push(validation_check("freshness", false, "snapshot_stale"));
+        return Ok(validation_result(
+            packet,
+            PacketValidationStatus::ValidStale,
+            checks,
+            validated_at,
+        ));
+    }
+    if evidence_available {
+        checks.push(validation_check("evidence", true, "evidence_unavailable"));
+        checks.push(validation_check("freshness", true, "snapshot_stale"));
+        Ok(validation_result(
+            packet,
+            PacketValidationStatus::ValidCurrent,
+            checks,
+            validated_at,
+        ))
+    } else {
+        checks.push(unavailable_check("evidence", "evidence_unavailable"));
+        checks.push(unavailable_check("freshness", "evidence_unavailable"));
+        Ok(validation_result(
+            packet,
+            PacketValidationStatus::PartiallyUnavailable,
+            checks,
+            validated_at,
+        ))
+    }
+}
+
+fn validation_check(name: &str, pass: bool, reason: &str) -> PacketValidationCheck {
+    PacketValidationCheck {
+        name: name.into(),
+        outcome: if pass { "pass" } else { "fail" }.into(),
+        reason_code: (!pass).then(|| reason.into()),
+    }
+}
+fn unavailable_check(name: &str, reason: &str) -> PacketValidationCheck {
+    PacketValidationCheck {
+        name: name.into(),
+        outcome: "unavailable".into(),
+        reason_code: Some(reason.into()),
+    }
+}
+fn validation_result(
+    packet: &ContextPacket,
+    status: PacketValidationStatus,
+    checks: Vec<PacketValidationCheck>,
+    validated_at: &str,
+) -> PacketValidationResult {
+    PacketValidationResult {
+        schema_name: "packet-validation".into(),
+        schema_version: VERSION.into(),
+        packet_id: packet.packet_id.clone(),
+        status,
+        checks,
+        validated_at: validated_at.into(),
+    }
+}
+
 fn packet_from(
     draft: &PacketDraft,
     evidence: Vec<EvidenceRecord>,
@@ -887,6 +1059,46 @@ mod tests {
                 .expect_err("mismatched span")
                 .code(),
             CoreErrorCode::InvalidInput
+        );
+    }
+
+    #[test]
+    fn packet_validation_distinguishes_every_runtime_state() {
+        let packet = build_packet(draft(4096, vec![evidence('a', 32)])).expect("packet");
+        let at = "2026-08-21T00:00:00Z";
+        let status = |packet: &ContextPacket, authorized, snapshot, evidence_available| {
+            packet_validation_result(packet, authorized, snapshot, evidence_available, at)
+                .expect("validation")
+                .status
+        };
+        assert_eq!(
+            status(&packet, true, Some(A), true),
+            PacketValidationStatus::ValidCurrent
+        );
+        assert_eq!(
+            status(&packet, true, Some(B), true),
+            PacketValidationStatus::ValidStale
+        );
+        assert_eq!(
+            status(&packet, false, Some(A), true),
+            PacketValidationStatus::Denied
+        );
+        assert_eq!(
+            status(&packet, true, Some(A), false),
+            PacketValidationStatus::PartiallyUnavailable
+        );
+
+        let mut corrupt = packet.clone();
+        corrupt.purpose = "tampered".into();
+        assert_eq!(
+            status(&corrupt, true, Some(A), true),
+            PacketValidationStatus::Corrupt
+        );
+        let mut incompatible = packet;
+        incompatible.schema_version = "2.0.0".into();
+        assert_eq!(
+            status(&incompatible, true, Some(A), true),
+            PacketValidationStatus::Incompatible
         );
     }
 }

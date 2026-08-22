@@ -11,6 +11,7 @@ use sha2::{Digest, Sha256};
 use context_core::{
     ContextPacket, EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction, EvidencePath,
     EvidenceRecord, EvidenceSpan, PacketDraft, ResourceBudget, build_packet, packet_bytes,
+    packet_validation_result,
 };
 
 fn repository_root() -> PathBuf {
@@ -290,4 +291,20 @@ fn rust_packet_output_satisfies_the_published_schema() {
     validator.validate(&value).unwrap_or_else(|error| {
         panic!("Rust packet must satisfy context-packet.schema.json: {error}")
     });
+
+    let validation =
+        packet_validation_result(&packet, true, Some(hash_a), true, "2026-08-21T00:00:01Z")
+            .expect("validation result");
+    let validation_schema = read_json(&schema_root.join("packet-validation.schema.json"));
+    let validation_validator = jsonschema::draft202012::options()
+        .with_registry(&registry)
+        .should_validate_formats(true)
+        .build(&validation_schema)
+        .expect("validation-result validator");
+    let validation_value = serde_json::to_value(validation).expect("validation JSON");
+    validation_validator
+        .validate(&validation_value)
+        .unwrap_or_else(|error| {
+            panic!("Rust result must satisfy packet-validation.schema.json: {error}")
+        });
 }
