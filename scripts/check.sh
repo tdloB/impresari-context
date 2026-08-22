@@ -14,6 +14,7 @@ ruby ./scripts/check-jcs-vectors.rb
 ruby ./scripts/check-semantic-vectors.rb
 ruby ./scripts/check-sbom.rb
 ruby ./scripts/check-evaluation.rb
+ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings

@@ -93,16 +93,14 @@ environment outside approval A-0029 and do not authorize that action.
 | 12 synthetic fixtures / >=25% held out | Pass | 12 original fixtures, 3 held out, frozen manifest digest. |
 | Adversarial corpus | Partial | Relevant local classes are covered; platform-specific and race expansion continues under SEC-REQ-010. |
 | 6 small + 4 medium public repositories | Externally gated | Download/fetch and license admission require explicit external-action approval. |
-| 2 large/monorepo or approved generated equivalents | Partial | Generated scale profiles and cold/warm percentile/resource report are not yet implemented. |
+| 2 large/monorepo or approved generated equivalents | Pass locally | Two nested generated profiles (2,000/5,000 files), five cold/warm samples, timing percentiles, cache ratio, measured macOS RSS, and partial-limit evidence. |
 | Reproducibility metadata | Partial | Manifest/lock/toolchain/config are recorded; engine Git revision, host/resource curves, raw result digests, and deviations need the scale/release report. |
 
 ## Remaining Authorized Local Work
 
-1. Add two generated scale profiles with cold/warm p50/p95, disk/time/memory
-   evidence and explicit deviations.
-2. Decide and implement safe optional Git revision/working-tree metadata without
+1. Decide and implement safe optional Git revision/working-tree metadata without
    process execution (`MVP-FR-009`), or record a scoped deferral before release.
-3. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
+2. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
 
 ## Preserved Gates
 

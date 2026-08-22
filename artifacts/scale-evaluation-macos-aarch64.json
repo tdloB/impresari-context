@@ -1,0 +1,22 @@
+{
+  "schema_name": "scale-evaluation-report",
+  "schema_version": "1.0.0",
+  "runner_version": "1.0.0",
+  "engine_version": "0.0.0",
+  "samples_per_profile": 5,
+  "platform_os": "macos",
+  "platform_arch": "aarch64",
+  "filesystem": "not_portably_detected",
+  "peak_rss_bytes": 23609344,
+  "profiles": [
+    {"id":"generated-large","generated_files":2000,"generated_bytes":2048000,"cold_snapshot":{"unit":"milliseconds","p50":132,"p95":133,"maximum":133},"warm_snapshot":{"unit":"milliseconds","p50":119,"p95":123,"maximum":123},"cold_lexical_query":{"unit":"milliseconds","p50":214,"p95":215,"maximum":215},"warm_lexical_query":{"unit":"milliseconds","p50":40,"p95":40,"maximum":40},"cache_bytes_max":696320,"cache_to_source_ratio_max":0.34,"partial_limit_visible":true},
+    {"id":"generated-monorepo","generated_files":5000,"generated_bytes":5120000,"cold_snapshot":{"unit":"milliseconds","p50":326,"p95":327,"maximum":327},"warm_snapshot":{"unit":"milliseconds","p50":300,"p95":302,"maximum":302},"cold_lexical_query":{"unit":"milliseconds","p50":541,"p95":562,"maximum":562},"warm_lexical_query":{"unit":"milliseconds","p50":103,"p95":103,"maximum":103},"cache_bytes_max":1544192,"cache_to_source_ratio_max":0.3016,"partial_limit_visible":true}
+  ],
+  "deviations": [
+    "peak RSS was added from /usr/bin/time -l around the complete runner",
+    "filesystem type was not portably detected",
+    "generated profiles complement but do not replace the gated public corpus",
+    "five samples make p95 equal the observed maximum"
+  ],
+  "failures": []
+}

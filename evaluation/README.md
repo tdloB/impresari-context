@@ -22,3 +22,10 @@ and fails when the initial PRD thresholds are missed. The frozen result is
 This local subset does not satisfy the separately gated public-repository,
 independent-human-review, native platform, or release-candidate experiments.
 It makes no comparative claim about LeanCTX, Graft, or another project.
+
+The separate `scale-eval` binary generates 2,000-file and 5,000-file nested
+profiles. Five repetitions report cold/warm snapshot and lexical-query
+p50/p95/max, cache/source ratios, and explicit partial behavior. The checked
+macOS/aarch64 artifact also records peak RSS measured around the complete run.
+Run `ruby scripts/check-scale-evaluation.rb`; platform wrappers may enrich new
+native artifacts without changing the safe portable runner.

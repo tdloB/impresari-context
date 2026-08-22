@@ -815,7 +815,7 @@ impl LocalEngine {
             }
         }
         .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
-        Ok(SearchResponse {
+        let response = SearchResponse {
             schema_name: "search-result".into(),
             schema_version: CONTRACT_VERSION.into(),
             request_id: context.request_id.clone(),
@@ -838,7 +838,9 @@ impl LocalEngine {
             } else {
                 vec!["snapshot_partial".into()]
             },
-        })
+        };
+        bound_search_response(response, budget)
+            .map_err(|code| core_error(context, capability, code, self.ids()))
     }
 
     fn authorize(
@@ -1056,6 +1058,31 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
         parse(&budget.max_memory_bytes)?,
     )
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn bound_search_response(
+    mut response: SearchResponse,
+    budget: &ResourceBudget,
+) -> Result<SearchResponse, context_core::CoreErrorCode> {
+    let maximum = budget
+        .requested
+        .parse::<usize>()
+        .map_err(|_| context_core::CoreErrorCode::InvalidInput)?;
+    loop {
+        let bytes = serde_json::to_vec(&response)
+            .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+        if bytes.len() <= maximum {
+            return Ok(response);
+        }
+        if response.matches.pop().is_none() {
+            return Err(context_core::CoreErrorCode::BudgetTooSmall);
+        }
+        response.truncated = true;
+        response.completeness = "partial".into();
+        response.truncation_reasons.push("output_budget".into());
+        response.truncation_reasons.sort();
+        response.truncation_reasons.dedup();
+    }
 }
 
 fn bounded_discovery(
@@ -1757,5 +1784,20 @@ mod tests {
         assert_eq!(result.completeness, "partial");
         assert_eq!(result.truncation_reasons, vec!["memory_limit"]);
         assert!(result.matches.is_empty());
+
+        let output_limited =
+            ResourceBudget::conservative(1024, 20, 100, 1024, 100, 16, 30_000, 4_194_304)
+                .expect("output budget");
+        let result = engine
+            .search(
+                &request(24, "output_search"),
+                QueryKind::Filename,
+                "large.txt",
+                &output_limited,
+            )
+            .expect("output-limited search");
+        assert!(serde_json::to_vec(&result).expect("response JSON").len() <= 1024);
+        assert!(result.truncated);
+        assert!(result.truncation_reasons.contains(&"output_budget".into()));
     }
 }
