@@ -3,14 +3,11 @@
 > Internal working name only. The public project name remains subject to the
 > project's naming and counsel gate.
 
-This directory defines the requirements, architecture, and boundaries for a new, independent
-open-source context engine for AI-assisted software development. The project is
-informed by public capabilities demonstrated by LeanCTX and Graft, but it is not
-a fork, merger, official successor, or source-code combination of either.
+Impresari Context is a local-first evidence compiler for AI-assisted software development. It transforms an exact repository snapshot into bounded, task-specific context packets with recoverable source evidence, explicit exclusions, integrity checks, and freshness validation.
 
-The engine will provide a secure, evidence-grounded way for an AI client to
-understand a software workspace without becoming the client's orchestrator or
-silently taking control of the developer's environment.
+It is intentionally not an agent orchestrator or an all-in-one development runtime. Impresari Context works beneath existing coding agents, CI systems, and orchestration frameworks without taking control of execution, permissions, approvals, or business policy. This separation keeps the trusted core smaller, reduces competing authority, and allows adopters to add context infrastructure without replacing their existing workflow.
+
+Impresari Context is an independent implementation informed by publicly demonstrated ideas in LeanCTX and Graft. It is not a fork, merger, official successor, or source-code combination of either project.
 
 ## Status
 
@@ -77,9 +74,7 @@ and handoff export forms.
 
 ## Mission
 
-Make repository context compact enough for an AI agent to use, precise enough
-for a human to verify, and constrained enough to operate safely in an untrusted
-workspace.
+Give AI agents the repository evidence they need and give humans a reliable way to verify exactly what they received—without allowing untrusted workspace content to control tools, policy, or workflow.
 
 ## Architecture principles
 
