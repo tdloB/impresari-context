@@ -286,6 +286,154 @@ pub struct StructuralQueryResult {
     pub unknowns: Vec<String>,
 }
 
+/// Bounded repository-map projection derived from one exact structural graph.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RepositoryMap {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Graph contract version.
+    pub schema_version: String,
+    /// Exact source graph identity.
+    pub graph_id: String,
+    /// Exact workspace snapshot identity.
+    pub workspace_snapshot: String,
+    /// Deterministically ordered directory summaries.
+    pub directories: Vec<DirectorySummary>,
+    /// Manifest-confirmed package summaries.
+    pub packages: Vec<PackageSummary>,
+    /// Whether a declared entry limit truncated the projection.
+    pub truncated: bool,
+    /// Explicit unavailable states.
+    pub unknowns: Vec<String>,
+}
+
+/// One source-path-derived directory summary.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DirectorySummary {
+    /// Slash-separated relative directory, or `.` for repository root.
+    pub path: String,
+    /// Files transitively contained by the directory.
+    pub file_count: String,
+    /// Symbols transitively contained by the directory.
+    pub symbol_count: String,
+}
+
+/// One package boundary confirmed by a manifest file node.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PackageSummary {
+    /// Package root relative path, or `.` for repository root.
+    pub path: String,
+    /// Exact manifest path that establishes the boundary.
+    pub manifest_path: String,
+    /// Files transitively contained by the package root.
+    pub file_count: String,
+    /// Always `confirmed_manifest` in this contract version.
+    pub resolution: String,
+}
+
+/// Builds a bounded directory/package map without reading source or guessing packages.
+///
+/// # Errors
+///
+/// Returns an error for malformed graph state or a zero entry limit.
+pub fn repository_map(
+    graph: &StructuralGraph,
+    max_entries: u32,
+) -> Result<RepositoryMap, StructuralError> {
+    validate_graph_for_query(graph)?;
+    if max_entries == 0 {
+        return Err(StructuralError::InvalidRequest);
+    }
+    let file_paths = graph
+        .nodes
+        .iter()
+        .filter(|node| node.kind == "file")
+        .map(|node| node.path.display_path.as_str())
+        .collect::<Vec<_>>();
+    let symbol_paths = graph
+        .nodes
+        .iter()
+        .filter(|node| node.kind == "symbol")
+        .map(|node| node.path.display_path.as_str())
+        .collect::<Vec<_>>();
+    let mut directory_paths = BTreeSet::from([".".to_owned()]);
+    for path in &file_paths {
+        let mut components = path.split('/').collect::<Vec<_>>();
+        components.pop();
+        for length in 1..=components.len() {
+            directory_paths.insert(components[..length].join("/"));
+        }
+    }
+    let directories = directory_paths
+        .into_iter()
+        .map(|path| DirectorySummary {
+            file_count: count_under(&file_paths, &path).to_string(),
+            symbol_count: count_under(&symbol_paths, &path).to_string(),
+            path,
+        })
+        .collect::<Vec<_>>();
+    let packages = file_paths
+        .iter()
+        .filter(|path| is_package_manifest(path))
+        .map(|manifest| {
+            let root = manifest.rsplit_once('/').map_or(".", |(root, _)| root);
+            PackageSummary {
+                path: root.into(),
+                manifest_path: (*manifest).into(),
+                file_count: count_under(&file_paths, root).to_string(),
+                resolution: "confirmed_manifest".into(),
+            }
+        })
+        .collect::<Vec<_>>();
+    let maximum = usize::try_from(max_entries).map_err(|_| StructuralError::ResourceLimit)?;
+    let total = directories.len().saturating_add(packages.len());
+    let directory_limit = directories.len().min(maximum);
+    let directories = directories.into_iter().take(directory_limit).collect();
+    let packages = packages
+        .into_iter()
+        .take(maximum.saturating_sub(directory_limit))
+        .collect::<Vec<_>>();
+    let truncated = total > maximum;
+    let mut unknowns = Vec::new();
+    if packages.is_empty() {
+        unknowns.push("package_manifests_unavailable".into());
+    }
+    if truncated {
+        unknowns.push("repository_map_entry_limit_reached".into());
+    }
+    Ok(RepositoryMap {
+        schema_name: "repository-map".into(),
+        schema_version: GRAPH_VERSION.into(),
+        graph_id: graph.graph_id.clone(),
+        workspace_snapshot: graph.workspace_snapshot.clone(),
+        directories,
+        packages,
+        truncated,
+        unknowns,
+    })
+}
+
+fn count_under(paths: &[&str], directory: &str) -> usize {
+    if directory == "." {
+        return paths.len();
+    }
+    let prefix = format!("{directory}/");
+    paths
+        .iter()
+        .filter(|path| path.starts_with(&prefix))
+        .count()
+}
+
+fn is_package_manifest(path: &str) -> bool {
+    matches!(
+        path.rsplit('/').next(),
+        Some("package.json" | "Cargo.toml" | "pyproject.toml" | "go.mod")
+    )
+}
+
 /// Traverses resolved outbound graph relationships within hard node, edge, and depth limits.
 ///
 /// Empty `edge_kinds` permits every relationship kind. Unresolved relationships are
@@ -413,6 +561,19 @@ fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralErr
                     .is_some_and(|target| !valid_sha256(target))
         })
     {
+        return Err(StructuralError::ContractMismatch);
+    }
+    let expected = graph_identity(
+        "structural-graph",
+        &serde_json::json!({
+            "workspace_snapshot": &graph.workspace_snapshot,
+            "completeness": &graph.completeness,
+            "nodes": &graph.nodes,
+            "edges": &graph.edges,
+            "unknowns": &graph.unknowns,
+        }),
+    )?;
+    if expected != graph.graph_id {
         return Err(StructuralError::ContractMismatch);
     }
     Ok(())
@@ -1820,6 +1981,25 @@ export function outer() { const nested = value(); const alias = helper; helper()
             limited
                 .unknowns
                 .contains(&"traversal_node_limit_reached".into())
+        );
+
+        let map = repository_map(&first, 100).expect("repository map");
+        assert!(
+            map.directories
+                .iter()
+                .any(|directory| { directory.path == "src" && directory.file_count == "1" })
+        );
+        assert!(map.packages.is_empty());
+        assert!(
+            map.unknowns
+                .contains(&"package_manifests_unavailable".into())
+        );
+
+        let mut tampered = first.clone();
+        tampered.nodes[0].confidence = "heuristic".into();
+        assert_eq!(
+            repository_map(&tampered, 100),
+            Err(StructuralError::ContractMismatch)
         );
     }
 

@@ -11,6 +11,7 @@
     {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
     {"name": "search", "path": "search.schema.json", "identity_object_kind": null},
     {"name": "session-packet-reference", "path": "session-packet-reference.schema.json", "identity_object_kind": null},
+    {"name": "repository-map", "path": "repository-map.schema.json", "identity_object_kind": null},
     {"name": "structural-graph", "path": "structural-graph.schema.json", "identity_object_kind": "structural-graph"},
     {"name": "structural-query", "path": "structural-query.schema.json", "identity_object_kind": null},
     {"name": "evidence", "path": "evidence.schema.json", "identity_object_kind": "evidence"},

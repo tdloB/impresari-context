@@ -16,13 +16,13 @@ confinement evidence remain open.
 | Local call evidence | Syntax-confirmed call sites are emitted with exact spans; unambiguous same-file name matches are heuristic targets and every other target remains unresolved | Extraction, graph-resolution, confidence, and unknown-state tests |
 | Local reference evidence | Identifier-use syntax excludes declaration-name and direct call-callee positions; a unique same-file declaration is a heuristic target and ambiguous/external names remain unresolved | Extraction, resolution, and explicit unknown-state tests |
 | Bounded trace queries | Deterministic outbound traversal enforces node, edge, depth, and serialized-output budgets | Query limit and unresolved-target assertions; engine resource mapping |
+| Repository-map views | A bounded graph projection reports transitive directory counts and only manifest-confirmed package boundaries; missing manifests are explicit | Deterministic map and limit tests; closed public schema |
 | Public contracts | Closed Draft 2020-12 structural graph and query-result schemas | Contract registry check and offline schema compilation |
 | Thin CLI adapter | Explicit structural build takes a worker path/hash/empty directory; query consumes a graph file and bounded edge selection | Shared engine gateway, CLI parsing, workspace tests, and Clippy |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
 
 ## Open Slice B Work
 
-- Add package/directory repository-map views.
 - Persist the derived graph in the isolated replaceable cache.
 - Support deterministic incremental graph refresh.
 - Produce native macOS, Linux, and Windows confinement/resource evidence without

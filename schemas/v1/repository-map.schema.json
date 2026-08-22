@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/repository-map.schema.json",
+  "title": "Bounded structural repository map",
+  "$defs": {
+    "directory": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "file_count", "symbol_count"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "file_count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "symbol_count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    },
+    "package": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "manifest_path", "file_count", "resolution"],
+      "properties": {
+        "path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "manifest_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "file_count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "resolution": {"const": "confirmed_manifest"}
+      }
+    }
+  },
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "graph_id", "workspace_snapshot", "directories", "packages", "truncated", "unknowns"],
+  "properties": {
+    "schema_name": {"const": "repository-map"},
+    "schema_version": {"const": "1.0.0"},
+    "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "directories": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/directory"}},
+    "packages": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/package"}},
+    "truncated": {"type": "boolean"},
+    "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+  }
+}

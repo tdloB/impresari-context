@@ -1,0 +1,10 @@
+{
+  "schema_name": "repository-map",
+  "schema_version": "1.0.0",
+  "graph_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "directories": [],
+  "packages": [{"path": "packages/app", "manifest_path": "", "file_count": "2", "resolution": "heuristic"}],
+  "truncated": false,
+  "unknowns": []
+}
