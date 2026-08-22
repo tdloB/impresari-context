@@ -34,6 +34,9 @@ jobs:
         run: |
           rustup toolchain install "${{ matrix.rust }}" --profile minimal --component clippy,rustfmt
           rustup override set "${{ matrix.rust }}"
+      - name: Fetch locked dependencies
+        shell: bash
+        run: cargo fetch --locked
       - name: Run quality checks
         shell: bash
         run: ./scripts/check.sh
