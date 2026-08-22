@@ -17,5 +17,7 @@ abort "evaluation output differs from frozen local result" unless actual == froz
 abort "synthetic corpus minimum not met" unless actual.fetch("fixture_count") >= 12
 abort "held-out split below 25%" unless actual.fetch("heldout_count") * 4 >= actual.fetch("fixture_count")
 abort "evaluation failures present" unless actual.fetch("failures").empty?
+structural_ok = system("cargo", "test", "-q", "-p", "context-evaluation", "--test", "structural_evaluation", "--locked", "--offline", chdir: root)
+abort "structural evaluation failed" unless structural_ok
 
 puts "evaluation checks passed: #{actual.fetch('fixture_count')} fixtures"

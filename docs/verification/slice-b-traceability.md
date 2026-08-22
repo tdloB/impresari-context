@@ -22,9 +22,9 @@ confinement evidence remain open.
 | Public contracts | Closed Draft 2020-12 structural graph and query-result schemas | Contract registry check and offline schema compilation |
 | Thin CLI adapter | Explicit structural build takes a worker path/hash/empty directory; query consumes a graph file and bounded edge selection | Shared engine gateway, CLI parsing, workspace tests, and Clippy |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
+| Frozen structural evaluation | Six original TypeScript cases with a 33% held-out split gate required symbol/edge recall, identity validity, determinism, map availability, and confirmed-target honesty | `structural_evaluation` invoked by the evaluation gate |
 
 ## Open Slice B Work
 
 - Produce native macOS, Linux, and Windows confinement/resource evidence without
   overstating application-enforced isolation.
-- Extend the evaluation corpus and release thresholds for structural tasks.

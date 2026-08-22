@@ -23,6 +23,11 @@ This local subset does not satisfy the separately gated public-repository,
 independent-human-review, native platform, or release-candidate experiments.
 It makes no comparative claim about LeanCTX, Graft, or another project.
 
+The original six-case structural manifest has a 33% held-out split and gates
+supported symbol/edge recall, graph integrity, deterministic reconstruction,
+repository-map availability, and confirmed-target honesty. It is a small
+conformance corpus, not a broad quality claim.
+
 The separate `scale-eval` binary generates 2,000-file and 5,000-file nested
 profiles. Five repetitions report cold/warm snapshot and lexical-query
 p50/p95/max, cache/source ratios, and explicit partial behavior. The checked

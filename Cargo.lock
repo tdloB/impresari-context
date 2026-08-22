@@ -196,9 +196,11 @@ dependencies = [
 name = "context-evaluation"
 version = "0.0.0"
 dependencies = [
+ "base64",
  "context-core",
  "context-engine",
  "context-store",
+ "context-structural",
  "context-workspace",
  "serde",
  "serde_json",

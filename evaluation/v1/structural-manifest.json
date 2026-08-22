@@ -1,0 +1,8 @@
+{"schema_version":"1.0.0","fixtures":[
+{"id":"declaration","split":"development","source":"export function run() { return 1; }","required_symbols":["run"],"required_edges":["declares","exports"]},
+{"id":"containment","split":"development","source":"function outer() { const inner = 1; return inner; }","required_symbols":["outer","inner"],"required_edges":["contains","references"]},
+{"id":"local-call","split":"validation","source":"function helper() { return 1; } function run() { helper(); }","required_symbols":["helper","run"],"required_edges":["calls"]},
+{"id":"unresolved-call","split":"validation","source":"export function run() { external(); }","required_symbols":["run"],"required_edges":["calls"]},
+{"id":"class-method","split":"heldout","source":"class Service { execute() { return 1; } }","required_symbols":["Service","execute"],"required_edges":["contains"]},
+{"id":"unresolved-import","split":"heldout","source":"import { value } from './missing'; export const result = value;","required_symbols":["result"],"required_edges":["imports","references"]}
+]}
