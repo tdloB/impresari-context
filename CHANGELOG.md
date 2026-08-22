@@ -3,7 +3,7 @@
 All notable changes to Impresari Context are documented here. The project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-08-22
 
 ### Added
 
