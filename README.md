@@ -94,6 +94,8 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
   controls, residual risks, and release-blocking security evidence.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
+- [Release evidence](docs/verification/release-evidence.md): archived hosted
+  native-matrix results and explicitly open release gates.
 
 ## Mission
 

@@ -7,7 +7,8 @@
 - Status: Founder-approved evaluation baseline; technical calibration remains
   required before release-candidate scoring.
 - Date: 2026-08-20.
-- Initial release under evaluation: Slice A — Verifiable Local Context MVP.
+- Release capabilities under evaluation: Slices A–D through declarative,
+  non-executing extension contracts.
 - Related documents:
   - [Master Product PRD](master-prd.md)
   - [Verifiable Local Context MVP PRD](verifiable-local-context-mvp-prd.md)
@@ -40,6 +41,23 @@ comparison baseline.
    contract?
 10. For later slices, do structural and optional retrieval capabilities add
     measurable value without weakening evidence quality or safety?
+11. Does the OS-shaped adapter preserve the exact semantics of the neutral core
+    while adding no orchestration or filesystem authority?
+12. Do all adversarial extension envelopes fail into metadata-only quarantine,
+    and do accepted envelopes remain explicitly untrusted derived data?
+
+### Slice C/D hard gates
+
+- OS adapter semantic equivalence to direct public-engine use: 100% on the
+  frozen adapter corpus.
+- Adapter-added orchestration or filesystem authority: zero.
+- Adversarial extension-envelope quarantine rate: 100% on authority, identity,
+  unknown-field, malformed, and oversized cases.
+- Raw adversarial extension bytes retained in quarantine records: zero.
+- Extension process, network, environment, model, cache, filesystem, artifact
+  execution, or other privileged grants: zero for the approved v1 milestone.
+- Accepted extension output trust label: `untrusted_derived_data` in 100% of
+  accepted cases.
 
 ## Evaluation Principles
 

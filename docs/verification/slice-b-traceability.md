@@ -2,8 +2,8 @@
 
 ## Milestone B1 — Isolated parser, canonical graph, and bounded traversal
 
-Status: implemented locally; independent release review and native platform
-confinement evidence remain open.
+Status: implemented and gated. Hosted native-platform evidence is archived
+below; independent release review remains open.
 
 | Requirement | Implementation | Verification |
 | --- | --- | --- |
@@ -27,5 +27,15 @@ confinement evidence remain open.
 
 ## Open Slice B Work
 
-- Archive successful native CI run links and any filesystem-specific release
-  rehearsal evidence in the release record; configuration alone is not a pass.
+- Complete independent release review and any maintainer-run filesystem-specific
+  release rehearsal selected for the first public binary release.
+
+## Hosted Native Evidence
+
+- Successful full matrix: [GitHub Actions run 32559752496](https://github.com/tdloB/impresari-context/actions/runs/32559752496), commit
+  `cea4a36f3d28e84cc7b429702f94d09daa15f126`, 2026-08-22.
+- Passed: macOS 14/Apple silicon on Rust 1.98, Windows 2025/x86-64 on Rust
+  1.98, Ubuntu 24.04/x86-64 on Rust 1.98, and Ubuntu 24.04/x86-64 on Rust
+  1.96 and 1.97.
+- This is application-behavior and filesystem-profile evidence, not proof of
+  operating-system sandbox confinement.

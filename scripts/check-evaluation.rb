@@ -19,5 +19,7 @@ abort "held-out split below 25%" unless actual.fetch("heldout_count") * 4 >= act
 abort "evaluation failures present" unless actual.fetch("failures").empty?
 structural_ok = system("cargo", "test", "-q", "-p", "context-evaluation", "--test", "structural_evaluation", "--locked", "--offline", chdir: root)
 abort "structural evaluation failed" unless structural_ok
+integration_ok = system("cargo", "test", "-q", "-p", "context-evaluation", "--test", "consumer_extension_evaluation", "--locked", "--offline", chdir: root)
+abort "consumer and extension evaluation failed" unless integration_ok
 
 puts "evaluation checks passed: #{actual.fetch('fixture_count')} fixtures"

@@ -2,8 +2,8 @@
 
 ## Milestone C1 — Deterministic context plans and reference consumers
 
-Status: implemented locally; complete repository and native platform gates are
-pending for this commit.
+Status: implemented and gated. The complete repository and hosted native
+platform matrix passed for this milestone.
 
 | Requirement | Implementation | Verification |
 | --- | --- | --- |
@@ -19,6 +19,12 @@ pending for this commit.
 
 ## Open Slice C Work
 
-- Complete hosted Tier-A CI evidence for this milestone.
 - Add session reference and handoff operations to a long-lived transport when
   Slice D approves that transport; the process-local primitive is complete.
+
+## Hosted Native Evidence
+
+- Successful full matrix: [GitHub Actions run 32559752496](https://github.com/tdloB/impresari-context/actions/runs/32559752496), commit
+  `cea4a36f3d28e84cc7b429702f94d09daa15f126`, 2026-08-22.
+- Passed macOS/Apple silicon, Windows/x86-64, Linux/x86-64, MSRV 1.96, Rust
+  1.97, and stable 1.98 jobs with the complete repository gate.

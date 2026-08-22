@@ -208,8 +208,10 @@ name = "context-evaluation"
 version = "0.0.0"
 dependencies = [
  "base64",
+ "context-adapters",
  "context-core",
  "context-engine",
+ "context-extensions",
  "context-store",
  "context-structural",
  "context-workspace",
