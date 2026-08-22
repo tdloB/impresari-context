@@ -12,6 +12,7 @@ ruby ./scripts/check-identity-vectors.rb
 ruby ./scripts/check-path-vectors.rb
 ruby ./scripts/check-jcs-vectors.rb
 ruby ./scripts/check-semantic-vectors.rb
+ruby ./scripts/check-sbom.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
