@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/structural-graph.schema.json",
+  "title": "Snapshot-bound structural graph",
+  "$defs": {
+    "provenance": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["method", "parser_version", "grammar_version", "resolver_version", "graph_version"],
+      "properties": {
+        "method": {"type": "string", "minLength": 1, "maxLength": 128},
+        "parser_version": {"type": "string", "minLength": 1, "maxLength": 128},
+        "grammar_version": {"type": "string", "minLength": 1, "maxLength": 128},
+        "resolver_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+        "graph_version": {"$ref": "common.schema.json#/$defs/schemaVersion"}
+      }
+    },
+    "span": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["start_byte", "end_byte"],
+      "properties": {
+        "start_byte": {"type": "integer", "minimum": 0},
+        "end_byte": {"type": "integer", "minimum": 0}
+      }
+    },
+    "path": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_path", "platform_family", "unit_encoding", "relative_units_base64url"],
+      "properties": {
+        "display_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "platform_family": {"type": "string", "enum": ["unix", "windows"]},
+        "unit_encoding": {"type": "string", "enum": ["unix_bytes", "windows_utf16le"]},
+        "relative_units_base64url": {"type": "string", "minLength": 1, "maxLength": 16384, "pattern": "^[A-Za-z0-9_-]+$"}
+      }
+    },
+    "node": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["node_id", "kind", "path", "confidence", "provenance"],
+      "properties": {
+        "node_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "kind": {"type": "string", "enum": ["file", "symbol"]},
+        "path": {"$ref": "#/$defs/path"},
+        "name": {"type": "string", "maxLength": 4096},
+        "span": {"$ref": "#/$defs/span"},
+        "confidence": {"type": "string", "enum": ["confirmed", "heuristic"]},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    },
+    "edge": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["edge_id", "kind", "source_node", "resolution", "span", "provenance"],
+      "properties": {
+        "edge_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "kind": {"type": "string", "enum": ["declares", "contains", "imports", "exports"]},
+        "source_node": {"$ref": "common.schema.json#/$defs/sha256"},
+        "target_node": {"$ref": "common.schema.json#/$defs/sha256"},
+        "module": {"type": "string", "maxLength": 4096},
+        "resolution": {"type": "string", "enum": ["confirmed", "heuristic", "unresolved", "unsupported"]},
+        "span": {"$ref": "#/$defs/span"},
+        "provenance": {"$ref": "#/$defs/provenance"}
+      }
+    }
+  },
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "graph_id", "workspace_snapshot", "completeness", "nodes", "edges", "unknowns"],
+  "properties": {
+    "schema_name": {"const": "structural-graph"},
+    "schema_version": {"const": "1.0.0"},
+    "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
+    "nodes": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/node"}},
+    "edges": {"type": "array", "maxItems": 100000, "items": {"$ref": "#/$defs/edge"}},
+    "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+  }
+}

@@ -10,6 +10,7 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use context_core::{
     AuditOutcome, Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PacketDraft,
     PacketValidationResult, PolicyDecision, PolicyOutcome, PolicySubject, PublicErrorCode,
@@ -21,6 +22,11 @@ use context_retrieval::{
     expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
 };
 use context_store::{AuditRetention, AuditStore, CacheErrorCode, WorkspaceCache};
+use context_structural::{
+    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
+    StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher, WorkerPath,
+    WorkerRequest, build_graph_with_unknowns, query_graph,
+};
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
     WorkspaceSnapshot,
@@ -310,6 +316,252 @@ impl LocalEngine {
             result,
             elapsed_ms(started),
         )
+    }
+
+    /// Builds one snapshot-bound structural graph through fresh isolated workers.
+    ///
+    /// Exact source remains under the workspace capability. Each supported file
+    /// is read and reverified by the control process, then only its bounded bytes
+    /// and lossless relative identity are sent to the pinned worker. Unsupported
+    /// artifacts remain explicit graph unknowns.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, stale-state, workspace, worker, resource, or
+    /// graph-validation failure. Partial worker output is never returned.
+    pub fn build_structure(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+    ) -> Result<StructuralGraph, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        let result = self.build_structure_internal(context, budget, launcher, started);
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::StructureBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    fn build_structure_internal(
+        &self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        started: Instant,
+    ) -> Result<StructuralGraph, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        let limits = structural_limits(context, budget, self.ids())?;
+        let mut files = Vec::new();
+        let mut unknowns = Vec::new();
+        for artifact in snapshot
+            .artifacts
+            .iter()
+            .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+        {
+            if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
+            {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "structural elapsed-time limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    None,
+                ));
+            }
+            let Some(language) = structural_language(&artifact.path.display_path) else {
+                unknowns.push("unsupported_structural_language".into());
+                continue;
+            };
+            let exact = self
+                .workspace
+                .read_exact(&artifact.path, artifact.size_bytes)
+                .map_err(|error| {
+                    self.workspace_failure(context, Capability::StructureBuild, error.code())
+                })?;
+            if exact.content_hash != artifact.content_hash {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace changed during structural analysis",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+            let request = structural_request(context, language, exact, limits);
+            let response = launcher.execute(&request).map_err(|error| {
+                structural_failure(
+                    context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+            files.push(GraphFileInput {
+                path: request.path,
+                response,
+            });
+        }
+        if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
+            unknowns.push("structural_file_limit_reached".into());
+        }
+        build_graph_with_unknowns(&snapshot.snapshot_id, files, unknowns).map_err(|error| {
+            structural_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &snapshot.snapshot_id,
+            )
+        })
+    }
+
+    /// Traverses a current snapshot-bound structural graph through the audited gateway.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, stale-state, input, integrity, or resource failure.
+    pub fn query_structure(
+        &mut self,
+        context: &RequestContext,
+        graph: &StructuralGraph,
+        start_node: &str,
+        edge_kinds: &[String],
+        budget: &ResourceBudget,
+    ) -> Result<StructuralQueryResult, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::StructureQuery, Some(budget.clone()))?;
+        let result = self.query_structure_internal(context, graph, start_node, edge_kinds, budget);
+        let outcome = result.as_ref().map_or(AuditOutcome::Failed, |value| {
+            if value.truncated {
+                AuditOutcome::Limited
+            } else {
+                AuditOutcome::Allowed
+            }
+        });
+        self.finalize(
+            context,
+            &decision,
+            Capability::StructureQuery,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    fn query_structure_internal(
+        &self,
+        context: &RequestContext,
+        graph: &StructuralGraph,
+        start_node: &str,
+        edge_kinds: &[String],
+        budget: &ResourceBudget,
+    ) -> Result<StructuralQueryResult, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if graph.workspace_snapshot != snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::StaleState,
+                "structural graph is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RebuildIndex),
+            ));
+        }
+        let max_depth = u32::try_from(budget.max_traversal_depth_u64().map_err(|error| {
+            core_error(
+                context,
+                Capability::StructureQuery,
+                error.code(),
+                self.ids(),
+            )
+        })?)
+        .map_err(|_| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::InvalidInput,
+                "invalid structural query budget",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                None,
+            )
+        })?;
+        let maximum = budget.max_matches.parse::<u32>().map_err(|_| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::InvalidInput,
+                "invalid structural query budget",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                None,
+            )
+        })?;
+        let result = query_graph(graph, start_node, edge_kinds, max_depth, maximum, maximum)
+            .map_err(|error| {
+                structural_query_failure(
+                    context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+        let output_limit = budget.requested.parse::<usize>().map_err(|_| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::InvalidInput,
+                "invalid structural query budget",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                None,
+            )
+        })?;
+        if serde_json::to_vec(&result).map_or(true, |bytes| bytes.len() > output_limit) {
+            return Err(failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::BudgetExceeded,
+                "structural query output budget exceeded",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::IncreaseBudget),
+            ));
+        }
+        Ok(result)
     }
 
     /// Reports the current in-session snapshot through the gateway.
@@ -1205,6 +1457,202 @@ fn set_private_file(path: &Path) -> std::io::Result<()> {
 #[allow(clippy::unnecessary_wraps)] // Keep the cross-platform fallible helper contract uniform.
 fn set_private_file(_path: &Path) -> std::io::Result<()> {
     Ok(())
+}
+
+#[derive(Clone, Copy)]
+struct StructuralLimits {
+    files: u64,
+    depth: u32,
+    elapsed_ms: u64,
+    facts: u32,
+    response_bytes: u32,
+}
+
+fn structural_limits(
+    context: &RequestContext,
+    budget: &ResourceBudget,
+    ids: (Option<&str>, Option<&str>),
+) -> Result<StructuralLimits, EngineError> {
+    let map_core = |error: context_core::CoreError| {
+        core_error(context, Capability::StructureBuild, error.code(), ids)
+    };
+    let parse_u32 = |value: &str| {
+        value
+            .parse::<u64>()
+            .ok()
+            .and_then(|parsed| u32::try_from(parsed).ok())
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid structural resource budget",
+                    ids.0,
+                    ids.1,
+                    None,
+                )
+            })
+    };
+    Ok(StructuralLimits {
+        files: budget.max_files_u64().map_err(map_core)?,
+        depth: u32::try_from(budget.max_traversal_depth_u64().map_err(map_core)?).map_err(
+            |_| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid structural resource budget",
+                    ids.0,
+                    ids.1,
+                    None,
+                )
+            },
+        )?,
+        elapsed_ms: budget.max_elapsed_ms_u64().map_err(map_core)?,
+        facts: parse_u32(&budget.max_matches)?,
+        response_bytes: parse_u32(&budget.requested)?,
+    })
+}
+
+fn structural_request(
+    context: &RequestContext,
+    language: StructuralLanguage,
+    exact: context_workspace::ExactRead,
+    limits: StructuralLimits,
+) -> WorkerRequest {
+    WorkerRequest {
+        schema_name: "structural-worker-request".into(),
+        schema_version: PROTOCOL_VERSION.into(),
+        request_id: context.request_id.clone(),
+        language,
+        path: WorkerPath {
+            display_path: exact.path.display_path.clone(),
+            platform_family: exact.path.platform_family.to_owned(),
+            unit_encoding: exact.path.unit_encoding.to_owned(),
+            relative_units_base64url: exact.path.relative_units_base64url.clone(),
+        },
+        content_hash: exact.content_hash,
+        source_base64url: URL_SAFE_NO_PAD.encode(exact.bytes),
+        fact_classes: vec![
+            FactClass::Declaration,
+            FactClass::Contains,
+            FactClass::Import,
+            FactClass::Export,
+        ],
+        max_facts: limits.facts,
+        max_nesting_depth: limits.depth,
+        max_response_bytes: limits.response_bytes,
+        parser_version: "tree-sitter-0.26.12".into(),
+        grammar_version: grammar_version(language).into(),
+        resolver_version: RESOLVER_VERSION.into(),
+        graph_version: GRAPH_VERSION.into(),
+    }
+}
+
+fn structural_language(path: &str) -> Option<StructuralLanguage> {
+    match Path::new(path).extension().and_then(|value| value.to_str()) {
+        Some(extension) if extension.eq_ignore_ascii_case("tsx") => Some(StructuralLanguage::Tsx),
+        Some(extension) if extension.eq_ignore_ascii_case("ts") => {
+            Some(StructuralLanguage::TypeScript)
+        }
+        Some(extension) if extension.eq_ignore_ascii_case("jsx") => Some(StructuralLanguage::Jsx),
+        Some(extension)
+            if extension.eq_ignore_ascii_case("js")
+                || extension.eq_ignore_ascii_case("mjs")
+                || extension.eq_ignore_ascii_case("cjs") =>
+        {
+            Some(StructuralLanguage::JavaScript)
+        }
+        _ => None,
+    }
+}
+
+const fn grammar_version(language: StructuralLanguage) -> &'static str {
+    match language {
+        StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
+        StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
+    }
+}
+
+fn structural_failure(
+    context: &RequestContext,
+    error: StructuralError,
+    workspace: &str,
+    snapshot: &str,
+) -> EngineError {
+    let (code, message, recovery) = match error {
+        StructuralError::InvalidRequest | StructuralError::ContractMismatch => (
+            PublicErrorCode::IntegrityFailure,
+            "structural response validation failed",
+            RecoveryAction::RebuildIndex,
+        ),
+        StructuralError::ResourceLimit | StructuralError::Timeout => (
+            PublicErrorCode::ResourceLimit,
+            "structural resource limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        StructuralError::WorkerIdentity => (
+            PublicErrorCode::IntegrityFailure,
+            "structural worker identity mismatch",
+            RecoveryAction::None,
+        ),
+        StructuralError::ParserFailure | StructuralError::Io | StructuralError::WorkerFailure => (
+            PublicErrorCode::InternalFailure,
+            "structural worker failed",
+            RecoveryAction::Retry,
+        ),
+    };
+    failure(
+        context,
+        Capability::StructureBuild,
+        code,
+        message,
+        Some(workspace),
+        Some(snapshot),
+        Some(recovery),
+    )
+}
+
+fn structural_query_failure(
+    context: &RequestContext,
+    error: StructuralError,
+    workspace: &str,
+    snapshot: &str,
+) -> EngineError {
+    let (code, message, recovery) = match error {
+        StructuralError::InvalidRequest => (
+            PublicErrorCode::InvalidInput,
+            "invalid structural query",
+            RecoveryAction::None,
+        ),
+        StructuralError::ContractMismatch => (
+            PublicErrorCode::IntegrityFailure,
+            "structural graph validation failed",
+            RecoveryAction::RebuildIndex,
+        ),
+        StructuralError::ResourceLimit | StructuralError::Timeout => (
+            PublicErrorCode::ResourceLimit,
+            "structural query resource limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        StructuralError::WorkerIdentity
+        | StructuralError::ParserFailure
+        | StructuralError::Io
+        | StructuralError::WorkerFailure => (
+            PublicErrorCode::InternalFailure,
+            "structural query failed",
+            RecoveryAction::Retry,
+        ),
+    };
+    failure(
+        context,
+        Capability::StructureQuery,
+        code,
+        message,
+        Some(workspace),
+        Some(snapshot),
+        Some(recovery),
+    )
 }
 
 fn retrieval_error(

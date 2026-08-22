@@ -40,7 +40,9 @@
         "context.build",
         "evidence.expand",
         "context.validate",
-        "handoff.export"
+        "handoff.export",
+        "structure.build",
+        "structure.query"
       ]
     },
     "freshness": {

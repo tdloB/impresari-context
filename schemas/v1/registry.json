@@ -10,6 +10,8 @@
     {"name": "workspace-handle", "path": "workspace-handle.schema.json", "identity_object_kind": null},
     {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
     {"name": "search", "path": "search.schema.json", "identity_object_kind": null},
+    {"name": "structural-graph", "path": "structural-graph.schema.json", "identity_object_kind": "structural-graph"},
+    {"name": "structural-query", "path": "structural-query.schema.json", "identity_object_kind": null},
     {"name": "evidence", "path": "evidence.schema.json", "identity_object_kind": "evidence"},
     {"name": "policy-decision", "path": "policy-decision.schema.json", "identity_object_kind": "policy-decision"},
     {"name": "context-packet", "path": "context-packet.schema.json", "identity_object_kind": "context-packet"},

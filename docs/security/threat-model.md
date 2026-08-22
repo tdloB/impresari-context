@@ -6,9 +6,10 @@
 - Status: Founder-approved security design baseline; implementation and
   independent release review remain required.
 - Date: 2026-08-20.
-- Initial scope: Slice A — Verifiable Local Context MVP.
-- Future scope represented but not authorized: structural parsers, consumer
-  adapters, extensions, model access, network access, and hosted deployment.
+- Initial scope: Slice A — Verifiable Local Context MVP plus the authorized
+  Slice B structural-worker boundary in ADR-0010.
+- Future scope represented but not authorized: consumer adapters, general
+  extensions, model access, network access, and hosted deployment.
 - Parent requirements:
   - [Master Product PRD](../product/master-prd.md)
   - [Verifiable Local Context MVP PRD](../product/verifiable-local-context-mvp-prd.md)
@@ -81,8 +82,10 @@ Evidence normalizer and packet builder
         +-----------> Explicit local export root
 ```
 
-In the MVP there is no outbound network, arbitrary child process, extension
-host, model provider, or hosted control plane.
+There is no outbound network, arbitrary repository process, extension host,
+model provider, or hosted control plane. Slice B adds one pinned,
+capability-reduced parser worker that receives bounded source bytes and no
+workspace path or ambient execution authority.
 
 ## Assets
 
@@ -130,10 +133,13 @@ misconfigured or malicious and cannot override core safety invariants.
 Explicitly authorized local destination. Exported packets remain sensitive and
 do not carry new workspace or action authority.
 
-### Z6 — Future parsers and extensions
+### Z6 — Structural parser worker and future extensions
 
-Untrusted by default. Not present in the MVP. Later inclusion requires process,
-filesystem, network, environment, output, integrity, and lifecycle controls.
+Untrusted by default. The authorized structural worker is governed by ADR-0010,
+receives bounded source bytes through a single framed request, and returns
+hostile output that is validated all-or-nothing. General extensions remain
+future work and require separate filesystem, network, environment, output,
+integrity, and lifecycle controls.
 
 ### Z7 — Future external providers
 
@@ -165,7 +171,7 @@ failure design.
 | SEC-INV-004 | Exact evidence resolves only against its authorized matching workspace snapshot | Block |
 | SEC-INV-005 | Cache is never the sole authority for exact source | Block |
 | SEC-INV-006 | Snapshot mismatch, corruption, and partial indexing are visible | Block |
-| SEC-INV-007 | Network, arbitrary process execution, extensions, and telemetry are absent/denied in the MVP | Block |
+| SEC-INV-007 | Network, arbitrary repository process execution, general extensions, and telemetry are absent/denied; only the pinned ADR-0010 parser worker may be launched | Block |
 | SEC-INV-008 | Source content and secrets are excluded from logs by default | Block |
 | SEC-INV-009 | Every operation enforces resource and output budgets | Block |
 | SEC-INV-010 | One workspace cannot resolve another workspace's handles or cache | Block |
@@ -237,6 +243,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-024 | Disk exhaustion | Cache, audit, temp, or export grows unbounded | Quotas, preflight space checks, atomic writes, retention/purge, no source-root cache | Fault injection | Host may exhaust disk externally |
 | SEC-T-025 | Rapid mutation/livelock | Repository changes continuously during snapshot | Bounded retries, consistency check, partial/stale result, never infinite stabilization | Mutation stress | Busy workspaces may not yield current snapshot |
 | SEC-T-026 | Cancellation corruption | Termination leaves authoritative partial cache | Temp/staging area, atomic commit, validity marker, cleanup/rebuild | Kill/restart tests | Abrupt power loss filesystem semantics |
+| SEC-T-026A | Native parser compromise or crash | Malformed source exploits grammar/runtime, floods output, or spoofs graph facts | Short-lived worker; pinned executable/grammars; cleared environment; empty CWD; bounded framing/time/output; full response and span/provenance validation; no partial promotion | Worker protocol, crash, timeout, flood, malformed-frame, identity, and native-platform confinement tests | Application-enforced controls are not a complete OS sandbox; native C remains in the worker TCB |
 
 ### Interfaces, policy, and local data exposure
 
@@ -263,7 +270,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 
 | ID | Trigger | Required new analysis before authorization |
 | --- | --- | --- |
-| SEC-F-001 | Structural parser adapters | Parser memory safety, malformed syntax, native libraries, grammar provenance, isolation, false edges |
+| SEC-F-001 | Additional structural parser adapters | Repeat parser memory-safety, malformed syntax, native-library, grammar-provenance, isolation, and false-edge review per grammar |
 | SEC-F-002 | Extension host | Publisher trust, signatures/digests, sandbox enforcement, capability grants, update/revocation, quarantine |
 | SEC-F-003 | MCP/HTTP transport | Authentication, origin, session confusion, confused deputy, remote exposure, rate limits, protocol injection |
 | SEC-F-004 | Model/semantic retrieval | Data egress, prompt injection, retention, provider policy, consent, cost, nondeterminism, poisoning |
@@ -289,6 +296,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-REQ-010 | Run adversarial, fuzz, property, mutation, kill/restart, permission, clean-install, and network-denied tests |
 | SEC-REQ-011 | Produce an SBOM/dependency inventory and complete license/provenance review for release candidates |
 | SEC-REQ-012 | Document local-user, filesystem, backup, and host-compromise residual risks |
+| SEC-REQ-013 | Launch structural parsing only through the pinned ADR-0010 worker and validate complete output before graph promotion |
 
 ## Verification Strategy
 

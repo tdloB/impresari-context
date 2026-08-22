@@ -24,6 +24,9 @@ scrutiny than test-only dependencies.
 | `serde` | 1.0.229 | `context-core` | `derive`, `std`; defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Contract serialization with explicit derives |
 | `serde_json` | 1.0.151 | `context-core` and conformance tests | `std`; defaults disabled | MIT OR Apache-2.0 | 1.71 upstream | Strict JSON value and wire encoding |
 | `serde_json_canonicalizer` | 0.3.2 | `context-core` | Defaults disabled | MIT | Verified by the project Rust 1.96 gate | RFC 8785 JCS bytes for identities and hard packet accounting |
+| `tree-sitter` | 0.26.12 | `context-structural` worker only | `std`; defaults disabled; WASM disabled | MIT | Upstream 1.77; project Rust 1.96 gate required | Bounded concrete-syntax parsing behind the ADR-0010 process boundary |
+| `tree-sitter-javascript` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned JavaScript/JSX grammar |
+| `tree-sitter-typescript` | 0.23.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned TypeScript/TSX grammars |
 
 `cap-std` is admitted because ambient `std::fs` canonicalize/open sequences
 cannot close symlink-swap races portably. Ambient authority is used exactly once
@@ -41,14 +44,22 @@ Untrusted raw JSON is never canonicalized directly, preventing duplicate-key
 normalization from becoming an acceptance path. All identity-bearing numeric
 values remain safe integers or canonical decimal strings per ADR-0009.
 
+Tree-sitter and both grammar crates compile native C and therefore expand the
+supply-chain and memory-safety boundary. They are admitted only inside the
+short-lived structural worker defined by ADR-0010. Dynamic grammar loading,
+WASM, grammar downloads, repository configuration, compiler plugins, language
+servers, and in-process control-plane parsing remain prohibited. Worker bytes
+are treated as hostile and become graph facts only after full response,
+identity, span, provenance, ordering, and limit validation.
+
 `jsonschema` default features are prohibited because they add HTTP, file, and TLS
 resolvers. The test harness supplies every schema through an in-memory prepared
 registry and must work with network access denied.
 
 Transitive dependencies remain subject to the lockfile, advisory, license, and
-duplicate review. Approval of these test dependencies does not pre-approve
-SQLite, Tree-sitter, regex engines, CLI parsers, serialization derives, hashing,
-or any runtime crate.
+duplicate review. Approval of these dependencies does not pre-approve
+additional grammars, regex engines, CLI parsers, serialization derives,
+hashing, or runtime crates.
 
 ## Allowed license baseline
 

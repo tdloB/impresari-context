@@ -11,18 +11,22 @@ Impresari Context is an independent implementation informed by publicly demonstr
 
 ## Status
 
-The approved local Verifiable Context Slice A is under active implementation.
+The approved local Verifiable Context Slice A is implemented and Slice B
+structural intelligence is under active implementation.
 The Rust workspace now includes capability-scoped workspace reads,
 deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
 path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
 context packets, packet validation, no-overwrite handoff export, one shared
-in-process capability service, and a thin JSON CLI.
+in-process capability service, and a thin JSON CLI. The first Slice B milestone
+adds pinned, short-lived TypeScript/JavaScript parser workers, a canonical
+snapshot-bound structural graph, and bounded deterministic graph traversal with
+explicit unresolved and truncated states.
 
-This is not a public release. The name remains provisional, parser/structural
-work is not authorized, and external integrations, remote repository creation,
-package publication, and release remain gated. Security/evaluation evidence and
-native Tier A release rehearsals must still pass before release readiness can be
-claimed.
+This is not a public release. The name remains provisional, additional Slice B
+capabilities and external integrations remain incomplete, and remote repository
+creation, package publication, and release remain gated. Security/evaluation
+evidence and native Tier A release rehearsals must still pass before release
+readiness can be claimed.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
@@ -61,6 +65,9 @@ and handoff export forms.
   decision to build one neutral core with thin consumer-specific adapters.
 - [ADR-0009](docs/decisions/0009-path-and-identity-encoding.md): exact native
   path, workspace identity, canonical JSON value, and hash-envelope contracts.
+- [ADR-0010](docs/decisions/0010-structural-worker-protocol-and-isolation.md):
+  the pinned, capability-reduced parser-worker boundary and all-or-nothing
+  structural promotion contract.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,

@@ -102,6 +102,12 @@ pub enum Capability {
     /// Export an explicit handoff.
     #[serde(rename = "handoff.export")]
     HandoffExport,
+    /// Build the canonical structural graph for supported artifacts.
+    #[serde(rename = "structure.build")]
+    StructureBuild,
+    /// Traverse the canonical structural graph within a declared budget.
+    #[serde(rename = "structure.query")]
+    StructureQuery,
 }
 
 /// Stable public error codes shared by every adapter.
