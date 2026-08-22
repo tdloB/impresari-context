@@ -106,6 +106,17 @@ pub struct CacheGeneration {
     pub artifact_count: u64,
 }
 
+/// Opaque validated structural graph payload retained in the isolated cache.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct CachedGraph {
+    /// Exact graph identity supplied by the structural contract.
+    pub graph_id: String,
+    /// Exact source snapshot identity.
+    pub snapshot_id: String,
+    /// Canonical serialized graph bytes.
+    pub payload: Vec<u8>,
+}
+
 /// Exclusive writer over one exact workspace cache namespace.
 #[derive(Debug)]
 pub struct WorkspaceCache {
@@ -609,6 +620,70 @@ impl WorkspaceCache {
             .collect::<Result<Vec<String>, _>>()
             .map_err(CacheError::storage)
     }
+
+    /// Atomically replaces the current opaque structural graph payload.
+    ///
+    /// The store validates identities and bounds only. The structural layer must
+    /// validate the graph contract and recompute its content identity on load.
+    ///
+    /// # Errors
+    ///
+    /// Fails for malformed identities, empty/oversized payloads, or storage errors.
+    pub fn promote_graph(&mut self, graph: &CachedGraph) -> Result<(), CacheError> {
+        validate_identity(&graph.graph_id)?;
+        validate_identity(&graph.snapshot_id)?;
+        if graph.payload.is_empty() || graph.payload.len() > 16 * 1024 * 1024 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let transaction = self
+            .connection
+            .transaction_with_behavior(TransactionBehavior::Immediate)
+            .map_err(CacheError::storage)?;
+        transaction
+            .execute("DELETE FROM structural_graphs", [])
+            .map_err(CacheError::storage)?;
+        transaction
+            .execute(
+                "INSERT INTO structural_graphs(graph_id,snapshot_id,payload) VALUES(?1,?2,?3)",
+                params![graph.graph_id, graph.snapshot_id, graph.payload],
+            )
+            .map_err(CacheError::storage)?;
+        transaction.commit().map_err(CacheError::storage)
+    }
+
+    /// Loads the current graph only when it belongs to the requested snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Fails for malformed identity, duplicate/corrupt rows, or storage errors.
+    pub fn graph_for_snapshot(&self, snapshot_id: &str) -> Result<Option<CachedGraph>, CacheError> {
+        validate_identity(snapshot_id)?;
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT graph_id,snapshot_id,payload FROM structural_graphs WHERE snapshot_id=?1",
+            )
+            .map_err(CacheError::storage)?;
+        let mut rows = statement
+            .query([snapshot_id])
+            .map_err(CacheError::storage)?;
+        let Some(row) = rows.next().map_err(CacheError::storage)? else {
+            return Ok(None);
+        };
+        let graph = CachedGraph {
+            graph_id: row.get(0).map_err(CacheError::storage)?,
+            snapshot_id: row.get(1).map_err(CacheError::storage)?,
+            payload: row.get(2).map_err(CacheError::storage)?,
+        };
+        if rows.next().map_err(CacheError::storage)?.is_some()
+            || validate_identity(&graph.graph_id).is_err()
+            || graph.payload.is_empty()
+            || graph.payload.len() > 16 * 1024 * 1024
+        {
+            return Err(CacheError::new(CacheErrorCode::CorruptCache));
+        }
+        Ok(Some(graph))
+    }
 }
 
 /// Purges one exact workspace cache namespace after acquiring its writer lock.
@@ -672,7 +747,8 @@ fn initialize(connection: &Connection, workspace_identity: &str) -> Result<(), C
          CREATE UNIQUE INDEX IF NOT EXISTS one_current_generation ON generations(state) WHERE state='current';
          CREATE TABLE IF NOT EXISTS artifacts(generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,display_path TEXT NOT NULL,content_hash TEXT NOT NULL,size_bytes TEXT NOT NULL,PRIMARY KEY(generation_id,path_units)) WITHOUT ROWID;
          CREATE TABLE IF NOT EXISTS artifact_search_keys(search_id INTEGER PRIMARY KEY,generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,UNIQUE(generation_id,path_units));
-         CREATE VIRTUAL TABLE IF NOT EXISTS artifact_terms USING fts5(terms,content='');",
+         CREATE VIRTUAL TABLE IF NOT EXISTS artifact_terms USING fts5(terms,content='');
+         CREATE TABLE IF NOT EXISTS structural_graphs(graph_id TEXT PRIMARY KEY,snapshot_id TEXT NOT NULL UNIQUE,payload BLOB NOT NULL CHECK(length(payload)>0 AND length(payload)<=16777216));",
     ).map_err(CacheError::storage)?;
     connection
         .execute(
@@ -909,6 +985,34 @@ mod tests {
                 .snapshot_id,
             C
         );
+    }
+
+    #[test]
+    fn structural_graph_payload_is_snapshot_scoped_and_replaceable() {
+        let root = TestRoot::new();
+        let mut cache = WorkspaceCache::open(&root.0, A).expect("open");
+        let first = CachedGraph {
+            graph_id: C.into(),
+            snapshot_id: B.into(),
+            payload: b"{\"graph\":1}".to_vec(),
+        };
+        cache.promote_graph(&first).expect("promote first");
+        assert_eq!(cache.graph_for_snapshot(B).expect("load"), Some(first));
+        assert!(
+            cache
+                .graph_for_snapshot(C)
+                .expect("other snapshot")
+                .is_none()
+        );
+
+        let second = CachedGraph {
+            graph_id: B.into(),
+            snapshot_id: C.into(),
+            payload: b"{\"graph\":2}".to_vec(),
+        };
+        cache.promote_graph(&second).expect("replace");
+        assert!(cache.graph_for_snapshot(B).expect("retired").is_none());
+        assert_eq!(cache.graph_for_snapshot(C).expect("current"), Some(second));
     }
 
     #[test]

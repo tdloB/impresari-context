@@ -21,11 +21,11 @@ use context_retrieval::{
     RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_record,
     expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
 };
-use context_store::{AuditRetention, AuditStore, CacheErrorCode, WorkspaceCache};
+use context_store::{AuditRetention, AuditStore, CacheErrorCode, CachedGraph, WorkspaceCache};
 use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
     StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher, WorkerPath,
-    WorkerRequest, build_graph_with_unknowns, query_graph,
+    WorkerRequest, build_graph_with_unknowns, query_graph, validate_graph,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -337,7 +337,65 @@ impl LocalEngine {
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
-        let result = self.build_structure_internal(context, budget, launcher, started);
+        let result = self
+            .build_structure_internal(context, budget, launcher, started)
+            .and_then(|graph| {
+                let payload = serde_json::to_vec(&graph).map_err(|_| {
+                    failure(
+                        context,
+                        Capability::StructureBuild,
+                        PublicErrorCode::InternalFailure,
+                        "structural graph serialization failed",
+                        Some(self.workspace.identity()),
+                        self.snapshot
+                            .as_ref()
+                            .map(|value| value.snapshot_id.as_str()),
+                        None,
+                    )
+                })?;
+                if self.cache.is_none() {
+                    self.cache = Some(
+                        WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
+                            .map_err(|error| {
+                                cache_error(
+                                    context,
+                                    Capability::StructureBuild,
+                                    error.code(),
+                                    Some(self.ids()),
+                                )
+                            })?,
+                    );
+                }
+                self.cache
+                    .as_mut()
+                    .ok_or_else(|| {
+                        failure(
+                            context,
+                            Capability::StructureBuild,
+                            PublicErrorCode::InternalFailure,
+                            "structural cache initialization failed",
+                            Some(self.workspace.identity()),
+                            self.snapshot
+                                .as_ref()
+                                .map(|value| value.snapshot_id.as_str()),
+                            None,
+                        )
+                    })?
+                    .promote_graph(&CachedGraph {
+                        graph_id: graph.graph_id.clone(),
+                        snapshot_id: graph.workspace_snapshot.clone(),
+                        payload,
+                    })
+                    .map_err(|error| {
+                        cache_error(
+                            context,
+                            Capability::StructureBuild,
+                            error.code(),
+                            Some(self.ids()),
+                        )
+                    })?;
+                Ok(graph)
+            });
         let outcome = result
             .as_ref()
             .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
@@ -349,6 +407,112 @@ impl LocalEngine {
             result,
             elapsed_ms(started),
         )
+    }
+
+    /// Loads and fully revalidates the graph cached for the current snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, cache, decoding, or integrity failure.
+    pub fn cached_structure(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+    ) -> Result<Option<StructuralGraph>, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::StructureQuery, Some(budget.clone()))?;
+        let result = self.cached_structure_internal(context);
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::StructureQuery,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    fn cached_structure_internal(
+        &mut self,
+        context: &RequestContext,
+    ) -> Result<Option<StructuralGraph>, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| {
+                        cache_error(
+                            context,
+                            Capability::StructureQuery,
+                            error.code(),
+                            Some(self.ids()),
+                        )
+                    },
+                )?,
+            );
+        }
+        let Some(cached) = self
+            .cache
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureQuery,
+                    PublicErrorCode::InternalFailure,
+                    "structural cache initialization failed",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    None,
+                )
+            })?
+            .graph_for_snapshot(&snapshot.snapshot_id)
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureQuery,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?
+        else {
+            return Ok(None);
+        };
+        let graph: StructuralGraph = serde_json::from_slice(&cached.payload).map_err(|_| {
+            failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::IntegrityFailure,
+                "cached structural graph is invalid",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RebuildIndex),
+            )
+        })?;
+        if graph.graph_id != cached.graph_id || validate_graph(&graph).is_err() {
+            return Err(failure(
+                context,
+                Capability::StructureQuery,
+                PublicErrorCode::IntegrityFailure,
+                "cached structural graph failed integrity validation",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RebuildIndex),
+            ));
+        }
+        Ok(Some(graph))
     }
 
     fn build_structure_internal(

@@ -579,6 +579,15 @@ fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralErr
     Ok(())
 }
 
+/// Recomputes and validates the complete structural graph contract and identity.
+///
+/// # Errors
+///
+/// Returns a contract failure when any identity or graph content is malformed.
+pub fn validate_graph(graph: &StructuralGraph) -> Result<(), StructuralError> {
+    validate_graph_for_query(graph)
+}
+
 fn valid_edge_kind(kind: &str) -> bool {
     matches!(
         kind,
