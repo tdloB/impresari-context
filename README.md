@@ -14,26 +14,43 @@ silently taking control of the developer's environment.
 
 ## Status
 
-Step 1, architecture and boundaries, is complete as a design baseline. Step 2
-has established the local repository, governance controls, empty Rust crate
-boundaries, validation scripts, and cross-platform CI definitions. The
-Master, Verifiable Local Context MVP, Security Threat Model, and Evaluation
-documents were founder-approved as design and implementation baselines on
-2026-08-20. No context-engine functionality, package publication, upstream
-source import, host configuration, or external service integration has been
-implemented or authorized by this scaffold.
+The approved local Verifiable Context Slice A is under active implementation.
+The Rust workspace now includes capability-scoped workspace reads,
+deterministic snapshots, isolated SQLite cache and audit stores, bounded exact
+path/filename/literal/lexical retrieval, byte-verifiable evidence, immutable
+context packets, packet validation, no-overwrite handoff export, one shared
+in-process capability service, and a thin JSON CLI.
+
+This is not a public release. The name remains provisional, parser/structural
+work is not authorized, and external integrations, remote repository creation,
+package publication, and release remain gated. Security/evaluation evidence and
+native Tier A release rehearsals must still pass before release readiness can be
+claimed.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
-the complete local quality gate with `./scripts/check.sh`. The scaffold passed
-formatting, Clippy with warnings denied, unit-target compilation and tests,
-documentation tests, locked Cargo metadata, and repository policy checks on
-Rust 1.96.0, 1.97.0, and 1.98.0 on 2026-08-21.
+the complete local quality gate with `./scripts/check.sh`. Current milestones
+are tested on Rust 1.96.0, 1.97.0, and stable, with Clippy warnings denied,
+Draft 2020-12 response validation, deterministic identity/path/JCS vectors,
+dependency policy, and RustSec auditing.
 
-Contract phase one now includes a draft v1 JSON Schema registry, initial positive
-and negative conformance fixtures, and a dependency-free offline contract check.
-These are not yet a stable public contract: a pinned full Draft 2020-12 validator,
-expanded adversarial corpus, identity digest vectors, and resource-policy profile
-remain required before Rust serialization or runtime behavior is implemented.
+## Local CLI
+
+The CLI is a thin adapter over the same `context-engine::LocalEngine` handlers
+used by in-process clients. It emits versioned JSON to stdout; `--human` adds a
+short, source-free diagnostic to stderr.
+
+```text
+cargo run -p context-cli -- --help
+cargo run -p context-cli -- snapshot build <workspace-root> <cache-root>
+cargo run -p context-cli -- search <workspace-root> <cache-root> literal <query>
+cargo run -p context-cli -- context build <workspace-root> <cache-root> lexical <query> <purpose>
+```
+
+Each invocation receives the explicit workspace and cache roots. This avoids a
+durable ambient mapping from an opaque handle to an absolute source path. Use
+`--at`, `--cutoff`, and `--id-seed` for deterministic automation and conformance
+tests. See `--help` for evidence recovery, packet validation, snapshot status,
+and handoff export forms.
 
 ## Design documents
 

@@ -189,6 +189,17 @@ impl fmt::Display for EngineError {
 
 impl std::error::Error for EngineError {}
 
+/// Wraps a validated core error envelope for a thin local adapter.
+///
+/// Adapters should construct the input through [`context_core::error_envelope`]
+/// and must not include local paths, queries, source, or diagnostic causes.
+#[must_use]
+pub fn adapter_error(envelope: ErrorEnvelope) -> EngineError {
+    EngineError {
+        envelope: Box::new(envelope),
+    }
+}
+
 /// Stateful local session. All public operations pass through one policy path.
 pub struct LocalEngine {
     config: EngineConfig,
@@ -299,22 +310,54 @@ impl LocalEngine {
         context: &RequestContext,
         budget: ResourceBudget,
     ) -> Result<SnapshotStatus, EngineError> {
+        self.snapshot_status_against(context, budget, None)
+    }
+
+    /// Reports current or stale status relative to an expected snapshot.
+    ///
+    /// # Errors
+    ///
+    /// Returns stale-state when no snapshot has been built.
+    pub fn snapshot_status_against(
+        &mut self,
+        context: &RequestContext,
+        budget: ResourceBudget,
+        expected_snapshot: Option<&str>,
+    ) -> Result<SnapshotStatus, EngineError> {
         let decision = self.authorize(context, Capability::SnapshotStatus, Some(budget))?;
-        let result = self
-            .snapshot
-            .as_ref()
-            .ok_or_else(|| {
-                failure(
-                    context,
-                    Capability::SnapshotStatus,
-                    PublicErrorCode::StaleState,
-                    "workspace snapshot is unavailable",
-                    Some(self.workspace.identity()),
-                    None,
-                    Some(RecoveryAction::RefreshSnapshot),
-                )
-            })
-            .map(snapshot_status);
+        let result = if expected_snapshot.is_some_and(|expected| !valid_sha256(expected)) {
+            Err(failure(
+                context,
+                Capability::SnapshotStatus,
+                PublicErrorCode::InvalidInput,
+                "invalid expected snapshot identity",
+                Some(self.workspace.identity()),
+                None,
+                None,
+            ))
+        } else {
+            self.snapshot
+                .as_ref()
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::SnapshotStatus,
+                        PublicErrorCode::StaleState,
+                        "workspace snapshot is unavailable",
+                        Some(self.workspace.identity()),
+                        None,
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })
+                .map(|snapshot| {
+                    let mut status = snapshot_status(snapshot);
+                    if expected_snapshot.is_some_and(|expected| expected != snapshot.snapshot_id) {
+                        status.state = "stale".into();
+                        status.freshness = "stale".into();
+                    }
+                    status
+                })
+        };
         self.finalize(
             context,
             &decision,
@@ -1291,6 +1334,14 @@ fn valid_identifier(value: &str) -> bool {
         && suffix
             .bytes()
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 #[cfg(test)]
