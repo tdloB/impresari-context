@@ -87,6 +87,8 @@ pub struct CachedArtifact {
     pub content_hash: String,
     /// Exact source byte length.
     pub size_bytes: u64,
+    /// Bounded normalized lexical terms for contentless candidate retrieval.
+    pub terms: String,
 }
 
 /// Metadata for one promoted cache generation.
@@ -221,6 +223,19 @@ impl WorkspaceCache {
                         artifact.size_bytes.to_string()
                     ])
                     .map_err(CacheError::storage)?;
+                let search_id = transaction
+                    .query_row(
+                        "INSERT INTO artifact_search_keys(generation_id,path_units) VALUES(?1,?2) RETURNING search_id",
+                        params![generation_id, artifact.path_units],
+                        |row| row.get::<_, i64>(0),
+                    )
+                    .map_err(CacheError::storage)?;
+                transaction
+                    .execute(
+                        "INSERT INTO artifact_terms(rowid,terms) VALUES(?1,?2)",
+                        params![search_id, artifact.terms],
+                    )
+                    .map_err(CacheError::storage)?;
             }
         }
         let inserted: i64 = transaction
@@ -302,6 +317,51 @@ impl WorkspaceCache {
             .map_err(CacheError::storage)?;
         Ok((version, options))
     }
+
+    /// Returns bounded path-identity candidates for validated lexical terms.
+    ///
+    /// # Errors
+    ///
+    /// Fails for invalid terms, excessive limits, missing current generation,
+    /// or database errors. Raw FTS syntax is never accepted.
+    pub fn lexical_candidates(
+        &self,
+        terms: &[String],
+        max_candidates: u64,
+    ) -> Result<Vec<String>, CacheError> {
+        if terms.is_empty()
+            || terms.len() > 16
+            || max_candidates == 0
+            || max_candidates > 10_000
+            || terms.iter().any(|term| {
+                term.is_empty()
+                    || term.len() > 64
+                    || !term.bytes().all(|byte| {
+                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
+                    })
+            })
+        {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let query = terms.join(" AND ");
+        let limit = i64::try_from(max_candidates)
+            .map_err(|_| CacheError::new(CacheErrorCode::ResourceLimit))?;
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT keys.path_units FROM artifact_terms
+                 JOIN artifact_search_keys AS keys ON keys.search_id=artifact_terms.rowid
+                 JOIN generations AS generation ON generation.generation_id=keys.generation_id
+                 WHERE artifact_terms MATCH ?1 AND generation.state='current'
+                 ORDER BY bm25(artifact_terms), keys.path_units LIMIT ?2",
+            )
+            .map_err(CacheError::storage)?;
+        statement
+            .query_map(params![query, limit], |row| row.get(0))
+            .map_err(CacheError::storage)?
+            .collect::<Result<Vec<String>, _>>()
+            .map_err(CacheError::storage)
+    }
 }
 
 /// Purges one exact workspace cache namespace after acquiring its writer lock.
@@ -362,6 +422,7 @@ fn initialize(connection: &Connection, workspace_identity: &str) -> Result<(), C
          CREATE TABLE IF NOT EXISTS generations(generation_id INTEGER PRIMARY KEY,snapshot_id TEXT NOT NULL UNIQUE,discovery_policy TEXT NOT NULL,state TEXT NOT NULL CHECK(state IN('staging','current','retired')),artifact_count TEXT NOT NULL);
          CREATE UNIQUE INDEX IF NOT EXISTS one_current_generation ON generations(state) WHERE state='current';
          CREATE TABLE IF NOT EXISTS artifacts(generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,display_path TEXT NOT NULL,content_hash TEXT NOT NULL,size_bytes TEXT NOT NULL,PRIMARY KEY(generation_id,path_units)) WITHOUT ROWID;
+         CREATE TABLE IF NOT EXISTS artifact_search_keys(search_id INTEGER PRIMARY KEY,generation_id INTEGER NOT NULL REFERENCES generations(generation_id) ON DELETE CASCADE,path_units TEXT NOT NULL,UNIQUE(generation_id,path_units));
          CREATE VIRTUAL TABLE IF NOT EXISTS artifact_terms USING fts5(terms,content='');",
     ).map_err(CacheError::storage)?;
     connection
@@ -455,6 +516,8 @@ fn validate_artifact(artifact: &CachedArtifact) -> Result<(), CacheError> {
         || artifact.display_path.is_empty()
         || artifact.display_path.len() > 32_768
         || artifact.display_path.contains('\0')
+        || artifact.terms.len() > 16 * 1024 * 1024
+        || artifact.terms.contains('\0')
     {
         Err(CacheError::new(CacheErrorCode::ResourceLimit))
     } else {
@@ -494,6 +557,7 @@ mod tests {
             display_path: format!("{name}.rs"),
             content_hash: hash.into(),
             size_bytes: 12,
+            terms: format!("{name} rust example"),
         }
     }
 
@@ -551,6 +615,28 @@ mod tests {
         assert_eq!(
             (journal.as_str(), synchronous, foreign_keys),
             ("delete", 2, 1)
+        );
+    }
+
+    #[test]
+    fn lexical_candidates_are_current_bounded_and_compiled() {
+        let root = TestRoot::new();
+        let mut cache = WorkspaceCache::open(&root.0, A).expect("open");
+        cache
+            .promote(B, C, &[artifact("alpha", A), artifact("beta", B)])
+            .expect("promote");
+        assert_eq!(
+            cache
+                .lexical_candidates(&["alpha".to_owned()], 10)
+                .expect("candidates"),
+            vec!["alpha"]
+        );
+        assert_eq!(
+            cache
+                .lexical_candidates(&["alpha OR beta".to_owned()], 10)
+                .expect_err("raw syntax must fail")
+                .code(),
+            CacheErrorCode::ResourceLimit
         );
     }
 

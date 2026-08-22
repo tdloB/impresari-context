@@ -163,6 +163,11 @@ version = "0.0.0"
 [[package]]
 name = "context-retrieval"
 version = "0.0.0"
+dependencies = [
+ "context-store",
+ "context-workspace",
+ "sha2",
+]
 
 [[package]]
 name = "context-store"

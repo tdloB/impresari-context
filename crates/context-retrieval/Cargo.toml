@@ -10,3 +10,8 @@ publish.workspace = true
 
 [lints]
 workspace = true
+
+[dependencies]
+context-store = { path = "../context-store" }
+context-workspace = { path = "../context-workspace" }
+sha2 = { version = "=0.11.0", default-features = false }
