@@ -3,8 +3,9 @@
 #![doc = "Workspace authorization, discovery, snapshots, and exact reads."]
 
 use std::{
+    collections::BTreeMap,
     error::Error,
-    ffi::OsString,
+    ffi::{OsStr, OsString},
     fmt,
     io::{self, Read},
     path::{Component, Path, PathBuf},
@@ -154,6 +155,106 @@ pub struct ExactRead {
     pub bytes: Vec<u8>,
 }
 
+/// Hard discovery limits selected by the active resource policy.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct DiscoveryPolicy {
+    /// Maximum number of eligible regular files.
+    pub max_files: u64,
+    /// Maximum bytes across eligible files.
+    pub max_total_bytes: u64,
+    /// Maximum bytes for any one file.
+    pub max_file_bytes: u64,
+    /// Maximum recursive directory depth beneath the root.
+    pub max_depth: u64,
+}
+
+impl DiscoveryPolicy {
+    /// Creates a validated discovery policy.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any hard limit is zero or the per-file maximum is
+    /// greater than the total-byte maximum.
+    pub fn new(
+        max_files: u64,
+        max_total_bytes: u64,
+        max_file_bytes: u64,
+        max_depth: u64,
+    ) -> Result<Self, WorkspaceError> {
+        if max_files == 0
+            || max_total_bytes == 0
+            || max_file_bytes == 0
+            || max_depth == 0
+            || max_file_bytes > max_total_bytes
+        {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::ResourceLimit));
+        }
+        Ok(Self {
+            max_files,
+            max_total_bytes,
+            max_file_bytes,
+            max_depth,
+        })
+    }
+
+    fn identity(self) -> String {
+        let payload = format!(
+            "{{\"max_depth\":\"{}\",\"max_file_bytes\":\"{}\",\"max_files\":\"{}\",\"max_total_bytes\":\"{}\"}}",
+            self.max_depth, self.max_file_bytes, self.max_files, self.max_total_bytes
+        );
+        structured_digest("discovery-policy", payload.as_bytes())
+    }
+}
+
+/// One immutable regular-file record in a workspace snapshot.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ArtifactRecord {
+    /// Lossless relative path identity.
+    pub path: PathIdentity,
+    /// SHA-256 of exact file bytes.
+    pub content_hash: String,
+    /// Exact byte length represented as an integer in the Rust API.
+    pub size_bytes: u64,
+}
+
+/// Reasons discovery omitted filesystem objects.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+pub enum SkipReason {
+    /// A built-in cache/VCS/build directory was excluded.
+    PolicyExcluded,
+    /// The per-file ceiling was exceeded.
+    Oversized,
+    /// A symlink was encountered and not followed.
+    Symlink,
+    /// A socket, device, FIFO, or other non-regular object was encountered.
+    SpecialFile,
+    /// A file, byte, or depth ceiling stopped discovery.
+    LimitReached,
+    /// Metadata or content could not be read safely.
+    ReadFailed,
+    /// A file changed during its guarded read.
+    ChangedDuringRead,
+}
+
+/// Deterministic content snapshot of eligible workspace files.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct WorkspaceSnapshot {
+    /// Opaque workspace identity.
+    pub workspace_identity: String,
+    /// Domain-separated identity of this exact snapshot.
+    pub snapshot_id: String,
+    /// Discovery-policy identity applied to the snapshot.
+    pub discovery_policy: String,
+    /// Eligible artifacts sorted by native path units.
+    pub artifacts: Vec<ArtifactRecord>,
+    /// Aggregate exact bytes across eligible artifacts.
+    pub eligible_bytes: u64,
+    /// Omission counts by stable reason.
+    pub skipped: BTreeMap<SkipReason, u64>,
+    /// True only when no eligibility-affecting omission occurred.
+    pub complete: bool,
+}
+
 /// An explicitly authorized, read-only directory capability.
 #[derive(Debug)]
 pub struct AuthorizedWorkspace {
@@ -251,6 +352,218 @@ impl AuthorizedWorkspace {
             bytes,
         })
     }
+
+    /// Discovers and hashes eligible regular files under deterministic hard limits.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error only when the authorized root itself cannot be read.
+    /// Individual hostile or unreadable entries are recorded as omissions.
+    pub fn snapshot(&self, policy: DiscoveryPolicy) -> Result<WorkspaceSnapshot, WorkspaceError> {
+        let mut state = DiscoveryState::new(self, policy);
+        discover_directory(&self.root, Path::new(""), 0, &mut state)?;
+        state.artifacts.sort_by(|left, right| {
+            left.path
+                .relative_units_base64url
+                .cmp(&right.path.relative_units_base64url)
+        });
+        let policy_id = policy.identity();
+        let snapshot_id = snapshot_identity(
+            &self.workspace_identity,
+            &policy_id,
+            &state.artifacts,
+            &state.skipped,
+        );
+        let complete = state
+            .skipped
+            .keys()
+            .all(|reason| !skip_affects_completeness(*reason));
+        Ok(WorkspaceSnapshot {
+            workspace_identity: self.workspace_identity.clone(),
+            snapshot_id,
+            discovery_policy: policy_id,
+            artifacts: state.artifacts,
+            eligible_bytes: state.eligible_bytes,
+            complete,
+            skipped: state.skipped,
+        })
+    }
+}
+
+struct DiscoveryState<'workspace> {
+    workspace: &'workspace AuthorizedWorkspace,
+    policy: DiscoveryPolicy,
+    artifacts: Vec<ArtifactRecord>,
+    eligible_bytes: u64,
+    skipped: BTreeMap<SkipReason, u64>,
+}
+
+impl<'workspace> DiscoveryState<'workspace> {
+    fn new(workspace: &'workspace AuthorizedWorkspace, policy: DiscoveryPolicy) -> Self {
+        Self {
+            workspace,
+            policy,
+            artifacts: Vec::new(),
+            eligible_bytes: 0,
+            skipped: BTreeMap::new(),
+        }
+    }
+
+    fn skip(&mut self, reason: SkipReason) {
+        *self.skipped.entry(reason).or_default() += 1;
+    }
+}
+
+fn discover_directory(
+    directory: &Dir,
+    relative_directory: &Path,
+    depth: u64,
+    state: &mut DiscoveryState<'_>,
+) -> Result<(), WorkspaceError> {
+    let entries = directory
+        .entries()
+        .map_err(|error| WorkspaceError::io(WorkspaceErrorCode::IoFailure, error))?;
+    let mut entries_ok = Vec::new();
+    for entry in entries {
+        match entry {
+            Ok(entry) => entries_ok.push(entry),
+            Err(_) => state.skip(SkipReason::ReadFailed),
+        }
+    }
+    let mut entries = entries_ok;
+    entries.sort_by(|left, right| {
+        native_os_units(&left.file_name()).cmp(&native_os_units(&right.file_name()))
+    });
+
+    for entry in entries {
+        let name = entry.file_name();
+        if excluded_name(&name) {
+            state.skip(SkipReason::PolicyExcluded);
+            continue;
+        }
+        let relative = relative_directory.join(&name);
+        let Ok(file_type) = entry.file_type() else {
+            state.skip(SkipReason::ReadFailed);
+            continue;
+        };
+        if file_type.is_symlink() {
+            state.skip(SkipReason::Symlink);
+            continue;
+        }
+        if file_type.is_dir() {
+            if depth >= state.policy.max_depth {
+                state.skip(SkipReason::LimitReached);
+                continue;
+            }
+            match entry.open_dir() {
+                Ok(child) => discover_directory(&child, &relative, depth + 1, state)?,
+                Err(_) => state.skip(SkipReason::ReadFailed),
+            }
+            continue;
+        }
+        if !file_type.is_file() {
+            state.skip(SkipReason::SpecialFile);
+            continue;
+        }
+        if u64::try_from(state.artifacts.len()).unwrap_or(u64::MAX) >= state.policy.max_files {
+            state.skip(SkipReason::LimitReached);
+            continue;
+        }
+        let Ok(metadata) = entry.metadata() else {
+            state.skip(SkipReason::ReadFailed);
+            continue;
+        };
+        if metadata.len() > state.policy.max_file_bytes {
+            state.skip(SkipReason::Oversized);
+            continue;
+        }
+        if state
+            .eligible_bytes
+            .checked_add(metadata.len())
+            .is_none_or(|total| total > state.policy.max_total_bytes)
+        {
+            state.skip(SkipReason::LimitReached);
+            continue;
+        }
+        let Ok(identity) = PathIdentity::from_relative_path(&relative) else {
+            state.skip(SkipReason::ReadFailed);
+            continue;
+        };
+        match state
+            .workspace
+            .read_exact(&identity, state.policy.max_file_bytes)
+        {
+            Ok(exact) => {
+                let size_bytes = u64::try_from(exact.bytes.len()).unwrap_or(u64::MAX);
+                state.eligible_bytes += size_bytes;
+                state.artifacts.push(ArtifactRecord {
+                    path: identity,
+                    content_hash: exact.content_hash,
+                    size_bytes,
+                });
+            }
+            Err(error) if error.code() == WorkspaceErrorCode::ChangedDuringRead => {
+                state.skip(SkipReason::ChangedDuringRead);
+            }
+            Err(_) => state.skip(SkipReason::ReadFailed),
+        }
+    }
+    Ok(())
+}
+
+fn snapshot_identity(
+    workspace_identity: &str,
+    policy_identity: &str,
+    artifacts: &[ArtifactRecord],
+    skipped: &BTreeMap<SkipReason, u64>,
+) -> String {
+    let artifacts_json = artifacts
+        .iter()
+        .map(|artifact| {
+            format!(
+                "{{\"content_hash\":\"{}\",\"path_units\":\"{}\",\"size_bytes\":\"{}\"}}",
+                artifact.content_hash, artifact.path.relative_units_base64url, artifact.size_bytes
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    let skipped_json = skipped
+        .iter()
+        .map(|(reason, count)| format!("\"{}\":\"{count}\"", skip_reason_name(*reason)))
+        .collect::<Vec<_>>()
+        .join(",");
+    let payload = format!(
+        "{{\"artifacts\":[{artifacts_json}],\"discovery_policy\":\"{policy_identity}\",\"skipped\":{{{skipped_json}}},\"workspace_identity\":\"{workspace_identity}\"}}"
+    );
+    structured_digest("workspace-snapshot", payload.as_bytes())
+}
+
+const fn skip_reason_name(reason: SkipReason) -> &'static str {
+    match reason {
+        SkipReason::PolicyExcluded => "policy_excluded",
+        SkipReason::Oversized => "oversized",
+        SkipReason::Symlink => "symlink",
+        SkipReason::SpecialFile => "special_file",
+        SkipReason::LimitReached => "limit_reached",
+        SkipReason::ReadFailed => "read_failed",
+        SkipReason::ChangedDuringRead => "changed_during_read",
+    }
+}
+
+const fn skip_affects_completeness(reason: SkipReason) -> bool {
+    matches!(
+        reason,
+        SkipReason::Oversized
+            | SkipReason::LimitReached
+            | SkipReason::ReadFailed
+            | SkipReason::ChangedDuringRead
+    )
+}
+
+fn excluded_name(name: &OsStr) -> bool {
+    [".git", ".impresari-context", "target"]
+        .iter()
+        .any(|excluded| name == OsStr::new(excluded))
 }
 
 fn reject_symlink_components(root: &Dir, relative: &Path) -> Result<(), WorkspaceError> {
@@ -372,6 +685,12 @@ fn native_units(path: &Path) -> Vec<u8> {
     path.as_os_str().as_bytes().to_vec()
 }
 
+#[cfg(unix)]
+fn native_os_units(value: &OsStr) -> Vec<u8> {
+    use std::os::unix::ffi::OsStrExt as _;
+    value.as_bytes().to_vec()
+}
+
 #[cfg(windows)]
 fn native_units(path: &Path) -> Vec<u8> {
     use std::os::windows::ffi::OsStrExt as _;
@@ -379,6 +698,12 @@ fn native_units(path: &Path) -> Vec<u8> {
         .encode_wide()
         .flat_map(u16::to_le_bytes)
         .collect()
+}
+
+#[cfg(windows)]
+fn native_os_units(value: &OsStr) -> Vec<u8> {
+    use std::os::windows::ffi::OsStrExt as _;
+    value.encode_wide().flat_map(u16::to_le_bytes).collect()
 }
 
 #[cfg(unix)]
@@ -434,6 +759,7 @@ fn escaped_display(path: &Path) -> String {
 mod tests {
     use std::{
         fs,
+        sync::atomic::{AtomicU64, Ordering},
         time::{SystemTime, UNIX_EPOCH},
     };
 
@@ -441,13 +767,18 @@ mod tests {
 
     struct TestRoot(PathBuf);
 
+    static NEXT_TEST_ROOT: AtomicU64 = AtomicU64::new(0);
+
     impl TestRoot {
         fn new() -> Self {
             let nonce = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .expect("clock after epoch")
                 .as_nanos();
-            let path = std::env::temp_dir().join(format!("impresari-context-{nonce}"));
+            let sequence = NEXT_TEST_ROOT.fetch_add(1, Ordering::Relaxed);
+            let process = std::process::id();
+            let path = std::env::temp_dir()
+                .join(format!("impresari-context-{process}-{nonce}-{sequence}"));
             fs::create_dir(&path).expect("create isolated test root");
             Self(path)
         }
@@ -555,5 +886,42 @@ mod tests {
                 .code(),
             WorkspaceErrorCode::SymlinkRejected
         );
+    }
+
+    #[test]
+    fn snapshots_are_deterministic_and_content_sensitive() {
+        let root = TestRoot::new();
+        fs::create_dir(root.0.join("src")).expect("create source directory");
+        fs::write(root.0.join("src/b.rs"), b"b").expect("write b");
+        fs::write(root.0.join("src/a.rs"), b"a").expect("write a");
+        fs::create_dir(root.0.join("target")).expect("create excluded directory");
+        fs::write(root.0.join("target/generated"), b"ignored").expect("write excluded file");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        let policy = DiscoveryPolicy::new(10, 1024, 128, 8).expect("valid policy");
+
+        let first = workspace.snapshot(policy).expect("first snapshot");
+        let repeated = workspace.snapshot(policy).expect("repeat snapshot");
+        assert_eq!(first.snapshot_id, repeated.snapshot_id);
+        assert_eq!(first.artifacts.len(), 2);
+        assert!(first.complete);
+        assert_eq!(first.skipped.get(&SkipReason::PolicyExcluded), Some(&1));
+
+        fs::write(root.0.join("src/a.rs"), b"changed").expect("change source");
+        let changed = workspace.snapshot(policy).expect("changed snapshot");
+        assert_ne!(first.snapshot_id, changed.snapshot_id);
+    }
+
+    #[test]
+    fn snapshot_limits_produce_explicit_partial_state() {
+        let root = TestRoot::new();
+        fs::write(root.0.join("a.txt"), b"a").expect("write a");
+        fs::write(root.0.join("b.txt"), b"b").expect("write b");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        let policy = DiscoveryPolicy::new(1, 1024, 128, 8).expect("valid policy");
+        let snapshot = workspace.snapshot(policy).expect("limited snapshot");
+
+        assert_eq!(snapshot.artifacts.len(), 1);
+        assert!(!snapshot.complete);
+        assert_eq!(snapshot.skipped.get(&SkipReason::LimitReached), Some(&1));
     }
 }
