@@ -46,6 +46,29 @@ Acceptance evidence:
 - The reference documentation links to the normative schemas and is checked
   against the implemented interface during CI or release verification.
 
+### Release versioning and tags (`version_unique`, `version_semver`, `version_tags`)
+
+Each public release must have a unique Semantic Versioning identifier and a
+matching protected Git tag, with public evidence connecting the source commit,
+release artifacts, checksums, and provenance.
+
+Required work:
+
+- Publish the first approved release as `v0.1.0` rather than the internal
+  `0.0.0` development version.
+- Create the matching Git tag through the approved release workflow.
+- Protect release tags against unauthorized modification or deletion.
+- Link the GitHub release, tag, checksums, attestations, and exact source commit
+  from the release evidence documentation.
+
+Acceptance evidence:
+
+- The public release and tag use the same valid Semantic Versioning identifier.
+- Release artifacts and checksums are reproducible from the tagged commit.
+- GitHub artifact attestations bind the published artifacts to the repository,
+  workflow, and source commit.
+- The protected tag and release evidence URLs are publicly accessible.
+
 ## Tracking rule
 
 Add any later unknown or unmet badge criterion to this file with its criterion
