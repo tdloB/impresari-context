@@ -17,11 +17,13 @@ The generator uses the complete locked, offline Cargo metadata graph. The
 frozen SPDX 2.3 JSON document is `artifacts/sbom.spdx.json`; its namespace is
 bound to the SHA-256 digest of `Cargo.lock`. `scripts/check-sbom.rb` regenerates
 the document and requires byte equality, unique package identifiers, and a
-non-empty SPDX package inventory.
+non-empty SPDX package inventory. Package ordering uses portable package
+identity fields and never Cargo's checkout-path-bearing package ID, so the
+same lockfile produces the same document on Linux, macOS, and Windows.
 
 ## Current review result
 
-- 164 workspace and transitive packages are recorded.
+- 173 workspace and transitive packages are recorded.
 - Every registry package records its Cargo checksum when supplied by Cargo.
 - `cargo deny check` passes its advisory, ban, source, and license policy.
 - RustSec scanning passes against 1,225 loaded advisories on 2026-08-21.

@@ -17,7 +17,12 @@ abort metadata_json unless status.success?
 metadata = JSON.parse(metadata_json)
 lock_digest = Digest::SHA256.file(File.join(ROOT, "Cargo.lock")).hexdigest
 
-packages = metadata.fetch("packages").sort_by { |package| package.fetch("id") }.map.with_index do |package, index|
+packages = metadata.fetch("packages").sort_by do |package|
+  # Cargo's package ID embeds the absolute checkout path for workspace crates.
+  # Sorting by it made an otherwise identical SBOM vary across hosted runners.
+  # These fields describe package identity without incorporating host paths.
+  [package.fetch("name"), package.fetch("version"), package["source"].to_s]
+end.map.with_index do |package, index|
   source = package["source"]
   download = source ? "https://crates.io/crates/#{package.fetch('name')}/#{package.fetch('version')}" : "NOASSERTION"
   entry = {
