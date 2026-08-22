@@ -2,8 +2,7 @@
 
 ## 1. Purpose
 
-Impresari Context, the project's internal working name, is a local-first,
-client-neutral service that
+Impresari Context is a local-first, client-neutral service that
 turns a software workspace into a versioned set of structural facts, exact
 evidence references, and bounded context packets.
 

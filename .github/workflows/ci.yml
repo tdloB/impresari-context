@@ -4,11 +4,31 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    - cron: "23 9 * * 1"
 
 permissions:
   contents: read
 
 jobs:
+  dependency-audit:
+    name: Dependency security and licenses
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Install pinned audit tools
+        shell: bash
+        run: |
+          cargo install cargo-audit --version 0.22.2 --locked
+          cargo install cargo-deny --version 0.20.2 --locked
+      - name: Audit dependencies and licenses
+        shell: bash
+        run: ./scripts/audit-dependencies.sh
+
   quality:
     name: Quality / ${{ matrix.os }} / Rust ${{ matrix.rust }}
     strategy:

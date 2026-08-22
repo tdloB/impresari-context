@@ -2,7 +2,7 @@
 
 ## Current model
 
-The project is founder-led during its pre-publication phase. The project lead is
+The project is founder-led. The project lead is
 the final decision maker within the approved PRDs and ADRs and must document
 material decisions. This authority cannot silently waive release-blocking
 security or evaluation gates.
@@ -22,4 +22,6 @@ recorded in `MAINTAINERS.md`. Once two qualified maintainers exist, sensitive
 authorization, evidence, parser, release, security, and governance changes
 require a second maintainer's review.
 
-The legal steward and durable succession process remain pre-publication gates.
+The current maintainer and succession fallback are recorded in
+`MAINTAINERS.md`. Any change in legal stewardship, release authority, or
+maintainer status must be recorded in the repository.

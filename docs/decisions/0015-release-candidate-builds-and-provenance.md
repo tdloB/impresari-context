@@ -32,11 +32,10 @@ GitHub Actions is the initial release-candidate build system.
 
 ## Signing and provenance
 
-V1 uses source-commit binding, a generated manifest, SHA-256 checksums, the
-locked SBOM, and GitHub workflow/run identity as build provenance. Cryptographic
-publisher identity and non-repudiation remain a manual pre-publication gate.
-Keyless attestations or offline maintainer signing may be added only after a
-separate credential, revocation, verification, and recovery review.
+Release candidates use source-commit binding, a generated manifest, SHA-256
+checksums, the locked SBOM, and GitHub workflow/run identity. Published v0.1.0
+artifacts additionally use GitHub's keyless artifact attestations under
+[ADR-0016](0016-release-signing-and-attestations.md).
 
 ## Verification
 

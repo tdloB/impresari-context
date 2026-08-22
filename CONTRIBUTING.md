@@ -1,18 +1,20 @@
 # Contributing
 
-The repository is currently a local pre-publication scaffold. Contribution
-instructions become operative only after the owner, name, contact, and public
-repository gates are complete.
+Thank you for helping improve Impresari Context. Use a fork or topic branch and
+submit changes through a pull request. Do not include vulnerability details in
+a public contribution; follow `SECURITY.md` instead.
 
 ## Development checks
 
-Run `./scripts/check.sh` before submitting a change. Changes must preserve the
-security boundaries and acceptance requirements in `docs/`.
+Run `./scripts/check.sh` before submitting a change. If dependency manifests or
+the lockfile change, also run `./scripts/audit-dependencies.sh`. Changes must
+preserve the security boundaries and acceptance requirements in `docs/`.
 
 ## Developer Certificate of Origin
 
-Every commit must include a `Signed-off-by` trailer certifying the Developer
-Certificate of Origin 1.1. Sign with:
+Every contribution submitted after the public contribution process begins must
+include a `Signed-off-by` trailer certifying the Developer Certificate of Origin
+1.1. Sign commits with:
 
 ```text
 git commit -s

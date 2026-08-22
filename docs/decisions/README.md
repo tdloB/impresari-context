@@ -13,7 +13,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0005](0005-hashing-serialization-and-schema.md) | SHA-256, RFC 8785 canonical JSON, JSON Schema 2020-12, byte-authoritative spans | Accepted |
 | [ADR-0006](0006-local-cache-and-storage.md) | Per-workspace SQLite derived cache with FTS5 and rollback journaling | Accepted |
 | [ADR-0007](0007-context-budget-accounting.md) | UTF-8 serialized bytes as the MVP hard context-budget unit | Accepted |
-| [ADR-0008](0008-license-contributions-and-governance.md) | Apache-2.0, DCO 1.1, founder-led initial governance, owner/counsel gate | Accepted with gate |
+| [ADR-0008](0008-license-contributions-and-governance.md) | Apache-2.0, DCO 1.1, founder-led initial governance, BoldtHaus Studio, LLC stewardship | Accepted |
 | [ADR-0009](0009-path-and-identity-encoding.md) | Lossless native path units, canonical base64url/JCS profile, workspace identity, and exact hash envelopes | Accepted |
 | [ADR-0010](0010-structural-worker-protocol-and-isolation.md) | Length-framed, capability-reduced, all-or-nothing structural parsing workers | Accepted |
 | [ADR-0011](0011-process-local-session-references.md) | Consumer-scoped in-memory immutable packet references with no durable authority | Accepted |
@@ -21,6 +21,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0013](0013-extension-contracts-without-code-loading.md) | Pinned extension declarations and metadata-only quarantine without code loading | Accepted |
 | [ADR-0014](0014-local-stdio-mcp-transport.md) | Local stdio MCP as a thin authority-neutral transport | Accepted |
 | [ADR-0015](0015-release-candidate-builds-and-provenance.md) | Manual release-candidate builds, checksums, provenance, and rehearsal | Accepted |
+| [ADR-0016](0016-release-signing-and-attestations.md) | GitHub artifact attestations plus SHA-256 checksums for v0.1.0 | Accepted |
 
 ## Change Rules
 

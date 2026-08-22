@@ -3,10 +3,10 @@
 ## Document Control
 
 - Product: Impresari Context.
-- Naming status: Internal working name; not a legal-clearance or public-launch decision.
+- Naming status: Public project name confirmed by the founder on 2026-08-22.
 - PRD ID/version: IC-MPRD-001 / 0.1.
 - Status: Approved as the product baseline.
-- Product owner: Founder / future project steward to be legally identified.
+- Product owner: Aaron Boldt; legal project steward: BoldtHaus Studio, LLC.
 - Date: 2026-08-20.
 - Related records:
   - [Architecture](../architecture.md)
@@ -19,9 +19,8 @@
 
 ## Product Name
 
-**Impresari Context** is the internal working name for an independent,
-open-source context and evidence engine for AI-assisted software development.
-The public project name remains subject to the existing naming and counsel gate.
+**Impresari Context** is an independent, open-source context and evidence engine
+for AI-assisted software development.
 
 ## Goal
 
@@ -450,17 +449,14 @@ copy of source or evidence.
 - What absolute performance ceilings should be recorded after the first baseline
   run?
 - Which policies belong in a portable declarative format versus consumer code?
-- Who is the initial legal steward, security contact, and copyright-record owner?
-- When should the public name replace the working name in package and protocol
-  identifiers?
-- Which release-signing/provenance mechanism is practical for the first binary
-  release?
+- Which long-term security contact should supplement GitHub private
+  vulnerability reporting if the project later needs an off-platform channel?
 
 ## Approval And Change Control
 
 - Approved by/date: Founder, 2026-08-20.
 - Consequential unresolved interpretations: implementation stack, license,
-  owner/steward, language matrix, storage, budget units, and public name.
+  owner/steward, language matrix, storage, and budget units.
 - Material changes to product boundary, trust model, canonical evidence, source
   mutation, execution, network, hosted deployment, or durable memory require a
   new architecture decision plus security and evaluation review.

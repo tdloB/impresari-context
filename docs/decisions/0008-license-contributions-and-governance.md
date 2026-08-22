@@ -1,6 +1,6 @@
 # ADR-0008: License, contributions, and project governance
 
-- Status: Accepted with pre-publication owner and counsel gate
+- Status: Accepted; public-name and legal-steward gates resolved
 - Date: 2026-08-20
 - Scope: Source, documentation, contributions, releases, upstream attribution,
   project decisions, and security governance
@@ -13,7 +13,9 @@ and Graft. It needs a predictable outbound license, a lightweight way for
 contributors to certify provenance, transparent decision records, and controls
 for security-sensitive changes.
 
-The final legal steward and trademark position are not yet documented. A
+BoldtHaus Studio, LLC is the legal project steward and initial copyright holder.
+The founder confirmed Impresari Context as the public project name on
+2026-08-22. A
 software license does not resolve ownership, trademark, patent, attribution, or
 public-name questions by itself.
 
@@ -58,8 +60,8 @@ material governance decision requiring a new ADR and contributor impact review.
 
 ### Initial steward and maintainer model
 
-- The founder is the provisional project lead and initial maintainer until a
-  legal steward and additional maintainers are recorded.
+- Aaron Boldt is the initial project lead and maintainer. BoldtHaus Studio, LLC
+  is the legal steward and initial copyright holder.
 - `GOVERNANCE.md` will define roles, appointment/removal, decision authority,
   conflicts, inactivity, and succession.
 - `MAINTAINERS.md` will identify current maintainers and security/release
@@ -166,8 +168,9 @@ Before a public repository or package is created under **Impresari Context**:
    and governance contacts are accurate;
 5. confirm that no private AI App Builder OS content or credentials are present.
 
-Local development may continue under the internal working name without claiming
-public trademark clearance.
+The public-name portion of this gate was confirmed by the founder on 2026-08-22.
+This project record documents that product decision but is not legal advice or a
+trademark registration.
 
 ## Rationale
 

@@ -1,16 +1,23 @@
 # Security policy
 
-## Current status
+## Reporting a vulnerability
 
-Impresari Context has no released versions and this local repository is not a
-public reporting channel. A monitored private security contact must be added
-before publication. Do not open public issues containing secrets, private source
-code, exploit details, or personal data.
+Use GitHub's **Report a vulnerability** button on this repository's Security
+page. This sends the report privately to the maintainer without requiring a
+public email address. The maintainer must enable private vulnerability reporting
+when the repository becomes public and keep GitHub security notifications
+monitored.
+
+Do not open public issues containing vulnerabilities, secrets, private source
+code, exploit details, or personal data. If the private reporting button is not
+available, open a public issue containing no sensitive details and ask the
+maintainer (`@tdloB`) to establish a private channel.
 
 ## Supported versions
 
-No versions are currently supported. This section will be updated with the
-first release.
+Until `v0.1.0` is published, no versions are supported. After publication, the
+latest `0.1.x` release will receive security fixes; older prerelease builds are
+unsupported.
 
 ## Handling
 

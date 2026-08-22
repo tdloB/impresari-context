@@ -30,9 +30,9 @@ capabilities over bounded newline-delimited JSON-RPC. Its launch configuration
 fixes the authorized workspace, cache, consumer identity, and role; MCP cannot
 broaden them.
 
-This is not a public release. The name remains provisional, executable or
+This is a release candidate, not yet a published release. Executable or
 privileged extensions and long-lived transports remain separately gated, and
-package publication and release remain gated. The complete local gate and
+package publication remains gated. The complete local gate and
 hosted Tier A matrix and native clean-install release-candidate rehearsals pass.
 The release provenance/signing decision and independent review remain
 public-release requirements.
@@ -148,6 +148,6 @@ Give AI agents the repository evidence they need and give humans a reliable way 
 ## License and contributions
 
 Original project work is licensed under Apache License 2.0. Contributions use
-DCO 1.1 sign-off and contributor-retained copyright. The legal steward,
-security contact, enforcement contact, and owner/counsel/public-name gates in
-ADR-0008 remain unresolved and must be completed before publication.
+DCO 1.1 sign-off and contributor-retained copyright. Security concerns should
+be reported through GitHub's private vulnerability reporting channel after the
+repository becomes public; they should never be placed in a public issue.
