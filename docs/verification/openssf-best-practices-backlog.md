@@ -113,6 +113,33 @@ Acceptance evidence:
 - At least one recent material feature change has reviewable commits or pull
   request evidence connecting the functionality to its automated tests.
 
+### Human secure-development knowledge (`know_secure_design`, `know_common_errors`)
+
+AI-assisted analysis and automated security tooling do not establish that a
+primary human developer satisfies the OpenSSF secure-development knowledge
+criteria.
+
+Required work:
+
+- Designate at least one primary human developer who can substantiate secure
+  software design knowledge appropriate to a local repository-context engine.
+- Ensure that developer can identify the project's common vulnerability classes
+  and at least one practical mitigation for each, including path traversal and
+  link attacks, resource exhaustion, injection and untrusted-content handling,
+  stale or substituted evidence, sensitive-data disclosure, unsafe dependency
+  behavior, and process or protocol boundary failures.
+- Record suitable training, demonstrated experience, or an independent
+  security-review relationship without publishing unnecessary personal data.
+
+Acceptance evidence:
+
+- A named primary human developer or retained security reviewer satisfies the
+  applicable OpenSSF criterion details.
+- The public security or governance documentation identifies the responsible
+  role and relevant secure-development process.
+- The badge justification cites verifiable, non-sensitive evidence rather than
+  treating AI output or scanners as human expertise.
+
 ## Tracking rule
 
 Add any later unknown or unmet badge criterion to this file with its criterion
