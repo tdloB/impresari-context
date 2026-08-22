@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/extension-contract.schema.json",
+  "title": "Integrity-pinned extension manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "extension_id", "extension_version", "publisher", "artifact_digest", "engine_contract", "kind", "requested_capabilities", "max_output_bytes", "deterministic", "model_dependent", "data_retention", "output_fields"],
+  "properties": {
+    "schema_name": {"const": "extension-manifest"},
+    "schema_version": {"const": "1.0.0"},
+    "extension_id": {"$ref": "#/$defs/extensionIdentifier"},
+    "extension_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "publisher": {"type": "string", "minLength": 1, "maxLength": 256},
+    "artifact_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "engine_contract": {"const": "1.0.0"},
+    "kind": {"$ref": "#/$defs/kind"},
+    "requested_capabilities": {"$ref": "#/$defs/capabilities"},
+    "max_output_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "deterministic": {"type": "boolean"},
+    "model_dependent": {"type": "boolean"},
+    "data_retention": {"const": "none"},
+    "output_fields": {"$ref": "#/$defs/outputFields"}
+  },
+  "$defs": {
+    "extensionIdentifier": {"type": "string", "minLength": 3, "maxLength": 128, "pattern": "^[A-Za-z0-9._-]+$"},
+    "kind": {"enum": ["parser", "retriever", "analyzer", "exporter", "transport"]},
+    "capabilityRequest": {"enum": ["denied", "requested"]},
+    "boundedStrings": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 256}},
+    "outputFields": {"type": "array", "maxItems": 64, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z0-9_]+$"}},
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["workspace_read_scopes", "cache_read", "cache_write", "process", "network_destinations", "environment_keys", "model"],
+      "properties": {
+        "workspace_read_scopes": {"$ref": "#/$defs/boundedStrings"},
+        "cache_read": {"$ref": "#/$defs/capabilityRequest"},
+        "cache_write": {"$ref": "#/$defs/capabilityRequest"},
+        "process": {"$ref": "#/$defs/capabilityRequest"},
+        "network_destinations": {"$ref": "#/$defs/boundedStrings"},
+        "environment_keys": {"$ref": "#/$defs/boundedStrings"},
+        "model": {"$ref": "#/$defs/capabilityRequest"}
+      }
+    },
+    "decision": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "extension_id", "artifact_digest", "output_submission_enabled", "privileged_capabilities_granted", "artifact_execution_authorized", "decision_reason"],
+      "properties": {
+        "schema_name": {"const": "extension-decision"},
+        "schema_version": {"const": "1.0.0"},
+        "extension_id": {"$ref": "#/$defs/extensionIdentifier"},
+        "artifact_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "output_submission_enabled": {"type": "boolean"},
+        "privileged_capabilities_granted": {"const": false},
+        "artifact_execution_authorized": {"const": false},
+        "decision_reason": {"enum": ["artifact_not_pinned", "capability_not_authorized", "bounded_output_submission_only"]}
+      }
+    },
+    "output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "extension_id", "extension_version", "artifact_digest", "kind", "output_fields", "payload", "claims_exact_source_authority"],
+      "properties": {
+        "schema_name": {"const": "extension-output"},
+        "schema_version": {"const": "1.0.0"},
+        "extension_id": {"$ref": "#/$defs/extensionIdentifier"},
+        "extension_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+        "artifact_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "kind": {"$ref": "#/$defs/kind"},
+        "output_fields": {"$ref": "#/$defs/outputFields"},
+        "payload": {},
+        "claims_exact_source_authority": {"const": false}
+      }
+    },
+    "normalizedOutput": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "extension_id", "artifact_digest", "envelope_digest", "trust", "payload", "authority_added"],
+      "properties": {
+        "schema_name": {"const": "normalized-extension-output"},
+        "schema_version": {"const": "1.0.0"},
+        "extension_id": {"$ref": "#/$defs/extensionIdentifier"},
+        "artifact_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "envelope_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "trust": {"const": "untrusted_derived_data"},
+        "payload": {},
+        "authority_added": {"const": false}
+      }
+    },
+    "quarantine": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "extension_id", "envelope_digest", "received_bytes", "reason", "authority_added"],
+      "properties": {
+        "schema_name": {"const": "extension-quarantine"},
+        "schema_version": {"const": "1.0.0"},
+        "extension_id": {"$ref": "#/$defs/extensionIdentifier"},
+        "envelope_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "received_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "reason": {"enum": ["extension_not_authorized", "output_limit_exceeded", "invalid_output_contract", "output_identity_or_authority_mismatch"]},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

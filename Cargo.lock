@@ -219,6 +219,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-extensions"
+version = "0.0.0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "context-reference-client"
 version = "0.0.0"
 dependencies = [

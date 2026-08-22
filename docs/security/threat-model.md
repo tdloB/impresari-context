@@ -265,6 +265,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-035 | Build/release compromise | CI, action, toolchain, or package account publishes altered binary | Pin CI actions/toolchains, least privilege, protected releases, reproducible/provenance plan, signing decision | Release rehearsal | CI/platform compromise |
 | SEC-T-036 | Provenance/license contamination | Upstream code copied without compliance | Contribution rules, review checklist, dependency notices, original fixtures, source-reuse gate | Review + inventory | Contributor misrepresentation |
 | SEC-T-037 | Unsafe automatic update | Binary/extensions update during sensitive work | No self-update; explicit user-controlled upgrade; version surfaced | Network/behavior test | Package manager policy outside engine |
+| SEC-T-038 | Extension declaration/output spoofing | Untrusted manifest or output claims a trusted identity, exact evidence, control authority, or excessive payload | Closed manifest/output schemas; exact local digest pins; zero privileged grants; pre-parse length bound; identity matching; untrusted-derived label; metadata-only quarantine | Contract, pinning, spoofing, authority, unknown-field, and size tests | Digest pin is not publisher authentication; downstream consumers can still misuse untrusted payload text |
 
 ### Future-scope threats
 
@@ -297,6 +298,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-REQ-011 | Produce an SBOM/dependency inventory and complete license/provenance review for release candidates |
 | SEC-REQ-012 | Document local-user, filesystem, backup, and host-compromise residual risks |
 | SEC-REQ-013 | Launch structural parsing only through the pinned ADR-0010 worker and validate complete output before graph promotion |
+| SEC-REQ-014 | Keep general extension loading and privileged grants absent while enforcing closed digest-pinned declarations and metadata-only quarantine for submitted output |
 
 ## Verification Strategy
 

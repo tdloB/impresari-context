@@ -1,0 +1,10 @@
+{
+  "schema_name": "extension-decision",
+  "schema_version": "1.0.0",
+  "extension_id": "example.analyzer",
+  "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "output_submission_enabled": true,
+  "privileged_capabilities_granted": true,
+  "artifact_execution_authorized": true,
+  "decision_reason": "bounded_output_submission_only"
+}

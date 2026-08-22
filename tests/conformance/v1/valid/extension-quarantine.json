@@ -1,0 +1,9 @@
+{
+  "schema_name": "extension-quarantine",
+  "schema_version": "1.0.0",
+  "extension_id": "example.analyzer",
+  "envelope_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "received_bytes": "128",
+  "reason": "invalid_output_contract",
+  "authority_added": false
+}

@@ -170,6 +170,11 @@ No extension may:
 - broaden its capabilities at runtime;
 - update itself inside an engine session.
 
+The Slice D v1 contract is intentionally narrower than an extension host. It
+validates digest-pinned declarations and bounded externally supplied output but
+does not load or execute artifacts. Every privileged capability remains denied.
+Declaring an operation as a `transport` does not expose MCP, HTTP, or a socket.
+
 ## 8. Failure boundaries
 
 - Index failure leaves exact reads available and marks structural results

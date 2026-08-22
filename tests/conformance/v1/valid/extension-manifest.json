@@ -1,0 +1,24 @@
+{
+  "schema_name": "extension-manifest",
+  "schema_version": "1.0.0",
+  "extension_id": "example.analyzer",
+  "extension_version": "1.2.3",
+  "publisher": "example-publisher",
+  "artifact_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "engine_contract": "1.0.0",
+  "kind": "analyzer",
+  "requested_capabilities": {
+    "workspace_read_scopes": [],
+    "cache_read": "denied",
+    "cache_write": "denied",
+    "process": "denied",
+    "network_destinations": [],
+    "environment_keys": [],
+    "model": "denied"
+  },
+  "max_output_bytes": "4096",
+  "deterministic": true,
+  "model_dependent": false,
+  "data_retention": "none",
+  "output_fields": ["findings"]
+}

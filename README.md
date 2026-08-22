@@ -25,6 +25,9 @@ explicit unresolved and truncated states. Slice C adds deterministic
 multi-strategy context plans, consumer-scoped packet references, a thin
 OS-shaped adapter contract, an independent non-OS reference client, and a
 fail-closed native-read fallback decision that never grants filesystem access.
+The first Slice D milestone adds integrity-pinned extension declarations and
+metadata-only output quarantine while keeping all artifact loading, execution,
+network, model, environment, and filesystem capabilities disabled.
 
 This is not a public release. The name remains provisional, additional Slice B
 capabilities and external integrations remain incomplete, and remote repository
@@ -79,6 +82,8 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
 - [ADR-0012](docs/decisions/0012-context-plans-consumer-adapters-and-fallback.md):
   deterministic context plans, thin consumer integration, and governed
   native-read fallback.
+- [ADR-0013](docs/decisions/0013-extension-contracts-without-code-loading.md):
+  pinned extension contracts and output quarantine without a plugin runtime.
 - [ADR index](docs/decisions/README.md): the accepted runtime, platform,
   parser, identity, storage, budget, license, and governance decisions.
 - [Master Product PRD](docs/product/master-prd.md): product mission, users,
