@@ -107,6 +107,11 @@ pub struct SnapshotStatus {
     pub eligible_files: String,
     /// Eligible byte count.
     pub eligible_bytes: String,
+    /// Optional bounded Git HEAD revision.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_revision: Option<String>,
+    /// `unknown` for Git roots or `not_applicable` otherwise.
+    pub working_tree: String,
     /// Explicit omission categories.
     pub skipped: Vec<SkippedSummary>,
 }
@@ -1020,6 +1025,8 @@ fn snapshot_status(snapshot: &WorkspaceSnapshot) -> SnapshotStatus {
         engine_version: ENGINE_VERSION.into(),
         eligible_files: snapshot.artifacts.len().to_string(),
         eligible_bytes: snapshot.eligible_bytes.to_string(),
+        repository_revision: snapshot.repository_revision.clone(),
+        working_tree: snapshot.working_tree.into(),
         skipped: snapshot
             .skipped
             .iter()

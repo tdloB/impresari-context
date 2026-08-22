@@ -7,7 +7,7 @@
   "required": [
     "schema_name", "schema_version", "workspace_identity", "snapshot_id",
     "state", "freshness", "completeness", "discovery_policy", "engine_version",
-    "eligible_files", "eligible_bytes", "skipped"
+    "eligible_files", "eligible_bytes", "working_tree", "skipped"
   ],
   "properties": {
     "schema_name": {"const": "snapshot-status"},

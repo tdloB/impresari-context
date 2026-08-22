@@ -156,6 +156,15 @@ pub struct ExactRead {
     pub bytes: Vec<u8>,
 }
 
+/// Bounded optional repository metadata discovered without executing Git.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RepositoryMetadata {
+    /// Detached or symbolic HEAD object identity when safely resolved.
+    pub revision: Option<String>,
+    /// `unknown` for detected Git metadata or `not_applicable` otherwise.
+    pub working_tree: &'static str,
+}
+
 /// Hard discovery limits selected by the active resource policy.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub struct DiscoveryPolicy {
@@ -254,6 +263,10 @@ pub struct WorkspaceSnapshot {
     pub skipped: BTreeMap<SkipReason, u64>,
     /// True only when no eligibility-affecting omission occurred.
     pub complete: bool,
+    /// Optional safely resolved Git HEAD object identity.
+    pub repository_revision: Option<String>,
+    /// Git working-tree state; currently `unknown` or `not_applicable`.
+    pub working_tree: &'static str,
 }
 
 /// An explicitly authorized, read-only directory capability.
@@ -292,6 +305,70 @@ impl AuthorizedWorkspace {
     #[must_use]
     pub fn identity(&self) -> &str {
         &self.workspace_identity
+    }
+
+    /// Reads bounded Git HEAD metadata relative to the workspace capability.
+    ///
+    /// External `gitdir` files, links, malformed refs, missing objects, and
+    /// unsupported layouts are never followed and produce an unknown state.
+    #[must_use]
+    pub fn repository_metadata(&self) -> RepositoryMetadata {
+        let metadata = match self.root.symlink_metadata(".git") {
+            Ok(metadata) => metadata,
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                return RepositoryMetadata {
+                    revision: None,
+                    working_tree: "not_applicable",
+                };
+            }
+            Err(_) => {
+                return RepositoryMetadata {
+                    revision: None,
+                    working_tree: "unknown",
+                };
+            }
+        };
+        if metadata.file_type().is_symlink() || !metadata.is_dir() {
+            return RepositoryMetadata {
+                revision: None,
+                working_tree: "unknown",
+            };
+        }
+        RepositoryMetadata {
+            revision: self.git_head_revision(),
+            working_tree: "unknown",
+        }
+    }
+
+    fn git_head_revision(&self) -> Option<String> {
+        let head_path = PathIdentity::from_relative_path(Path::new(".git/HEAD")).ok()?;
+        let head = self.read_exact(&head_path, 4096).ok()?;
+        let value = std::str::from_utf8(&head.bytes).ok()?.trim();
+        if let Some(reference) = value.strip_prefix("ref: ") {
+            let relative = PathBuf::from(".git").join(reference);
+            let identity = PathIdentity::from_relative_path(&relative).ok()?;
+            if let Ok(reference_bytes) = self.read_exact(&identity, 4096) {
+                return normalized_git_object(
+                    std::str::from_utf8(&reference_bytes.bytes).ok()?.trim(),
+                );
+            }
+            return self.packed_git_reference(reference);
+        }
+        normalized_git_object(value)
+    }
+
+    fn packed_git_reference(&self, reference: &str) -> Option<String> {
+        let path = PathIdentity::from_relative_path(Path::new(".git/packed-refs")).ok()?;
+        let packed = self.read_exact(&path, 1_048_576).ok()?;
+        let text = std::str::from_utf8(&packed.bytes).ok()?;
+        text.lines().find_map(|line| {
+            let (object, name) = line.split_once(' ')?;
+            if name == reference {
+                normalized_git_object(object)
+            } else {
+                None
+            }
+        })
     }
 
     /// Checks whether an ambient directory resolves to this authorized root
@@ -415,6 +492,7 @@ impl AuthorizedWorkspace {
             .skipped
             .keys()
             .all(|reason| !skip_affects_completeness(*reason));
+        let repository = self.repository_metadata();
         Ok(WorkspaceSnapshot {
             workspace_identity: self.workspace_identity.clone(),
             snapshot_id,
@@ -423,6 +501,8 @@ impl AuthorizedWorkspace {
             eligible_bytes: state.eligible_bytes,
             complete,
             skipped: state.skipped,
+            repository_revision: repository.revision,
+            working_tree: repository.working_tree,
         })
     }
 }
@@ -564,6 +644,14 @@ fn discover_directory(
         }
     }
     Ok(())
+}
+
+fn normalized_git_object(value: &str) -> Option<String> {
+    if matches!(value.len(), 40 | 64) && value.bytes().all(|byte| byte.is_ascii_hexdigit()) {
+        Some(value.to_ascii_lowercase())
+    } else {
+        None
+    }
 }
 
 fn snapshot_identity(
@@ -978,5 +1066,71 @@ mod tests {
         assert_eq!(snapshot.artifacts.len(), 1);
         assert!(!snapshot.complete);
         assert_eq!(snapshot.skipped.get(&SkipReason::LimitReached), Some(&1));
+    }
+
+    #[test]
+    fn git_metadata_is_bounded_capability_relative_and_never_executes_git() {
+        const REVISION: &str = "0123456789abcdef0123456789abcdef01234567";
+        let branch = TestRoot::new();
+        fs::create_dir_all(branch.0.join(".git/refs/heads")).expect("refs");
+        fs::write(branch.0.join(".git/HEAD"), b"ref: refs/heads/main\n").expect("head");
+        fs::write(
+            branch.0.join(".git/refs/heads/main"),
+            format!("{REVISION}\n"),
+        )
+        .expect("branch ref");
+        let metadata = AuthorizedWorkspace::open(&branch.0)
+            .expect("workspace")
+            .repository_metadata();
+        assert_eq!(metadata.revision.as_deref(), Some(REVISION));
+        assert_eq!(metadata.working_tree, "unknown");
+
+        fs::write(branch.0.join(".git/HEAD"), format!("{REVISION}\n")).expect("detached head");
+        assert_eq!(
+            AuthorizedWorkspace::open(&branch.0)
+                .expect("workspace")
+                .repository_metadata()
+                .revision
+                .as_deref(),
+            Some(REVISION)
+        );
+
+        let packed = TestRoot::new();
+        fs::create_dir(packed.0.join(".git")).expect("git directory");
+        fs::write(packed.0.join(".git/HEAD"), b"ref: refs/heads/release\n").expect("head");
+        fs::write(
+            packed.0.join(".git/packed-refs"),
+            format!("# pack-refs\n{REVISION} refs/heads/release\n"),
+        )
+        .expect("packed refs");
+        assert_eq!(
+            AuthorizedWorkspace::open(&packed.0)
+                .expect("workspace")
+                .repository_metadata()
+                .revision
+                .as_deref(),
+            Some(REVISION)
+        );
+
+        let external = TestRoot::new();
+        fs::write(
+            external.0.join(".git"),
+            b"gitdir: /outside/not-authorized\n",
+        )
+        .expect("gitdir file");
+        let metadata = AuthorizedWorkspace::open(&external.0)
+            .expect("workspace")
+            .repository_metadata();
+        assert_eq!(metadata.revision, None);
+        assert_eq!(metadata.working_tree, "unknown");
+
+        let plain = TestRoot::new();
+        assert_eq!(
+            AuthorizedWorkspace::open(&plain.0)
+                .expect("workspace")
+                .repository_metadata()
+                .working_tree,
+            "not_applicable"
+        );
     }
 }

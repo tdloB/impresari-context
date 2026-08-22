@@ -22,7 +22,7 @@ environment outside approval A-0029 and do not authorize that action.
 | MVP-FR-006 | Pass | `SkippedSummary` aggregates safe reason/count fields without object names. |
 | MVP-FR-007 | Pass | Every exact read re-resolves relative capability paths and rechecks metadata/hash. |
 | MVP-FR-008 | Pass | Workspace snapshot identity includes workspace, artifact hashes, discovery policy, and versioned identity contract. |
-| MVP-FR-009 | Partial | Snapshot schema permits revision/tree fields, but runtime does not yet report optional Git metadata. |
+| MVP-FR-009 | Pass | Bounded capability-relative HEAD/loose-ref/packed-ref reads report revision when safe; tree state is `unknown` or `not_applicable`; no Git process or external `gitdir` is followed. |
 | MVP-FR-010 | Pass | Workspace-identity namespace, snapshot-bound generations, writer exclusion, replaceable cache. |
 | MVP-FR-011 | Pass | Tamper, incompatible metadata, failed promotion, abrupt restart, and safe corruption tests. |
 | MVP-FR-012 | Pass | Lexical cache yields candidates only; source bytes/hash are reverified before evidence. |
@@ -94,13 +94,12 @@ environment outside approval A-0029 and do not authorize that action.
 | Adversarial corpus | Partial | Relevant local classes are covered; platform-specific and race expansion continues under SEC-REQ-010. |
 | 6 small + 4 medium public repositories | Externally gated | Download/fetch and license admission require explicit external-action approval. |
 | 2 large/monorepo or approved generated equivalents | Pass locally | Two nested generated profiles (2,000/5,000 files), five cold/warm samples, timing percentiles, cache ratio, measured macOS RSS, and partial-limit evidence. |
-| Reproducibility metadata | Partial | Manifest/lock/toolchain/config are recorded; engine Git revision, host/resource curves, raw result digests, and deviations need the scale/release report. |
+| Reproducibility metadata | Partial | Manifest/lock/toolchain/config, bounded engine Git revision, generated scale curves, host/RSS evidence, and deviations are recorded; raw result digests and native release-platform evidence remain release work. |
 
 ## Remaining Authorized Local Work
 
-1. Decide and implement safe optional Git revision/working-tree metadata without
-   process execution (`MVP-FR-009`), or record a scoped deferral before release.
-2. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
+None. The final L05, Rust 1.96/1.97/stable, security, dependency, SBOM,
+network-denied, conformance, evaluation, scale, and fault gates pass locally.
 
 ## Preserved Gates
 
