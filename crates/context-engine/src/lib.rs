@@ -7,7 +7,7 @@ use std::{
     fs::{self, OpenOptions},
     io::Write as _,
     path::{Path, PathBuf},
-    time::Duration,
+    time::{Duration, Instant},
 };
 
 use context_core::{
@@ -221,6 +221,7 @@ impl LocalEngine {
         context: &RequestContext,
         root: &Path,
     ) -> Result<(Self, WorkspaceHandle), EngineError> {
+        let started = Instant::now();
         let decision = authorize(context, None, Capability::WorkspaceOpen, None)?;
         let mut audit = AuditStore::open(&config.cache_root)
             .map_err(|error| cache_error(context, Capability::WorkspaceOpen, error.code(), None))?;
@@ -238,6 +239,7 @@ impl LocalEngine {
                     AuditOutcome::Failed,
                     None,
                     None,
+                    elapsed_ms(started),
                 )?;
                 return Err(public);
             }
@@ -257,6 +259,7 @@ impl LocalEngine {
             &decision,
             Capability::WorkspaceOpen,
             AuditOutcome::Allowed,
+            elapsed_ms(started),
         )?;
         let response = WorkspaceHandle {
             schema_name: "workspace-handle".into(),
@@ -279,6 +282,7 @@ impl LocalEngine {
         context: &RequestContext,
         budget: ResourceBudget,
     ) -> Result<SnapshotStatus, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::SnapshotBuild, Some(budget))?;
         let result = self
             .workspace
@@ -297,6 +301,7 @@ impl LocalEngine {
             Capability::SnapshotBuild,
             AuditOutcome::Allowed,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -324,6 +329,7 @@ impl LocalEngine {
         budget: ResourceBudget,
         expected_snapshot: Option<&str>,
     ) -> Result<SnapshotStatus, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::SnapshotStatus, Some(budget))?;
         let result = if expected_snapshot.is_some_and(|expected| !valid_sha256(expected)) {
             Err(failure(
@@ -364,6 +370,7 @@ impl LocalEngine {
             Capability::SnapshotStatus,
             AuditOutcome::Allowed,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -379,10 +386,18 @@ impl LocalEngine {
         query: &str,
         budget: &ResourceBudget,
     ) -> Result<SearchResponse, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::CodeSearch, Some(budget.clone()))?;
         let result = self.search_internal(context, Capability::CodeSearch, kind, query, budget);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, audit_outcome);
-        self.finalize(context, &decision, Capability::CodeSearch, outcome, result)
+        self.finalize(
+            context,
+            &decision,
+            Capability::CodeSearch,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
     }
 
     /// Builds a bounded immutable context packet using the same retrieval path.
@@ -397,6 +412,7 @@ impl LocalEngine {
         query: &str,
         budget: ResourceBudget,
     ) -> Result<ContextPacket, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
         let result = self
             .search_internal(context, Capability::ContextBuild, kind, query, &budget)
@@ -425,6 +441,7 @@ impl LocalEngine {
             Capability::ContextBuild,
             AuditOutcome::Allowed,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -443,6 +460,7 @@ impl LocalEngine {
         max_bytes: u64,
         budget: ResourceBudget,
     ) -> Result<EvidenceRecord, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::EvidenceExpand, Some(budget))?;
         let result = self
             .snapshot
@@ -482,6 +500,7 @@ impl LocalEngine {
             Capability::EvidenceExpand,
             AuditOutcome::Allowed,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -497,6 +516,7 @@ impl LocalEngine {
         packet: &ContextPacket,
         budget: ResourceBudget,
     ) -> Result<PacketValidationResult, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextValidate, Some(budget))?;
         let snapshot = self.snapshot.as_ref();
         let authorized = packet.workspace_identity == self.workspace.identity();
@@ -538,6 +558,7 @@ impl LocalEngine {
             Capability::ContextValidate,
             outcome,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -556,6 +577,7 @@ impl LocalEngine {
         export_root: &Path,
         destination_name: &str,
     ) -> Result<HandoffReceipt, EngineError> {
+        let started = Instant::now();
         let decision = self.authorize(context, Capability::HandoffExport, Some(budget.clone()))?;
         let result =
             self.export_handoff_inner(context, packet, budget, export_root, destination_name);
@@ -565,6 +587,7 @@ impl LocalEngine {
             Capability::HandoffExport,
             AuditOutcome::Allowed,
             result,
+            elapsed_ms(started),
         )
     }
 
@@ -822,6 +845,7 @@ impl LocalEngine {
         decision: &PolicyDecision,
         capability: Capability,
         outcome: AuditOutcome,
+        duration_ms: u64,
     ) -> Result<(), EngineError> {
         record_event(
             &mut self.audit,
@@ -834,6 +858,7 @@ impl LocalEngine {
             self.snapshot
                 .as_ref()
                 .map(|snapshot| snapshot.snapshot_id.as_str()),
+            duration_ms,
         )
     }
 
@@ -844,13 +869,14 @@ impl LocalEngine {
         capability: Capability,
         success_outcome: AuditOutcome,
         result: Result<T, EngineError>,
+        duration_ms: u64,
     ) -> Result<T, EngineError> {
         let outcome = if result.is_ok() {
             success_outcome
         } else {
             AuditOutcome::Failed
         };
-        self.record(context, decision, capability, outcome)?;
+        self.record(context, decision, capability, outcome, duration_ms)?;
         result
     }
 
@@ -927,6 +953,7 @@ fn record_event(
     outcome: AuditOutcome,
     workspace: Option<&str>,
     snapshot: Option<&str>,
+    duration_ms: u64,
 ) -> Result<(), EngineError> {
     let limits = decision
         .effective_budget
@@ -942,7 +969,7 @@ fn record_event(
         outcome,
         &decision.decision_id,
         limits,
-        0,
+        duration_ms,
         ENGINE_VERSION,
     )
     .map_err(|error| core_error(context, capability, error.code(), (workspace, snapshot)))?;
@@ -1022,6 +1049,12 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
 fn default_budget() -> ResourceBudget {
     ResourceBudget::conservative(1024, 1, 1, 1, 1, 1, 1, 1_048_576)
         .expect("constant minimum budget")
+}
+
+fn elapsed_ms(started: Instant) -> u64 {
+    let nanoseconds = started.elapsed().as_nanos();
+    let rounded_up = nanoseconds.saturating_add(999_999) / 1_000_000;
+    u64::try_from(rounded_up).unwrap_or(u64::MAX)
 }
 
 fn audit_outcome(result: &SearchResponse) -> AuditOutcome {
@@ -1597,6 +1630,16 @@ mod tests {
         );
         assert!(cache.0.join("audit/audit.sqlite3").is_file());
         assert!(cache.0.join("workspaces").is_dir());
+        drop(engine);
+        let audit = AuditStore::open(&cache.0).expect("reopen audit");
+        let events = audit.recent(100).expect("audit events");
+        assert!(events.len() >= 13);
+        assert!(events.iter().all(|event| {
+            event
+                .duration_ms
+                .parse::<u64>()
+                .is_ok_and(|duration| duration > 0)
+        }));
     }
 
     #[test]
