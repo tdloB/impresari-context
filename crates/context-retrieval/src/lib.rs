@@ -8,6 +8,11 @@ use std::{
     time::{Duration, Instant},
 };
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use context_core::{
+    EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction, EvidencePath, EvidenceRecord,
+    EvidenceSpan,
+};
 use context_store::{CacheError, CachedArtifact, WorkspaceCache};
 use context_workspace::{AuthorizedWorkspace, PathIdentity, WorkspaceError, WorkspaceSnapshot};
 use sha2::{Digest, Sha256};
@@ -135,6 +140,10 @@ pub struct Evidence {
     pub match_start_in_excerpt: u64,
     /// Offset of the match end within `excerpt`.
     pub match_end_in_excerpt: u64,
+    /// Source decoding classification.
+    pub decoding: &'static str,
+    /// Extraction method that produced the match.
+    pub extraction_method: &'static str,
 }
 
 /// Deterministic bounded search result.
@@ -212,6 +221,7 @@ pub fn search_literal(
             .collect::<Vec<_>>(),
         &[needle.to_vec()],
         false,
+        "literal_search",
         budget,
     )
 }
@@ -249,7 +259,111 @@ pub fn search_lexical(
         .iter()
         .map(|term| term.as_bytes().to_vec())
         .collect::<Vec<_>>();
-    search_candidates(workspace, snapshot, &candidates, &needles, true, budget)
+    search_candidates(
+        workspace,
+        snapshot,
+        &candidates,
+        &needles,
+        true,
+        "lexical_search",
+        budget,
+    )
+}
+
+/// Converts verified in-memory evidence to the public byte-safe wire contract.
+#[must_use]
+pub fn evidence_record(evidence: &Evidence) -> EvidenceRecord {
+    EvidenceRecord {
+        schema_name: "evidence".into(),
+        schema_version: "1.0.0".into(),
+        evidence_id: evidence.evidence_id.clone(),
+        workspace_snapshot: evidence.workspace_snapshot.clone(),
+        artifact: EvidenceArtifact {
+            path: EvidencePath {
+                display_path: evidence.path.display_path.clone(),
+                platform_family: evidence.path.platform_family.into(),
+                unit_encoding: evidence.path.unit_encoding.into(),
+                relative_units_base64url: evidence.path.relative_units_base64url.clone(),
+            },
+            content_hash: evidence.content_hash.clone(),
+            file_kind: "regular_file".into(),
+            decoding: evidence.decoding.into(),
+        },
+        span: EvidenceSpan {
+            start_byte: evidence.start_byte.to_string(),
+            end_byte: evidence.end_byte.to_string(),
+        },
+        excerpt: EvidenceExcerpt {
+            encoding: "base64url".into(),
+            bytes_base64url: URL_SAFE_NO_PAD.encode(&evidence.excerpt),
+            match_start_byte: evidence.match_start_in_excerpt.to_string(),
+            match_end_byte: evidence.match_end_in_excerpt.to_string(),
+        },
+        kind: "exact_source".into(),
+        extraction: EvidenceExtraction {
+            method: evidence.extraction_method.into(),
+            version: "1.0.0".into(),
+        },
+        confidence: "confirmed".into(),
+        trust: "untrusted_workspace_content".into(),
+        freshness: "current".into(),
+        sensitivity: Some("normal".into()),
+    }
+}
+
+/// Expands evidence around its exact span under a separate hard byte ceiling.
+///
+/// # Errors
+///
+/// Fails when the evidence/snapshot binding is invalid, current source differs,
+/// or the requested match itself cannot fit within the expansion ceiling.
+pub fn expand_evidence(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    evidence: &Evidence,
+    before_bytes: u64,
+    after_bytes: u64,
+    max_bytes: u64,
+) -> Result<Evidence, RetrievalError> {
+    if max_bytes == 0 || max_bytes > 65_536 || evidence.workspace_snapshot != snapshot.snapshot_id {
+        return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+    }
+    let artifact = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| {
+            artifact.path.relative_units_base64url == evidence.path.relative_units_base64url
+                && artifact.content_hash == evidence.content_hash
+        })
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::StaleState))?;
+    let exact = workspace
+        .read_exact(&artifact.path, artifact.size_bytes.max(1))
+        .map_err(map_workspace)?;
+    if exact.content_hash != artifact.content_hash {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    let start = usize::try_from(evidence.start_byte)
+        .map_err(|_| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    let end = usize::try_from(evidence.end_byte)
+        .map_err(|_| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    let max = usize::try_from(max_bytes).unwrap_or(usize::MAX);
+    if start > end || end > exact.bytes.len() || end - start > max {
+        return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+    }
+    let before = usize::try_from(before_bytes)
+        .unwrap_or(usize::MAX)
+        .min(max - (end - start));
+    let excerpt_start = start.saturating_sub(before);
+    let remaining = max - (end - excerpt_start);
+    let after = usize::try_from(after_bytes)
+        .unwrap_or(usize::MAX)
+        .min(remaining);
+    let excerpt_end = end.saturating_add(after).min(exact.bytes.len());
+    let mut expanded = evidence.clone();
+    expanded.excerpt = exact.bytes[excerpt_start..excerpt_end].to_vec();
+    expanded.match_start_in_excerpt = u64::try_from(start - excerpt_start).unwrap_or(u64::MAX);
+    expanded.match_end_in_excerpt = u64::try_from(end - excerpt_start).unwrap_or(u64::MAX);
+    Ok(expanded)
 }
 
 fn search_candidates(
@@ -258,6 +372,7 @@ fn search_candidates(
     candidates: &[String],
     needles: &[Vec<u8>],
     ascii_case_insensitive: bool,
+    extraction_method: &'static str,
     budget: SearchBudget,
 ) -> Result<SearchResult, RetrievalError> {
     if workspace.identity() != snapshot.workspace_identity {
@@ -313,6 +428,7 @@ fn search_candidates(
                     start,
                     start + needle.len(),
                     budget.max_excerpt_bytes,
+                    extraction_method,
                 ));
             }
             if reasons.contains(&"match_limit") {
@@ -348,6 +464,7 @@ fn make_evidence(
     start: usize,
     end: usize,
     max_excerpt: u64,
+    extraction_method: &'static str,
 ) -> Evidence {
     let cap = usize::try_from(max_excerpt).unwrap_or(usize::MAX);
     let wanted = end - start;
@@ -368,6 +485,12 @@ fn make_evidence(
         excerpt: bytes[excerpt_start..excerpt_end].to_vec(),
         match_start_in_excerpt: (start - excerpt_start) as u64,
         match_end_in_excerpt: (end - excerpt_start) as u64,
+        decoding: if std::str::from_utf8(bytes).is_ok() {
+            "utf8"
+        } else {
+            "unsupported"
+        },
+        extraction_method,
     }
 }
 
@@ -523,5 +646,53 @@ mod tests {
         let result = search_literal(&workspace, &snapshot, b"a", budget).expect("search");
         assert_eq!(result.matches.len(), 1);
         assert_eq!(result.truncation_reasons, vec!["match_limit"]);
+    }
+
+    #[test]
+    fn expansion_rechecks_source_and_emits_byte_safe_wire_evidence() {
+        let (_source, _cache_root, workspace, snapshot, _cache) = setup();
+        let budget = SearchBudget::new(10, 10, 5, Duration::from_secs(1)).expect("budget");
+        let original = search_literal(&workspace, &snapshot, b"beta", budget)
+            .expect("search")
+            .matches
+            .remove(0);
+        let expanded = expand_evidence(&workspace, &snapshot, &original, 6, 1, 11).expect("expand");
+        assert_eq!(expanded.excerpt, b"alpha beta\n");
+        assert_eq!(
+            (
+                expanded.match_start_in_excerpt,
+                expanded.match_end_in_excerpt
+            ),
+            (6, 10)
+        );
+
+        let wire = evidence_record(&expanded);
+        assert_eq!(wire.schema_name, "evidence");
+        assert_eq!(wire.span.start_byte, "12");
+        assert_eq!(wire.span.end_byte, "16");
+        assert_eq!(wire.excerpt.bytes_base64url, "YWxwaGEgYmV0YQo");
+    }
+
+    #[test]
+    fn expansion_rejects_changed_source_and_an_undersized_ceiling() {
+        let (source, _cache_root, workspace, snapshot, _cache) = setup();
+        let budget = SearchBudget::new(10, 10, 5, Duration::from_secs(1)).expect("budget");
+        let original = search_literal(&workspace, &snapshot, b"beta", budget)
+            .expect("search")
+            .matches
+            .remove(0);
+        assert_eq!(
+            expand_evidence(&workspace, &snapshot, &original, 0, 0, 3)
+                .expect_err("ceiling")
+                .code(),
+            RetrievalErrorCode::ResourceLimit
+        );
+        fs::write(source.0.join("sample.txt"), b"changed\n").expect("mutate fixture");
+        assert_eq!(
+            expand_evidence(&workspace, &snapshot, &original, 1, 1, 8)
+                .expect_err("stale")
+                .code(),
+            RetrievalErrorCode::StaleState
+        );
     }
 }

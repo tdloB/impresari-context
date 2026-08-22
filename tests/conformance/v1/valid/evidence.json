@@ -22,6 +22,12 @@
     "end_line": "1",
     "end_column": "13"
   },
+  "excerpt": {
+    "encoding": "base64url",
+    "bytes_base64url": "cHViIGZuIG1haW4o",
+    "match_start_byte": "0",
+    "match_end_byte": "12"
+  },
   "kind": "exact_source",
   "extraction": {"method": "exact_read", "version": "1.0.0"},
   "confidence": "confirmed",

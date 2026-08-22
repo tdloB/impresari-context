@@ -12,6 +12,7 @@ publish.workspace = true
 workspace = true
 
 [dev-dependencies]
+context-core = { version = "=0.0.0", path = "../context-core" }
 jsonschema = { version = "=0.50.0", default-features = false }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 sha2 = { version = "=0.11.0", default-features = false }

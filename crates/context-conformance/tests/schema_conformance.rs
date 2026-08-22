@@ -8,6 +8,11 @@ use jsonschema::Registry;
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
+use context_core::{
+    ContextPacket, EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction, EvidencePath,
+    EvidenceRecord, EvidenceSpan, PacketDraft, ResourceBudget, build_packet, packet_bytes,
+};
+
 fn repository_root() -> PathBuf {
     PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../..")
@@ -203,4 +208,86 @@ fn resource_policy_boundary_vectors_match_the_profile() {
             "boundary verdict mismatch for {name}={value}"
         );
     }
+}
+
+#[test]
+fn rust_packet_output_satisfies_the_published_schema() {
+    let root = repository_root();
+    let schema_root = root.join("schemas/v1");
+    let registry_document = read_json(&schema_root.join("registry.json"));
+    let mut registry = Registry::new();
+    for entry in registry_document["schemas"].as_array().expect("schemas") {
+        let path = entry["path"].as_str().expect("schema path");
+        if path.ends_with(".schema.json") {
+            let schema = read_json(&schema_root.join(path));
+            let id = schema["$id"].as_str().expect("schema id").to_owned();
+            registry = registry.add(id, schema).expect("register schema");
+        }
+    }
+    let registry = registry.prepare().expect("prepare registry");
+    let schema = read_json(&schema_root.join("context-packet.schema.json"));
+    let validator = jsonschema::draft202012::options()
+        .with_registry(&registry)
+        .should_validate_formats(true)
+        .build(&schema)
+        .expect("packet validator");
+    let hash_a = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+    let hash_b = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+    let budget = ResourceBudget::conservative(4096, 10, 10, 128, 100, 32, 30_000, 536_870_912)
+        .expect("budget");
+    let evidence = EvidenceRecord {
+        schema_name: "evidence".into(),
+        schema_version: "1.0.0".into(),
+        evidence_id: hash_b.into(),
+        workspace_snapshot: hash_a.into(),
+        artifact: EvidenceArtifact {
+            path: EvidencePath {
+                display_path: "a.rs".into(),
+                platform_family: "unix".into(),
+                unit_encoding: "unix_bytes".into(),
+                relative_units_base64url: "YS5ycw".into(),
+            },
+            content_hash: hash_b.into(),
+            file_kind: "regular_file".into(),
+            decoding: "utf8".into(),
+        },
+        span: EvidenceSpan {
+            start_byte: "0".into(),
+            end_byte: "1".into(),
+        },
+        excerpt: EvidenceExcerpt {
+            encoding: "base64url".into(),
+            bytes_base64url: "eA".into(),
+            match_start_byte: "0".into(),
+            match_end_byte: "1".into(),
+        },
+        kind: "exact_source".into(),
+        extraction: EvidenceExtraction {
+            method: "literal_search".into(),
+            version: "1.0.0".into(),
+        },
+        confidence: "confirmed".into(),
+        trust: "untrusted_workspace_content".into(),
+        freshness: "current".into(),
+        sensitivity: Some("normal".into()),
+    };
+    let packet: ContextPacket = build_packet(PacketDraft {
+        workspace_snapshot: hash_a.into(),
+        request_id: "req_12345678".into(),
+        purpose: "conformance".into(),
+        created_at: "2026-08-21T00:00:00Z".into(),
+        policy_decision: hash_b.into(),
+        budget,
+        evidence: vec![evidence],
+        assumptions: Vec::new(),
+        conflicts: Vec::new(),
+        unknowns: Vec::new(),
+        redactions: Vec::new(),
+    })
+    .expect("build packet");
+    let value: Value = serde_json::from_slice(&packet_bytes(&packet).expect("canonical packet"))
+        .expect("packet JSON");
+    validator.validate(&value).unwrap_or_else(|error| {
+        panic!("Rust packet must satisfy context-packet.schema.json: {error}")
+    });
 }

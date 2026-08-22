@@ -21,6 +21,9 @@ scrutiny than test-only dependencies.
 | `cap-std` | 4.0.2 | `context-workspace` | No features; defaults disabled | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Upstream documents Rust 1.70 with defaults; verified by the project Rust 1.96 gate | Capability-relative, cross-platform filesystem access resistant to path escapes |
 | `sha2` | 0.11.0 | `context-workspace` and conformance tests | Defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Domain-separated workspace and content identities |
 | `rusqlite` | 0.40.2 | `context-store` | `bundled`, `limits`; defaults disabled | MIT | Verified by the project Rust 1.96 gate | Transactional isolated cache with a pinned bundled SQLite and runtime limits |
+| `serde` | 1.0.229 | `context-core` | `derive`, `std`; defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Contract serialization with explicit derives |
+| `serde_json` | 1.0.151 | `context-core` and conformance tests | `std`; defaults disabled | MIT OR Apache-2.0 | 1.71 upstream | Strict JSON value and wire encoding |
+| `serde_json_canonicalizer` | 0.3.2 | `context-core` | Defaults disabled | MIT | Verified by the project Rust 1.96 gate | RFC 8785 JCS bytes for identities and hard packet accounting |
 
 `cap-std` is admitted because ambient `std::fs` canonicalize/open sequences
 cannot close symlink-swap races portably. Ambient authority is used exactly once
@@ -32,6 +35,11 @@ SQLite and supplies FTS5; `limits` permits defensive SQLite runtime ceilings.
 `bundled-full`, `load_extension`, `loadable_extension`, WASM, SQLCipher, and
 serialization/integration features are prohibited. SQL is project-authored and
 callers never receive a raw SQL or FTS query surface.
+
+The canonicalizer is used only after typed/schema-constrained construction.
+Untrusted raw JSON is never canonicalized directly, preventing duplicate-key
+normalization from becoming an acceptance path. All identity-bearing numeric
+values remain safe integers or canonical decimal strings per ADR-0009.
 
 `jsonschema` default features are prohibited because they add HTTP, file, and TLS
 resolvers. The test harness supplies every schema through an in-memory prepared

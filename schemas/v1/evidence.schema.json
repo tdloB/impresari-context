@@ -6,7 +6,7 @@
   "additionalProperties": false,
   "required": [
     "schema_name", "schema_version", "evidence_id", "workspace_snapshot",
-    "artifact", "span", "kind", "extraction", "confidence", "trust", "freshness"
+    "artifact", "span", "excerpt", "kind", "extraction", "confidence", "trust", "freshness"
   ],
   "properties": {
     "schema_name": {"const": "evidence"},
@@ -41,6 +41,17 @@
         "start_column": ["start_line", "end_line", "end_column"],
         "end_line": ["start_line", "start_column", "end_column"],
         "end_column": ["start_line", "start_column", "end_line"]
+      }
+    },
+    "excerpt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["encoding", "bytes_base64url", "match_start_byte", "match_end_byte"],
+      "properties": {
+        "encoding": {"const": "base64url"},
+        "bytes_base64url": {"type": "string", "minLength": 1, "maxLength": 87382, "pattern": "^[A-Za-z0-9_-]+$"},
+        "match_start_byte": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "match_end_byte": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
       }
     },
     "kind": {"type": "string", "enum": ["exact_source", "exact_file"]},
