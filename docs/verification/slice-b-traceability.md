@@ -16,6 +16,7 @@ confinement evidence remain open.
 | Local call evidence | Syntax-confirmed call sites are emitted with exact spans; unambiguous same-file name matches are heuristic targets and every other target remains unresolved | Extraction, graph-resolution, confidence, and unknown-state tests |
 | Bounded trace queries | Deterministic outbound traversal enforces node, edge, depth, and serialized-output budgets | Query limit and unresolved-target assertions; engine resource mapping |
 | Public contracts | Closed Draft 2020-12 structural graph and query-result schemas | Contract registry check and offline schema compilation |
+| Thin CLI adapter | Explicit structural build takes a worker path/hash/empty directory; query consumes a graph file and bounded edge selection | Shared engine gateway, CLI parsing, workspace tests, and Clippy |
 | Dependency accountability | Pinned parser/grammar dependencies, expanded threat model, and regenerated SPDX SBOM | Dependency policy, RustSec, license, duplicate, and SBOM gates |
 
 ## Open Slice B Work
@@ -24,7 +25,7 @@ confinement evidence remain open.
 - Add package/directory repository-map views.
 - Persist the derived graph in the isolated replaceable cache.
 - Support deterministic incremental graph refresh.
-- Add CLI/library examples and conformance fixtures for structural build/query.
+- Add independent conformance fixtures for structural build/query.
 - Produce native macOS, Linux, and Windows confinement/resource evidence without
   overstating application-enforced isolation.
 - Extend the evaluation corpus and release thresholds for structural tasks.

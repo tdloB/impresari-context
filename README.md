@@ -45,13 +45,17 @@ cargo run -p context-cli -- --help
 cargo run -p context-cli -- snapshot build <workspace-root> <cache-root>
 cargo run -p context-cli -- search <workspace-root> <cache-root> literal <query>
 cargo run -p context-cli -- context build <workspace-root> <cache-root> lexical <query> <purpose>
+cargo run -p context-cli -- structure build <workspace-root> <cache-root> <worker> <worker-sha256> <empty-dir>
+cargo run -p context-cli -- structure query <workspace-root> <cache-root> <graph-json> <start-node> all
 ```
 
 Each invocation receives the explicit workspace and cache roots. This avoids a
 durable ambient mapping from an opaque handle to an absolute source path. Use
 `--at`, `--cutoff`, and `--id-seed` for deterministic automation and conformance
 tests. See `--help` for evidence recovery, packet validation, snapshot status,
-and handoff export forms.
+handoff export, and structural forms. Structural build never downloads or
+discovers a parser: the embedding distribution must provide the exact worker,
+its expected SHA-256 identity, and an existing empty non-workspace directory.
 
 ## Design documents
 

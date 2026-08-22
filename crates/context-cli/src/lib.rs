@@ -6,6 +6,8 @@ use std::{
     fs,
     io::{self, Write},
     path::Path,
+    path::PathBuf,
+    time::Duration,
     time::{SystemTime, UNIX_EPOCH},
 };
 
@@ -17,6 +19,7 @@ use context_engine::{
     EngineConfig, EngineError, LocalEngine, QueryKind, RequestContext, SnapshotStatus,
 };
 use context_store::AuditRetention;
+use context_structural::{StructuralGraph, WorkerLauncher};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
 
@@ -28,6 +31,8 @@ Usage:\n\
   impresari-context [global-options] snapshot status <root> <cache-root> <expected-snapshot>\n\
   impresari-context [global-options] search <root> <cache-root> <exact_path|filename|literal|lexical> <query>\n\
   impresari-context [global-options] context build <root> <cache-root> <kind> <query> <purpose>\n\
+  impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
+  impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
@@ -184,6 +189,51 @@ fn dispatch(
             Output::new("context build", &result)
         }
         [
+            "structure",
+            "build",
+            root,
+            cache,
+            worker,
+            expected_sha256,
+            empty_directory,
+        ] => {
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let launcher = WorkerLauncher {
+                executable: PathBuf::from(worker),
+                expected_sha256: expected_sha256.to_string(),
+                empty_working_directory: PathBuf::from(empty_directory),
+                timeout: Duration::from_secs(5),
+            };
+            let result = engine.build_structure(
+                &contexts.next("structure_build"),
+                &default_budget(),
+                &launcher,
+            )?;
+            Output::new("structure build", &result)
+        }
+        [
+            "structure",
+            "query",
+            root,
+            cache,
+            graph_path,
+            start_node,
+            edge_kinds,
+        ] => {
+            let graph: StructuralGraph =
+                read_json(Path::new(graph_path), Capability::StructureQuery)?;
+            let edge_kinds = parse_edge_kinds(edge_kinds)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.query_structure(
+                &contexts.next("structure_query"),
+                &graph,
+                start_node,
+                &edge_kinds,
+                &default_budget(),
+            )?;
+            Output::new("structure query", &result)
+        }
+        [
             "evidence",
             "expand",
             root,
@@ -307,6 +357,28 @@ fn parse_kind(value: &str) -> Result<QueryKind, EngineError> {
             "unsupported query kind",
         )),
     }
+}
+
+fn parse_edge_kinds(value: &str) -> Result<Vec<String>, EngineError> {
+    if value == "all" {
+        return Ok(Vec::new());
+    }
+    let kinds = value.split(',').map(str::to_owned).collect::<Vec<_>>();
+    if kinds.is_empty()
+        || kinds.iter().any(|kind| {
+            !matches!(
+                kind.as_str(),
+                "declares" | "contains" | "imports" | "exports" | "calls"
+            )
+        })
+    {
+        return Err(synthetic_error(
+            Capability::StructureQuery,
+            PublicErrorCode::InvalidInput,
+            "unsupported structural edge kind",
+        ));
+    }
+    Ok(kinds)
 }
 
 fn parse_u64(value: &str, capability: Capability) -> Result<u64, EngineError> {
