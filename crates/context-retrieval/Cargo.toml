@@ -12,7 +12,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
+base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
 context-core = { version = "=0.1.0", path = "../context-core" }
 context-store = { version = "=0.1.0", path = "../context-store" }
 context-workspace = { version = "=0.1.0", path = "../context-workspace" }
