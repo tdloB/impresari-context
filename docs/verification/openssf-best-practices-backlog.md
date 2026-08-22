@@ -7,44 +7,26 @@ implemented, reviewed, and linked here.
 
 Badge project: <https://www.bestpractices.dev/en/projects/14209>
 
-## Open items
+## Completed evidence
 
 ### Project interaction instructions (`interact`)
 
-The public project page must clearly explain how to obtain the software, provide
-ordinary bug reports or enhancement feedback, and contribute changes.
-
-Required work:
-
-- Add explicit clone or installation instructions to `README.md`.
-- Add an ordinary bug-report and feature-request path that is distinct from the
-  private vulnerability-reporting path.
-- Link the contribution instructions directly from that section.
-
-Acceptance evidence:
-
-- The public README contains one concise section covering all three paths.
-- Each referenced GitHub URL is public and functional.
+The public README now distinguishes clone/build instructions, ordinary GitHub
+Issues, contribution instructions, and private vulnerability reporting.
 
 ### External-interface reference documentation (`documentation_interface`)
 
-The public documentation must describe the supported external interfaces,
-including their inputs, outputs, versioning, failure behavior, and security
-boundaries.
+`docs/reference/interfaces.md` documents CLI and local MCP inputs, outputs,
+errors, lifecycle, limits, versioning, schemas, and security boundaries.
 
-Required work:
+### New-functionality test policy (`test_policy`, `tests_are_added`, `tests_documented_added`)
 
-- Consolidate the CLI command contract into public reference documentation.
-- Document the local MCP tools, request and response shapes, errors, and
-  process-local lifecycle.
-- Link the applicable JSON schemas and compatibility/versioning rules.
+`CONTRIBUTING.md` and the pull-request template now require test evidence or an
+approved exception. The local MCP feature supplies recent evidence: protocol,
+lifecycle, authority, direct-engine equivalence, and adversarial tests are
+mapped in `docs/verification/mcp-release-traceability.md`.
 
-Acceptance evidence:
-
-- A user can integrate with the CLI or MCP interface using public documentation
-  without reading implementation source.
-- The reference documentation links to the normative schemas and is checked
-  against the implemented interface during CI or release verification.
+## Open items
 
 ### Release versioning and tags (`version_unique`, `version_semver`, `version_tags`)
 
@@ -91,27 +73,6 @@ Acceptance evidence:
 - The notes allow a user to understand whether and how to adopt or upgrade.
 - Applicable fixed project vulnerabilities and identifiers are explicitly
   listed, or the notes explicitly state that none are known for that release.
-
-### New-functionality test policy (`test_policy`, `tests_are_added`, `tests_documented_added`)
-
-The project has extensive automated tests, but its public contribution rules do
-not yet explicitly require major new functionality to add corresponding tests.
-
-Required work:
-
-- State in `CONTRIBUTING.md` that major new functionality must include suitable
-  automated tests unless a documented exception is approved.
-- Add a pull-request checklist item confirming that new or changed behavior has
-  tests, or explaining why tests are not applicable.
-- Link representative recent feature changes to the tests added with them so
-  adherence to the policy can be verified.
-
-Acceptance evidence:
-
-- The public contribution instructions contain the test policy.
-- The pull-request template asks contributors to confirm compliance.
-- At least one recent material feature change has reviewable commits or pull
-  request evidence connecting the functionality to its automated tests.
 
 ### Human secure-development knowledge (`know_secure_design`, `know_common_errors`)
 

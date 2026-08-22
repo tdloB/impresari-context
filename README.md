@@ -45,6 +45,24 @@ are tested on Rust 1.96.0, 1.97.0, and stable, with Clippy warnings denied,
 Draft 2020-12 response validation, deterministic identity/path/JCS vectors,
 dependency policy, and RustSec auditing.
 
+## Get the software, ask for help, or contribute
+
+Clone the public repository and build the workspace with the standard Rust
+toolchain:
+
+```text
+git clone https://github.com/tdloB/impresari-context.git
+cd impresari-context
+cargo build --workspace --locked
+./scripts/check.sh
+```
+
+Use [GitHub Issues](https://github.com/tdloB/impresari-context/issues) for
+ordinary bugs and feature requests. Read [CONTRIBUTING.md](CONTRIBUTING.md)
+before proposing a change. Do not report a suspected vulnerability in a public
+issue; use the [private security advisory
+channel](https://github.com/tdloB/impresari-context/security/advisories/new).
+
 ## Local CLI
 
 The CLI is a thin adapter over the same `context-engine::LocalEngine` handlers
@@ -88,6 +106,10 @@ The client must complete MCP initialization before using the four tools:
 `context_session_open`, `context_build`, `context_packet_resolve`, and
 `context_session_close`. The process is intentionally single-client and
 process-local. It is not a remote service or an agent runtime.
+
+See the [CLI and local MCP interface reference](docs/reference/interfaces.md)
+for complete commands, request and response contracts, error behavior,
+versioning, limits, and security boundaries.
 
 ## Design documents
 
@@ -150,7 +172,9 @@ Give AI agents the repository evidence they need and give humans a reliable way 
 ## License and contributions
 
 Original project work is licensed under Apache License 2.0. Contributions use
-DCO 1.1 sign-off and contributor-retained copyright. Security concerns should
+DCO 1.1 sign-off and contributor-retained copyright. Ordinary bugs and feature
+requests belong in [GitHub Issues](https://github.com/tdloB/impresari-context/issues),
+and proposed changes follow [CONTRIBUTING.md](CONTRIBUTING.md). Security concerns should
 be reported through [GitHub's private vulnerability reporting
 channel](https://github.com/tdloB/impresari-context/security/advisories/new);
 they should never be placed in a public issue.

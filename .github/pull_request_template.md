@@ -2,6 +2,9 @@
 
 ## Verification
 
+- [ ] I added or updated automated tests for new or changed behavior, or explained why tests are not applicable in this section.
+- [ ] I ran `./scripts/check.sh` and recorded any additional relevant checks below.
+
 ## Provenance
 
 - [ ] I have the right to submit this contribution under Apache-2.0.
