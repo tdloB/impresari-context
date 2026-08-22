@@ -50,6 +50,7 @@ struct Report {
     fixture_count: usize,
     heldout_count: usize,
     required_evidence_recall: f64,
+    native_baseline_recall: f64,
     evidence_precision: f64,
     context_reduction: f64,
     exact_recovery_rate: f64,
@@ -147,6 +148,30 @@ fn generate_fixture(fixture: &Fixture, root: &std::path::Path) -> Result<u64, St
     Ok(baseline)
 }
 
+fn native_baseline_paths(fixture: &Fixture) -> BTreeSet<&str> {
+    let query_lower = fixture.query.to_ascii_lowercase();
+    let lexical_terms = query_lower.split_ascii_whitespace().collect::<Vec<_>>();
+    fixture
+        .files
+        .iter()
+        .filter(|file| match fixture.kind.as_str() {
+            "exact_path" => file.path == fixture.query,
+            "filename" => file.path.to_ascii_lowercase().contains(&query_lower),
+            "literal" => file
+                .marker
+                .as_bytes()
+                .windows(fixture.query.len())
+                .any(|window| window == fixture.query.as_bytes()),
+            "lexical" => {
+                let content = file.marker.to_ascii_lowercase();
+                lexical_terms.iter().all(|term| content.contains(term))
+            }
+            _ => false,
+        })
+        .map(|file| file.path.as_str())
+        .collect()
+}
+
 fn ratio(numerator: usize, denominator: usize) -> Result<f64, String> {
     if denominator == 0 {
         return Ok(0.0);
@@ -173,6 +198,7 @@ fn run() -> Result<Report, String> {
     }
     let mut required = 0_usize;
     let mut relevant = 0_usize;
+    let mut baseline_relevant = 0_usize;
     let mut retrieved = 0_usize;
     let mut baseline_bytes = 0_u64;
     let mut engine_bytes = 0_u64;
@@ -186,6 +212,12 @@ fn run() -> Result<Report, String> {
         let source = TempRoot::new(&fixture.id)?;
         let cache = TempRoot::new("cache")?;
         baseline_bytes += generate_fixture(fixture, &source.0)?;
+        let baseline_found = native_baseline_paths(fixture);
+        baseline_relevant += fixture
+            .required_paths
+            .iter()
+            .filter(|path| baseline_found.contains(path.as_str()))
+            .count();
         let config = EngineConfig {
             cache_root: cache.0.clone(),
             discovery: DiscoveryPolicy::new(10_000, 536_870_912, 65_536, 32)
@@ -295,6 +327,7 @@ fn run() -> Result<Report, String> {
         }
     }
     let recall = ratio(relevant, required)?;
+    let baseline_recall = ratio(baseline_relevant, required)?;
     let precision = ratio(relevant, retrieved)?;
     let reduction = if baseline_bytes == 0 {
         0.0
@@ -309,6 +342,9 @@ fn run() -> Result<Report, String> {
     if precision < 0.70 {
         failures.push("precision below 0.70".into());
     }
+    if recall + 0.02 < baseline_recall {
+        failures.push("recall is more than 0.02 below native baseline".into());
+    }
     if reduction < 0.30 {
         failures.push("context reduction below 0.30".into());
     }
@@ -319,6 +355,7 @@ fn run() -> Result<Report, String> {
         fixture_count: manifest.fixtures.len(),
         heldout_count: heldout,
         required_evidence_recall: recall,
+        native_baseline_recall: baseline_recall,
         evidence_precision: precision,
         context_reduction: reduction,
         exact_recovery_rate: ratio(recovered, manifest.fixtures.len())?,

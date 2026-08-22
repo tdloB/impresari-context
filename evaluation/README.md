@@ -13,8 +13,8 @@ ruby scripts/check-evaluation.rb
 ```
 
 The harness performs all searches through `context-engine`, compares returned
-paths with declared ground truth, uses deterministic native file-byte totals as
-the context baseline, re-expands exact evidence, mutates source to verify stale
+paths with declared ground truth, independently scores a deterministic native
+search baseline and its file-byte context cost, re-expands exact evidence, mutates source to verify stale
 rejection, checks bounded packet accounting, checks normalized repeatability,
 and fails when the initial PRD thresholds are missed. The frozen result is
 `artifacts/evaluation-local.json` and is bound to the manifest SHA-256 digest.

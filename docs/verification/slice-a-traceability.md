@@ -81,7 +81,7 @@ environment outside approval A-0029 and do not authorize that action.
 | EVAL-G-011 | Pass for frozen local corpus | Controlled partial/limit states and unsupported-decoding evidence are explicitly labeled. |
 | EVAL-G-012 | Pass | Full normalized CLI/library semantic suite. |
 | EVAL-Q-001 | Pass for frozen local corpus | Required-evidence recall 1.00. |
-| EVAL-Q-002 | Partial | Native baseline byte totals exist, but matched baseline recall is not independently emitted. |
+| EVAL-Q-002 | Pass for frozen local corpus | Independently calculated native baseline recall is 1.00; engine recall delta is 0.00. |
 | EVAL-Q-003 | Pass for frozen local corpus | Context reduction 0.9987585403 at matched declared tasks. |
 | EVAL-Q-004 | Pass for frozen local corpus | Evidence precision 1.00. |
 | EVAL-Q-005 | Externally gated | Independent randomized human usefulness review has not occurred. |
@@ -98,13 +98,11 @@ environment outside approval A-0029 and do not authorize that action.
 
 ## Remaining Authorized Local Work
 
-1. Emit an independently calculated native-baseline recall metric
-   (`EVAL-Q-002`).
-2. Add two generated scale profiles with cold/warm p50/p95, disk/time/memory
+1. Add two generated scale profiles with cold/warm p50/p95, disk/time/memory
    evidence and explicit deviations.
-3. Decide and implement safe optional Git revision/working-tree metadata without
+2. Decide and implement safe optional Git revision/working-tree metadata without
    process execution (`MVP-FR-009`), or record a scoped deferral before release.
-4. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
+3. Re-run L05, Rust, security, dependency, network-denied, and toolchain gates.
 
 ## Preserved Gates
 

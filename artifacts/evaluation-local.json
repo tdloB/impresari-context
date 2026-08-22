@@ -5,6 +5,7 @@
   "fixture_count": 12,
   "heldout_count": 3,
   "required_evidence_recall": 1.0,
+  "native_baseline_recall": 1.0,
   "evidence_precision": 1.0,
   "context_reduction": 0.9987585403136586,
   "exact_recovery_rate": 1.0,
