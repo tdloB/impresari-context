@@ -6,9 +6,11 @@ use std::{
     collections::BTreeMap,
     fs,
     path::{Path, PathBuf},
-    process::Command,
     sync::atomic::{AtomicU64, Ordering},
 };
+
+#[cfg(unix)]
+use std::process::Command;
 
 use context_core::{
     AuditOutcome, PacketValidationStatus, PolicySubject, PublicErrorCode, ResourceBudget,

@@ -17,7 +17,7 @@ if cargo tree --locked --offline --prefix none | grep -E '^(reqwest|ureq|hyper|t
 fi
 
 before=$(git status --porcelain=v1 --untracked-files=no)
-cargo test --workspace --all-targets --locked --offline >/dev/null
+cargo test --workspace --all-targets --locked --offline
 after=$(git status --porcelain=v1 --untracked-files=no)
 if [ "$before" != "$after" ]; then
     printf 'tracked source/repository state changed during the test suite\n' >&2
