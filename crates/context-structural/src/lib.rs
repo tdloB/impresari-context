@@ -455,10 +455,21 @@ pub fn build_graph_with_unknowns(
     }
     let mut nodes = Vec::new();
     let mut edges = Vec::new();
+    let mut file_nodes = BTreeMap::new();
+    for file in &files {
+        let file_id = add_file_node(workspace_snapshot, file, &mut nodes)?;
+        if file_nodes
+            .insert(file.path.display_path.clone(), file_id)
+            .is_some()
+        {
+            return Err(StructuralError::ContractMismatch);
+        }
+    }
     for file in files {
         promote_file(
             workspace_snapshot,
             &file,
+            &file_nodes,
             &mut nodes,
             &mut edges,
             &mut unknowns,
@@ -498,16 +509,20 @@ pub fn build_graph_with_unknowns(
 fn promote_file(
     workspace_snapshot: &str,
     file: &GraphFileInput,
+    file_nodes: &BTreeMap<String, String>,
     nodes: &mut Vec<GraphNode>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
-    let file_id = add_file_node(workspace_snapshot, file, nodes)?;
-    let local_nodes = add_declarations(workspace_snapshot, file, &file_id, nodes, edges)?;
+    let file_id = file_nodes
+        .get(&file.path.display_path)
+        .ok_or(StructuralError::ContractMismatch)?;
+    let local_nodes = add_declarations(workspace_snapshot, file, file_id, nodes, edges)?;
     add_relationships(
         workspace_snapshot,
         file,
-        &file_id,
+        file_id,
+        file_nodes,
         &local_nodes,
         edges,
         unknowns,
@@ -605,6 +620,7 @@ fn add_relationships(
     workspace_snapshot: &str,
     file: &GraphFileInput,
     file_id: &str,
+    file_nodes: &BTreeMap<String, String>,
     local_nodes: &std::collections::BTreeMap<String, String>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
@@ -615,16 +631,25 @@ fn add_relationships(
                 add_containment(workspace_snapshot, fact, local_nodes, edges, unknowns)?;
             }
             FactClass::Import => {
+                let target = fact.module.as_deref().and_then(|module| {
+                    resolve_relative_module(&file.path.display_path, module, file_nodes)
+                });
                 edges.push(graph_edge(
                     workspace_snapshot,
                     "imports",
                     file_id,
-                    None,
+                    target,
                     fact.module.as_deref(),
-                    "unresolved",
+                    if target.is_some() {
+                        "confirmed"
+                    } else {
+                        "unresolved"
+                    },
                     fact,
                 )?);
-                unknowns.push("unresolved_module_import".into());
+                if target.is_none() {
+                    unknowns.push("unresolved_module_import".into());
+                }
             }
             FactClass::Export => {
                 let target = fact.name.as_ref().and_then(|name| {
@@ -658,6 +683,64 @@ fn add_relationships(
         }
     }
     Ok(())
+}
+
+fn resolve_relative_module<'a>(
+    source_path: &str,
+    module: &str,
+    file_nodes: &'a BTreeMap<String, String>,
+) -> Option<&'a String> {
+    if !(module.starts_with("./") || module.starts_with("../"))
+        || source_path.starts_with('/')
+        || source_path.contains('\\')
+        || module.contains('\\')
+    {
+        return None;
+    }
+    let mut components = source_path
+        .split('/')
+        .filter(|component| !component.is_empty())
+        .map(str::to_owned)
+        .collect::<Vec<_>>();
+    components.pop()?;
+    for component in module.split('/') {
+        match component {
+            "" | "." => {}
+            ".." => {
+                components.pop()?;
+            }
+            value if value != "." && value != ".." => components.push(value.into()),
+            _ => return None,
+        }
+    }
+    let base = components.join("/");
+    let has_supported_extension = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+        .iter()
+        .any(|extension| base.ends_with(extension));
+    let candidates = if has_supported_extension {
+        vec![base]
+    } else {
+        [
+            ".ts",
+            ".tsx",
+            ".js",
+            ".jsx",
+            ".mjs",
+            ".cjs",
+            "/index.ts",
+            "/index.tsx",
+            "/index.js",
+            "/index.jsx",
+            "/index.mjs",
+            "/index.cjs",
+        ]
+        .iter()
+        .map(|suffix| format!("{base}{suffix}"))
+        .collect()
+    };
+    candidates
+        .iter()
+        .find_map(|candidate| file_nodes.get(candidate))
 }
 
 fn add_containment(
@@ -1573,5 +1656,51 @@ export function outer() { const nested = value; }
                 .unknowns
                 .contains(&"traversal_node_limit_reached".into())
         );
+    }
+
+    #[test]
+    fn relative_imports_resolve_only_to_snapshot_files() {
+        let entry_source = br#"import { value } from "./dep";
+export function outer() { return value; }
+"#;
+        let dep_source = b"export const value = 1;\n";
+        let entry_request = request(entry_source, StructuralLanguage::TypeScript);
+        let mut dep_request = request(dep_source, StructuralLanguage::TypeScript);
+        dep_request.path = WorkerPath {
+            display_path: "src/dep.ts".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "unix_bytes".into(),
+            relative_units_base64url: "c3JjL2RlcC50cw".into(),
+        };
+        let graph = build_graph(
+            &sha256(b"resolved-snapshot"),
+            vec![
+                GraphFileInput {
+                    path: entry_request.path.clone(),
+                    response: process_request(&entry_request).expect("entry parse"),
+                },
+                GraphFileInput {
+                    path: dep_request.path.clone(),
+                    response: process_request(&dep_request).expect("dependency parse"),
+                },
+            ],
+        )
+        .expect("resolved graph");
+        let dependency = graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "file" && node.path.display_path == "src/dep.ts")
+            .expect("dependency file node");
+        let import = graph
+            .edges
+            .iter()
+            .find(|edge| edge.kind == "imports")
+            .expect("import edge");
+        assert_eq!(import.resolution, "confirmed");
+        assert_eq!(
+            import.target_node.as_deref(),
+            Some(dependency.node_id.as_str())
+        );
+        assert!(!graph.unknowns.contains(&"unresolved_module_import".into()));
     }
 }
