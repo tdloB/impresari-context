@@ -73,6 +73,7 @@ fn conformance_packet(snapshot: &str, other_hash: &str) -> ContextPacket {
         sensitivity: Some("normal".into()),
     };
     build_packet(PacketDraft {
+        workspace_identity: other_hash.into(),
         workspace_snapshot: snapshot.into(),
         request_id: "req_12345678".into(),
         purpose: "conformance".into(),

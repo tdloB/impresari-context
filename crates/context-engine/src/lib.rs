@@ -402,6 +402,7 @@ impl LocalEngine {
             .search_internal(context, Capability::ContextBuild, kind, query, &budget)
             .and_then(|search| {
                 build_packet(PacketDraft {
+                    workspace_identity: self.workspace.identity().to_owned(),
                     workspace_snapshot: search.snapshot_id,
                     request_id: context.request_id.clone(),
                     purpose: context.subject.purpose.clone(),
@@ -498,14 +499,17 @@ impl LocalEngine {
     ) -> Result<PacketValidationResult, EngineError> {
         let decision = self.authorize(context, Capability::ContextValidate, Some(budget))?;
         let snapshot = self.snapshot.as_ref();
-        let evidence_available = snapshot.is_some_and(|snapshot| {
-            packet.observed_evidence.iter().all(|evidence| {
-                expand_evidence_record(&self.workspace, snapshot, evidence, 0, 0, 65_536).is_ok()
-            })
-        });
+        let authorized = packet.workspace_identity == self.workspace.identity();
+        let evidence_available = authorized
+            && snapshot.is_some_and(|snapshot| {
+                packet.observed_evidence.iter().all(|evidence| {
+                    expand_evidence_record(&self.workspace, snapshot, evidence, 0, 0, 65_536)
+                        .is_ok()
+                })
+            });
         let result = packet_validation_result(
             packet,
-            true,
+            authorized,
             snapshot.map(|value| value.snapshot_id.as_str()),
             evidence_available,
             &context.occurred_at,
@@ -587,6 +591,17 @@ impl LocalEngine {
                 Some(RecoveryAction::RefreshSnapshot),
             )
         })?;
+        if packet.workspace_identity != self.workspace.identity() {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::PolicyDenied,
+                "packet belongs to another workspace",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                None,
+            ));
+        }
         if packet.workspace_snapshot != current.snapshot_id {
             return Err(failure(
                 context,

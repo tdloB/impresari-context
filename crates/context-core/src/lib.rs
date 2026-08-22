@@ -684,6 +684,7 @@ pub struct ContextPacket {
     pub schema_name: String,
     pub schema_version: String,
     pub packet_id: String,
+    pub workspace_identity: String,
     pub workspace_snapshot: String,
     pub request_id: String,
     pub purpose: String,
@@ -706,6 +707,7 @@ pub struct ContextPacket {
 #[derive(Clone, Debug)]
 #[allow(missing_docs)]
 pub struct PacketDraft {
+    pub workspace_identity: String,
     pub workspace_snapshot: String,
     pub request_id: String,
     pub purpose: String,
@@ -726,6 +728,7 @@ pub struct PacketDraft {
 /// Fails for invalid metadata, required content larger than the budget, or
 /// canonicalization/integrity errors.
 pub fn build_packet(mut draft: PacketDraft) -> Result<ContextPacket, CoreError> {
+    validate_sha256(&draft.workspace_identity)?;
     validate_sha256(&draft.workspace_snapshot)?;
     validate_sha256(&draft.policy_decision)?;
     validate_identifier(&draft.request_id)?;
@@ -977,6 +980,7 @@ fn packet_from(
         schema_name: "context-packet".into(),
         schema_version: VERSION.into(),
         packet_id: zero_hash(),
+        workspace_identity: draft.workspace_identity.clone(),
         workspace_snapshot: draft.workspace_snapshot.clone(),
         request_id: draft.request_id.clone(),
         purpose: draft.purpose.clone(),
@@ -1223,6 +1227,7 @@ mod tests {
     }
     fn draft(bytes: u64, evidence: Vec<EvidenceRecord>) -> PacketDraft {
         PacketDraft {
+            workspace_identity: B.into(),
             workspace_snapshot: A.into(),
             request_id: "req_12345678".into(),
             purpose: "test".into(),

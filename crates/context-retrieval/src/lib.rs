@@ -477,10 +477,12 @@ pub fn expand_evidence_record(
 ) -> Result<EvidenceRecord, RetrievalError> {
     if record.schema_name != "evidence"
         || record.schema_version != "1.0.0"
-        || record.workspace_snapshot != snapshot.snapshot_id
         || record.excerpt.encoding != "base64url"
     {
         return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    if record.workspace_snapshot != snapshot.snapshot_id {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
     }
     let artifact = snapshot
         .artifacts

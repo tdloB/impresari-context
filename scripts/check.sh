@@ -6,6 +6,7 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
 ./scripts/check-repository.sh
+./scripts/check-security-boundaries.sh
 ruby ./scripts/check-contracts.rb
 ruby ./scripts/check-identity-vectors.rb
 ruby ./scripts/check-path-vectors.rb
