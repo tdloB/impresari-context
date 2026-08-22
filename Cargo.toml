@@ -3,6 +3,7 @@ members = [
     "crates/context-cli",
     "crates/context-conformance",
     "crates/context-core",
+    "crates/context-engine",
     "crates/context-retrieval",
     "crates/context-store",
     "crates/context-workspace",

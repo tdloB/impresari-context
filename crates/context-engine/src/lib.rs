@@ -1,0 +1,1569 @@
+// SPDX-License-Identifier: Apache-2.0
+#![forbid(unsafe_code)]
+#![doc = "Adapter-neutral capability service shared by the CLI and libraries."]
+
+use std::{
+    fmt,
+    fs::{self, OpenOptions},
+    io::Write as _,
+    path::{Path, PathBuf},
+    time::Duration,
+};
+
+use context_core::{
+    AuditOutcome, Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PacketDraft,
+    PacketValidationResult, PolicyDecision, PolicyOutcome, PolicySubject, PublicErrorCode,
+    RecoveryAction, ResourceBudget, audit_event, build_packet, decide, error_envelope,
+    packet_bytes, packet_validation_result, validate_packet,
+};
+use context_retrieval::{
+    RetrievalErrorCode, SearchBudget, build_lexical_generation, evidence_record,
+    expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
+};
+use context_store::{AuditRetention, AuditStore, CacheErrorCode, WorkspaceCache};
+use context_workspace::{
+    AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
+    WorkspaceSnapshot,
+};
+use serde::{Deserialize, Serialize};
+
+const CONTRACT_VERSION: &str = "1.0.0";
+const ENGINE_VERSION: &str = "0.0.0";
+
+/// Caller-controlled data for one capability invocation.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RequestContext {
+    /// Unique opaque request identifier.
+    pub request_id: String,
+    /// Unique opaque audit-event identifier.
+    pub event_id: String,
+    /// Policy subject data.
+    pub subject: PolicySubject,
+    /// Trusted normalized UTC operation time.
+    pub occurred_at: String,
+}
+
+/// Explicit local engine configuration.
+#[derive(Clone, Debug)]
+pub struct EngineConfig {
+    /// Cache/audit root, always separate from source.
+    pub cache_root: PathBuf,
+    /// Bounded discovery policy.
+    pub discovery: DiscoveryPolicy,
+    /// Explicit audit retention policy.
+    pub audit_retention: AuditRetention,
+}
+
+/// Public workspace-open response.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct WorkspaceHandle {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Opaque session-local handle.
+    pub workspace_handle: String,
+    /// Opaque workspace identity.
+    pub workspace_identity: String,
+    /// Policy decision identity.
+    pub policy_decision: String,
+    /// Current handle state.
+    pub state: String,
+}
+
+/// One aggregated snapshot omission category.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SkippedSummary {
+    /// Stable omission reason.
+    pub reason: String,
+    /// Omitted object count.
+    pub count: String,
+    /// Whether this makes the snapshot partial.
+    pub affects_completeness: bool,
+}
+
+/// Public snapshot status response.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SnapshotStatus {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Workspace identity.
+    pub workspace_identity: String,
+    /// Snapshot identity.
+    pub snapshot_id: String,
+    /// Snapshot state.
+    pub state: String,
+    /// Freshness state.
+    pub freshness: String,
+    /// Completeness state.
+    pub completeness: String,
+    /// Discovery-policy identity.
+    pub discovery_policy: String,
+    /// Engine version.
+    pub engine_version: String,
+    /// Eligible file count.
+    pub eligible_files: String,
+    /// Eligible byte count.
+    pub eligible_bytes: String,
+    /// Explicit omission categories.
+    pub skipped: Vec<SkippedSummary>,
+}
+
+/// Supported MVP query strategies.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum QueryKind {
+    /// Resolve one exact relative path.
+    ExactPath,
+    /// Match a filename/display path.
+    Filename,
+    /// Match exact source bytes.
+    Literal,
+    /// Use lexical candidates followed by exact source verification.
+    Lexical,
+}
+
+/// Public bounded search result.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct SearchResponse {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Request identity.
+    pub request_id: String,
+    /// Snapshot identity.
+    pub snapshot_id: String,
+    /// Freshness state.
+    pub freshness: String,
+    /// Completeness state.
+    pub completeness: String,
+    /// Exact evidence matches.
+    pub matches: Vec<context_core::EvidenceRecord>,
+    /// Whether results were limited.
+    pub truncated: bool,
+    /// Stable limit reasons.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub truncation_reasons: Vec<String>,
+    /// Explicit unavailable or unsupported semantics.
+    pub unknowns: Vec<String>,
+}
+
+/// Versioned receipt for a no-overwrite local packet handoff.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct HandoffReceipt {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Preserved packet identity.
+    pub packet_id: String,
+    /// Safe destination filename, never an ambient absolute path.
+    pub destination_name: String,
+    /// Exact canonical bytes written.
+    pub exported_bytes: String,
+    /// Always false: export cannot add capability or evidence authority.
+    pub authority_added: bool,
+}
+
+/// Safe service failure. Private causes are intentionally not serialized.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct EngineError {
+    envelope: Box<ErrorEnvelope>,
+}
+
+impl EngineError {
+    /// Returns the adapter-neutral structured error.
+    #[must_use]
+    pub const fn envelope(&self) -> &ErrorEnvelope {
+        &self.envelope
+    }
+}
+
+impl fmt::Display for EngineError {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(&self.envelope.message)
+    }
+}
+
+impl std::error::Error for EngineError {}
+
+/// Stateful local session. All public operations pass through one policy path.
+pub struct LocalEngine {
+    config: EngineConfig,
+    workspace: AuthorizedWorkspace,
+    snapshot: Option<WorkspaceSnapshot>,
+    cache: Option<WorkspaceCache>,
+    audit: AuditStore,
+    handle: String,
+}
+
+impl LocalEngine {
+    /// Opens an explicit workspace and records the policy decision and audit.
+    ///
+    /// # Errors
+    ///
+    /// Returns a safe structured failure for policy, workspace, or audit errors.
+    pub fn open(
+        config: EngineConfig,
+        context: &RequestContext,
+        root: &Path,
+    ) -> Result<(Self, WorkspaceHandle), EngineError> {
+        let decision = authorize(context, None, Capability::WorkspaceOpen, None)?;
+        let mut audit = AuditStore::open(&config.cache_root)
+            .map_err(|error| cache_error(context, Capability::WorkspaceOpen, error.code(), None))?;
+        let workspace = match AuthorizedWorkspace::open(root) {
+            Ok(workspace) => workspace,
+            Err(error) => {
+                let public =
+                    workspace_error(context, Capability::WorkspaceOpen, error.code(), None, None);
+                record_event(
+                    &mut audit,
+                    &config.audit_retention,
+                    context,
+                    &decision,
+                    Capability::WorkspaceOpen,
+                    AuditOutcome::Failed,
+                    None,
+                    None,
+                )?;
+                return Err(public);
+            }
+        };
+        let identity = workspace.identity().to_owned();
+        let handle = format!("wsp_{}", &identity[7..23]);
+        let mut engine = Self {
+            config,
+            workspace,
+            snapshot: None,
+            cache: None,
+            audit,
+            handle: handle.clone(),
+        };
+        engine.record(
+            context,
+            &decision,
+            Capability::WorkspaceOpen,
+            AuditOutcome::Allowed,
+        )?;
+        let response = WorkspaceHandle {
+            schema_name: "workspace-handle".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            workspace_handle: handle,
+            workspace_identity: identity,
+            policy_decision: decision.decision_id,
+            state: "ready".into(),
+        };
+        Ok((engine, response))
+    }
+
+    /// Builds a fresh deterministic snapshot under the gateway.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, workspace, or audit failure.
+    pub fn build_snapshot(
+        &mut self,
+        context: &RequestContext,
+        budget: ResourceBudget,
+    ) -> Result<SnapshotStatus, EngineError> {
+        let decision = self.authorize(context, Capability::SnapshotBuild, Some(budget))?;
+        let result = self
+            .workspace
+            .snapshot(self.config.discovery)
+            .map_err(|error| {
+                self.workspace_failure(context, Capability::SnapshotBuild, error.code())
+            })
+            .map(|snapshot| {
+                let status = snapshot_status(&snapshot);
+                self.snapshot = Some(snapshot);
+                status
+            });
+        self.finalize(
+            context,
+            &decision,
+            Capability::SnapshotBuild,
+            AuditOutcome::Allowed,
+            result,
+        )
+    }
+
+    /// Reports the current in-session snapshot through the gateway.
+    ///
+    /// # Errors
+    ///
+    /// Returns stale-state when no snapshot has been built.
+    pub fn snapshot_status(
+        &mut self,
+        context: &RequestContext,
+        budget: ResourceBudget,
+    ) -> Result<SnapshotStatus, EngineError> {
+        let decision = self.authorize(context, Capability::SnapshotStatus, Some(budget))?;
+        let result = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::SnapshotStatus,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })
+            .map(snapshot_status);
+        self.finalize(
+            context,
+            &decision,
+            Capability::SnapshotStatus,
+            AuditOutcome::Allowed,
+            result,
+        )
+    }
+
+    /// Executes a bounded filename, literal, or lexical query.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, retrieval, cache, stale-state, or audit failure.
+    pub fn search(
+        &mut self,
+        context: &RequestContext,
+        kind: QueryKind,
+        query: &str,
+        budget: &ResourceBudget,
+    ) -> Result<SearchResponse, EngineError> {
+        let decision = self.authorize(context, Capability::CodeSearch, Some(budget.clone()))?;
+        let result = self.search_internal(context, Capability::CodeSearch, kind, query, budget);
+        let outcome = result.as_ref().map_or(AuditOutcome::Failed, audit_outcome);
+        self.finalize(context, &decision, Capability::CodeSearch, outcome, result)
+    }
+
+    /// Builds a bounded immutable context packet using the same retrieval path.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured gateway, retrieval, packet, or audit failure.
+    pub fn build_context(
+        &mut self,
+        context: &RequestContext,
+        kind: QueryKind,
+        query: &str,
+        budget: ResourceBudget,
+    ) -> Result<ContextPacket, EngineError> {
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self
+            .search_internal(context, Capability::ContextBuild, kind, query, &budget)
+            .and_then(|search| {
+                build_packet(PacketDraft {
+                    workspace_snapshot: search.snapshot_id,
+                    request_id: context.request_id.clone(),
+                    purpose: context.subject.purpose.clone(),
+                    created_at: context.occurred_at.clone(),
+                    policy_decision: decision.decision_id.clone(),
+                    budget,
+                    evidence: search.matches,
+                    assumptions: Vec::new(),
+                    conflicts: Vec::new(),
+                    unknowns: search.unknowns,
+                    redactions: Vec::new(),
+                })
+                .map_err(|error| {
+                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })
+            });
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            AuditOutcome::Allowed,
+            result,
+        )
+    }
+
+    /// Reauthorizes and expands exact evidence from current source.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure for stale, forged, malformed, over-budget,
+    /// unauthorized, or unavailable evidence.
+    pub fn expand_evidence(
+        &mut self,
+        context: &RequestContext,
+        evidence: &EvidenceRecord,
+        before_bytes: u64,
+        after_bytes: u64,
+        max_bytes: u64,
+        budget: ResourceBudget,
+    ) -> Result<EvidenceRecord, EngineError> {
+        let decision = self.authorize(context, Capability::EvidenceExpand, Some(budget))?;
+        let result = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::EvidenceExpand,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })
+            .and_then(|snapshot| {
+                expand_evidence_record(
+                    &self.workspace,
+                    snapshot,
+                    evidence,
+                    before_bytes,
+                    after_bytes,
+                    max_bytes,
+                )
+                .map_err(|error| {
+                    retrieval_error(
+                        context,
+                        Capability::EvidenceExpand,
+                        error.code(),
+                        self.ids(),
+                    )
+                })
+            });
+        self.finalize(
+            context,
+            &decision,
+            Capability::EvidenceExpand,
+            AuditOutcome::Allowed,
+            result,
+        )
+    }
+
+    /// Validates packet integrity, authorization, freshness, and every exact
+    /// evidence excerpt against current source.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured service failure if policy or audit cannot complete.
+    pub fn validate_context_packet(
+        &mut self,
+        context: &RequestContext,
+        packet: &ContextPacket,
+        budget: ResourceBudget,
+    ) -> Result<PacketValidationResult, EngineError> {
+        let decision = self.authorize(context, Capability::ContextValidate, Some(budget))?;
+        let snapshot = self.snapshot.as_ref();
+        let evidence_available = snapshot.is_some_and(|snapshot| {
+            packet.observed_evidence.iter().all(|evidence| {
+                expand_evidence_record(&self.workspace, snapshot, evidence, 0, 0, 65_536).is_ok()
+            })
+        });
+        let result = packet_validation_result(
+            packet,
+            true,
+            snapshot.map(|value| value.snapshot_id.as_str()),
+            evidence_available,
+            &context.occurred_at,
+        )
+        .map_err(|error| {
+            core_error(
+                context,
+                Capability::ContextValidate,
+                error.code(),
+                self.ids(),
+            )
+        });
+        let outcome = result.as_ref().map_or(AuditOutcome::Failed, |validation| {
+            if matches!(
+                validation.status,
+                context_core::PacketValidationStatus::ValidCurrent
+            ) {
+                AuditOutcome::Allowed
+            } else {
+                AuditOutcome::Limited
+            }
+        });
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextValidate,
+            outcome,
+            result,
+        )
+    }
+
+    /// Writes the exact canonical packet to an explicit non-workspace export
+    /// root using atomic no-overwrite publication.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure for invalid roots/names, stale or corrupt
+    /// packets, budget excess, existing destinations, I/O, policy, or audit.
+    pub fn export_handoff(
+        &mut self,
+        context: &RequestContext,
+        packet: &ContextPacket,
+        budget: &ResourceBudget,
+        export_root: &Path,
+        destination_name: &str,
+    ) -> Result<HandoffReceipt, EngineError> {
+        let decision = self.authorize(context, Capability::HandoffExport, Some(budget.clone()))?;
+        let result =
+            self.export_handoff_inner(context, packet, budget, export_root, destination_name);
+        self.finalize(
+            context,
+            &decision,
+            Capability::HandoffExport,
+            AuditOutcome::Allowed,
+            result,
+        )
+    }
+
+    #[allow(clippy::too_many_lines)]
+    fn export_handoff_inner(
+        &self,
+        context: &RequestContext,
+        packet: &ContextPacket,
+        budget: &ResourceBudget,
+        export_root: &Path,
+        destination_name: &str,
+    ) -> Result<HandoffReceipt, EngineError> {
+        validate_packet(packet).map_err(|error| {
+            core_error(context, Capability::HandoffExport, error.code(), self.ids())
+        })?;
+        let current = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if packet.workspace_snapshot != current.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::StaleState,
+                "packet snapshot is stale",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let bytes = packet_bytes(packet).map_err(|error| {
+            core_error(context, Capability::HandoffExport, error.code(), self.ids())
+        })?;
+        let output_limit = budget.requested.parse::<u64>().map_err(|_| {
+            core_error(
+                context,
+                Capability::HandoffExport,
+                context_core::CoreErrorCode::InvalidInput,
+                self.ids(),
+            )
+        })?;
+        if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > output_limit {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::BudgetExceeded,
+                "export budget exceeded",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                Some(RecoveryAction::IncreaseBudget),
+            ));
+        }
+        prepare_export_root(&self.workspace, export_root).map_err(|code| {
+            failure(
+                context,
+                Capability::HandoffExport,
+                code,
+                "export destination is not allowed",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                Some(RecoveryAction::ReduceScope),
+            )
+        })?;
+        if destination_name.is_empty()
+            || destination_name.len() > 255
+            || destination_name.contains(['/', '\\', '\0'])
+            || matches!(destination_name, "." | "..")
+        {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::InvalidInput,
+                "invalid export filename",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                None,
+            ));
+        }
+        let target = export_root.join(destination_name);
+        if target.try_exists().unwrap_or(true) {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::InvalidInput,
+                "export destination already exists",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                None,
+            ));
+        }
+        let temporary = export_root.join(format!(
+            ".impresari-{}-{}.tmp",
+            &packet.packet_id[7..19],
+            context.request_id.replace('_', "-")
+        ));
+        write_no_overwrite(&temporary, &target, &bytes).map_err(|_| {
+            failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::InternalFailure,
+                "export write failed",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                Some(RecoveryAction::Retry),
+            )
+        })?;
+        let written = fs::read(&target).map_err(|_| {
+            failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::InternalFailure,
+                "export verification failed",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                None,
+            )
+        })?;
+        if written != bytes {
+            return Err(failure(
+                context,
+                Capability::HandoffExport,
+                PublicErrorCode::IntegrityFailure,
+                "export verification failed",
+                Some(self.workspace.identity()),
+                Some(&current.snapshot_id),
+                None,
+            ));
+        }
+        Ok(HandoffReceipt {
+            schema_name: "handoff-export".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            packet_id: packet.packet_id.clone(),
+            destination_name: destination_name.into(),
+            exported_bytes: bytes.len().to_string(),
+            authority_added: false,
+        })
+    }
+
+    fn search_internal(
+        &mut self,
+        context: &RequestContext,
+        capability: Capability,
+        kind: QueryKind,
+        query: &str,
+        budget: &ResourceBudget,
+    ) -> Result<SearchResponse, EngineError> {
+        let search_budget = search_budget(budget)
+            .map_err(|code| core_error(context, capability, code, self.ids()))?;
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                capability,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        let result = match kind {
+            QueryKind::ExactPath => {
+                let path = PathIdentity::from_relative_path(Path::new(query)).map_err(|error| {
+                    workspace_error(
+                        context,
+                        capability,
+                        error.code(),
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                    )
+                })?;
+                lookup_exact_path(&self.workspace, snapshot, &path, search_budget)
+            }
+            QueryKind::Filename => search_filename(&self.workspace, snapshot, query, search_budget),
+            QueryKind::Literal => {
+                search_literal(&self.workspace, snapshot, query.as_bytes(), search_budget)
+            }
+            QueryKind::Lexical => {
+                if self.cache.is_none() {
+                    let mut cache =
+                        WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
+                            .map_err(|error| {
+                                cache_error(context, capability, error.code(), Some(self.ids()))
+                            })?;
+                    build_lexical_generation(&self.workspace, snapshot, &mut cache).map_err(
+                        |error| retrieval_error(context, capability, error.code(), self.ids()),
+                    )?;
+                    self.cache = Some(cache);
+                }
+                search_lexical(
+                    &self.workspace,
+                    snapshot,
+                    self.cache.as_ref().expect("cache initialized"),
+                    query,
+                    search_budget,
+                )
+            }
+        }
+        .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
+        Ok(SearchResponse {
+            schema_name: "search-result".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            request_id: context.request_id.clone(),
+            snapshot_id: snapshot.snapshot_id.clone(),
+            freshness: "current".into(),
+            completeness: if snapshot.complete && !result.truncated {
+                "complete".into()
+            } else {
+                "partial".into()
+            },
+            matches: result.matches.iter().map(evidence_record).collect(),
+            truncated: result.truncated,
+            truncation_reasons: result
+                .truncation_reasons
+                .iter()
+                .map(ToString::to_string)
+                .collect(),
+            unknowns: if snapshot.complete {
+                Vec::new()
+            } else {
+                vec!["snapshot_partial".into()]
+            },
+        })
+    }
+
+    fn authorize(
+        &self,
+        context: &RequestContext,
+        capability: Capability,
+        budget: Option<ResourceBudget>,
+    ) -> Result<PolicyDecision, EngineError> {
+        authorize(context, Some(self.workspace.identity()), capability, budget)
+    }
+
+    fn record(
+        &mut self,
+        context: &RequestContext,
+        decision: &PolicyDecision,
+        capability: Capability,
+        outcome: AuditOutcome,
+    ) -> Result<(), EngineError> {
+        record_event(
+            &mut self.audit,
+            &self.config.audit_retention,
+            context,
+            decision,
+            capability,
+            outcome,
+            Some(self.workspace.identity()),
+            self.snapshot
+                .as_ref()
+                .map(|snapshot| snapshot.snapshot_id.as_str()),
+        )
+    }
+
+    fn finalize<T>(
+        &mut self,
+        context: &RequestContext,
+        decision: &PolicyDecision,
+        capability: Capability,
+        success_outcome: AuditOutcome,
+        result: Result<T, EngineError>,
+    ) -> Result<T, EngineError> {
+        let outcome = if result.is_ok() {
+            success_outcome
+        } else {
+            AuditOutcome::Failed
+        };
+        self.record(context, decision, capability, outcome)?;
+        result
+    }
+
+    fn workspace_failure(
+        &self,
+        context: &RequestContext,
+        capability: Capability,
+        code: WorkspaceErrorCode,
+    ) -> EngineError {
+        workspace_error(
+            context,
+            capability,
+            code,
+            Some(self.workspace.identity()),
+            self.snapshot
+                .as_ref()
+                .map(|snapshot| snapshot.snapshot_id.as_str()),
+        )
+    }
+
+    fn ids(&self) -> (Option<&str>, Option<&str>) {
+        (
+            Some(self.workspace.identity()),
+            self.snapshot
+                .as_ref()
+                .map(|snapshot| snapshot.snapshot_id.as_str()),
+        )
+    }
+
+    /// Returns the session-local opaque workspace handle.
+    #[must_use]
+    pub fn workspace_handle(&self) -> &str {
+        &self.handle
+    }
+}
+
+fn authorize(
+    context: &RequestContext,
+    workspace: Option<&str>,
+    capability: Capability,
+    budget: Option<ResourceBudget>,
+) -> Result<PolicyDecision, EngineError> {
+    let decision = decide(
+        &context.request_id,
+        &context.subject,
+        workspace,
+        capability,
+        budget,
+        &context.occurred_at,
+    )
+    .map_err(|error| core_error(context, capability, error.code(), (workspace, None)))?;
+    if decision.outcome == PolicyOutcome::Deny {
+        Err(failure(
+            context,
+            capability,
+            PublicErrorCode::PolicyDenied,
+            "capability denied by local policy",
+            workspace,
+            None,
+            Some(RecoveryAction::RequestAuthorization),
+        ))
+    } else {
+        Ok(decision)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_event(
+    audit: &mut AuditStore,
+    retention: &AuditRetention,
+    context: &RequestContext,
+    decision: &PolicyDecision,
+    capability: Capability,
+    outcome: AuditOutcome,
+    workspace: Option<&str>,
+    snapshot: Option<&str>,
+) -> Result<(), EngineError> {
+    let limits = decision
+        .effective_budget
+        .clone()
+        .unwrap_or_else(default_budget);
+    let event = audit_event(
+        &context.event_id,
+        &context.request_id,
+        &context.occurred_at,
+        workspace,
+        snapshot,
+        capability,
+        outcome,
+        &decision.decision_id,
+        limits,
+        0,
+        ENGINE_VERSION,
+    )
+    .map_err(|error| core_error(context, capability, error.code(), (workspace, snapshot)))?;
+    audit.append(&event, retention).map_err(|error| {
+        cache_error(
+            context,
+            capability,
+            error.code(),
+            Some((workspace, snapshot)),
+        )
+    })?;
+    Ok(())
+}
+
+fn snapshot_status(snapshot: &WorkspaceSnapshot) -> SnapshotStatus {
+    SnapshotStatus {
+        schema_name: "snapshot-status".into(),
+        schema_version: CONTRACT_VERSION.into(),
+        workspace_identity: snapshot.workspace_identity.clone(),
+        snapshot_id: snapshot.snapshot_id.clone(),
+        state: if snapshot.complete {
+            "current"
+        } else {
+            "partial"
+        }
+        .into(),
+        freshness: "current".into(),
+        completeness: if snapshot.complete {
+            "complete"
+        } else {
+            "partial"
+        }
+        .into(),
+        discovery_policy: snapshot.discovery_policy.clone(),
+        engine_version: ENGINE_VERSION.into(),
+        eligible_files: snapshot.artifacts.len().to_string(),
+        eligible_bytes: snapshot.eligible_bytes.to_string(),
+        skipped: snapshot
+            .skipped
+            .iter()
+            .map(|(reason, count)| SkippedSummary {
+                reason: skip_reason(*reason).into(),
+                count: count.to_string(),
+                affects_completeness: true,
+            })
+            .collect(),
+    }
+}
+
+fn skip_reason(reason: SkipReason) -> &'static str {
+    match reason {
+        SkipReason::PolicyExcluded => "policy_excluded",
+        SkipReason::Oversized => "oversized",
+        SkipReason::Symlink => "symlink",
+        SkipReason::SpecialFile => "special_file",
+        SkipReason::LimitReached => "limit_reached",
+        SkipReason::ReadFailed => "read_failed",
+        SkipReason::ChangedDuringRead => "changed_during_read",
+    }
+}
+
+fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::CoreErrorCode> {
+    let parse = |value: &str| {
+        value
+            .parse::<u64>()
+            .map_err(|_| context_core::CoreErrorCode::InvalidInput)
+    };
+    SearchBudget::new(
+        parse(&budget.max_files)?,
+        parse(&budget.max_matches)?,
+        parse(&budget.max_excerpt_bytes_per_item)?,
+        Duration::from_millis(parse(&budget.max_elapsed_ms)?),
+    )
+    .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn default_budget() -> ResourceBudget {
+    ResourceBudget::conservative(1024, 1, 1, 1, 1, 1, 1, 1_048_576)
+        .expect("constant minimum budget")
+}
+
+fn audit_outcome(result: &SearchResponse) -> AuditOutcome {
+    if result.truncated || result.completeness == "partial" {
+        AuditOutcome::Limited
+    } else {
+        AuditOutcome::Allowed
+    }
+}
+
+fn prepare_export_root(
+    workspace: &AuthorizedWorkspace,
+    root: &Path,
+) -> Result<(), PublicErrorCode> {
+    if root.as_os_str().is_empty() || root.parent().is_none() {
+        return Err(PublicErrorCode::RootNotAllowed);
+    }
+    if root
+        .try_exists()
+        .map_err(|_| PublicErrorCode::RootNotAllowed)?
+    {
+        if fs::symlink_metadata(root)
+            .map_err(|_| PublicErrorCode::RootNotAllowed)?
+            .file_type()
+            .is_symlink()
+        {
+            return Err(PublicErrorCode::SymlinkEscape);
+        }
+    } else {
+        fs::create_dir_all(root).map_err(|_| PublicErrorCode::RootNotAllowed)?;
+    }
+    let resolved = root
+        .canonicalize()
+        .map_err(|_| PublicErrorCode::RootNotAllowed)?;
+    if resolved.parent().is_none()
+        || std::env::var_os("HOME").is_some_and(|home| resolved == Path::new(&home))
+        || workspace
+            .is_same_root(&resolved)
+            .map_err(|_| PublicErrorCode::RootNotAllowed)?
+    {
+        return Err(PublicErrorCode::RootNotAllowed);
+    }
+    set_private_directory(&resolved).map_err(|_| PublicErrorCode::RootNotAllowed)
+}
+
+fn write_no_overwrite(temporary: &Path, target: &Path, bytes: &[u8]) -> std::io::Result<()> {
+    let mut file = OpenOptions::new()
+        .create_new(true)
+        .write(true)
+        .open(temporary)?;
+    set_private_file(temporary)?;
+    if let Err(error) = file.write_all(bytes).and_then(|()| file.sync_all()) {
+        let _ = fs::remove_file(temporary);
+        return Err(error);
+    }
+    if let Err(error) = fs::hard_link(temporary, target) {
+        let _ = fs::remove_file(temporary);
+        return Err(error);
+    }
+    fs::remove_file(temporary)
+}
+
+#[cfg(unix)]
+fn set_private_directory(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o700))
+}
+
+#[cfg(windows)]
+fn set_private_directory(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+#[cfg(unix)]
+fn set_private_file(path: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt as _;
+    fs::set_permissions(path, fs::Permissions::from_mode(0o600))
+}
+
+#[cfg(windows)]
+fn set_private_file(_path: &Path) -> std::io::Result<()> {
+    Ok(())
+}
+
+fn retrieval_error(
+    context: &RequestContext,
+    capability: Capability,
+    code: RetrievalErrorCode,
+    ids: (Option<&str>, Option<&str>),
+) -> EngineError {
+    let (public, message, recovery) = match code {
+        RetrievalErrorCode::InvalidInput => (
+            PublicErrorCode::InvalidInput,
+            "invalid search request",
+            RecoveryAction::None,
+        ),
+        RetrievalErrorCode::StaleState => (
+            PublicErrorCode::StaleState,
+            "workspace snapshot is stale",
+            RecoveryAction::RefreshSnapshot,
+        ),
+        RetrievalErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "search resource limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        RetrievalErrorCode::EvidenceUnavailable => (
+            PublicErrorCode::EvidenceUnavailable,
+            "verified evidence is unavailable",
+            RecoveryAction::RefreshSnapshot,
+        ),
+        RetrievalErrorCode::CacheFailure => (
+            PublicErrorCode::CorruptCache,
+            "derived search cache failed",
+            RecoveryAction::RebuildIndex,
+        ),
+    };
+    failure(
+        context,
+        capability,
+        public,
+        message,
+        ids.0,
+        ids.1,
+        Some(recovery),
+    )
+}
+
+fn workspace_error(
+    context: &RequestContext,
+    capability: Capability,
+    code: WorkspaceErrorCode,
+    workspace: Option<&str>,
+    snapshot: Option<&str>,
+) -> EngineError {
+    let (public, message, recovery) = match code {
+        WorkspaceErrorCode::PathNotFound => (
+            PublicErrorCode::PathNotFound,
+            "path not found",
+            RecoveryAction::None,
+        ),
+        WorkspaceErrorCode::RootNotDirectory | WorkspaceErrorCode::PathOutsideRoot => (
+            PublicErrorCode::RootNotAllowed,
+            "workspace root is not allowed",
+            RecoveryAction::RequestAuthorization,
+        ),
+        WorkspaceErrorCode::InvalidPathIdentity => (
+            PublicErrorCode::InvalidInput,
+            "invalid path identity",
+            RecoveryAction::None,
+        ),
+        WorkspaceErrorCode::SymlinkRejected => (
+            PublicErrorCode::SymlinkEscape,
+            "symbolic link is not allowed",
+            RecoveryAction::ReduceScope,
+        ),
+        WorkspaceErrorCode::UnsupportedObject => (
+            PublicErrorCode::UnsupportedFilesystemObject,
+            "unsupported filesystem object",
+            RecoveryAction::ReduceScope,
+        ),
+        WorkspaceErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "workspace resource limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        WorkspaceErrorCode::ChangedDuringRead => (
+            PublicErrorCode::StaleState,
+            "workspace changed during read",
+            RecoveryAction::RefreshSnapshot,
+        ),
+        WorkspaceErrorCode::IoFailure => (
+            PublicErrorCode::InternalFailure,
+            "workspace operation failed",
+            RecoveryAction::Retry,
+        ),
+    };
+    failure(
+        context,
+        capability,
+        public,
+        message,
+        workspace,
+        snapshot,
+        Some(recovery),
+    )
+}
+
+fn cache_error(
+    context: &RequestContext,
+    capability: Capability,
+    code: CacheErrorCode,
+    ids: Option<(Option<&str>, Option<&str>)>,
+) -> EngineError {
+    let (workspace, snapshot) = ids.unwrap_or((None, None));
+    let (public, message, recovery) = match code {
+        CacheErrorCode::InvalidCacheRoot => (
+            PublicErrorCode::RootNotAllowed,
+            "cache root is not allowed",
+            RecoveryAction::ReduceScope,
+        ),
+        CacheErrorCode::WriterBusy => (
+            PublicErrorCode::InternalFailure,
+            "local store is busy",
+            RecoveryAction::Retry,
+        ),
+        CacheErrorCode::IncompatibleCache => (
+            PublicErrorCode::IncompatibleCache,
+            "local store is incompatible",
+            RecoveryAction::RebuildIndex,
+        ),
+        CacheErrorCode::CorruptCache => (
+            PublicErrorCode::CorruptCache,
+            "local store is corrupt",
+            RecoveryAction::RebuildIndex,
+        ),
+        CacheErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "local store limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        CacheErrorCode::StorageFailure => (
+            PublicErrorCode::InternalFailure,
+            "local store operation failed",
+            RecoveryAction::Retry,
+        ),
+    };
+    failure(
+        context,
+        capability,
+        public,
+        message,
+        workspace,
+        snapshot,
+        Some(recovery),
+    )
+}
+
+fn core_error(
+    context: &RequestContext,
+    capability: Capability,
+    code: context_core::CoreErrorCode,
+    ids: (Option<&str>, Option<&str>),
+) -> EngineError {
+    let (public, message, recovery) = match code {
+        context_core::CoreErrorCode::InvalidInput => (
+            PublicErrorCode::InvalidInput,
+            "invalid request",
+            RecoveryAction::None,
+        ),
+        context_core::CoreErrorCode::BudgetTooSmall => (
+            PublicErrorCode::BudgetTooSmall,
+            "packet budget is too small",
+            RecoveryAction::IncreaseBudget,
+        ),
+        context_core::CoreErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "resource limit exceeded",
+            RecoveryAction::ReduceScope,
+        ),
+        context_core::CoreErrorCode::CanonicalizationFailure => (
+            PublicErrorCode::InternalFailure,
+            "response serialization failed",
+            RecoveryAction::None,
+        ),
+        context_core::CoreErrorCode::IntegrityFailure => (
+            PublicErrorCode::IntegrityFailure,
+            "integrity verification failed",
+            RecoveryAction::RefreshSnapshot,
+        ),
+    };
+    failure(
+        context,
+        capability,
+        public,
+        message,
+        ids.0,
+        ids.1,
+        Some(recovery),
+    )
+}
+
+fn failure(
+    context: &RequestContext,
+    capability: Capability,
+    code: PublicErrorCode,
+    message: &str,
+    workspace: Option<&str>,
+    snapshot: Option<&str>,
+    recovery: Option<RecoveryAction>,
+) -> EngineError {
+    let request_id = if valid_identifier(&context.request_id) {
+        context.request_id.as_str()
+    } else {
+        "req_invalid00"
+    };
+    let envelope = error_envelope(
+        code,
+        message,
+        matches!(
+            recovery,
+            Some(RecoveryAction::Retry | RecoveryAction::RefreshSnapshot)
+        ),
+        capability,
+        request_id,
+        workspace,
+        snapshot,
+        false,
+        recovery,
+    )
+    .expect("safe constant error envelope");
+    EngineError {
+        envelope: Box::new(envelope),
+    }
+}
+
+fn valid_identifier(value: &str) -> bool {
+    let Some((prefix, suffix)) = value.split_once('_') else {
+        return false;
+    };
+    !prefix.is_empty()
+        && suffix.len() >= 8
+        && suffix.len() <= 128
+        && prefix.bytes().all(|byte| byte.is_ascii_lowercase())
+        && suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use context_core::validate_packet;
+    use jsonschema::Registry;
+    use serde::Serialize;
+    use std::{
+        fs,
+        sync::atomic::{AtomicU64, Ordering},
+    };
+
+    static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+    struct TestRoot(PathBuf);
+    impl TestRoot {
+        fn new(label: &str) -> Self {
+            let sequence = NEXT_ROOT.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "impresari-engine-{label}-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir(&path).expect("create test root");
+            Self(path)
+        }
+    }
+    impl Drop for TestRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn request(sequence: u64, purpose: &str) -> RequestContext {
+        RequestContext {
+            request_id: format!("req_{sequence:08}"),
+            event_id: format!("evt_{sequence:08}"),
+            subject: PolicySubject {
+                caller_id: "caller_12345678".into(),
+                role: "local_user".into(),
+                purpose: purpose.into(),
+            },
+            occurred_at: format!("2026-08-21T00:00:{sequence:02}Z"),
+        }
+    }
+
+    fn budget() -> ResourceBudget {
+        ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
+            .expect("budget")
+    }
+
+    fn assert_schema<T: Serialize>(name: &str, value: &T) {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../schemas/v1");
+        let (schema_name, fragment) = name.split_once('#').unwrap_or((name, ""));
+        let registry_document: serde_json::Value =
+            serde_json::from_slice(&fs::read(root.join("registry.json")).expect("schema registry"))
+                .expect("registry JSON");
+        let mut registry = Registry::new();
+        for entry in registry_document["schemas"].as_array().expect("schemas") {
+            let path = entry["path"].as_str().expect("schema path");
+            if path.ends_with(".schema.json") {
+                let schema: serde_json::Value =
+                    serde_json::from_slice(&fs::read(root.join(path)).expect("schema file"))
+                        .expect("schema JSON");
+                let id = schema["$id"].as_str().expect("schema id").to_owned();
+                registry = registry.add(id, schema).expect("register schema");
+            }
+        }
+        let registry = registry.prepare().expect("prepare registry");
+        let schema: serde_json::Value =
+            serde_json::from_slice(&fs::read(root.join(schema_name)).expect("target schema"))
+                .expect("target schema JSON");
+        let schema = if fragment.is_empty() {
+            schema
+        } else {
+            let id = schema["$id"].as_str().expect("target schema id");
+            serde_json::json!({"$ref": format!("{id}#{fragment}")})
+        };
+        let validator = jsonschema::draft202012::options()
+            .with_registry(&registry)
+            .should_validate_formats(true)
+            .build(&schema)
+            .expect("compile schema");
+        validator
+            .validate(&serde_json::to_value(value).expect("response JSON"))
+            .unwrap_or_else(|error| panic!("{name}: {error}"));
+    }
+
+    fn assert_recovery_validation_and_export(
+        engine: &mut LocalEngine,
+        packet: &ContextPacket,
+        export_root: &Path,
+    ) {
+        let expanded = engine
+            .expand_evidence(
+                &request(9, "evidence_recovery"),
+                &packet.observed_evidence[0],
+                2,
+                2,
+                16,
+                budget(),
+            )
+            .expect("expand");
+        assert_eq!(
+            expanded.evidence_id,
+            packet.observed_evidence[0].evidence_id
+        );
+        assert_eq!(
+            engine
+                .validate_context_packet(&request(10, "validation"), packet, budget())
+                .expect("validate")
+                .status,
+            context_core::PacketValidationStatus::ValidCurrent
+        );
+        let mut corrupt = packet.clone();
+        corrupt.purpose = "tampered".into();
+        assert_eq!(
+            engine
+                .validate_context_packet(&request(11, "validation"), &corrupt, budget())
+                .expect("corrupt status")
+                .status,
+            context_core::PacketValidationStatus::Corrupt
+        );
+        let receipt = engine
+            .export_handoff(
+                &request(12, "handoff"),
+                packet,
+                &budget(),
+                export_root,
+                "packet.json",
+            )
+            .expect("export");
+        assert_schema("handoff-export.schema.json", &receipt);
+        assert_eq!(receipt.packet_id, packet.packet_id);
+        assert!(!receipt.authority_added);
+        assert_eq!(
+            fs::read(export_root.join("packet.json")).expect("export bytes"),
+            packet_bytes(packet).expect("canonical packet")
+        );
+        assert_eq!(
+            engine
+                .export_handoff(
+                    &request(13, "handoff"),
+                    packet,
+                    &budget(),
+                    export_root,
+                    "packet.json",
+                )
+                .expect_err("no overwrite")
+                .envelope()
+                .code,
+            PublicErrorCode::InvalidInput
+        );
+    }
+
+    #[test]
+    fn one_gateway_drives_snapshot_search_index_and_packet_building() {
+        let source = TestRoot::new("source");
+        let cache = TestRoot::new("cache");
+        let export = TestRoot::new("export");
+        fs::write(source.0.join("sample.rs"), b"pub fn alpha() { beta(); }\n")
+            .expect("source file");
+        let original = fs::read(source.0.join("sample.rs")).expect("original");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(100, 1_048_576, 65_536, 16).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 100, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, handle) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        assert_schema("workspace-handle.schema.json", &handle);
+        assert_eq!(engine.workspace_handle(), handle.workspace_handle);
+        let snapshot = engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        assert_schema("snapshot-status.schema.json", &snapshot);
+        assert_eq!(snapshot.state, "current");
+        assert_eq!(
+            engine
+                .snapshot_status(&request(3, "status"), budget())
+                .expect("status")
+                .snapshot_id,
+            snapshot.snapshot_id
+        );
+        let literal = engine
+            .search(&request(4, "search"), QueryKind::Literal, "beta", &budget())
+            .expect("literal");
+        assert_schema("search.schema.json#/$defs/result", &literal);
+        assert_eq!(literal.matches.len(), 1);
+        assert_eq!(literal.matches[0].span.start_byte, "17");
+        let lexical = engine
+            .search(
+                &request(5, "search"),
+                QueryKind::Lexical,
+                "alpha",
+                &budget(),
+            )
+            .expect("lexical");
+        assert_eq!(lexical.matches.len(), 1);
+        let filename = engine
+            .search(
+                &request(6, "search"),
+                QueryKind::Filename,
+                "SAMPLE",
+                &budget(),
+            )
+            .expect("filename");
+        assert_eq!(filename.matches.len(), 1);
+        let exact_path = engine
+            .search(
+                &request(7, "search"),
+                QueryKind::ExactPath,
+                "sample.rs",
+                &budget(),
+            )
+            .expect("exact path");
+        assert_eq!(exact_path.matches.len(), 1);
+        let packet = engine
+            .build_context(
+                &request(8, "implementation_review"),
+                QueryKind::Literal,
+                "alpha",
+                budget(),
+            )
+            .expect("packet");
+        validate_packet(&packet).expect("valid packet");
+        assert_eq!(packet.purpose, "implementation_review");
+        assert_recovery_validation_and_export(&mut engine, &packet, &export.0);
+        assert_eq!(
+            fs::read(source.0.join("sample.rs")).expect("after"),
+            original
+        );
+        assert_eq!(
+            fs::read_dir(&source.0).expect("source entries").count(),
+            1,
+            "engine must not add source-workspace files"
+        );
+        assert!(cache.0.join("audit/audit.sqlite3").is_file());
+        assert!(cache.0.join("workspaces").is_dir());
+    }
+
+    #[test]
+    fn errors_are_structured_safe_and_do_not_echo_query_or_path() {
+        let source = TestRoot::new("source-errors");
+        let cache = TestRoot::new("cache-errors");
+        fs::write(source.0.join("sample.txt"), b"safe").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 10, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        let error = engine
+            .search(
+                &request(2, "search"),
+                QueryKind::Literal,
+                "secret-query",
+                &budget(),
+            )
+            .expect_err("snapshot required");
+        assert_eq!(error.envelope().code, PublicErrorCode::StaleState);
+        assert_schema("error-envelope.schema.json", error.envelope());
+        let serialized = format!("{error:?}");
+        assert!(!serialized.contains("secret-query"));
+        assert!(!serialized.contains(source.0.to_string_lossy().as_ref()));
+        drop(engine);
+        let audit = AuditStore::open(&cache.0).expect("reopen audit");
+        let events = audit.recent(10).expect("audit events");
+        assert!(events.iter().any(|event| {
+            event.event_id == "evt_00000002" && event.outcome == AuditOutcome::Failed
+        }));
+    }
+}

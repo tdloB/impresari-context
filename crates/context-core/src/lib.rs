@@ -78,6 +78,9 @@ pub enum Capability {
     /// Query snapshot status.
     #[serde(rename = "snapshot.status")]
     SnapshotStatus,
+    /// Build a bounded workspace snapshot.
+    #[serde(rename = "snapshot.build")]
+    SnapshotBuild,
     /// Build a derived index.
     #[serde(rename = "index.build")]
     IndexBuild,
@@ -99,6 +102,137 @@ pub enum Capability {
     /// Export an explicit handoff.
     #[serde(rename = "handoff.export")]
     HandoffExport,
+}
+
+/// Stable public error codes shared by every adapter.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PublicErrorCode {
+    /// Requested path does not exist.
+    PathNotFound,
+    /// Workspace root is not permitted.
+    RootNotAllowed,
+    /// A symlink could escape or confuse the authorized root.
+    SymlinkEscape,
+    /// Filesystem object is unsupported.
+    UnsupportedFilesystemObject,
+    /// Policy denied the capability.
+    PolicyDenied,
+    /// Request contract is invalid.
+    InvalidInput,
+    /// Required packet metadata cannot fit.
+    BudgetTooSmall,
+    /// Output budget was exhausted.
+    BudgetExceeded,
+    /// Another hard resource ceiling was reached.
+    ResourceLimit,
+    /// Workspace or snapshot state changed.
+    StaleState,
+    /// Replaceable cache is corrupt.
+    CorruptCache,
+    /// Cache or contract version is incompatible.
+    IncompatibleCache,
+    /// Capability is not supported.
+    UnsupportedCapability,
+    /// Artifact cannot be handled safely.
+    UnsupportedArtifact,
+    /// Identity or accounting verification failed.
+    IntegrityFailure,
+    /// A bounded partial result was returned.
+    PartialResult,
+    /// Internal operation failed without safe detail.
+    InternalFailure,
+    /// Exact evidence cannot be recovered.
+    EvidenceUnavailable,
+}
+
+/// Safe recovery actions exposed by structured errors.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RecoveryAction {
+    /// No safe automatic recovery is available.
+    None,
+    /// Retry the same bounded operation.
+    Retry,
+    /// Refresh the workspace snapshot.
+    RefreshSnapshot,
+    /// Rebuild replaceable derived indexes.
+    RebuildIndex,
+    /// Reduce requested scope.
+    ReduceScope,
+    /// Increase a permitted budget.
+    IncreaseBudget,
+    /// Obtain workspace/capability authorization.
+    RequestAuthorization,
+}
+
+/// Versioned safe error envelope used identically by library and CLI clients.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct ErrorEnvelope {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Stable machine code.
+    pub code: PublicErrorCode,
+    /// Safe message without paths, source, queries, or underlying details.
+    pub message: String,
+    /// Whether retrying unchanged may succeed.
+    pub retryable: bool,
+    /// Capability that failed.
+    pub operation: Capability,
+    /// Opaque request identifier.
+    pub request_id: String,
+    /// Authorized workspace identity, when safe to disclose.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_identity: Option<String>,
+    /// Authorized snapshot identity, when safe to disclose.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_id: Option<String>,
+    /// Whether a separate partial result exists.
+    pub partial_result: bool,
+    /// Optional safe recovery action.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub recovery_action: Option<RecoveryAction>,
+}
+
+/// Constructs and validates a safe adapter-neutral error envelope.
+///
+/// # Errors
+///
+/// Fails for malformed identifiers/hashes or an unsafe message.
+#[allow(clippy::too_many_arguments)]
+pub fn error_envelope(
+    code: PublicErrorCode,
+    message: &str,
+    retryable: bool,
+    operation: Capability,
+    request_id: &str,
+    workspace_identity: Option<&str>,
+    snapshot_id: Option<&str>,
+    partial_result: bool,
+    recovery_action: Option<RecoveryAction>,
+) -> Result<ErrorEnvelope, CoreError> {
+    validate_identifier(request_id)?;
+    for identity in [workspace_identity, snapshot_id].into_iter().flatten() {
+        validate_sha256(identity)?;
+    }
+    if message.is_empty() || message.len() > 1024 || message.contains('\0') {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
+    Ok(ErrorEnvelope {
+        schema_name: "error-envelope".into(),
+        schema_version: VERSION.into(),
+        code,
+        message: message.into(),
+        retryable,
+        operation,
+        request_id: request_id.into(),
+        workspace_identity: workspace_identity.map(str::to_owned),
+        snapshot_id: snapshot_id.map(str::to_owned),
+        partial_result,
+        recovery_action,
+    })
 }
 
 /// Hard model-neutral and operational request budget.

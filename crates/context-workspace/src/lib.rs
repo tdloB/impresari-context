@@ -293,6 +293,24 @@ impl AuthorizedWorkspace {
         &self.workspace_identity
     }
 
+    /// Checks whether an ambient directory resolves to this authorized root
+    /// without disclosing the root path.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when the candidate cannot be resolved as a directory.
+    pub fn is_same_root(&self, candidate: &Path) -> Result<bool, WorkspaceError> {
+        let resolved = std::fs::canonicalize(candidate).map_err(map_not_found)?;
+        if !resolved
+            .metadata()
+            .map_err(|error| WorkspaceError::io(WorkspaceErrorCode::IoFailure, error))?
+            .is_dir()
+        {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::RootNotDirectory));
+        }
+        Ok(workspace_identity(&resolved) == self.workspace_identity)
+    }
+
     /// Reads a regular file relative to the held capability under a hard byte ceiling.
     ///
     /// # Errors

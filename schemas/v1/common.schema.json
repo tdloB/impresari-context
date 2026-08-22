@@ -33,6 +33,7 @@
       "enum": [
         "workspace.open",
         "snapshot.status",
+        "snapshot.build",
         "index.build",
         "code.search",
         "code.describe",

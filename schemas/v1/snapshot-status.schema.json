@@ -31,7 +31,7 @@
         "additionalProperties": false,
         "required": ["reason", "count", "affects_completeness"],
         "properties": {
-          "reason": {"type": "string", "enum": ["policy_excluded", "ignored", "oversized", "unsupported_encoding", "binary", "special_file", "limit_reached", "read_failed", "changed_during_read"]},
+          "reason": {"type": "string", "enum": ["policy_excluded", "ignored", "oversized", "unsupported_encoding", "binary", "symlink", "special_file", "limit_reached", "read_failed", "changed_during_read"]},
           "count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
           "affects_completeness": {"type": "boolean"}
         }

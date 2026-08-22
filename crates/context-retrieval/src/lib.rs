@@ -460,6 +460,112 @@ pub fn expand_evidence(
     Ok(expanded)
 }
 
+/// Revalidates and expands a public evidence record against current source.
+/// Serialized excerpt bytes are checked byte-for-byte before expansion.
+///
+/// # Errors
+///
+/// Fails for malformed offsets/encoding, identity mismatch, stale source, or
+/// an expansion ceiling that cannot contain the authoritative match.
+pub fn expand_evidence_record(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    record: &EvidenceRecord,
+    before_bytes: u64,
+    after_bytes: u64,
+    max_bytes: u64,
+) -> Result<EvidenceRecord, RetrievalError> {
+    if record.schema_name != "evidence"
+        || record.schema_version != "1.0.0"
+        || record.workspace_snapshot != snapshot.snapshot_id
+        || record.excerpt.encoding != "base64url"
+    {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    let artifact = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| {
+            artifact.path.relative_units_base64url == record.artifact.path.relative_units_base64url
+                && artifact.path.platform_family == record.artifact.path.platform_family
+                && artifact.path.unit_encoding == record.artifact.path.unit_encoding
+                && artifact.content_hash == record.artifact.content_hash
+        })
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::StaleState))?;
+    let start = parse_offset(&record.span.start_byte)?;
+    let end = parse_offset(&record.span.end_byte)?;
+    let match_start = parse_offset(&record.excerpt.match_start_byte)?;
+    let match_end = parse_offset(&record.excerpt.match_end_byte)?;
+    let serialized_excerpt = URL_SAFE_NO_PAD
+        .decode(&record.excerpt.bytes_base64url)
+        .map_err(|_| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    if URL_SAFE_NO_PAD.encode(&serialized_excerpt) != record.excerpt.bytes_base64url
+        || start > end
+        || match_start > match_end
+        || end - start != match_end - match_start
+        || match_end > serialized_excerpt.len()
+    {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    let exact = workspace
+        .read_exact(&artifact.path, artifact.size_bytes.max(1))
+        .map_err(map_workspace)?;
+    if exact.content_hash != artifact.content_hash || end > exact.bytes.len() {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    let excerpt_start = start
+        .checked_sub(match_start)
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    let excerpt_end = excerpt_start
+        .checked_add(serialized_excerpt.len())
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::ResourceLimit))?;
+    if excerpt_end > exact.bytes.len()
+        || exact.bytes[excerpt_start..excerpt_end] != serialized_excerpt
+        || exact.bytes[start..end] != serialized_excerpt[match_start..match_end]
+    {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    let method = match record.extraction.method.as_str() {
+        "exact_read" => "exact_read",
+        "literal_search" => "literal_search",
+        "lexical_search" => "lexical_search",
+        "permitted_pattern" => "permitted_pattern",
+        _ => return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput)),
+    };
+    let evidence = make_evidence(
+        snapshot,
+        artifact,
+        &exact.bytes,
+        start,
+        end,
+        u64::try_from(serialized_excerpt.len()).unwrap_or(u64::MAX),
+        method,
+    );
+    if evidence.evidence_id != record.evidence_id {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    expand_evidence(
+        workspace,
+        snapshot,
+        &evidence,
+        before_bytes,
+        after_bytes,
+        max_bytes,
+    )
+    .map(|expanded| evidence_record(&expanded))
+}
+
+fn parse_offset(value: &str) -> Result<usize, RetrievalError> {
+    if value != "0" && value.starts_with('0') {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    value
+        .parse::<u64>()
+        .ok()
+        .and_then(|offset| usize::try_from(offset).ok())
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::InvalidInput))
+}
+
 fn search_candidates(
     workspace: &AuthorizedWorkspace,
     snapshot: &WorkspaceSnapshot,
@@ -805,6 +911,28 @@ mod tests {
         assert_eq!(
             expand_evidence(&workspace, &snapshot, &original, 1, 1, 8)
                 .expect_err("stale")
+                .code(),
+            RetrievalErrorCode::StaleState
+        );
+    }
+
+    #[test]
+    fn public_evidence_recovery_rejects_tampered_excerpt_bytes() {
+        let (_source, _cache_root, workspace, snapshot, _cache) = setup();
+        let budget = SearchBudget::new(10, 10, 12, Duration::from_secs(1)).expect("budget");
+        let evidence = search_literal(&workspace, &snapshot, b"beta", budget)
+            .expect("search")
+            .matches
+            .remove(0);
+        let record = evidence_record(&evidence);
+        let recovered =
+            expand_evidence_record(&workspace, &snapshot, &record, 2, 1, 8).expect("recover");
+        assert_eq!(recovered.span, record.span);
+        let mut tampered = record;
+        tampered.excerpt.bytes_base64url = URL_SAFE_NO_PAD.encode(b"forged bytes");
+        assert_eq!(
+            expand_evidence_record(&workspace, &snapshot, &tampered, 0, 0, 8)
+                .expect_err("tamper")
                 .code(),
             RetrievalErrorCode::StaleState
         );

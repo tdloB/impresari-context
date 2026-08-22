@@ -169,6 +169,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-engine"
+version = "0.0.0"
+dependencies = [
+ "context-core",
+ "context-retrieval",
+ "context-store",
+ "context-workspace",
+ "jsonschema",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "context-retrieval"
 version = "0.0.0"
 dependencies = [
