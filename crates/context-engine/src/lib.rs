@@ -991,16 +991,14 @@ fn record_event(
         ENGINE_VERSION,
     )
     .map_err(|error| core_error(context, capability, error.code(), (workspace, snapshot)))?;
-    if let Err(error) = audit.append(&event, retention) {
-        #[cfg(test)]
-        eprintln!("test-only audit failure detail: {error:?}");
-        return Err(cache_error(
+    audit.append(&event, retention).map_err(|error| {
+        cache_error(
             context,
             capability,
             error.code(),
             Some((workspace, snapshot)),
-        ));
-    }
+        )
+    })?;
     Ok(())
 }
 

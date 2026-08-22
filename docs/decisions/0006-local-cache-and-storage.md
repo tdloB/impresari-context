@@ -40,7 +40,7 @@ cache namespace per canonical workspace identity.
 ```text
 configured-cache-root/
   workspaces/
-    <workspace-identity>/
+    sha256-<workspace-digest>/
       manifest.json
       index.sqlite3
       lock
@@ -55,6 +55,9 @@ configured-cache-root/
   empty, home, filesystem-root, or unresolved destructive targets are denied.
 - Workspace cache directories use restrictive supported permissions and never
   share database files across workspace identities.
+- Filesystem namespace names replace the canonical identity's `sha256:` prefix
+  with the cross-platform-safe `sha256-`; the canonical identity remains stored
+  and verified inside the database.
 - Temporary/staging files remain inside the exact workspace cache namespace.
 
 ### SQLite journal and concurrency policy

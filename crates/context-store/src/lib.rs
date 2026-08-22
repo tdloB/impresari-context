@@ -370,7 +370,7 @@ impl WorkspaceCache {
         if workspaces.try_exists().map_err(CacheError::storage)? {
             reject_symlink(&workspaces)?;
         }
-        let namespace = workspaces.join(workspace_identity);
+        let namespace = workspaces.join(workspace_namespace_name(workspace_identity));
         if namespace.try_exists().map_err(CacheError::storage)? {
             reject_symlink(&namespace)?;
         }
@@ -620,7 +620,9 @@ impl WorkspaceCache {
 pub fn purge_workspace(cache_root: &Path, workspace_identity: &str) -> Result<bool, CacheError> {
     validate_identity(workspace_identity)?;
     let root = prepare_cache_root(cache_root)?;
-    let namespace = root.join("workspaces").join(workspace_identity);
+    let namespace = root
+        .join("workspaces")
+        .join(workspace_namespace_name(workspace_identity));
     if !namespace.try_exists().map_err(CacheError::storage)? {
         return Ok(false);
     }
@@ -809,6 +811,10 @@ fn validate_identity(value: &str) -> Result<(), CacheError> {
     } else {
         Err(CacheError::new(CacheErrorCode::IncompatibleCache))
     }
+}
+
+fn workspace_namespace_name(identity: &str) -> String {
+    format!("sha256-{}", &identity[7..])
 }
 
 fn validate_artifact(artifact: &CachedArtifact) -> Result<(), CacheError> {
@@ -1007,6 +1013,10 @@ mod tests {
         );
         let other = WorkspaceCache::open(&root.0, B).expect("other");
         assert_ne!(first.namespace(), other.namespace());
+        assert_eq!(
+            first.namespace().file_name().and_then(|name| name.to_str()),
+            Some(format!("sha256-{}", &A[7..]).as_str())
+        );
     }
 
     #[test]
