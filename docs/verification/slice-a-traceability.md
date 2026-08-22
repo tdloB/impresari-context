@@ -69,7 +69,7 @@ environment outside approval A-0029 and do not authorize that action.
 | SEC-REQ-001–004 | Pass | Capability paths, object restrictions, immutability, and workspace/snapshot binding suites. |
 | SEC-REQ-005 | Pass | Configured policy is monotonically narrowed by request file/traversal/time/memory limits; search/index/output/cache/audit/export ceilings are tested. |
 | SEC-REQ-006–009 | Pass | Structured separation, runtime capability denial, leakage tests, and corrupt-cache/packet behavior. |
-| SEC-REQ-010 | Partial | Adversarial, deterministic fuzz/property/mutation, restart, permission, and network-denied cases pass locally; native platform and coverage-guided campaign evidence remain. |
+| SEC-REQ-010 | Partial | Adversarial, deterministic fuzz/property/mutation, restart, permission, and network-denied cases pass locally. The `context_packet` coverage-guided harness completed 6,947,248 local executions without a crash; hosted Linux evidence and broader target coverage remain. |
 | SEC-REQ-011 | Pass locally | Reproducible SPDX SBOM plus Cargo deny/RustSec evidence; repeat at release candidate. |
 | SEC-REQ-012 | Pass | `docs/security/residual-risks.md`. |
 
