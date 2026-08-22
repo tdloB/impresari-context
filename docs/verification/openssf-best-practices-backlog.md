@@ -69,6 +69,29 @@ Acceptance evidence:
   workflow, and source commit.
 - The protected tag and release evidence URLs are publicly accessible.
 
+### Human-readable release notes (`release_notes`)
+
+Every public release must include human-readable release notes that explain its
+major changes, upgrade relevance, and expected user impact. A raw commit log is
+not sufficient.
+
+Required work:
+
+- Create release notes for `v0.1.0` as part of the approved release process.
+- Summarize added capabilities, compatibility or migration considerations,
+  security-relevant changes, known limitations, and unresolved risks.
+- For later releases, identify every publicly known project vulnerability fixed
+  by that release, including its CVE or equivalent identifier when one exists.
+- Link the notes from the GitHub release and release evidence documentation.
+
+Acceptance evidence:
+
+- The public GitHub release contains reviewed prose rather than an unedited
+  version-control log.
+- The notes allow a user to understand whether and how to adopt or upgrade.
+- Applicable fixed project vulnerabilities and identifiers are explicitly
+  listed, or the notes explicitly state that none are known for that release.
+
 ## Tracking rule
 
 Add any later unknown or unmet badge criterion to this file with its criterion
