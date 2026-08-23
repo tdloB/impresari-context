@@ -4,9 +4,10 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-P0-001 / 0.1.
-- Status: Draft for founder review.
+- Status: Accepted.
 - Date: 2026-08-23.
 - Owner: Aaron Boldt.
+- Accepted by: Founder, 2026-08-23.
 - Related records:
   - [Master Product PRD](master-prd.md)
   - [Evaluation PRD](evaluation-prd.md)
