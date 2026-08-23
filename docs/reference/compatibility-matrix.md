@@ -2,7 +2,7 @@
 
 - Version: 1.0
 - Published: 2026-08-23
-- Status: Phase 3 language-admission update
+- Status: Phase 2 language-admission update
 - Evidence sources: [ADR-0004](../decisions/0004-source-language-and-parser-strategy.md),
   [ADR-0010](../decisions/0010-structural-worker-protocol-and-isolation.md),
   [dependency policy](../dependency-policy.md), and the released

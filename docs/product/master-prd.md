@@ -17,6 +17,7 @@
   - [Security Threat Model](../security/threat-model.md)
   - [Evaluation PRD](evaluation-prd.md)
   - [Phase 0: Language and Client Foundation PRD](phase-0-language-and-client-foundation-prd.md)
+  - [Revised Product Roadmap](revised-product-roadmap.md)
 
 ## Product Name
 
