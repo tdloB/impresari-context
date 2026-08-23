@@ -84,8 +84,8 @@
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
       "first_class": false,
-      "conformance": "limited_live_lifecycle_validated",
-      "conformance_evidence": "docs/verification/phase-0-codex-local-mcp-conformance.md"
+      "conformance": "project_scoped_preadmission_validated",
+      "conformance_evidence": "docs/verification/phase-1-codex-connection-kit.md"
     },
     {
       "client": "Claude Code",

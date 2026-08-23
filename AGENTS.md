@@ -7,6 +7,13 @@ The founder directs Codex to continue all accepted Impresari Context roadmap wor
 - Stop only for a required manual user action, an unavoidable platform approval, an unresolved technical failure after safe in-scope alternatives, or completion of all accepted roadmap work.
 - Do not infer approval for a materially new product scope. If no accepted milestone remains, complete all non-dependent work and state the precise product decision needed to continue.
 - Keep the user informed with concise progress updates while work is active.
+- After every completed roadmap step, perform a proportionate roadmap
+  checkpoint: reassess the Master PRD, relevant ADRs, approved roadmap,
+  security posture, and acceptance evidence. Make minor corrective or alignment
+  changes autonomously and continue. Escalate only a materially new product
+  scope, trust/authority-boundary change, real user/client configuration
+  mutation, unresolved technical failure, or another higher-priority approval
+  requirement.
 
 These instructions supplement, and never override, higher-priority system, developer, safety, or platform requirements.
 

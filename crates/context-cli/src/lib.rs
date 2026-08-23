@@ -43,6 +43,7 @@ Usage:\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
   impresari-context [global-options] doctor inspect <root> <cache-root>\n\
   impresari-context [global-options] doctor mcp <root> <cache-root>\n\
+  impresari-context [global-options] doctor codex-config <root> <cache-root> <config-toml>\n\
   impresari-context [global-options] doctor cursor-config <root> <cache-root> <mcp-json>\n\
   impresari-context [global-options] doctor claude-config <root> <cache-root> <mcp-json>\n\
 Global options:\n\
@@ -320,6 +321,10 @@ fn dispatch(
         ["doctor", "mcp", root, cache] => {
             let report = doctor_mcp(root, cache, options)?;
             Output::new("doctor mcp", &report)
+        }
+        ["doctor", "codex-config", root, cache, config_path] => {
+            let report = doctor_codex_config(root, cache, Path::new(config_path))?;
+            Output::new("doctor codex-config", &report)
         }
         ["doctor", "cursor-config", root, cache, config_path] => {
             let report = doctor_client_config(root, cache, Path::new(config_path), "cursor")?;
@@ -636,6 +641,79 @@ fn doctor_client_config(
     Ok(report)
 }
 
+fn doctor_codex_config(
+    root: &str,
+    cache: &str,
+    config_path: &Path,
+) -> Result<DoctorReport, EngineError> {
+    let mut report = doctor_inspect(Path::new(root), Path::new(cache))?;
+    let workspace = canonical_directory(Path::new(root))?;
+    let cache = canonical_directory(Path::new(cache))?;
+    let config = read_toml(config_path, Capability::WorkspaceOpen)?;
+    let passed = codex_config_is_safe(&config, &workspace, &cache);
+    report.checks.push(DoctorCheck {
+        id: "codex_mcp_configuration",
+        status: if passed { "passed" } else { "failed" },
+        remediation: "use the documented project-scoped fixed local-stdio TOML entry with prompt approvals and no environment forwarding",
+    });
+    if !passed {
+        report.status = "failed";
+    }
+    report.limitations.push(
+        "Codex configuration syntax is checked without launching Codex or modifying its configuration.",
+    );
+    Ok(report)
+}
+
+fn codex_config_is_safe(config: &toml::Value, workspace: &Path, cache: &Path) -> bool {
+    let Some(entry) = config
+        .get("mcp_servers")
+        .and_then(toml::Value::as_table)
+        .and_then(|servers| servers.get("impresari-context"))
+        .and_then(toml::Value::as_table)
+    else {
+        return false;
+    };
+    let Some(command) = entry.get("command").and_then(toml::Value::as_str) else {
+        return false;
+    };
+    let Some(args) = entry
+        .get("args")
+        .and_then(toml::Value::as_array)
+        .and_then(|args| {
+            args.iter()
+                .map(toml::Value::as_str)
+                .collect::<Option<Vec<_>>>()
+        })
+    else {
+        return false;
+    };
+    if !entry.keys().all(|key| {
+        matches!(
+            key.as_str(),
+            "command" | "args" | "enabled" | "default_tools_approval_mode"
+        )
+    }) {
+        return false;
+    }
+    Path::new(command).is_absolute()
+        && fs::metadata(command).is_ok_and(|metadata| metadata.is_file())
+        && fixed_stdio_args_are_safe(&args)
+        && configured_directory_matches(args[1], workspace)
+        && configured_directory_matches(args[3], cache)
+        && entry
+            .get("enabled")
+            .is_none_or(|value| value.as_bool() == Some(true))
+        && entry
+            .get("default_tools_approval_mode")
+            .and_then(toml::Value::as_str)
+            == Some("prompt")
+}
+
+fn configured_directory_matches(configured: &str, expected: &Path) -> bool {
+    fs::canonicalize(configured).is_ok_and(|path| path == expected)
+}
+
 fn client_config_is_safe(config: &serde_json::Value, requires_stdio_type: bool) -> bool {
     let Some(entry) = config
         .get("mcpServers")
@@ -669,6 +747,10 @@ fn client_config_is_safe(config: &serde_json::Value, requires_stdio_type: bool) 
     else {
         return false;
     };
+    fixed_stdio_args_are_safe(&args)
+}
+
+fn fixed_stdio_args_are_safe(args: &[&str]) -> bool {
     args.len() == 8
         && args[0] == "--workspace"
         && !args[1].is_empty()
@@ -844,6 +926,37 @@ fn read_json<T: serde::de::DeserializeOwned>(
             capability,
             PublicErrorCode::InvalidInput,
             "input JSON is invalid",
+        )
+    })
+}
+
+fn read_toml(path: &Path, capability: Capability) -> Result<toml::Value, EngineError> {
+    let metadata = fs::metadata(path).map_err(|_| {
+        synthetic_error(
+            capability,
+            PublicErrorCode::PathNotFound,
+            "input file not found",
+        )
+    })?;
+    if !metadata.is_file() || metadata.len() > 4_194_304 {
+        return Err(synthetic_error(
+            capability,
+            PublicErrorCode::ResourceLimit,
+            "input file is not a bounded regular file",
+        ));
+    }
+    let text = fs::read_to_string(path).map_err(|_| {
+        synthetic_error(
+            capability,
+            PublicErrorCode::InvalidInput,
+            "input TOML is not valid UTF-8",
+        )
+    })?;
+    toml::from_str(&text).map_err(|_| {
+        synthetic_error(
+            capability,
+            PublicErrorCode::InvalidInput,
+            "input TOML is invalid",
         )
     })
 }
@@ -1030,6 +1143,22 @@ mod tests {
         assert!(stderr.is_empty());
         let value = serde_json::from_slice(&stdout).expect("machine JSON");
         (code, value)
+    }
+
+    fn toml_basic_string(value: &str) -> String {
+        let mut encoded = String::from("\"");
+        for character in value.chars() {
+            match character {
+                '\\' => encoded.push_str("\\\\"),
+                '"' => encoded.push_str("\\\""),
+                '\n' => encoded.push_str("\\n"),
+                '\r' => encoded.push_str("\\r"),
+                '\t' => encoded.push_str("\\t"),
+                _ => encoded.push(character),
+            }
+        }
+        encoded.push('"');
+        encoded
     }
 
     #[test]
@@ -1326,6 +1455,96 @@ mod tests {
         assert_eq!(claude_report["status"], "partial");
         assert_eq!(claude_report["checks"][4]["id"], "claude_mcp_configuration");
         assert_eq!(claude_report["checks"][4]["status"], "passed");
+    }
+
+    #[test]
+    fn doctor_codex_config_validates_a_project_scoped_fixed_stdio_entry() {
+        let source = TestRoot::new("codex-source");
+        let cache = TestRoot::new("codex-cache");
+        let config = TestRoot::new("codex-config");
+        fs::write(
+            source.0.join("source.rs"),
+            b"const SECRET: &str = \"keep-private\";\n",
+        )
+        .expect("source");
+        let source_before = fs::read(source.0.join("source.rs")).expect("source before");
+        let binary_path = config.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"test binary placeholder").expect("binary");
+        let config_path = config.0.join("config.toml");
+        let binary_toml = toml_basic_string(binary_path.to_string_lossy().as_ref());
+        let source_toml = toml_basic_string(source.0.to_string_lossy().as_ref());
+        let cache_toml = toml_basic_string(cache.0.to_string_lossy().as_ref());
+        fs::write(
+            &config_path,
+            format!(
+                r#"[mcp_servers."impresari-context"]
+command = {binary_toml}
+args = [
+  "--workspace", {source_toml},
+  "--cache", {cache_toml},
+  "--consumer-id", "consumer_codex_local",
+  "--role", "local_user"
+]
+enabled = true
+default_tools_approval_mode = "prompt"
+"#,
+            ),
+        )
+        .expect("config");
+        let (code, report) = invoke(
+            &[
+                "doctor".into(),
+                "codex-config".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                config_path.to_string_lossy().into_owned(),
+            ],
+            "codexcfg",
+        );
+        assert_eq!(code, 0, "{report}");
+        assert_eq!(report["status"], "partial", "{report}");
+        assert_eq!(report["checks"][4]["id"], "codex_mcp_configuration");
+        assert_eq!(report["checks"][4]["status"], "passed");
+        let encoded = serde_json::to_string(&report).expect("report JSON");
+        assert!(!encoded.contains("keep-private"));
+        assert!(!encoded.contains(source.0.to_string_lossy().as_ref()));
+        assert!(!encoded.contains(cache.0.to_string_lossy().as_ref()));
+        assert!(!encoded.contains(config_path.to_string_lossy().as_ref()));
+        assert_eq!(
+            fs::read(source.0.join("source.rs")).expect("source after"),
+            source_before
+        );
+
+        let unsafe_config = toml::from_str::<toml::Value>(&format!(
+            r#"[mcp_servers."impresari-context"]
+command = {binary_toml}
+args = [
+  "--workspace", {source_toml},
+  "--cache", {cache_toml},
+  "--consumer-id", "consumer_codex_local",
+  "--role", "local_user"
+]
+default_tools_approval_mode = "prompt"
+env_vars = ["HOME"]
+"#,
+        ))
+        .expect("unsafe TOML parses");
+        assert!(!codex_config_is_safe(&unsafe_config, &source.0, &cache.0));
+
+        fs::write(&config_path, "[mcp_servers").expect("malformed config");
+        let (code, malformed) = invoke(
+            &[
+                "doctor".into(),
+                "codex-config".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                config_path.to_string_lossy().into_owned(),
+            ],
+            "codexbad",
+        );
+        assert_eq!(code, 1);
+        let envelope: ErrorEnvelope = serde_json::from_value(malformed).expect("error envelope");
+        assert_eq!(envelope.code, PublicErrorCode::InvalidInput);
     }
 
     #[test]

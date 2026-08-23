@@ -36,5 +36,5 @@ This is not first-class admission evidence. It does not yet prove a maintained
 client version range or OS matrix, clean-install workflow, packet equivalence
 against the frozen direct-engine corpus through Codex, malformed configuration
 handling, project/user configuration scope, or entry-specific removal behavior.
-Those requirements remain governed by the [Phase 0 PRD](../product/phase-0-language-and-client-foundation-prd.md)
+Those requirements remain governed by the [Phase 1 PRD](../product/phase-1-language-configuration-and-client-admission-prd.md)
 and [ADR-0018](../decisions/0018-first-class-client-integration-and-compatibility-contract.md).
