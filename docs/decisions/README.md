@@ -27,6 +27,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0019](0019-python-structural-language-admission.md) | Pinned Python Tree-sitter structural facts without interpreter or environment authority | Accepted |
 | [ADR-0020](0020-strict-json-configuration-evidence.md) | Pinned strict-JSON configuration facts without schema or runtime semantics | Accepted |
 | [ADR-0021](0021-go-structural-language-admission.md) | Pinned Go Tree-sitter structural facts without toolchain or module-resolution authority | Accepted |
+| [ADR-0022](0022-rust-structural-language-admission.md) | Pinned Rust Tree-sitter structural facts without Cargo or compiler-resolution authority | Accepted |
 
 ## Change Rules
 

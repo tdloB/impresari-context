@@ -26,6 +26,10 @@ scrutiny than test-only dependencies.
 | `serde_json_canonicalizer` | 0.3.2 | `context-core` | Defaults disabled | MIT | Verified by the project Rust 1.96 gate | RFC 8785 JCS bytes for identities and hard packet accounting |
 | `tree-sitter` | 0.26.12 | `context-structural` worker only | `std`; defaults disabled; WASM disabled | MIT | Upstream 1.77; project Rust 1.96 gate required | Bounded concrete-syntax parsing behind the ADR-0010 process boundary |
 | `tree-sitter-javascript` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned JavaScript/JSX grammar |
+| `tree-sitter-go` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Go grammar |
+| `tree-sitter-json` | 0.24.8 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned strict-JSON grammar |
+| `tree-sitter-python` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Python grammar |
+| `tree-sitter-rust` | 0.24.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Rust grammar |
 | `tree-sitter-typescript` | 0.23.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned TypeScript/TSX grammars |
 
 `cap-std` is admitted because ambient `std::fs` canonicalize/open sequences
@@ -44,7 +48,7 @@ Untrusted raw JSON is never canonicalized directly, preventing duplicate-key
 normalization from becoming an acceptance path. All identity-bearing numeric
 values remain safe integers or canonical decimal strings per ADR-0009.
 
-Tree-sitter and both grammar crates compile native C and therefore expand the
+Tree-sitter and its grammar crates compile native C and therefore expand the
 supply-chain and memory-safety boundary. They are admitted only inside the
 short-lived structural worker defined by ADR-0010. Dynamic grammar loading,
 WASM, grammar downloads, repository configuration, compiler plugins, language

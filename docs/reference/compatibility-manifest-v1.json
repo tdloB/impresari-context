@@ -8,6 +8,7 @@
     "docs/decisions/0019-python-structural-language-admission.md",
     "docs/decisions/0020-strict-json-configuration-evidence.md",
     "docs/decisions/0021-go-structural-language-admission.md",
+    "docs/decisions/0022-rust-structural-language-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -50,6 +51,13 @@
     {
       "family": "Go",
       "extensions": [".go"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Rust",
+      "extensions": [".rs"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"

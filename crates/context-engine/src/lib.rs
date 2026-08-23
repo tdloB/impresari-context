@@ -1940,6 +1940,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         }
         Some(extension) if extension.eq_ignore_ascii_case("py") => Some(StructuralLanguage::Python),
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
+        Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension)
             if extension.eq_ignore_ascii_case("json") && is_json_configuration(path) =>
         {
@@ -1963,6 +1964,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json => "tree-sitter-json-0.24.8",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
+        StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     }
 }
 
@@ -2403,6 +2405,18 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Go),
             "tree-sitter-go-0.25.0"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_rust() {
+        assert_eq!(
+            structural_language("crates/core/src/lib.rs"),
+            Some(StructuralLanguage::Rust)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Rust),
+            "tree-sitter-rust-0.24.2"
         );
     }
 
