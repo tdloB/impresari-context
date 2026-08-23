@@ -11,12 +11,14 @@
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Current host contract | Passed | Official Codex documentation specifies local stdio MCP, `.codex/config.toml` project scope, trusted-project gating, `codex mcp get`, and a per-server `default_tools_approval_mode`. |
+| Current host contract | Passed | Official Codex documentation specifies local stdio MCP, shared host configuration, `.codex/config.toml` trusted-project scope, `codex mcp get`, and a per-server `default_tools_approval_mode`. |
 | Template rendering | Passed | The published TOML entry fixes workspace, cache, consumer ID, and role at process launch and uses `prompt` approval mode. |
 | Configuration validation | Passed | `doctor codex-config` parses bounded TOML; requires the exact local-stdio entry, an existing absolute binary path, canonical workspace/cache matches, prompt approval, and no environment forwarding or remote fields. |
 | Negative cases | Passed | Unit coverage rejects environment forwarding and malformed TOML. |
 | Source immutability | Passed | Unit coverage preserves the source-file bytes and emits a source-free doctor report. |
 | CLI discovery surface | Passed | The installed client exposes `mcp list`, `mcp get`, `mcp add`, and `mcp remove`; the kit uses only the read-only `mcp get --json` verification command. |
+| Live local lifecycle | Passed, limited scope | Codex CLI `0.149.0-alpha.4.1` on macOS aarch64 launched the existing fixed-stdio entry and completed `context_session_open` and `context_build` against an isolated empty workspace. The delivered packet ID was `sha256:919b7bc7cec5466a48e3a6fbd701573f2783768dc6fec03171b472b7cfd77818`; workspace bytes remained unchanged. |
+| Read-only execution behavior | Passed, negative case | `codex exec --sandbox read-only` discovers the MCP server but blocks its tool call because that execution mode sets MCP approval to `never`. This is expected client policy behavior, not a server failure. The successful lifecycle check used Codex's explicit automatic approval mode while the MCP server itself retained the fixed read-only authority contract. |
 
 ## Deliberate limits
 
@@ -28,7 +30,12 @@ execution, memory, or orchestration authority.
 The current client CLI did not load a synthetic untrusted project configuration
 during read-only discovery. That behavior is expected from the documented trust
 gate and confirms that a first-class assertion requires an isolated trusted
-clean-install run rather than an automated configuration mutation.
+clean-install run rather than an automated configuration mutation. A
+conversational `codex exec` session is useful live evidence but is not a
+deterministic test harness: the model can select a different available MCP
+operation despite a constrained prompt. The project therefore does not treat
+model-directed tool selection as a release-gated replacement for the existing
+direct-engine/MCP equivalence suite.
 
 ## Admission status
 
@@ -50,5 +57,7 @@ and [ADR-0018](../decisions/0018-first-class-client-integration-and-compatibilit
 After this slice, the Master PRD, Phase 1 PRD, ADR-0018, and ADR-0023 were
 reassessed against the completed evidence. No roadmap, authority-boundary, or
 admission-criterion change is warranted: the kit remains Generic local MCP,
-and the next Phase 1 work remains JSONC, TOML, YAML, and the remaining
-client-admission evidence.
+and the configuration-language work is complete. The next admissible Phase 1
+work is the non-mutating pre-admission and independent conformance evidence
+for Claude Code and Cursor, followed by Codex re-admission if a deterministic
+client-facing test surface becomes available.
