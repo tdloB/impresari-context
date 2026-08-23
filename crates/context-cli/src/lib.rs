@@ -1478,17 +1478,16 @@ mod tests {
             &config_path,
             format!(
                 r#"[mcp_servers."impresari-context"]
-command = {}
+command = {binary_toml}
 args = [
-  "--workspace", {},
-  "--cache", {},
+  "--workspace", {source_toml},
+  "--cache", {cache_toml},
   "--consumer-id", "consumer_codex_local",
   "--role", "local_user"
 ]
 enabled = true
 default_tools_approval_mode = "prompt"
 "#,
-                binary_toml, source_toml, cache_toml,
             ),
         )
         .expect("config");
@@ -1518,17 +1517,16 @@ default_tools_approval_mode = "prompt"
 
         let unsafe_config = toml::from_str::<toml::Value>(&format!(
             r#"[mcp_servers."impresari-context"]
-command = {}
+command = {binary_toml}
 args = [
-  "--workspace", {},
-  "--cache", {},
+  "--workspace", {source_toml},
+  "--cache", {cache_toml},
   "--consumer-id", "consumer_codex_local",
   "--role", "local_user"
 ]
 default_tools_approval_mode = "prompt"
 env_vars = ["HOME"]
 "#,
-            binary_toml, source_toml, cache_toml,
         ))
         .expect("unsafe TOML parses");
         assert!(!codex_config_is_safe(&unsafe_config, &source.0, &cache.0));
