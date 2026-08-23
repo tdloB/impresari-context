@@ -7,6 +7,7 @@
     "docs/decisions/0010-structural-worker-protocol-and-isolation.md",
     "docs/decisions/0019-python-structural-language-admission.md",
     "docs/decisions/0020-strict-json-configuration-evidence.md",
+    "docs/decisions/0021-go-structural-language-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -42,6 +43,13 @@
     {
       "family": "Python",
       "extensions": [".py"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Go",
+      "extensions": [".go"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
