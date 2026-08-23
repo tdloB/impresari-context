@@ -15,7 +15,7 @@ All notable changes to Impresari Context are documented here. The project uses
 - Read-only workspace discovery with protections for path traversal, symlink
   escape, hostile repository content, cache separation, and source mutation.
 - Lexical retrieval for eligible UTF-8 files and structural analysis for
-  TypeScript, TSX, JavaScript, JSX, Python, and recognized strict-JSON
+  TypeScript, TSX, JavaScript, JSX, Python, Go, and recognized strict-JSON
   configuration manifests. Other languages and JSON data files receive no
   structural support claim in this release.
 - A command-line interface, neutral Rust library surface, reference client,

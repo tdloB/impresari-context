@@ -1939,6 +1939,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
             Some(StructuralLanguage::JavaScript)
         }
         Some(extension) if extension.eq_ignore_ascii_case("py") => Some(StructuralLanguage::Python),
+        Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension)
             if extension.eq_ignore_ascii_case("json") && is_json_configuration(path) =>
         {
@@ -1961,6 +1962,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Go => "tree-sitter-go-0.25.0",
     }
 }
 
@@ -2389,6 +2391,18 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Json),
             "tree-sitter-json-0.24.8"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_go() {
+        assert_eq!(
+            structural_language("cmd/server/main.go"),
+            Some(StructuralLanguage::Go)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Go),
+            "tree-sitter-go-0.25.0"
         );
     }
 

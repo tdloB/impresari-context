@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -44,6 +44,8 @@ pub enum StructuralLanguage {
     Python,
     /// Strict JSON configuration source.
     Json,
+    /// Go source.
+    Go,
 }
 
 /// Requested structural fact classes.
@@ -1549,6 +1551,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Go => "tree-sitter-go-0.25.0",
     };
     if request.grammar_version != expected_grammar {
         return Err(StructuralError::ContractMismatch);
@@ -1565,6 +1568,7 @@ fn language(language: StructuralLanguage) -> Language {
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Json => tree_sitter_json::LANGUAGE.into(),
+        StructuralLanguage::Go => tree_sitter_go::LANGUAGE.into(),
     }
 }
 
@@ -1642,6 +1646,7 @@ fn visit(
     Ok(())
 }
 
+#[allow(clippy::too_many_lines)]
 fn fact_for_node(
     node: Node<'_>,
     source: &[u8],
@@ -1659,7 +1664,10 @@ fn fact_for_node(
         | "method_definition"
         | "abstract_method_signature"
         | "function_definition"
-        | "class_definition" => {
+        | "class_definition"
+        | "method_declaration"
+        | "type_spec"
+        | "type_alias" => {
             let name = node
                 .child_by_field_name("name")
                 .and_then(|value| text(value, source));
@@ -1698,6 +1706,12 @@ fn fact_for_node(
             let module = node
                 .child_by_field_name("module_name")
                 .and_then(|value| text(value, source));
+            (FactClass::Import, None, module)
+        }
+        "import_spec" if request.language == StructuralLanguage::Go => {
+            let module = node
+                .child_by_field_name("path")
+                .and_then(|value| string_text(value, source));
             (FactClass::Import, None, module)
         }
         "export_statement" => {
@@ -1766,6 +1780,9 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "abstract_method_signature"
                     | "function_definition"
                     | "class_definition"
+                    | "method_declaration"
+                    | "type_spec"
+                    | "type_alias"
                     | "assignment"
                     | "variable_declarator"
             )
@@ -1881,6 +1898,7 @@ mod tests {
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+            StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         };
         WorkerRequest {
             schema_name: "structural-worker-request".into(),
@@ -2042,6 +2060,53 @@ class Example:
                 .any(|node| { node.kind == "symbol" && node.name.as_deref() == Some("scripts") })
         );
         assert!(graph.edges.iter().any(|edge| edge.kind == "contains"));
+    }
+
+    #[test]
+    fn extracts_go_functions_types_imports_calls_and_references() {
+        let source = br#"package example
+
+import "example.com/module"
+
+type Service struct{}
+
+func helper() int { return 1 }
+
+func (Service) Run() int {
+    value := helper()
+    return value
+}
+"#;
+        let output = process_request(&request(source, StructuralLanguage::Go)).expect("parse");
+        assert!(!output.syntax_errors);
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("Service")
+                && fact.syntax_kind == "type_spec"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "function_declaration"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("Run")
+                && fact.syntax_kind == "method_declaration"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import
+                && fact.module.as_deref() == Some("example.com/module")
+                && fact.syntax_kind == "import_spec"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "call_expression"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Reference && fact.name.as_deref() == Some("value")
+        }));
     }
 
     #[test]
