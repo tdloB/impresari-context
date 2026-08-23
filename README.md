@@ -1,5 +1,7 @@
 # Impresari Context
 
+![Impresari Context pixel-art repository map framed by a deep burgundy theater curtain](assets/impresari-context-stage-banner.png)
+
 Impresari Context is a local-first evidence compiler for AI-assisted software development. It transforms an exact repository snapshot into bounded, task-specific context packets with recoverable source evidence, explicit exclusions, integrity checks, and freshness validation.
 
 It is intentionally not an agent orchestrator or an all-in-one development runtime. Impresari Context works beneath existing coding agents, CI systems, and orchestration frameworks without taking control of execution, permissions, approvals, or business policy. This separation keeps the trusted core smaller, reduces competing authority, and allows adopters to add context infrastructure without replacing their existing workflow.
