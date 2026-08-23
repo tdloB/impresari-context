@@ -1145,6 +1145,22 @@ mod tests {
         (code, value)
     }
 
+    fn toml_basic_string(value: &str) -> String {
+        let mut encoded = String::from("\"");
+        for character in value.chars() {
+            match character {
+                '\\' => encoded.push_str("\\\\"),
+                '"' => encoded.push_str("\\\""),
+                '\n' => encoded.push_str("\\n"),
+                '\r' => encoded.push_str("\\r"),
+                '\t' => encoded.push_str("\\t"),
+                _ => encoded.push(character),
+            }
+        }
+        encoded.push('"');
+        encoded
+    }
+
     #[test]
     fn cli_search_is_semantically_identical_to_direct_library_use() {
         let source = TestRoot::new("source");
@@ -1455,23 +1471,24 @@ mod tests {
         let binary_path = config.0.join("impresari-context-mcp");
         fs::write(&binary_path, b"test binary placeholder").expect("binary");
         let config_path = config.0.join("config.toml");
+        let binary_toml = toml_basic_string(binary_path.to_string_lossy().as_ref());
+        let source_toml = toml_basic_string(source.0.to_string_lossy().as_ref());
+        let cache_toml = toml_basic_string(cache.0.to_string_lossy().as_ref());
         fs::write(
             &config_path,
             format!(
                 r#"[mcp_servers."impresari-context"]
-command = "{}"
+command = {}
 args = [
-  "--workspace", "{}",
-  "--cache", "{}",
+  "--workspace", {},
+  "--cache", {},
   "--consumer-id", "consumer_codex_local",
   "--role", "local_user"
 ]
 enabled = true
 default_tools_approval_mode = "prompt"
 "#,
-                binary_path.display(),
-                source.0.display(),
-                cache.0.display(),
+                binary_toml, source_toml, cache_toml,
             ),
         )
         .expect("config");
@@ -1501,19 +1518,17 @@ default_tools_approval_mode = "prompt"
 
         let unsafe_config = toml::from_str::<toml::Value>(&format!(
             r#"[mcp_servers."impresari-context"]
-command = "{}"
+command = {}
 args = [
-  "--workspace", "{}",
-  "--cache", "{}",
+  "--workspace", {},
+  "--cache", {},
   "--consumer-id", "consumer_codex_local",
   "--role", "local_user"
 ]
 default_tools_approval_mode = "prompt"
 env_vars = ["HOME"]
 "#,
-            binary_path.display(),
-            source.0.display(),
-            cache.0.display(),
+            binary_toml, source_toml, cache_toml,
         ))
         .expect("unsafe TOML parses");
         assert!(!codex_config_is_safe(&unsafe_config, &source.0, &cache.0));
