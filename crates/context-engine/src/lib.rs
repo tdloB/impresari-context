@@ -1942,19 +1942,53 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension)
-            if extension.eq_ignore_ascii_case("json") && is_json_configuration(path) =>
+            if extension.eq_ignore_ascii_case("json") && is_strict_json_configuration(path) =>
         {
             Some(StructuralLanguage::Json)
+        }
+        Some(extension)
+            if extension.eq_ignore_ascii_case("json") && is_jsonc_configuration(path) =>
+        {
+            Some(StructuralLanguage::Jsonc)
+        }
+        Some(extension)
+            if extension.eq_ignore_ascii_case("jsonc") && is_jsonc_configuration(path) =>
+        {
+            Some(StructuralLanguage::Jsonc)
         }
         _ => None,
     }
 }
 
-fn is_json_configuration(path: &str) -> bool {
+fn is_strict_json_configuration(path: &str) -> bool {
     matches!(
         Path::new(path).file_name().and_then(|value| value.to_str()),
         Some("package.json" | "deno.json" | "composer.json" | "manifest.json")
     )
+}
+
+fn is_jsonc_configuration(path: &str) -> bool {
+    let path = Path::new(path);
+    if path
+        .extension()
+        .and_then(|value| value.to_str())
+        .is_some_and(|extension| extension.eq_ignore_ascii_case("jsonc"))
+    {
+        return true;
+    }
+    let Some(filename) = path.file_name().and_then(|value| value.to_str()) else {
+        return false;
+    };
+    matches!(
+        filename,
+        "tsconfig.json" | "jsconfig.json" | "devcontainer.json"
+    ) || (path
+        .parent()
+        .is_some_and(|parent| parent.ends_with(".vscode"))
+        && matches!(
+            filename,
+            "settings.json" | "tasks.json" | "launch.json" | "extensions.json"
+        ))
 }
 
 const fn grammar_version(language: StructuralLanguage) -> &'static str {
@@ -1962,7 +1996,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
-        StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     }
@@ -2380,7 +2414,7 @@ mod tests {
     }
 
     #[test]
-    fn structural_language_recognizes_only_named_strict_json_configurations() {
+    fn structural_language_separates_named_strict_json_and_jsonc_configurations() {
         assert_eq!(
             structural_language("packages/web/package.json"),
             Some(StructuralLanguage::Json)
@@ -2391,7 +2425,23 @@ mod tests {
             "arbitrary JSON data is not a configuration-evidence claim"
         );
         assert_eq!(
+            structural_language("tsconfig.json"),
+            Some(StructuralLanguage::Jsonc)
+        );
+        assert_eq!(
+            structural_language(".vscode/settings.json"),
+            Some(StructuralLanguage::Jsonc)
+        );
+        assert_eq!(
+            structural_language("config/tooling.jsonc"),
+            Some(StructuralLanguage::Jsonc)
+        );
+        assert_eq!(
             grammar_version(StructuralLanguage::Json),
+            "tree-sitter-json-0.24.8"
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Jsonc),
             "tree-sitter-json-0.24.8"
         );
     }

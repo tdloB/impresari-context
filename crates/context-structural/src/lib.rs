@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -44,6 +44,8 @@ pub enum StructuralLanguage {
     Python,
     /// Strict JSON configuration source.
     Json,
+    /// JSON with comments configuration source.
+    Jsonc,
     /// Go source.
     Go,
     /// Rust source.
@@ -1491,18 +1493,22 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
     let tree = parser
         .parse(&source, None)
         .ok_or(StructuralError::ParserFailure)?;
+    let strict_json_valid = request.language != StructuralLanguage::Json
+        || serde_json::from_slice::<serde_json::Value>(&source).is_ok();
     let provenance = provenance(request);
     let mut facts = Vec::new();
     let mut ancestors = Vec::new();
-    visit(
-        tree.root_node(),
-        &source,
-        request,
-        &provenance,
-        0,
-        &mut ancestors,
-        &mut facts,
-    )?;
+    if strict_json_valid {
+        visit(
+            tree.root_node(),
+            &source,
+            request,
+            &provenance,
+            0,
+            &mut ancestors,
+            &mut facts,
+        )?;
+    }
     facts.sort_by(|left, right| {
         (left.start_byte, left.end_byte, left.class, &left.local_key).cmp(&(
             right.start_byte,
@@ -1516,13 +1522,9 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         schema_version: PROTOCOL_VERSION.into(),
         request_id: request.request_id.clone(),
         content_hash: request.content_hash.clone(),
-        syntax_errors: tree.root_node().has_error(),
+        syntax_errors: tree.root_node().has_error() || !strict_json_valid,
         facts,
-        warnings: if tree.root_node().has_error() {
-            vec!["syntax_recovery_present".into()]
-        } else {
-            Vec::new()
-        },
+        warnings: warnings(tree.root_node().has_error(), strict_json_valid),
     })
 }
 
@@ -1552,7 +1554,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
-        StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     };
@@ -1570,7 +1572,7 @@ fn language(language: StructuralLanguage) -> Language {
             tree_sitter_javascript::LANGUAGE.into()
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
-        StructuralLanguage::Json => tree_sitter_json::LANGUAGE.into(),
+        StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Go => tree_sitter_go::LANGUAGE.into(),
         StructuralLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
     }
@@ -1703,7 +1705,12 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
-        "pair" if request.language == StructuralLanguage::Json => {
+        "pair"
+            if matches!(
+                request.language,
+                StructuralLanguage::Json | StructuralLanguage::Jsonc
+            ) =>
+        {
             let name = node
                 .child_by_field_name("key")
                 .and_then(|value| json_string_text(value, source));
@@ -1771,6 +1778,17 @@ fn fact_for_node(
         confidence: "confirmed".into(),
         provenance: provenance.clone(),
     })
+}
+
+fn warnings(tree_has_error: bool, strict_json_valid: bool) -> Vec<String> {
+    let mut warnings = Vec::new();
+    if tree_has_error {
+        warnings.push("syntax_recovery_present".into());
+    }
+    if !strict_json_valid {
+        warnings.push("strict_json_validation_failed".into());
+    }
+    warnings
 }
 
 fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>> {
@@ -1918,7 +1936,7 @@ mod tests {
                 "tree-sitter-javascript-0.25.0"
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
-            StructuralLanguage::Json => "tree-sitter-json-0.24.8",
+            StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Go => "tree-sitter-go-0.25.0",
             StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
         };
@@ -2082,6 +2100,62 @@ class Example:
                 .any(|node| { node.kind == "symbol" && node.name.as_deref() == Some("scripts") })
         );
         assert!(graph.edges.iter().any(|edge| edge.kind == "contains"));
+    }
+
+    #[test]
+    fn strict_json_rejects_comment_tolerant_grammar_input_without_facts() {
+        let output = process_request(&request(
+            br#"{
+  // a comment is JSONC, not strict JSON
+  "name": "example"
+}"#,
+            StructuralLanguage::Json,
+        ))
+        .expect("strict JSON request completes safely");
+        assert!(output.syntax_errors);
+        assert!(output.facts.is_empty());
+        assert_eq!(output.warnings, vec!["strict_json_validation_failed"]);
+    }
+
+    #[test]
+    fn extracts_jsonc_configuration_keys_and_containment() {
+        let source = br#"{
+  // JSONC comment
+  "compilerOptions": { "strict": true },
+  "include": ["src"]
+}"#;
+        let output =
+            process_request(&request(source, StructuralLanguage::Jsonc)).expect("JSONC parse");
+        assert!(!output.syntax_errors);
+        assert!(output.warnings.is_empty());
+        let names = output
+            .facts
+            .iter()
+            .filter(|fact| fact.class == FactClass::Declaration)
+            .filter_map(|fact| fact.name.as_deref())
+            .collect::<Vec<_>>();
+        assert_eq!(names, vec!["compilerOptions", "strict", "include"]);
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Contains
+                && fact.name.as_deref() == Some("strict")
+                && fact.parent_key.is_some()
+        }));
+    }
+
+    #[test]
+    fn malformed_jsonc_exposes_syntax_recovery() {
+        let output = process_request(&request(
+            br#"{ "compilerOptions": { "strict": } }"#,
+            StructuralLanguage::Jsonc,
+        ))
+        .expect("malformed JSONC remains a bounded parser result");
+        assert!(output.syntax_errors);
+        assert!(
+            output
+                .warnings
+                .iter()
+                .any(|warning| warning == "syntax_recovery_present")
+        );
     }
 
     #[test]
