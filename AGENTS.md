@@ -12,9 +12,10 @@ These instructions supplement, and never override, higher-priority system, devel
 
 # AI App Builder OS Delivery Guardrail
 
-Build Impresari Context using the private AI App Builder OS as the governing
-delivery guardrail. Its source of truth is
-`/Users/aaronboldt/Documents/AI Build Agents/ai-app-builder-os`.
+Build Impresari Context using the project operator's private AI App Builder OS
+as the governing delivery guardrail. The OS root is local operator
+configuration: it is not a runtime dependency and must never be committed to
+this public repository.
 
 - Start each material roadmap increment through the OS Orchestrator process.
   Use the existing-application and Architecture Evolution Review guidance when
