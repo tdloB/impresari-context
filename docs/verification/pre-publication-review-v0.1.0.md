@@ -11,8 +11,9 @@
 - Independence: this is a rigorous internal review, not a third-party audit and
   not a substitute for an independent human security assessment.
 - Current disposition: **conditionally ready**. The technical gates pass. The
-  public GitHub security settings, version update, hosted external scans, and
-  explicit publication approval remain open.
+  final exact-commit evidence review and explicit publication approval remain
+  open. Independent review is encouraged but is not a `v0.1.0` blocker under
+  ADR-0017.
 
 ## Executive summary
 
@@ -134,10 +135,17 @@ available.
 7. Publish/tag `v0.1.0` only after explicit owner approval and successful final
    evidence review.
 
-The required independent human review is defined in
-`docs/security/independent-review-guide.md`. AI-assisted review, CodeQL,
-Scorecard, dependency analysis, and fuzzing are complementary evidence and do
-not satisfy that gate by themselves.
+The recommended future independent human review is defined in
+`docs/security/independent-review-guide.md`. It becomes mandatory before
+`v1.0.0`, or earlier after a qualifying trust-boundary expansion. AI-assisted
+review, CodeQL, Scorecard, dependency analysis, and fuzzing are complementary
+evidence and are not equivalent to an independent audit.
+
+Security review status: This release has not undergone an independent
+third-party security audit. It has passed the project's documented automated,
+AI-assisted internal, native-platform, dependency, static-analysis,
+secret-scanning, fuzzing, packaging, checksum, and provenance checks. These
+controls reduce risk but are not a substitute for independent review.
 
 ## Evidence
 

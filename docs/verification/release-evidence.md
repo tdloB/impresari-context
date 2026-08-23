@@ -1,8 +1,9 @@
 # Release Evidence Record
 
 This record archives externally observable verification evidence. It does not
-replace independent review, release signing, clean-install testing, or an owner
-decision to publish a release.
+replace release signing, clean-install testing, an owner decision to publish, or
+an independent review when ADR-0017 makes one mandatory. Automated and
+AI-assisted evidence is not an independent audit.
 
 ## 2026-08-22 — Slices A–C native matrix
 
@@ -22,10 +23,17 @@ decision to publish a release.
 - Limitation: hosted application tests do not prove OS-level sandbox
   confinement. No such claim is made.
 
+## Deferred assurance targets
+
+- Independent human security and release review before `v1.0.0`, or earlier if
+  a qualifying trust-boundary expansion triggers ADR-0017. This is encouraged
+  but is not an open `v0.1.0` release blocker.
+
 ## Open release evidence
 
-- Release provenance/signing decision and implementation.
-- Independent security and release review.
+- Final exact-commit release-evidence review and explicit owner publication
+  authorization. The provenance/signing policy and implementation are recorded
+  in ADR-0016.
 
 Local packaging and clean-install rehearsal pass on macOS ARM64, including a
 real MCP initialize/tools exchange. This is implementation evidence, not a

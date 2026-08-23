@@ -23,13 +23,20 @@ printf '%s\n' "$required_files" | while IFS= read -r path; do
     fi
 done
 
+if [ ! -f docs/decisions/0017-v0.1-release-assurance-policy.md ]; then
+    printf 'missing v0.1 release assurance policy ADR\n' >&2
+    exit 1
+fi
+
+ruby ./scripts/check-release-assurance-policy.rb
+
 if find crates -type f -name '*.rs' -exec grep -L '#!\[forbid(unsafe_code)\]' {} \; | grep -q .; then
     printf 'every first-party Rust crate root must forbid unsafe code\n' >&2
     exit 1
 fi
 
 if grep -R -n -E 'context-engine-oss|BEGIN (RSA|OPENSSH|EC|DSA) PRIVATE KEY' \
-    --exclude-dir=.git --exclude='check-repository.sh' .; then
+    --exclude-dir=.git --exclude-dir=target --exclude='check-repository.sh' .; then
     printf 'repository contains a forbidden placeholder path or private-key marker\n' >&2
     exit 1
 fi

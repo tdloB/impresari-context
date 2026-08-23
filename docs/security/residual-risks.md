@@ -31,4 +31,7 @@ Status: required Slice A disclosure; not a claim that the product is released.
   rejected, which may reduce completeness rather than silently grant authority.
 - Dependencies are locked, inventoried, and scanned, but maintainer compromise,
   malicious build infrastructure, and unknown vulnerabilities remain possible.
-  Reproducible release provenance and independent review remain open gates.
+  Release provenance is required for `v0.1.0`. Independent review remains a
+  deferred assurance target before `v1.0.0`, or earlier after a qualifying
+  trust-boundary expansion. This release has not undergone an independent
+  third-party security audit.
