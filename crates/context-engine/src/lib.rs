@@ -1943,6 +1943,11 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension) if extension.eq_ignore_ascii_case("toml") => Some(StructuralLanguage::Toml),
         Some(extension)
+            if extension.eq_ignore_ascii_case("yaml") || extension.eq_ignore_ascii_case("yml") =>
+        {
+            Some(StructuralLanguage::Yaml)
+        }
+        Some(extension)
             if extension.eq_ignore_ascii_case("json") && is_strict_json_configuration(path) =>
         {
             Some(StructuralLanguage::Json)
@@ -1999,6 +2004,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
+        StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     }
@@ -2461,6 +2467,22 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Toml),
             "tree-sitter-toml-ng-0.7.0"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_yaml_configuration() {
+        assert_eq!(
+            structural_language("deploy/service.yaml"),
+            Some(StructuralLanguage::Yaml)
+        );
+        assert_eq!(
+            structural_language(".github/workflows/ci.yml"),
+            Some(StructuralLanguage::Yaml)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Yaml),
+            "tree-sitter-yaml-0.7.2"
         );
     }
 

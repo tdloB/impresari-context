@@ -1343,7 +1343,7 @@ mod tests {
             structural_extensions,
             std::collections::BTreeSet::from([
                 ".cjs", ".go", ".js", ".json", ".jsonc", ".jsx", ".mjs", ".py", ".rs", ".ts",
-                ".toml", ".tsx",
+                ".toml", ".tsx", ".yaml", ".yml",
             ]),
             "the public manifest must match the shipped structural worker inventory"
         );

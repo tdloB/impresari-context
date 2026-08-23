@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/TOML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -48,6 +48,8 @@ pub enum StructuralLanguage {
     Jsonc,
     /// TOML configuration source.
     Toml,
+    /// YAML configuration source.
+    Yaml,
     /// Go source.
     Go,
     /// Rust source.
@@ -1499,10 +1501,12 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         || serde_json::from_slice::<serde_json::Value>(&source).is_ok();
     let toml_syntax_valid =
         request.language != StructuralLanguage::Toml || !tree.root_node().has_error();
+    let yaml_syntax_valid =
+        request.language != StructuralLanguage::Yaml || !tree.root_node().has_error();
     let provenance = provenance(request);
     let mut facts = Vec::new();
     let mut ancestors = Vec::new();
-    if strict_json_valid && toml_syntax_valid {
+    if strict_json_valid && toml_syntax_valid && yaml_syntax_valid {
         visit(
             tree.root_node(),
             &source,
@@ -1560,6 +1564,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
+        StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     };
@@ -1579,6 +1584,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
+        StructuralLanguage::Yaml => tree_sitter_yaml::LANGUAGE.into(),
         StructuralLanguage::Go => tree_sitter_go::LANGUAGE.into(),
         StructuralLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
     }
@@ -1730,6 +1736,12 @@ fn fact_for_node(
             let name = node.named_child(0).and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
+        "block_mapping_pair" | "flow_pair" if request.language == StructuralLanguage::Yaml => {
+            let name = node
+                .child_by_field_name("key")
+                .and_then(|value| yaml_mapping_key_text(value, source));
+            (FactClass::Declaration, name, None)
+        }
         "import_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1865,6 +1877,25 @@ fn json_string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
     serde_json::from_str(&text(node, source)?).ok()
 }
 
+fn yaml_mapping_key_text(node: Node<'_>, source: &[u8]) -> Option<String> {
+    if !matches!(node.kind(), "block_node" | "flow_node") {
+        return None;
+    }
+    let mut cursor = node.walk();
+    let mut children = node.named_children(&mut cursor);
+    let scalar = children.next()?;
+    if children.next().is_some()
+        || !matches!(
+            scalar.kind(),
+            "plain_scalar" | "single_quote_scalar" | "double_quote_scalar"
+        )
+    {
+        return None;
+    }
+    let key = text(scalar, source)?;
+    (key != "<<").then_some(key)
+}
+
 const fn class_name(class: FactClass) -> &'static str {
     match class {
         FactClass::Declaration => "declaration",
@@ -1952,6 +1983,7 @@ mod tests {
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
+            StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
             StructuralLanguage::Go => "tree-sitter-go-0.25.0",
             StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
         };
@@ -2234,6 +2266,68 @@ name = "impresari-context"
     }
 
     #[test]
+    fn extracts_bounded_yaml_mapping_keys_and_containment() {
+        let source = br"service:
+  image: example/service:1
+  environment: { LOG_LEVEL: info }
+  labels:
+    app: example
+defaults: &defaults
+  retry: 3
+copy: *defaults
+merged:
+  <<: *defaults
+";
+        let output =
+            process_request(&request(source, StructuralLanguage::Yaml)).expect("YAML parse");
+        assert!(!output.syntax_errors);
+        assert!(output.warnings.is_empty());
+        for name in [
+            "service",
+            "image",
+            "environment",
+            "LOG_LEVEL",
+            "labels",
+            "app",
+            "defaults",
+            "retry",
+            "copy",
+            "merged",
+        ] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert!(
+            output
+                .facts
+                .iter()
+                .all(|fact| fact.name.as_deref() != Some("<<"))
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Contains
+                && fact.name.as_deref() == Some("image")
+                && fact.parent_key.is_some()
+        }));
+        assert!(output.facts.iter().all(|fact| {
+            fact.provenance.method == "tree_sitter_syntax"
+                && fact.provenance.grammar_version == "tree-sitter-yaml-0.7.2"
+        }));
+    }
+
+    #[test]
+    fn malformed_yaml_emits_no_facts_and_exposes_syntax_recovery() {
+        let output = process_request(&request(
+            b"service:\n  image: [\n",
+            StructuralLanguage::Yaml,
+        ))
+        .expect("malformed YAML remains a bounded parser result");
+        assert!(output.syntax_errors);
+        assert!(output.facts.is_empty());
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
+    }
+
+    #[test]
     fn extracts_go_functions_types_imports_calls_and_references() {
         let source = br#"package example
 
@@ -2337,6 +2431,13 @@ fn execute() {
         wrong_toml_grammar.grammar_version = "tree-sitter-toml-ng-0.0.0".into();
         assert_eq!(
             process_request(&wrong_toml_grammar),
+            Err(StructuralError::ContractMismatch)
+        );
+
+        let mut wrong_yaml_grammar = request(b"service: example\n", StructuralLanguage::Yaml);
+        wrong_yaml_grammar.grammar_version = "tree-sitter-yaml-0.0.0".into();
+        assert_eq!(
+            process_request(&wrong_yaml_grammar),
             Err(StructuralError::ContractMismatch)
         );
     }
