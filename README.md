@@ -124,7 +124,7 @@ versioning, limits, and security boundaries.
 See the [compatibility matrix](docs/reference/compatibility-matrix.md) for the
 exact difference between discovery, lexical evidence, and structural language
 support, and between generic local-MCP compatibility and a first-class client
-integration. At this release, only the TypeScript/JavaScript family has
+integration. At this release, the TypeScript/JavaScript family and Python have
 structural support; Codex, Claude Code, and Cursor are not yet first-class
 integrations.
 

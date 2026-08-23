@@ -5,6 +5,7 @@
   "evidence_sources": [
     "docs/decisions/0004-source-language-and-parser-strategy.md",
     "docs/decisions/0010-structural-worker-protocol-and-isolation.md",
+    "docs/decisions/0019-python-structural-language-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -33,6 +34,13 @@
     {
       "family": "JSX",
       "extensions": [".jsx"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Python",
+      "extensions": [".py"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"

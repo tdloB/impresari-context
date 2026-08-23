@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -40,6 +40,8 @@ pub enum StructuralLanguage {
     JavaScript,
     /// JavaScript with JSX.
     Jsx,
+    /// Python source.
+    Python,
 }
 
 /// Requested structural fact classes.
@@ -958,11 +960,7 @@ fn resolve_relative_module<'a>(
     module: &str,
     file_nodes: &'a BTreeMap<String, String>,
 ) -> Option<&'a String> {
-    if !(module.starts_with("./") || module.starts_with("../"))
-        || source_path.starts_with('/')
-        || source_path.contains('\\')
-        || module.contains('\\')
-    {
+    if source_path.starts_with('/') || source_path.contains('\\') || module.contains('\\') {
         return None;
     }
     let mut components = source_path
@@ -971,18 +969,40 @@ fn resolve_relative_module<'a>(
         .map(str::to_owned)
         .collect::<Vec<_>>();
     components.pop()?;
-    for component in module.split('/') {
-        match component {
-            "" | "." => {}
-            ".." => {
-                components.pop()?;
+    if module.starts_with('.') && !module.starts_with("./") && !module.starts_with("../") {
+        let parent_levels = module.bytes().take_while(|byte| *byte == b'.').count();
+        for _ in 1..parent_levels {
+            components.pop()?;
+        }
+        let suffix = module.get(parent_levels..)?;
+        if suffix.is_empty()
+            || suffix.split('.').any(|component| {
+                component.is_empty()
+                    || !component
+                        .bytes()
+                        .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+            })
+        {
+            return None;
+        }
+        components.extend(suffix.split('.').map(str::to_owned));
+    } else {
+        if !(module.starts_with("./") || module.starts_with("../")) {
+            return None;
+        }
+        for component in module.split('/') {
+            match component {
+                "" | "." => {}
+                ".." => {
+                    components.pop()?;
+                }
+                value if value != "." && value != ".." => components.push(value.into()),
+                _ => return None,
             }
-            value if value != "." && value != ".." => components.push(value.into()),
-            _ => return None,
         }
     }
     let base = components.join("/");
-    let has_supported_extension = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs"]
+    let has_supported_extension = [".ts", ".tsx", ".js", ".jsx", ".mjs", ".cjs", ".py"]
         .iter()
         .any(|extension| base.ends_with(extension));
     let candidates = if has_supported_extension {
@@ -995,12 +1015,14 @@ fn resolve_relative_module<'a>(
             ".jsx",
             ".mjs",
             ".cjs",
+            ".py",
             "/index.ts",
             "/index.tsx",
             "/index.js",
             "/index.jsx",
             "/index.mjs",
             "/index.cjs",
+            "/__init__.py",
         ]
         .iter()
         .map(|suffix| format!("{base}{suffix}"))
@@ -1523,6 +1545,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
     let expected_grammar = match request.language {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
+        StructuralLanguage::Python => "tree-sitter-python-0.25.0",
     };
     if request.grammar_version != expected_grammar {
         return Err(StructuralError::ContractMismatch);
@@ -1537,6 +1560,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => {
             tree_sitter_javascript::LANGUAGE.into()
         }
+        StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
     }
 }
 
@@ -1629,7 +1653,9 @@ fn fact_for_node(
         | "type_alias_declaration"
         | "enum_declaration"
         | "method_definition"
-        | "abstract_method_signature" => {
+        | "abstract_method_signature"
+        | "function_definition"
+        | "class_definition" => {
             let name = node
                 .child_by_field_name("name")
                 .and_then(|value| text(value, source));
@@ -1642,10 +1668,26 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
+        "assignment" => {
+            let name = node
+                .child_by_field_name("left")
+                .filter(|value| value.kind() == "identifier")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
         "import_statement" => {
             let module = node
                 .child_by_field_name("source")
-                .and_then(|value| string_text(value, source));
+                .and_then(|value| string_text(value, source))
+                .or_else(|| {
+                    named_descendant(node, "dotted_name").and_then(|value| text(value, source))
+                });
+            (FactClass::Import, None, module)
+        }
+        "import_from_statement" => {
+            let module = node
+                .child_by_field_name("module_name")
+                .and_then(|value| text(value, source));
             (FactClass::Import, None, module)
         }
         "export_statement" => {
@@ -1658,7 +1700,7 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Export, name, module)
         }
-        "call_expression" => {
+        "call_expression" | "call" => {
             let function = node.child_by_field_name("function")?;
             let name = if function.kind() == "identifier" {
                 text(function, source)
@@ -1712,6 +1754,9 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "enum_declaration"
                     | "method_definition"
                     | "abstract_method_signature"
+                    | "function_definition"
+                    | "class_definition"
+                    | "assignment"
                     | "variable_declarator"
             )
     })
@@ -1820,6 +1865,7 @@ mod tests {
             StructuralLanguage::JavaScript | StructuralLanguage::Jsx => {
                 "tree-sitter-javascript-0.25.0"
             }
+            StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         };
         WorkerRequest {
             schema_name: "structural-worker-request".into(),
@@ -1889,6 +1935,51 @@ class Example { method() {} }
                 .iter()
                 .any(|fact| fact.class == FactClass::Call && fact.name.as_deref() == Some("value"))
         );
+    }
+
+    #[test]
+    fn extracts_python_declarations_imports_calls_references_and_containment() {
+        let source = br"import package.module
+from .helpers import helper
+
+class Example:
+    def method(self):
+        result = helper()
+        return result
+";
+        let output = process_request(&request(source, StructuralLanguage::Python)).expect("parse");
+        assert!(!output.syntax_errors);
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("Example")
+                && fact.syntax_kind == "class_definition"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("method")
+                && fact.syntax_kind == "function_definition"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("result")
+                && fact.syntax_kind == "assignment"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import && fact.module.as_deref() == Some("package.module")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import && fact.module.as_deref() == Some(".helpers")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "call"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Contains
+                && fact.name.as_deref() == Some("method")
+                && fact.parent_key.is_some()
+        }));
     }
 
     #[test]
@@ -2112,5 +2203,25 @@ export function outer() { return value(); }
             Some(dependency.node_id.as_str())
         );
         assert!(!graph.unknowns.contains(&"unresolved_module_import".into()));
+    }
+
+    #[test]
+    fn python_relative_imports_resolve_only_to_snapshot_files() {
+        let file_nodes = BTreeMap::from([
+            ("pkg/helpers.py".into(), "file_helpers".into()),
+            ("pkg/nested/__init__.py".into(), "file_nested".into()),
+        ]);
+        assert_eq!(
+            resolve_relative_module("pkg/entry.py", ".helpers", &file_nodes),
+            Some(&"file_helpers".to_owned())
+        );
+        assert_eq!(
+            resolve_relative_module("pkg/child/entry.py", "..nested", &file_nodes),
+            Some(&"file_nested".to_owned())
+        );
+        assert_eq!(
+            resolve_relative_module("pkg/entry.py", "...escape", &file_nodes),
+            None
+        );
     }
 }

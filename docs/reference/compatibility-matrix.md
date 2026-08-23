@@ -35,7 +35,7 @@ may be discoverable as metadata but do not receive text evidence.
 | TSX (`.tsx`) | Yes | Yes | Yes | Pinned TSX grammar and project-owned resolver. |
 | JavaScript (`.js`, `.mjs`, `.cjs`) | Yes | Yes | Yes | Pinned JavaScript grammar and project-owned resolver. |
 | JSX (`.jsx`) | Yes | Yes | Yes | Pinned JSX grammar and project-owned resolver. |
-| Python | Yes | Yes | No | Lexical evidence only; Python is the preferred next structural language, not shipped structural support. |
+| Python (`.py`) | Yes | Yes | Yes | Pinned Python Tree-sitter grammar and project-owned syntax resolver. Python imports, declarations, containment, calls, and references are syntax-derived only; no interpreter, environment, package, or runtime resolution is performed. |
 | Rust | Yes | Yes | No | Lexical evidence only. The implementation language is unrelated to source-language structural support. |
 | Swift | Yes | Yes | No | Lexical evidence only. |
 | Kotlin | Yes | Yes | No | Lexical evidence only. |
