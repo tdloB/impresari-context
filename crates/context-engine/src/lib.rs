@@ -1938,6 +1938,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         {
             Some(StructuralLanguage::JavaScript)
         }
+        Some(extension) if extension.eq_ignore_ascii_case("py") => Some(StructuralLanguage::Python),
         _ => None,
     }
 }
@@ -1946,6 +1947,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
     match language {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
+        StructuralLanguage::Python => "tree-sitter-python-0.25.0",
     }
 }
 
@@ -2346,6 +2348,18 @@ mod tests {
     fn budget() -> ResourceBudget {
         ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
             .expect("budget")
+    }
+
+    #[test]
+    fn structural_language_recognizes_python() {
+        assert_eq!(
+            structural_language("src/service.py"),
+            Some(StructuralLanguage::Python)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Python),
+            "tree-sitter-python-0.25.0"
+        );
     }
 
     fn assert_schema<T: Serialize>(name: &str, value: &T) {
