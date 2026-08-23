@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/TOML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -46,6 +46,8 @@ pub enum StructuralLanguage {
     Json,
     /// JSON with comments configuration source.
     Jsonc,
+    /// TOML configuration source.
+    Toml,
     /// Go source.
     Go,
     /// Rust source.
@@ -1495,10 +1497,12 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         .ok_or(StructuralError::ParserFailure)?;
     let strict_json_valid = request.language != StructuralLanguage::Json
         || serde_json::from_slice::<serde_json::Value>(&source).is_ok();
+    let toml_syntax_valid =
+        request.language != StructuralLanguage::Toml || !tree.root_node().has_error();
     let provenance = provenance(request);
     let mut facts = Vec::new();
     let mut ancestors = Vec::new();
-    if strict_json_valid {
+    if strict_json_valid && toml_syntax_valid {
         visit(
             tree.root_node(),
             &source,
@@ -1555,6 +1559,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     };
@@ -1573,6 +1578,7 @@ fn language(language: StructuralLanguage) -> Language {
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
+        StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         StructuralLanguage::Go => tree_sitter_go::LANGUAGE.into(),
         StructuralLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
     }
@@ -1714,6 +1720,14 @@ fn fact_for_node(
             let name = node
                 .child_by_field_name("key")
                 .and_then(|value| json_string_text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "pair" if request.language == StructuralLanguage::Toml => {
+            let name = node.named_child(0).and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "table" | "table_array_element" if request.language == StructuralLanguage::Toml => {
+            let name = node.named_child(0).and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
         "import_statement" => {
@@ -1937,6 +1951,7 @@ mod tests {
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
+            StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
             StructuralLanguage::Go => "tree-sitter-go-0.25.0",
             StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
         };
@@ -2159,6 +2174,66 @@ class Example:
     }
 
     #[test]
+    fn extracts_toml_configuration_keys_tables_and_containment() {
+        let source = br#"title = "example"
+
+[package]
+name = "impresari-context"
+
+[package.metadata.release]
+pre-release-commit-message = "Release {{version}}"
+
+[[bin]]
+name = "impresari-context"
+"#;
+        let output =
+            process_request(&request(source, StructuralLanguage::Toml)).expect("TOML parse");
+        assert!(!output.syntax_errors);
+        assert!(output.warnings.is_empty());
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("title")
+                && fact.syntax_kind == "pair"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("package")
+                && fact.syntax_kind == "table"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("package.metadata.release")
+                && fact.syntax_kind == "table"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("bin")
+                && fact.syntax_kind == "table_array_element"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Contains
+                && fact.name.as_deref() == Some("name")
+                && fact.parent_key.is_some()
+        }));
+        assert!(output.facts.iter().all(|fact| {
+            fact.provenance.method == "tree_sitter_syntax"
+                && fact.provenance.grammar_version == "tree-sitter-toml-ng-0.7.0"
+        }));
+    }
+
+    #[test]
+    fn malformed_toml_emits_no_facts_and_exposes_syntax_recovery() {
+        let output = process_request(&request(
+            b"[package\nname = \"impresari-context\"\n",
+            StructuralLanguage::Toml,
+        ))
+        .expect("malformed TOML remains a bounded parser result");
+        assert!(output.syntax_errors);
+        assert!(output.facts.is_empty());
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
+    }
+
+    #[test]
     fn extracts_go_functions_types_imports_calls_and_references() {
         let source = br#"package example
 
@@ -2256,6 +2331,13 @@ fn execute() {
         assert_eq!(
             process_request(&limited),
             Err(StructuralError::ResourceLimit)
+        );
+
+        let mut wrong_toml_grammar = request(b"title = \"example\"\n", StructuralLanguage::Toml);
+        wrong_toml_grammar.grammar_version = "tree-sitter-toml-ng-0.0.0".into();
+        assert_eq!(
+            process_request(&wrong_toml_grammar),
+            Err(StructuralError::ContractMismatch)
         );
     }
 

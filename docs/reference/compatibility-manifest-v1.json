@@ -8,6 +8,7 @@
     "docs/decisions/0019-python-structural-language-admission.md",
     "docs/decisions/0020-strict-json-configuration-evidence.md",
     "docs/decisions/0025-jsonc-configuration-evidence.md",
+    "docs/decisions/0026-toml-configuration-evidence.md",
     "docs/decisions/0021-go-structural-language-admission.md",
     "docs/decisions/0022-rust-structural-language-admission.md",
     "docs/dependency-policy.md",
@@ -79,6 +80,13 @@
       "structural_evidence": "supported",
       "recognized_filenames": ["tsconfig.json", "jsconfig.json", "devcontainer.json"],
       "recognized_paths": [".vscode/settings.json", ".vscode/tasks.json", ".vscode/launch.json", ".vscode/extensions.json"]
+    },
+    {
+      "family": "TOML configuration",
+      "extensions": [".toml"],
+      "discovery": "toml_extension",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
     },
     {
       "family": "Other eligible UTF-8 files",

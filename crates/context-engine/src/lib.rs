@@ -1941,6 +1941,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         Some(extension) if extension.eq_ignore_ascii_case("py") => Some(StructuralLanguage::Python),
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
+        Some(extension) if extension.eq_ignore_ascii_case("toml") => Some(StructuralLanguage::Toml),
         Some(extension)
             if extension.eq_ignore_ascii_case("json") && is_strict_json_configuration(path) =>
         {
@@ -1997,6 +1998,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
+        StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
         StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     }
@@ -2443,6 +2445,22 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Jsonc),
             "tree-sitter-json-0.24.8"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_toml_configuration() {
+        assert_eq!(
+            structural_language("crates/context-core/Cargo.toml"),
+            Some(StructuralLanguage::Toml)
+        );
+        assert_eq!(
+            structural_language(".cargo/config.toml"),
+            Some(StructuralLanguage::Toml)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Toml),
+            "tree-sitter-toml-ng-0.7.0"
         );
     }
 
