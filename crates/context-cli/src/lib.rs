@@ -618,7 +618,7 @@ fn doctor_client_config(
 ) -> Result<DoctorReport, EngineError> {
     let mut report = doctor_inspect(Path::new(root), Path::new(cache))?;
     let config: serde_json::Value = read_json(config_path, Capability::WorkspaceOpen)?;
-    let passed = client_config_is_safe(&config, client == "cursor");
+    let passed = client_config_is_safe(&config);
     report.checks.push(DoctorCheck {
         id: if client == "cursor" {
             "cursor_mcp_configuration"
@@ -714,7 +714,7 @@ fn configured_directory_matches(configured: &str, expected: &Path) -> bool {
     fs::canonicalize(configured).is_ok_and(|path| path == expected)
 }
 
-fn client_config_is_safe(config: &serde_json::Value, requires_stdio_type: bool) -> bool {
+fn client_config_is_safe(config: &serde_json::Value) -> bool {
     let Some(entry) = config
         .get("mcpServers")
         .and_then(serde_json::Value::as_object)
@@ -723,16 +723,16 @@ fn client_config_is_safe(config: &serde_json::Value, requires_stdio_type: bool) 
     else {
         return false;
     };
-    if (requires_stdio_type
-        && entry.get("type").and_then(serde_json::Value::as_str) != Some("stdio"))
-        || (!requires_stdio_type
-            && entry
-                .get("type")
-                .is_some_and(|value| value.as_str() != Some("stdio")))
+    if !entry
+        .keys()
+        .all(|key| matches!(key.as_str(), "type" | "command" | "args"))
+        || entry
+            .get("type")
+            .is_some_and(|value| value.as_str() != Some("stdio"))
         || entry
             .get("command")
             .and_then(serde_json::Value::as_str)
-            .is_none_or(str::is_empty)
+            .is_none_or(|command| command.is_empty() || !Path::new(command).is_absolute())
     {
         return false;
     }
@@ -1369,22 +1369,17 @@ mod tests {
         .expect("source");
         let source_before = fs::read(source.0.join("source.rs")).expect("source before");
         let config_path = config.0.join("mcp.json");
+        let binary_path = config.0.join("impresari-context-mcp");
+        let binary = binary_path.to_string_lossy();
         fs::write(
             &config_path,
-            br#"{
-              "mcpServers": {
-                "impresari-context": {
-                  "type": "stdio",
-                  "command": "/opt/impresari-context-mcp",
-                  "args": [
-                    "--workspace", "${workspaceFolder}",
-                    "--cache", "${env:IMPRESARI_CONTEXT_CACHE}",
-                    "--consumer-id", "consumer_cursor_local",
-                    "--role", "local_user"
-                  ]
-                }
-              }
-            }"#,
+            serde_json::to_vec(&serde_json::json!({
+                "mcpServers": { "impresari-context": {
+                    "type": "stdio", "command": binary.as_ref(),
+                    "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
+                }}
+            }))
+            .expect("Cursor config JSON"),
         )
         .expect("config");
         let (code, report) = invoke(
@@ -1408,38 +1403,16 @@ mod tests {
             source_before
         );
 
-        let unsafe_config = serde_json::json!({
-            "mcpServers": {
-                "impresari-context": {
-                    "type": "stdio",
-                    "command": "/opt/impresari-context-mcp",
-                    "args": [
-                        "--workspace", "${workspaceFolder}",
-                        "--cache", "${workspaceFolder}/.cache",
-                        "--consumer-id", "consumer_cursor_local",
-                        "--role", "local_user"
-                    ]
-                }
-            }
-        });
-        assert!(!client_config_is_safe(&unsafe_config, true));
-
         let claude_config_path = config.0.join("claude-mcp.json");
         fs::write(
             &claude_config_path,
-            br#"{
-              "mcpServers": {
-                "impresari-context": {
-                  "command": "/opt/impresari-context-mcp",
-                  "args": [
-                    "--workspace", "/work/source",
-                    "--cache", "/var/cache/impresari-context",
-                    "--consumer-id", "consumer_claude_local",
-                    "--role", "local_user"
-                  ]
-                }
-              }
-            }"#,
+            serde_json::to_vec(&serde_json::json!({
+                "mcpServers": { "impresari-context": {
+                    "command": binary.as_ref(),
+                    "args": ["--workspace", "/work/source", "--cache", "/var/cache/impresari-context", "--consumer-id", "consumer_claude_local", "--role", "local_user"]
+                }}
+            }))
+            .expect("Claude config JSON"),
         )
         .expect("Claude config");
         let (code, claude_report) = invoke(
@@ -1456,6 +1429,46 @@ mod tests {
         assert_eq!(claude_report["status"], "partial");
         assert_eq!(claude_report["checks"][4]["id"], "claude_mcp_configuration");
         assert_eq!(claude_report["checks"][4]["status"], "passed");
+    }
+
+    #[test]
+    fn client_config_validator_accepts_documented_cursor_shape_and_rejects_unsafe_variants() {
+        let binary = std::env::temp_dir()
+            .join("impresari-context-mcp")
+            .to_string_lossy()
+            .into_owned();
+        let unsafe_cache = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "type": "stdio", "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${workspaceFolder}/.cache", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
+            }}
+        });
+        assert!(!client_config_is_safe(&unsafe_cache));
+
+        let cursor_documented_shape = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
+            }}
+        });
+        assert!(client_config_is_safe(&cursor_documented_shape));
+
+        let environment_forwarding = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"],
+                "env": {"UNSAFE": "1"}
+            }}
+        });
+        assert!(!client_config_is_safe(&environment_forwarding));
+
+        let relative_command = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "command": "impresari-context-mcp",
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
+            }}
+        });
+        assert!(!client_config_is_safe(&relative_command));
     }
 
     #[test]
