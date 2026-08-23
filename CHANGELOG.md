@@ -14,8 +14,9 @@ All notable changes to Impresari Context are documented here. The project uses
   reporting.
 - Read-only workspace discovery with protections for path traversal, symlink
   escape, hostile repository content, cache separation, and source mutation.
-- Lexical retrieval and structural analysis for Rust, TypeScript, JavaScript,
-  Python, Swift, and Kotlin.
+- Lexical retrieval for eligible UTF-8 files and structural analysis for
+  TypeScript, TSX, JavaScript, and JSX. Other languages receive no structural
+  support claim in this release.
 - A command-line interface, neutral Rust library surface, reference client,
   consumer adapter contract, and local-only MCP server over standard I/O.
 - Cross-platform CI, adversarial and conformance suites, release-candidate

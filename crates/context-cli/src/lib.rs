@@ -4,7 +4,7 @@
 
 use std::{
     fs,
-    io::{self, Write},
+    io::{self, Cursor, Write},
     path::Path,
     path::PathBuf,
     time::Duration,
@@ -16,12 +16,17 @@ use context_core::{
     RecoveryAction, ResourceBudget, error_envelope,
 };
 use context_engine::{
-    EngineConfig, EngineError, LocalEngine, QueryKind, RequestContext, SnapshotStatus,
+    ContextPlan, ContextPlanStep, EngineConfig, EngineError, LocalEngine, QueryKind,
+    RequestContext, SnapshotStatus,
 };
+use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
+use context_session::SessionPolicy;
 use context_store::AuditRetention;
 use context_structural::{StructuralGraph, WorkerLauncher};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
+
+const DOCTOR_SCHEMA_VERSION: &str = "1.0.0";
 
 const HELP: &str = "\
 Impresari Context (working name)\n\
@@ -36,6 +41,10 @@ Usage:\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
+  impresari-context [global-options] doctor inspect <root> <cache-root>\n\
+  impresari-context [global-options] doctor mcp <root> <cache-root>\n\
+  impresari-context [global-options] doctor cursor-config <root> <cache-root> <mcp-json>\n\
+  impresari-context [global-options] doctor claude-config <root> <cache-root> <mcp-json>\n\
 Global options:\n\
   --human                 Add a concise diagnostic to stderr.\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
@@ -134,6 +143,22 @@ impl Output {
         })?;
         Ok(Self { label, value })
     }
+}
+
+#[derive(Serialize)]
+struct DoctorCheck {
+    id: &'static str,
+    status: &'static str,
+    remediation: &'static str,
+}
+
+#[derive(Serialize)]
+struct DoctorReport {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    status: &'static str,
+    checks: Vec<DoctorCheck>,
+    limitations: Vec<&'static str>,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -288,12 +313,410 @@ fn dispatch(
             )?;
             Output::new("handoff export", &result)
         }
+        ["doctor", "inspect", root, cache] => {
+            let report = doctor_inspect(Path::new(root), Path::new(cache))?;
+            Output::new("doctor inspect", &report)
+        }
+        ["doctor", "mcp", root, cache] => {
+            let report = doctor_mcp(root, cache, options)?;
+            Output::new("doctor mcp", &report)
+        }
+        ["doctor", "cursor-config", root, cache, config_path] => {
+            let report = doctor_client_config(root, cache, Path::new(config_path), "cursor")?;
+            Output::new("doctor cursor-config", &report)
+        }
+        ["doctor", "claude-config", root, cache, config_path] => {
+            let report = doctor_client_config(root, cache, Path::new(config_path), "claude")?;
+            Output::new("doctor claude-config", &report)
+        }
         _ => Err(synthetic_error(
             Capability::WorkspaceOpen,
             PublicErrorCode::InvalidInput,
             "invalid command shape; use --help",
         )),
     }
+}
+
+fn doctor_inspect(workspace: &Path, cache: &Path) -> Result<DoctorReport, EngineError> {
+    let workspace = canonical_directory(workspace)?;
+    let cache = canonical_directory(cache)?;
+    let separated =
+        workspace != cache && !cache.starts_with(&workspace) && !workspace.starts_with(&cache);
+    let platform_supported = matches!(
+        (std::env::consts::OS, std::env::consts::ARCH),
+        ("macos", "aarch64") | ("linux" | "windows", "x86_64")
+    );
+    let status = if separated && platform_supported {
+        "partial"
+    } else {
+        "failed"
+    };
+    Ok(DoctorReport {
+        schema_name: "doctor-report",
+        schema_version: DOCTOR_SCHEMA_VERSION,
+        status,
+        checks: vec![
+            DoctorCheck {
+                id: "workspace_root",
+                status: "passed",
+                remediation: "none",
+            },
+            DoctorCheck {
+                id: "cache_root",
+                status: "passed",
+                remediation: "none",
+            },
+            DoctorCheck {
+                id: "workspace_cache_separation",
+                status: if separated { "passed" } else { "failed" },
+                remediation: "use a separate existing cache directory outside the workspace",
+            },
+            DoctorCheck {
+                id: "tier_a_platform",
+                status: if platform_supported {
+                    "passed"
+                } else {
+                    "failed"
+                },
+                remediation: "use a published Tier A platform",
+            },
+        ],
+        limitations: vec![
+            "MCP lifecycle is not checked by doctor inspect.",
+            "Structural worker identity is not checked by doctor inspect.",
+            "Client configuration syntax is not checked by doctor inspect.",
+        ],
+    })
+}
+
+#[allow(clippy::too_many_lines)]
+fn doctor_mcp(
+    root: &str,
+    cache: &str,
+    options: &GlobalOptions,
+) -> Result<DoctorReport, EngineError> {
+    let mut report = doctor_inspect(Path::new(root), Path::new(cache))?;
+    if report.status == "failed" {
+        report
+            .limitations
+            .push("MCP lifecycle is not checked when prerequisite checks fail.");
+        return Ok(report);
+    }
+    let plan = ContextPlan {
+        steps: vec![ContextPlanStep {
+            kind: QueryKind::Literal,
+            query: "__impresari_doctor_probe__".into(),
+        }],
+    };
+    let request = RequestContext {
+        request_id: "req_doctor_mcp_build".into(),
+        event_id: "evt_doctor_mcp_build".into(),
+        subject: PolicySubject {
+            caller_id: "consumer_doctor_local".into(),
+            role: "local_user".into(),
+            purpose: "doctor_mcp_equivalence".into(),
+        },
+        occurred_at: options.at.clone(),
+    };
+    let budget = default_budget();
+    let direct_cache = Path::new(cache).join("doctor-direct");
+    let mcp_cache = Path::new(cache).join("doctor-mcp");
+    let (mut direct_engine, _) = LocalEngine::open(
+        config(&direct_cache, &options.cutoff)?,
+        &RequestContext {
+            request_id: "req_doctor_mcp_direct_open".into(),
+            event_id: "evt_doctor_mcp_direct_open".into(),
+            subject: request.subject.clone(),
+            occurred_at: options.at.clone(),
+        },
+        Path::new(root),
+    )?;
+    direct_engine.build_snapshot(
+        &RequestContext {
+            request_id: "req_doctor_mcp_direct_snapshot".into(),
+            event_id: "evt_doctor_mcp_direct_snapshot".into(),
+            subject: request.subject.clone(),
+            occurred_at: options.at.clone(),
+        },
+        budget.clone(),
+    )?;
+    let expected_packet = direct_engine.build_planned_context(&request, &plan, budget.clone())?;
+    drop(direct_engine);
+    let (mut mcp_engine, _) = LocalEngine::open(
+        config(&mcp_cache, &options.cutoff)?,
+        &RequestContext {
+            request_id: "req_doctor_mcp_transport_open".into(),
+            event_id: "evt_doctor_mcp_transport_open".into(),
+            subject: request.subject.clone(),
+            occurred_at: options.at.clone(),
+        },
+        Path::new(root),
+    )?;
+    mcp_engine.build_snapshot(
+        &RequestContext {
+            request_id: "req_doctor_mcp_transport_snapshot".into(),
+            event_id: "evt_doctor_mcp_transport_snapshot".into(),
+            subject: request.subject.clone(),
+            occurred_at: options.at.clone(),
+        },
+        budget.clone(),
+    )?;
+    let server = McpServer::new(
+        mcp_engine,
+        ServerConfig {
+            consumer_id: request.subject.caller_id.clone(),
+            role: request.subject.role.clone(),
+            session_policy: SessionPolicy::new(1, 1, 65_536).map_err(|_| {
+                synthetic_error(
+                    Capability::WorkspaceOpen,
+                    PublicErrorCode::InternalFailure,
+                    "doctor session policy is invalid",
+                )
+            })?,
+        },
+    );
+    let exchange = doctor_mcp_exchange(server, &request, &plan, &budget);
+    report.checks.push(DoctorCheck {
+        id: "mcp_initialize_and_tool_discovery",
+        status: if exchange.lifecycle_passed {
+            "passed"
+        } else {
+            "failed"
+        },
+        remediation: "rebuild the local MCP package and rerun doctor mcp",
+    });
+    report.checks.push(DoctorCheck {
+        id: "direct_engine_mcp_packet_equivalence",
+        status: if exchange.packet.as_ref() == Some(&expected_packet) {
+            "passed"
+        } else {
+            "failed"
+        },
+        remediation: "rebuild the local engine and MCP packages from the same revision",
+    });
+    if !exchange.lifecycle_passed || exchange.packet.as_ref() != Some(&expected_packet) {
+        report.status = "failed";
+    }
+    report
+        .limitations
+        .retain(|item| *item != "MCP lifecycle is not checked by doctor inspect.");
+    report
+        .limitations
+        .push("doctor mcp validates in-process JSON-RPC framing, not an external client or child-binary launch.");
+    Ok(report)
+}
+
+struct DoctorMcpExchange {
+    lifecycle_passed: bool,
+    packet: Option<ContextPacket>,
+}
+
+fn doctor_mcp_exchange(
+    mut server: McpServer,
+    request: &RequestContext,
+    plan: &ContextPlan,
+    budget: &ResourceBudget,
+) -> DoctorMcpExchange {
+    let requests = [
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 1,
+            "method": "initialize",
+            "params": {
+                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "capabilities": {},
+                "clientInfo": {"name": "doctor", "version": "1"},
+            },
+        }),
+        serde_json::json!({"jsonrpc": "2.0", "method": "notifications/initialized"}),
+        serde_json::json!({"jsonrpc": "2.0", "id": 2, "method": "tools/list", "params": {}}),
+        serde_json::json!({
+            "jsonrpc": "2.0",
+            "id": 3,
+            "method": "tools/call",
+            "params": {"name": "context_build", "arguments": {
+                "request_id": request.request_id,
+                "event_id": request.event_id,
+                "purpose": request.subject.purpose,
+                "occurred_at": request.occurred_at,
+                "steps": plan.steps,
+                "budget": budget,
+            }},
+        }),
+    ];
+    let Ok(mut input) = requests
+        .iter()
+        .map(serde_json::to_string)
+        .collect::<Result<Vec<_>, _>>()
+        .map(|frames| frames.join("\n"))
+    else {
+        return DoctorMcpExchange {
+            lifecycle_passed: false,
+            packet: None,
+        };
+    };
+    input.push('\n');
+    let mut output = Vec::new();
+    if server
+        .serve(Cursor::new(input.into_bytes()), &mut output)
+        .is_err()
+        || output.len() > 1_048_576
+    {
+        return DoctorMcpExchange {
+            lifecycle_passed: false,
+            packet: None,
+        };
+    }
+    let values = output
+        .split(|byte| *byte == b'\n')
+        .filter(|line| !line.is_empty())
+        .map(serde_json::from_slice::<serde_json::Value>)
+        .collect::<Result<Vec<_>, _>>();
+    let Ok(values) = values else {
+        return DoctorMcpExchange {
+            lifecycle_passed: false,
+            packet: None,
+        };
+    };
+    if values.len() != 3 || values[0]["result"]["protocolVersion"] != MCP_PROTOCOL_VERSION {
+        return DoctorMcpExchange {
+            lifecycle_passed: false,
+            packet: None,
+        };
+    }
+    let names = values[1]["result"]["tools"].as_array().map(|tools| {
+        tools
+            .iter()
+            .filter_map(|tool| tool["name"].as_str())
+            .collect::<Vec<_>>()
+    });
+    let lifecycle_passed = names
+        == Some(vec![
+            "context_session_open",
+            "context_build",
+            "context_packet_resolve",
+            "context_session_close",
+        ]);
+    let packet =
+        serde_json::from_value(values[2]["result"]["structuredContent"]["packet"].clone()).ok();
+    DoctorMcpExchange {
+        lifecycle_passed,
+        packet,
+    }
+}
+
+fn doctor_client_config(
+    root: &str,
+    cache: &str,
+    config_path: &Path,
+    client: &'static str,
+) -> Result<DoctorReport, EngineError> {
+    let mut report = doctor_inspect(Path::new(root), Path::new(cache))?;
+    let config: serde_json::Value = read_json(config_path, Capability::WorkspaceOpen)?;
+    let passed = client_config_is_safe(&config, client == "cursor");
+    report.checks.push(DoctorCheck {
+        id: if client == "cursor" {
+            "cursor_mcp_configuration"
+        } else {
+            "claude_mcp_configuration"
+        },
+        status: if passed { "passed" } else { "failed" },
+        remediation: "use the documented fixed local-stdio argument shape and a separate cache",
+    });
+    if !passed {
+        report.status = "failed";
+    }
+    report.limitations.push(
+        if client == "cursor" {
+            "Cursor configuration syntax is checked without launching Cursor or modifying its configuration."
+        } else {
+            "Claude Code configuration syntax is checked without launching Claude Code or modifying its configuration."
+        },
+    );
+    Ok(report)
+}
+
+fn client_config_is_safe(config: &serde_json::Value, requires_stdio_type: bool) -> bool {
+    let Some(entry) = config
+        .get("mcpServers")
+        .and_then(serde_json::Value::as_object)
+        .and_then(|servers| servers.get("impresari-context"))
+        .and_then(serde_json::Value::as_object)
+    else {
+        return false;
+    };
+    if (requires_stdio_type
+        && entry.get("type").and_then(serde_json::Value::as_str) != Some("stdio"))
+        || (!requires_stdio_type
+            && entry
+                .get("type")
+                .is_some_and(|value| value.as_str() != Some("stdio")))
+        || entry
+            .get("command")
+            .and_then(serde_json::Value::as_str)
+            .is_none_or(str::is_empty)
+    {
+        return false;
+    }
+    let Some(args) = entry
+        .get("args")
+        .and_then(serde_json::Value::as_array)
+        .and_then(|args| {
+            args.iter()
+                .map(serde_json::Value::as_str)
+                .collect::<Option<Vec<_>>>()
+        })
+    else {
+        return false;
+    };
+    args.len() == 8
+        && args[0] == "--workspace"
+        && !args[1].is_empty()
+        && args[2] == "--cache"
+        && cache_argument_is_separate(args[3])
+        && args[4] == "--consumer-id"
+        && identifier_like(args[5])
+        && args[6] == "--role"
+        && identifier_like(args[7])
+}
+
+fn cache_argument_is_separate(value: &str) -> bool {
+    !value.is_empty()
+        && value != "${workspaceFolder}"
+        && !value.starts_with("${workspaceFolder}/")
+        && !value.starts_with("${workspaceFolder}\\")
+}
+
+fn identifier_like(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 128
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+fn canonical_directory(path: &Path) -> Result<PathBuf, EngineError> {
+    let metadata = fs::metadata(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::PathNotFound,
+            "doctor input directory not found",
+        )
+    })?;
+    if !metadata.is_dir() {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "doctor input is not a directory",
+        ));
+    }
+    fs::canonicalize(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InternalFailure,
+            "doctor input directory could not be resolved",
+        )
+    })
 }
 
 fn open_engine(
@@ -676,6 +1099,231 @@ mod tests {
         assert_eq!(envelope.code, PublicErrorCode::InvalidInput);
         assert_eq!(timestamp(0), "1970-01-01T00:00:00Z");
         assert_eq!(timestamp(1_704_067_200), "2024-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn doctor_inspect_is_source_free_non_mutating_and_detects_cache_overlap() {
+        let source = TestRoot::new("doctor-source");
+        let cache = TestRoot::new("doctor-cache");
+        fs::write(
+            source.0.join("secret.rs"),
+            b"const TOKEN: &str = \"secret-value\";\n",
+        )
+        .expect("source");
+        let before = fs::read(source.0.join("secret.rs")).expect("before");
+        let (code, report) = invoke(
+            &[
+                "doctor".into(),
+                "inspect".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+            ],
+            "doctorone",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(report["schema_name"], "doctor-report");
+        assert_eq!(report["schema_version"], DOCTOR_SCHEMA_VERSION);
+        assert_eq!(report["status"], "partial");
+        let encoded = serde_json::to_string(&report).expect("report JSON");
+        assert!(!encoded.contains("secret-value"));
+        assert!(!encoded.contains(source.0.to_string_lossy().as_ref()));
+        assert!(!encoded.contains(cache.0.to_string_lossy().as_ref()));
+        assert_eq!(fs::read(source.0.join("secret.rs")).expect("after"), before);
+
+        let (code, overlap) = invoke(
+            &[
+                "doctor".into(),
+                "inspect".into(),
+                source.0.to_string_lossy().into_owned(),
+                source.0.to_string_lossy().into_owned(),
+            ],
+            "doctortwo",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(overlap["status"], "failed");
+        assert_eq!(
+            overlap["checks"][2]["status"], "failed",
+            "cache overlap must fail closed"
+        );
+    }
+
+    #[test]
+    fn doctor_mcp_exercises_the_real_lifecycle_without_mutating_source() {
+        let source = TestRoot::new("doctor-mcp-source");
+        let cache = TestRoot::new("doctor-mcp-cache");
+        fs::write(
+            source.0.join("module.rs"),
+            b"const PRIVATE: &str = \"do-not-leak\";\n",
+        )
+        .expect("source");
+        let before = fs::read(source.0.join("module.rs")).expect("before");
+        let (code, report) = invoke(
+            &[
+                "doctor".into(),
+                "mcp".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+            ],
+            "doctormcp",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(report["status"], "partial");
+        assert_eq!(
+            report["checks"][4],
+            serde_json::json!({
+                "id": "mcp_initialize_and_tool_discovery",
+                "status": "passed",
+                "remediation": "rebuild the local MCP package and rerun doctor mcp",
+            })
+        );
+        assert_eq!(
+            report["checks"][5],
+            serde_json::json!({
+                "id": "direct_engine_mcp_packet_equivalence",
+                "status": "passed",
+                "remediation": "rebuild the local engine and MCP packages from the same revision",
+            })
+        );
+        let encoded = serde_json::to_string(&report).expect("report JSON");
+        assert!(!encoded.contains("do-not-leak"));
+        assert!(!encoded.contains(source.0.to_string_lossy().as_ref()));
+        assert!(!encoded.contains(cache.0.to_string_lossy().as_ref()));
+        assert_eq!(fs::read(source.0.join("module.rs")).expect("after"), before);
+    }
+
+    #[test]
+    fn compatibility_manifest_cannot_overclaim_shipped_languages_or_clients() {
+        let manifest: serde_json::Value = serde_json::from_str(include_str!(
+            "../../../docs/reference/compatibility-manifest-v1.json"
+        ))
+        .expect("compatibility manifest JSON");
+        assert_eq!(
+            manifest["schema_name"],
+            "impresari-context-compatibility-manifest"
+        );
+        assert_eq!(manifest["schema_version"], "1.0.0");
+        let structural_extensions = manifest["language_support"]
+            .as_array()
+            .expect("language support array")
+            .iter()
+            .filter(|entry| entry["structural_evidence"] == "supported")
+            .flat_map(|entry| entry["extensions"].as_array().into_iter().flatten())
+            .filter_map(serde_json::Value::as_str)
+            .collect::<std::collections::BTreeSet<_>>();
+        assert_eq!(
+            structural_extensions,
+            std::collections::BTreeSet::from([".cjs", ".js", ".jsx", ".mjs", ".ts", ".tsx"]),
+            "the public manifest must match the shipped TypeScript/JavaScript worker inventory"
+        );
+        assert_eq!(manifest["first_class_clients"], serde_json::json!([]));
+        assert!(
+            manifest["client_support"]
+                .as_array()
+                .expect("client support array")
+                .iter()
+                .all(|entry| entry["first_class"] == false)
+        );
+    }
+
+    #[test]
+    fn doctor_cursor_config_validates_only_the_fixed_stdio_contract() {
+        let source = TestRoot::new("cursor-source");
+        let cache = TestRoot::new("cursor-cache");
+        let config = TestRoot::new("cursor-config");
+        fs::write(
+            source.0.join("source.rs"),
+            b"const SECRET: &str = \"keep-private\";\n",
+        )
+        .expect("source");
+        let source_before = fs::read(source.0.join("source.rs")).expect("source before");
+        let config_path = config.0.join("mcp.json");
+        fs::write(
+            &config_path,
+            br#"{
+              "mcpServers": {
+                "impresari-context": {
+                  "type": "stdio",
+                  "command": "/opt/impresari-context-mcp",
+                  "args": [
+                    "--workspace", "${workspaceFolder}",
+                    "--cache", "${env:IMPRESARI_CONTEXT_CACHE}",
+                    "--consumer-id", "consumer_cursor_local",
+                    "--role", "local_user"
+                  ]
+                }
+              }
+            }"#,
+        )
+        .expect("config");
+        let (code, report) = invoke(
+            &[
+                "doctor".into(),
+                "cursor-config".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                config_path.to_string_lossy().into_owned(),
+            ],
+            "cursorcfg",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(report["status"], "partial");
+        assert_eq!(report["checks"][4]["status"], "passed");
+        let encoded = serde_json::to_string(&report).expect("report JSON");
+        assert!(!encoded.contains("keep-private"));
+        assert!(!encoded.contains(config_path.to_string_lossy().as_ref()));
+        assert_eq!(
+            fs::read(source.0.join("source.rs")).expect("source after"),
+            source_before
+        );
+
+        let unsafe_config = serde_json::json!({
+            "mcpServers": {
+                "impresari-context": {
+                    "type": "stdio",
+                    "command": "/opt/impresari-context-mcp",
+                    "args": [
+                        "--workspace", "${workspaceFolder}",
+                        "--cache", "${workspaceFolder}/.cache",
+                        "--consumer-id", "consumer_cursor_local",
+                        "--role", "local_user"
+                    ]
+                }
+            }
+        });
+        assert!(!client_config_is_safe(&unsafe_config, true));
+
+        let claude_config_path = config.0.join("claude-mcp.json");
+        fs::write(
+            &claude_config_path,
+            br#"{
+              "mcpServers": {
+                "impresari-context": {
+                  "command": "/opt/impresari-context-mcp",
+                  "args": [
+                    "--workspace", "/work/source",
+                    "--cache", "/var/cache/impresari-context",
+                    "--consumer-id", "consumer_claude_local",
+                    "--role", "local_user"
+                  ]
+                }
+              }
+            }"#,
+        )
+        .expect("Claude config");
+        let (code, claude_report) = invoke(
+            &[
+                "doctor".into(),
+                "claude-config".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                claude_config_path.to_string_lossy().into_owned(),
+            ],
+            "claudecfg",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(claude_report["status"], "partial");
+        assert_eq!(claude_report["checks"][4]["id"], "claude_mcp_configuration");
+        assert_eq!(claude_report["checks"][4]["status"], "passed");
     }
 
     #[test]

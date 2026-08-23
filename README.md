@@ -94,18 +94,18 @@ its expected SHA-256 identity, and an existing empty non-workspace directory.
 
 ## Local MCP
 
-`impresari-context-mcp` is a local child-process transport pinned to MCP
-revision `2025-11-25`. It communicates only through stdin/stdout, emits only MCP
-messages on stdout, has no HTTP listener, and adds no orchestration, execution,
-approval, model, network, or filesystem authority.
+`impresari-context-mcp` is a local child-process transport that prefers MCP
+revision `2025-11-25` and accepts `2025-06-18` for compatible clients. It
+communicates only through stdin/stdout, emits only MCP messages on stdout, has
+no HTTP listener, and adds no orchestration, execution, approval, model,
+network, or filesystem authority.
 
 ```text
 cargo run -p context-mcp -- \
   --workspace <workspace-root> \
   --cache <cache-root> \
   --consumer-id <consumer-id> \
-  --role <policy-role> \
-  --occurred-at <UTC-timestamp>
+  --role <policy-role>
 ```
 
 The client must complete MCP initialization before using the four tools:
@@ -113,9 +113,23 @@ The client must complete MCP initialization before using the four tools:
 `context_session_close`. The process is intentionally single-client and
 process-local. It is not a remote service or an agent runtime.
 
+The process records a local UTC startup time by default. Deterministic test or
+rehearsal callers may append `--occurred-at <UTC-timestamp>`; persistent client
+configuration must not hard-code a timestamp merely to start the process.
+
 See the [CLI and local MCP interface reference](docs/reference/interfaces.md)
 for complete commands, request and response contracts, error behavior,
 versioning, limits, and security boundaries.
+
+See the [compatibility matrix](docs/reference/compatibility-matrix.md) for the
+exact difference between discovery, lexical evidence, and structural language
+support, and between generic local-MCP compatibility and a first-class client
+integration. At this release, only the TypeScript/JavaScript family has
+structural support; Codex, Claude Code, and Cursor are not yet first-class
+integrations.
+
+The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)
+show user-invoked, non-mutating local stdio configurations for those clients.
 
 ## Design documents
 
@@ -157,6 +171,10 @@ versioning, limits, and security boundaries.
   native-matrix results and explicitly open release gates.
 - [MCP and release traceability](docs/verification/mcp-release-traceability.md):
   direct-engine equivalence, transport hardening, and packaging evidence.
+- [Compatibility matrix](docs/reference/compatibility-matrix.md): versioned
+  language and client capability claims.
+- [Local MCP connection guides](docs/reference/local-mcp-connection-guides.md):
+  reviewed, user-invoked generic-client configurations without auto-wiring.
 
 ## Mission
 
