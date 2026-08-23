@@ -2,7 +2,7 @@
 
 - Version: 1.0
 - Published: 2026-08-23
-- Status: Phase 2 language-admission update
+- Status: Phase 1 configuration-evidence update
 - Evidence sources: [ADR-0004](../decisions/0004-source-language-and-parser-strategy.md),
   [ADR-0010](../decisions/0010-structural-worker-protocol-and-isolation.md),
   [dependency policy](../dependency-policy.md), and the released
@@ -40,6 +40,7 @@ may be discoverable as metadata but do not receive text evidence.
 | Rust (`.rs`) | Yes | Yes | Yes | Pinned Rust Tree-sitter grammar and project-owned syntax resolver. Structs, enums, unions, traits, named functions, `use` declarations, direct calls, and references are syntax-derived only; no Cargo, compiler, crate graph, macro expansion, build script, feature, package, or runtime resolution is performed. |
 | Strict JSON configuration (`package.json`, `deno.json`, `composer.json`, `manifest.json`) | Yes | Yes | Yes | A strict JSON gate precedes the pinned JSON Tree-sitter grammar and emits static configuration-key and nesting facts only. Comments, arbitrary JSON data, JSON Schema, interpolation, loaders, and runtime configuration semantics are unsupported. |
 | JSONC configuration (all `.jsonc` files; `tsconfig.json`, `jsconfig.json`, `devcontainer.json`, and selected `.vscode/*.json`) | Yes | Yes | Yes | Pinned JSON grammar emits decoded object-key and nesting facts only. Comments are syntax only; no editor, compiler, container, include, interpolation, runtime, or configuration-to-code semantics are claimed. |
+| TOML configuration (`.toml`) | Yes | Yes | Yes | Pinned TOML grammar emits raw syntax-derived key, table, table-array, and nesting facts only. It does not evaluate values, includes, interpolation, package resolution, toolchains, build scripts, or runtime behavior. Malformed TOML emits no facts. |
 | Swift | Yes | Yes | No | Lexical evidence only. |
 | Kotlin | Yes | Yes | No | Lexical evidence only. |
 | Other eligible UTF-8 regular files | Yes | Yes | No | Language labels are filtering hints, not semantic claims. |

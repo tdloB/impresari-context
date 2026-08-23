@@ -31,6 +31,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0023](0023-revised-product-roadmap-sequencing.md) | Align language, client, planner, and enterprise work to the founder-approved five-phase roadmap | Accepted |
 | [ADR-0024](0024-deterministic-context-planner.md) | Add a bounded deterministic planner without agent-governance authority | Accepted; implementation pending |
 | [ADR-0025](0025-jsonc-configuration-evidence.md) | Separate bounded JSONC evidence from strict JSON and fail closed on non-strict JSON | Accepted |
+| [ADR-0026](0026-toml-configuration-evidence.md) | Pinned TOML syntax facts in the isolated worker without configuration evaluation | Accepted |
 
 ## Change Rules
 
