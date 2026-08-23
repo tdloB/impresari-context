@@ -35,6 +35,26 @@ facts, exact evidence references, and bounded context packets. It does not
 become the user's agent orchestrator, development environment, or approval
 authority.
 
+## Approved roadmap
+
+This Master PRD defines the enduring product baseline. The founder-approved
+[Revised Product Roadmap](revised-product-roadmap.md) defines the complete
+implementation sequence and phase scope:
+
+1. Correct the public language/client contract and doctor surface.
+2. Add Python, configuration evidence, and first-class Codex, Claude Code, and
+   Cursor integrations.
+3. Add Rust and Go plus Gemini CLI, GitHub Copilot CLI, and VS Code Copilot
+   integrations.
+4. Add the deterministic context planner.
+5. Add Java, Kotlin, C#, impact evidence, and explicit incremental updates.
+6. Add demand-led language support, beginning with Swift, PHP, Ruby, C/C++,
+   Scala, Dart, and carefully constrained SQL.
+
+The roadmap document is authoritative for the detailed requirements, status,
+dependencies, and admission criteria of each phase. Future work must not
+renumber or reinterpret those phases without a superseding roadmap decision.
+
 ## Background And Problem
 
 ### Current situation
