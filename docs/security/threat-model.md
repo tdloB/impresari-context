@@ -3,8 +3,8 @@
 ## Document Control
 
 - Document ID/version: IC-SEC-001 / 0.1.
-- Status: Founder-approved security design baseline; implementation and
-  independent release review remain required.
+- Status: Founder-approved security design baseline; implementation evidence
+  remains required. ADR-0017 governs independent review for `v0.1.0`.
 - Date: 2026-08-20.
 - Initial scope: Slice A — Verifiable Local Context MVP plus the authorized
   Slice B structural-worker boundary in ADR-0010.
@@ -22,8 +22,8 @@ required controls, verification methods, and residual risks for a local engine
 that reads untrusted software repositories and emits source-derived evidence.
 
 This document is a design and verification contract. It does not claim that the
-future implementation is secure, sandboxed, or suitable for sensitive code
-until the specified controls are implemented and independently verified.
+future implementation is secure, sandboxed, independently audited, or suitable
+for sensitive code merely because the specified controls are implemented.
 
 ## Security Objectives
 
@@ -324,7 +324,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 
 ## Security Release Gates
 
-The MVP cannot be released publicly unless:
+The MVP cannot be released publicly unless the following technical gates pass:
 
 1. All `Block` invariants have passing evidence.
 2. Every MVP-blocking security requirement maps to implementation and tests.
@@ -389,8 +389,10 @@ These risks must be communicated rather than hidden behind a general claim of
 
 ## Approval And Change Control
 
-- Approved by/date: Founder, 2026-08-20, as the design baseline. Independent
-  security review remains a public-release gate.
+- Approved by/date: Founder, 2026-08-20, as the design baseline. ADR-0017 makes
+  independent review an assurance target before `v1.0.0`, or an earlier
+  mandatory gate when a qualifying trust-boundary expansion occurs; it is not a
+  mandatory `v0.1.0` gate.
 - Any addition of network, model access, process execution, native parser code,
   extension loading, hosted deployment, durable memory, source mutation, remote
   transport, or multi-tenant behavior requires a threat-model revision before

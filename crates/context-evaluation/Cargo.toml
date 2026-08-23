@@ -21,7 +21,7 @@ serde_json = { version = "=1.0.151", default-features = false, features = ["std"
 sha2 = { version = "=0.11.0", default-features = false }
 
 [dev-dependencies]
-base64 = { version = "=0.22.1", default-features = false, features = ["std"] }
+base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
 context-adapters = { version = "=0.1.0", path = "../context-adapters" }
 context-extensions = { version = "=0.1.0", path = "../context-extensions" }
 context-mcp = { version = "=0.1.0", path = "../context-mcp" }

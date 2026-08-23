@@ -3,7 +3,7 @@
 All notable changes to Impresari Context are documented here. The project uses
 [Semantic Versioning](https://semver.org/).
 
-## [0.1.0] - Unreleased
+## [0.1.0] - 2026-08-22
 
 ### Added
 
@@ -23,6 +23,12 @@ All notable changes to Impresari Context are documented here. The project uses
   OpenSSF Scorecard, and bounded fuzz testing.
 
 ### Security
+
+Security review status: This release has not undergone an independent
+third-party security audit. It has passed the project's documented automated,
+AI-assisted internal, native-platform, dependency, static-analysis,
+secret-scanning, fuzzing, packaging, checksum, and provenance checks. These
+controls reduce risk but are not a substitute for independent review.
 
 - Repository content is always treated as untrusted data and receives no
   policy, execution, network, or orchestration authority.

@@ -104,9 +104,11 @@ Acceptance evidence:
 - The badge justification cites verifiable, non-sensitive evidence rather than
   treating AI output or scanners as human expertise.
 
-The independent-review scope and evidence requirements are now documented in
-`docs/security/independent-review-guide.md`. These questionnaire criteria remain
-`Unmet` until the human qualification or review-relationship evidence exists.
+The future independent-review scope and evidence requirements are documented in
+`docs/security/independent-review-guide.md`. ADR-0017 makes that review a
+pre-`v1.0.0` assurance target rather than a mandatory `v0.1.0` gate. These
+questionnaire criteria remain `Unmet` until the human qualification or
+review-relationship evidence exists.
 
 ## Tracking rule
 
