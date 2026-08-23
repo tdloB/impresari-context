@@ -22,11 +22,12 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
 
 ## Current delivery state
 
-- Complete: Python and narrow strict-JSON configuration evidence.
+- Complete: Python, narrow strict-JSON, and bounded JSONC configuration
+  evidence.
 - Complete: Codex's non-mutating project-scoped pre-admission kit and read-only
   configuration validator, while Codex remains Generic local MCP pending full
   client admission.
-- Pending: JSONC, TOML, YAML, Codex first-class admission, and all Claude Code
+- Pending: TOML, YAML, Codex first-class admission, and all Claude Code
   and Cursor first-class kit work.
 
 ## Non-goals
