@@ -2,7 +2,7 @@
 
 - Version: 1.0
 - Published: 2026-08-23
-- Status: Phase 0 baseline
+- Status: Phase 3 language-admission update
 - Evidence sources: [ADR-0004](../decisions/0004-source-language-and-parser-strategy.md),
   [ADR-0010](../decisions/0010-structural-worker-protocol-and-isolation.md),
   [dependency policy](../dependency-policy.md), and the released
@@ -37,8 +37,8 @@ may be discoverable as metadata but do not receive text evidence.
 | JSX (`.jsx`) | Yes | Yes | Yes | Pinned JSX grammar and project-owned resolver. |
 | Python (`.py`) | Yes | Yes | Yes | Pinned Python Tree-sitter grammar and project-owned syntax resolver. Python imports, declarations, containment, calls, and references are syntax-derived only; no interpreter, environment, package, or runtime resolution is performed. |
 | Go (`.go`) | Yes | Yes | Yes | Pinned Go Tree-sitter grammar and project-owned syntax resolver. Functions, methods, type specifications, imports, direct calls, and references are syntax-derived only; no Go toolchain, module cache, package, or runtime resolution is performed. |
+| Rust (`.rs`) | Yes | Yes | Yes | Pinned Rust Tree-sitter grammar and project-owned syntax resolver. Structs, enums, unions, traits, named functions, `use` declarations, direct calls, and references are syntax-derived only; no Cargo, compiler, crate graph, macro expansion, build script, feature, package, or runtime resolution is performed. |
 | Strict JSON configuration (`package.json`, `deno.json`, `composer.json`, `manifest.json`) | Yes | Yes | Yes | Pinned JSON Tree-sitter grammar emits static configuration-key and nesting facts only. Arbitrary JSON data, JSONC, JSON Schema, interpolation, loaders, and runtime configuration semantics are unsupported. |
-| Rust | Yes | Yes | No | Lexical evidence only. The implementation language is unrelated to source-language structural support. |
 | Swift | Yes | Yes | No | Lexical evidence only. |
 | Kotlin | Yes | Yes | No | Lexical evidence only. |
 | Other eligible UTF-8 regular files | Yes | Yes | No | Language labels are filtering hints, not semantic claims. |

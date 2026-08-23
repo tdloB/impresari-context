@@ -46,6 +46,8 @@ pub enum StructuralLanguage {
     Json,
     /// Go source.
     Go,
+    /// Rust source.
+    Rust,
 }
 
 /// Requested structural fact classes.
@@ -1552,6 +1554,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Json => "tree-sitter-json-0.24.8",
         StructuralLanguage::Go => "tree-sitter-go-0.25.0",
+        StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
     };
     if request.grammar_version != expected_grammar {
         return Err(StructuralError::ContractMismatch);
@@ -1569,6 +1572,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Json => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Go => tree_sitter_go::LANGUAGE.into(),
+        StructuralLanguage::Rust => tree_sitter_rust::LANGUAGE.into(),
     }
 }
 
@@ -1672,6 +1676,18 @@ fn fact_for_node(
                 .child_by_field_name("name")
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
+        }
+        "struct_item" | "enum_item" | "union_item" | "function_item" | "trait_item" => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "use_declaration" if request.language == StructuralLanguage::Rust => {
+            let module = node
+                .child_by_field_name("argument")
+                .and_then(|value| text(value, source));
+            (FactClass::Import, None, module)
         }
         "lexical_declaration" | "variable_declaration" => {
             let declarator = named_descendant(node, "variable_declarator")?;
@@ -1783,6 +1799,11 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "method_declaration"
                     | "type_spec"
                     | "type_alias"
+                    | "struct_item"
+                    | "enum_item"
+                    | "union_item"
+                    | "function_item"
+                    | "trait_item"
                     | "assignment"
                     | "variable_declarator"
             )
@@ -1899,6 +1920,7 @@ mod tests {
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Json => "tree-sitter-json-0.24.8",
             StructuralLanguage::Go => "tree-sitter-go-0.25.0",
+            StructuralLanguage::Rust => "tree-sitter-rust-0.24.2",
         };
         WorkerRequest {
             schema_name: "structural-worker-request".into(),
@@ -2107,6 +2129,43 @@ func (Service) Run() int {
         assert!(output.facts.iter().any(|fact| {
             fact.class == FactClass::Reference && fact.name.as_deref() == Some("value")
         }));
+    }
+
+    #[test]
+    fn extracts_rust_items_uses_calls_and_references() {
+        let source = br"use crate::support::helper;
+
+struct Service;
+enum State { Ready }
+trait Runnable { fn run(&self); }
+
+fn execute() {
+    let value = helper();
+    let _again = value;
+}
+";
+        let output = process_request(&request(source, StructuralLanguage::Rust)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Service", "State", "Runnable", "execute"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import
+                && fact.module.as_deref() == Some("crate::support::helper")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Reference && fact.name.as_deref() == Some("value")
+        }));
+        for name in ["Service", "State", "Runnable", "execute"] {
+            assert!(output.facts.iter().all(|fact| {
+                fact.class != FactClass::Reference || fact.name.as_deref() != Some(name)
+            }));
+        }
     }
 
     #[test]

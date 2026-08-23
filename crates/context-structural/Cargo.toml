@@ -1,6 +1,6 @@
 [package]
 name = "context-structural"
-description = "Isolated structural parser protocol and TypeScript/JavaScript/Python/JSON/Go resolver"
+description = "Isolated structural parser protocol and bounded source-language structural resolver"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -21,6 +21,7 @@ tree-sitter = { version = "=0.26.12", default-features = false, features = ["std
 tree-sitter-javascript = { version = "=0.25.0", default-features = false }
 tree-sitter-json = { version = "=0.24.8", default-features = false }
 tree-sitter-python = { version = "=0.25.0", default-features = false }
+tree-sitter-rust = { version = "=0.24.2", default-features = false }
 tree-sitter-go = { version = "=0.25.0", default-features = false }
 tree-sitter-typescript = { version = "=0.23.2", default-features = false }
 
