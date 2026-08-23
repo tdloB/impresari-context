@@ -55,6 +55,7 @@ returns `74`; success returns `0`.
 | `handoff export <root> <cache-root> <packet-json> <export-root> <filename>` | Packet and authorized destination | `handoff-export`; no overwrite |
 | `doctor inspect <root> <cache-root>` | Existing workspace and cache directories | `doctor-report` with metadata-only prerequisite checks |
 | `doctor mcp <root> <cache-root>` | Existing workspace and separate cache directories | `doctor-report` with an in-process MCP initialization and tool-discovery check |
+| `doctor codex-config <root> <cache-root> <config-toml>` | Existing workspace/cache and a Codex-format TOML config | `doctor-report` with a source-free fixed-stdio project-configuration check |
 | `doctor cursor-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Cursor-format config | `doctor-report` with a source-free fixed-stdio configuration check |
 | `doctor claude-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Claude-format config | `doctor-report` with a source-free fixed-stdio configuration check |
 
@@ -85,6 +86,13 @@ from the direct engine with the corresponding MCP packet. It does not mutate
 the source workspace, launch an arbitrary external binary, parse a third-party
 client configuration, or prove an end-to-end client integration. It therefore
 also reports `partial` on success.
+
+`doctor codex-config` parses a bounded TOML file, validates the exact
+`[mcp_servers."impresari-context"]` local-stdio entry, requires a real absolute
+binary path, canonical workspace/cache matches, `prompt` tool approval, and no
+environment forwarding or remote server options. It does not launch Codex,
+modify its configuration, display a path or configuration value, or claim the
+client is first-class.
 
 `doctor cursor-config` and `doctor claude-config` parse a bounded JSON file,
 but report only a stable pass/fail category and remediation class. They validate

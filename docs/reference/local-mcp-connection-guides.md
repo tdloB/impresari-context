@@ -1,6 +1,6 @@
 # Local MCP Connection Guides
 
-- Version: 1.0
+- Version: 1.1
 - Published: 2026-08-23
 - Classification: Generic local MCP guides, not first-class integrations
 - Supported transport: local stdio only
@@ -28,26 +28,45 @@ flag for deterministic tests and rehearsals.
 
 ## Codex
 
-Codex's local CLI exposes `codex mcp add <name> -- <command> [args...]`. After
-reviewing the absolute paths and opaque identifiers, a user may manually run:
+Codex supports local stdio MCP servers and shares one configuration across the
+ChatGPT desktop app, Codex CLI, and Codex IDE extension. The maintained
+pre-admission kit uses a **trusted project** configuration at
+`.codex/config.toml`; it never writes that file. A user must intentionally
+create or edit the project file and review the exact absolute paths:
 
-```text
-codex mcp add impresari-context -- \
-  /absolute/path/to/impresari-context-mcp \
-  --workspace /absolute/path/to/source-workspace \
-  --cache /absolute/path/to/separate-cache \
-  --consumer-id consumer_codex_local \
-  --role local_user
+```toml
+[mcp_servers."impresari-context"]
+command = "/absolute/path/to/impresari-context-mcp"
+args = [
+  "--workspace", "/absolute/path/to/source-workspace",
+  "--cache", "/absolute/path/to/separate-cache",
+  "--consumer-id", "consumer_codex_local",
+  "--role", "local_user"
+]
+enabled = true
+default_tools_approval_mode = "prompt"
 ```
 
-Verify the client-managed configuration with `codex mcp get
-impresari-context`. Remove only the owned entry with `codex mcp remove
-impresari-context`. A limited local-stdio lifecycle check has passed for Codex
-CLI `0.149.0-alpha.4.1`; its exact scope and remaining gaps are recorded in the
-[Codex conformance record](../verification/phase-0-codex-local-mcp-conformance.md).
-This guide still makes no assertion about a maintained Codex configuration
-scope, version range, or packet-corpus equivalence; those are required before
-first-class admission.
+The project must be trusted before Codex loads `.codex/config.toml`. Validate
+the exact entry without launching Codex or editing any configuration:
+
+```text
+impresari-context doctor codex-config \
+  /absolute/path/to/source-workspace \
+  /absolute/path/to/separate-cache \
+  .codex/config.toml
+```
+
+Then inspect the resolved client entry with `codex mcp get impresari-context
+--json`. To remove this project-scoped entry, manually delete only the
+`[mcp_servers."impresari-context"]` table; do not delete the entire
+`.codex/config.toml` file or unrelated server entries. The user-level
+alternative is the Codex CLI command `codex mcp add <name> -- <command>
+[args...]`; it is intentionally not automated or used by this kit.
+
+This pre-admission kit has been locally checked against Codex CLI
+`0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and remaining
+first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
 
 ## Claude Code
 
@@ -117,6 +136,8 @@ configuration-parser conformance, safe automated removal, or client lifecycle
 coverage. The [compatibility matrix](compatibility-matrix.md) therefore keeps
 Codex, Claude Code, and Cursor in the **Generic local MCP** category.
 
-Source references for the host-side configuration surfaces: the installed
-Codex CLI help, [Claude Code MCP documentation](https://docs.anthropic.com/en/docs/claude-code/mcp),
+Source references for the host-side configuration surfaces: [OpenAI Codex MCP
+documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex
+configuration basics](https://learn.chatgpt.com/docs/config-file/config-basic),
+[Claude Code MCP documentation](https://docs.anthropic.com/en/docs/claude-code/mcp),
 and [Cursor MCP documentation](https://cursor.com/docs/mcp).
