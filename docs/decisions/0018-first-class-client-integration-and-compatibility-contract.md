@@ -1,6 +1,6 @@
 # ADR-0018: First-class client integration and compatibility contract
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-23
 - Scope: Public language/client capability claims, named local MCP client
   connections, and read-only connection diagnostics
