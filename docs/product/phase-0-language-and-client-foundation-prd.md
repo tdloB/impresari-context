@@ -103,8 +103,9 @@ Publish one versioned matrix with these classifications:
 | Experimental | A named integration is available for evaluation with documented limitations and no stability promise. |
 | Unsupported | The project has no approved or safely expressible connection path. |
 
-The initial first-class target set is Codex, Claude Code, and Cursor. Phase 0
-does not claim their support until the acceptance criteria in this PRD pass.
+The intended first-class target set is Codex, Claude Code, and Cursor. Their
+admission delivery belongs to Phase 1; Phase 0 defines the contract and does
+not claim their first-class support.
 
 ### 5.3 Connection-kit contract
 
@@ -159,10 +160,10 @@ first-class conformance or permission to modify client configuration.
 | P0-FR-002 | Derive every structural-support claim from the released parser/resolver inventory and evaluation evidence. | Must |
 | P0-FR-003 | Correct or retire language claims that exceed the released implementation. | Must |
 | P0-FR-004 | Maintain one public client matrix separating generic MCP capability from first-class support. | Must |
-| P0-FR-005 | Provide a versioned connection kit for every client labeled first-class. | Must |
+| P0-FR-005 | Define the required content of a versioned connection kit for every client labeled first-class. | Must |
 | P0-FR-006 | Make all configuration rendering opt-in and dry-run-capable before an external file could be changed. | Must |
 | P0-FR-007 | Provide a read-only doctor report that validates a supported connection and reports limitations without source disclosure. | Must |
-| P0-FR-008 | Run a client-specific end-to-end conformance suite before first-class status is published. | Must |
+| P0-FR-008 | Define the client-specific end-to-end conformance suite required before first-class status is published. | Must |
 | P0-FR-009 | Preserve existing stdio-only, fixed-launch-authority MCP invariants. | Must |
 | P0-FR-010 | Document project- versus user-scope consequences, including any machine-wide behavior. | Must |
 | P0-FR-011 | Remove only an integration-owned entry and never delete unrelated client configuration. | Should |
@@ -199,7 +200,7 @@ first-class conformance or permission to modify client configuration.
   current parser/resolver inventory.
 - Each matrix has a version, publication date, and linked evidence source.
 
-### First-class client admission
+### Future first-class client admission (Phase 1)
 
 For each of Codex, Claude Code, and Cursor:
 
@@ -249,9 +250,9 @@ phase alone.
 ## 10. Dependencies and Sequencing
 
 Phase 0 completes before a client is called first-class or before Phase 1 makes
-new structural language claims. Phase 1 then adds Python and configuration
-evidence through the established language-admission process while retaining the
-same client contract.
+new structural language claims. Phase 1 then adds Python, configuration
+evidence, and the Codex, Claude Code, and Cursor connection kits through the
+established language-admission process while retaining the same client contract.
 
 The deterministic context planner is not a Phase 0 deliverable. Its later
 profiles must consume the public support matrix and report unavailable evidence
@@ -270,9 +271,8 @@ classes rather than treating a language's lexical support as structural support.
 
 ## 12. Exit Decision
 
-Phase 0 is complete only when the public matrices, connection-kit contract,
-doctor specification, and client-specific conformance evidence are accepted by
-the project steward. Failure to complete a first-class kit leaves that client in
-the generic local-MCP, experimental, or unsupported category; it does not block
-the neutral core from remaining usable through its existing CLI and library
-surfaces.
+Phase 0 is complete when the public matrices, connection-kit contract, and
+read-only doctor specification are accepted by the project steward. A client
+remains generic local MCP, experimental, or unsupported until its Phase 1
+admission evidence is complete; that does not block the neutral core from
+remaining usable through its existing CLI and library surfaces.

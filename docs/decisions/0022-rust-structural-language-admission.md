@@ -2,7 +2,7 @@
 
 - Status: Accepted
 - Date: 2026-08-23
-- Scope: Phase 3 admission of Rust source to the existing isolated structural worker
+- Scope: Phase 2 admission of Rust source to the existing isolated structural worker
 
 ## Decision
 

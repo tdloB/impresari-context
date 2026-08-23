@@ -9,3 +9,42 @@ The founder directs Codex to continue all accepted Impresari Context roadmap wor
 - Keep the user informed with concise progress updates while work is active.
 
 These instructions supplement, and never override, higher-priority system, developer, safety, or platform requirements.
+
+# AI App Builder OS Delivery Guardrail
+
+Build Impresari Context using the project operator's private AI App Builder OS
+as the governing delivery guardrail. The OS root is local operator
+configuration: it is not a runtime dependency and must never be committed to
+this public repository.
+
+- Start each material roadmap increment through the OS Orchestrator process.
+  Use the existing-application and Architecture Evolution Review guidance when
+  a change affects architecture, trust boundaries, public contracts, quality
+  thresholds, dependencies, or another hard-to-reverse decision.
+- Apply the Solution Architecture standards to component boundaries, authority
+  separation, dependencies, sequencing, non-goals, tradeoffs, and acceptance
+  evidence before implementation hardens.
+- Apply the applicable language-best-practices specialist standards (including
+  the Rust specialist for this workspace) to production code and dependencies.
+- Apply the Testing and Quality Engineering standards to a risk-based test
+  strategy, negative and boundary cases, regression coverage, repeatable local
+  validation, and required hosted evidence.
+- Apply the Security, Privacy, and Trust standards to threat modeling, input
+  validation, privilege/authority boundaries, dependency risk, secret safety,
+  failure handling, and security-sensitive test cases. Escalate unresolved
+  material security risk rather than accepting it implicitly.
+- Apply the Repository Delivery standards to every remote mutation: exact
+  repository and base SHA, scoped diff review, validation evidence, protected
+  checks, and independent remote-SHA verification.
+- Keep private OS process records and specialist artifacts in the OS private
+  area. Do not copy private OS prompts, agent definitions, credentials, or
+  internal reports into this public repository.
+
+# Dogfood Impresari Context for Repository Context
+
+Use Impresari Context itself as the preferred local context-engineering layer
+for this repository when its current CLI or MCP surface can produce a bounded,
+snapshot-bound packet for the task. Treat that packet as evidence support under
+the OS Orchestrator, not as routing or approval authority. Validate important
+claims against exact source and fall back to direct, bounded inspection when a
+packet is unavailable, stale, incomplete, or less efficient for the question.

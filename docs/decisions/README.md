@@ -28,6 +28,8 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0020](0020-strict-json-configuration-evidence.md) | Pinned strict-JSON configuration facts without schema or runtime semantics | Accepted |
 | [ADR-0021](0021-go-structural-language-admission.md) | Pinned Go Tree-sitter structural facts without toolchain or module-resolution authority | Accepted |
 | [ADR-0022](0022-rust-structural-language-admission.md) | Pinned Rust Tree-sitter structural facts without Cargo or compiler-resolution authority | Accepted |
+| [ADR-0023](0023-revised-product-roadmap-sequencing.md) | Align language, client, planner, and enterprise work to the founder-approved five-phase roadmap | Accepted |
+| [ADR-0024](0024-deterministic-context-planner.md) | Add a bounded deterministic planner without agent-governance authority | Accepted; implementation pending |
 
 ## Change Rules
 

@@ -1,8 +1,11 @@
-# Impresari Context — Phase 2: Go Structural Admission PRD
+# Impresari Context — Phase 2 Delivery Record: Go Structural Admission
 
 - Status: Accepted
 - Date: 2026-08-23
 - Approved by: Founder
+- Roadmap role: Completed language-admission slice within Phase 2; see the
+  [Phase 2 infrastructure-language and agent-expansion PRD](phase-2-infrastructure-language-and-agent-expansion-prd.md)
+  for the complete phase.
 
 ## Objective
 
