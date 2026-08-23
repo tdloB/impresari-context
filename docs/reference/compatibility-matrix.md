@@ -36,6 +36,7 @@ may be discoverable as metadata but do not receive text evidence.
 | JavaScript (`.js`, `.mjs`, `.cjs`) | Yes | Yes | Yes | Pinned JavaScript grammar and project-owned resolver. |
 | JSX (`.jsx`) | Yes | Yes | Yes | Pinned JSX grammar and project-owned resolver. |
 | Python (`.py`) | Yes | Yes | Yes | Pinned Python Tree-sitter grammar and project-owned syntax resolver. Python imports, declarations, containment, calls, and references are syntax-derived only; no interpreter, environment, package, or runtime resolution is performed. |
+| Strict JSON configuration (`package.json`, `deno.json`, `composer.json`, `manifest.json`) | Yes | Yes | Yes | Pinned JSON Tree-sitter grammar emits static configuration-key and nesting facts only. Arbitrary JSON data, JSONC, JSON Schema, interpolation, loaders, and runtime configuration semantics are unsupported. |
 | Rust | Yes | Yes | No | Lexical evidence only. The implementation language is unrelated to source-language structural support. |
 | Swift | Yes | Yes | No | Lexical evidence only. |
 | Kotlin | Yes | Yes | No | Lexical evidence only. |
