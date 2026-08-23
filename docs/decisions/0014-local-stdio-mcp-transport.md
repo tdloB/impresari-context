@@ -14,9 +14,11 @@ remote-data risks that are not approved.
 
 ## Decision
 
-Implement a separate `impresari-context-mcp` binary pinned to MCP revision
-`2025-11-25`. It supports lifecycle initialization, ping, tool discovery, and a
-small fixed tool set over stdio only.
+Implement a separate `impresari-context-mcp` binary that prefers MCP revision
+`2025-11-25` and accepts the compatible `2025-06-18` revision. During
+initialization it returns the supported revision requested by the client. It
+supports lifecycle initialization, ping, tool discovery, and a small fixed tool
+set over stdio only.
 
 - The workspace and cache roots are fixed by trusted process-launch arguments,
   never selected by tool input.
@@ -63,5 +65,6 @@ initiated agent behavior require new ADR and threat-model approval.
 ## References
 
 - [MCP lifecycle, revision 2025-11-25](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle)
+- [MCP lifecycle, revision 2025-06-18](https://modelcontextprotocol.io/specification/2025-06-18/basic/lifecycle)
 - [MCP transports](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports)
 - [MCP tools](https://modelcontextprotocol.io/specification/2025-11-25/server/tools)

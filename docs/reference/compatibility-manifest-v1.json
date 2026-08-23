@@ -1,0 +1,84 @@
+{
+  "schema_name": "impresari-context-compatibility-manifest",
+  "schema_version": "1.0.0",
+  "published_at": "2026-08-23",
+  "evidence_sources": [
+    "docs/decisions/0004-source-language-and-parser-strategy.md",
+    "docs/decisions/0010-structural-worker-protocol-and-isolation.md",
+    "docs/dependency-policy.md",
+    "crates/context-engine/src/lib.rs"
+  ],
+  "language_support": [
+    {
+      "family": "TypeScript",
+      "extensions": [".ts"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "TSX",
+      "extensions": [".tsx"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "JavaScript",
+      "extensions": [".js", ".mjs", ".cjs"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "JSX",
+      "extensions": [".jsx"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Other eligible UTF-8 files",
+      "extensions": [],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "unsupported"
+    }
+  ],
+  "client_support": [
+    {
+      "client": "Codex",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false,
+      "conformance": "limited_live_lifecycle_validated",
+      "conformance_evidence": "docs/verification/phase-0-codex-local-mcp-conformance.md"
+    },
+    {
+      "client": "Claude Code",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false
+    },
+    {
+      "client": "Cursor",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false
+    },
+    {
+      "client": "Remote or HTTP MCP consumer",
+      "classification": "unsupported",
+      "transport": "none",
+      "first_class": false
+    }
+  ],
+  "first_class_clients": [],
+  "constraints": {
+    "transport": "local_stdio_only",
+    "mcp_protocol_revisions": ["2025-11-25", "2025-06-18"],
+    "source_workspace_mutation": "denied",
+    "network_authority": "denied",
+    "automatic_client_configuration_mutation": "denied"
+  }
+}

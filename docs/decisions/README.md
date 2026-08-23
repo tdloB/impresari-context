@@ -23,6 +23,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0015](0015-release-candidate-builds-and-provenance.md) | Manual release-candidate builds, checksums, provenance, and rehearsal | Accepted |
 | [ADR-0016](0016-release-signing-and-attestations.md) | GitHub artifact attestations plus SHA-256 checksums for v0.1.0 | Accepted |
 | [ADR-0017](0017-v0.1-release-assurance-policy.md) | Independent review deferred from the v0.1.0 gate to a pre-v1.0.0 assurance target, subject to earlier risk triggers | Accepted |
+| [ADR-0018](0018-first-class-client-integration-and-compatibility-contract.md) | Versioned language/client compatibility matrices, opt-in connection kits, and read-only diagnostics | Proposed |
 
 ## Change Rules
 

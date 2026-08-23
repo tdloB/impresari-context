@@ -13,8 +13,10 @@ use context_session::{SessionPolicy, SessionStore};
 use serde::Deserialize;
 use serde_json::{Value, json};
 
-/// MCP revision implemented by this transport.
+/// Preferred MCP revision implemented by this transport.
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
+/// Older MCP revision accepted for clients that have not yet adopted the preferred revision.
+pub const MCP_COMPATIBLE_PROTOCOL_VERSION: &str = "2025-06-18";
 /// Maximum encoded JSON-RPC line accepted from a client.
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
 /// Maximum request identifiers retained for replay rejection in one process.
@@ -166,7 +168,7 @@ impl McpServer {
         let Ok(request) = serde_json::from_value::<Initialize>(params) else {
             return error(id, -32602, "invalid initialize parameters");
         };
-        if request.protocol_version != MCP_PROTOCOL_VERSION
+        if !is_supported_protocol_version(&request.protocol_version)
             || !request.capabilities.is_object()
             || !request.client_info.is_object()
         {
@@ -176,7 +178,7 @@ impl McpServer {
         success(
             id,
             json!({
-                "protocolVersion": MCP_PROTOCOL_VERSION,
+                "protocolVersion": request.protocol_version,
                 "capabilities": {"tools": {"listChanged": false}},
                 "serverInfo": {"name": "impresari-context", "title": "Impresari Context", "version": env!("CARGO_PKG_VERSION"), "description": "Local verified repository context over stdio"},
                 "instructions": "Read-only repository evidence transport. Tool results add no orchestration, approval, execution, or filesystem authority."
@@ -191,10 +193,15 @@ impl McpServer {
             name: String,
             #[serde(default)]
             arguments: Value,
+            #[serde(default, rename = "_meta")]
+            meta: Option<Value>,
         }
         let Ok(call) = serde_json::from_value::<Call>(params) else {
             return error(id, -32602, "invalid tool call parameters");
         };
+        if call.meta.as_ref().is_some_and(|meta| !meta.is_object()) {
+            return error(id, -32602, "invalid tool call parameters");
+        }
         let result = match call.name.as_str() {
             "context_session_open" => self.session_open(call.arguments),
             "context_build" => self.context_build(call.arguments),
@@ -336,6 +343,13 @@ fn read_bounded_line<R: BufRead>(input: &mut R) -> std::io::Result<Option<Bounde
         bytes.pop();
     }
     Ok(Some(BoundedLine { bytes, overflowed }))
+}
+
+fn is_supported_protocol_version(version: &str) -> bool {
+    matches!(
+        version,
+        MCP_PROTOCOL_VERSION | MCP_COMPATIBLE_PROTOCOL_VERSION
+    )
 }
 
 #[allow(clippy::needless_pass_by_value)]
@@ -487,6 +501,54 @@ mod tests {
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
+    }
+
+    #[test]
+    fn initialize_negotiates_supported_legacy_revision() {
+        let (mut server, _source) = server();
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(
+            values[0]["result"]["protocolVersion"],
+            MCP_COMPATIBLE_PROTOCOL_VERSION
+        );
+        assert_eq!(
+            values[1]["result"]["tools"].as_array().map(Vec::len),
+            Some(4)
+        );
+    }
+
+    #[test]
+    fn tool_calls_accept_standard_metadata_without_authority_effect() {
+        let (mut server, _source) = server();
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/call\",\"params\":{\"name\":\"context_session_open\",\"arguments\":{\"session_id\":\"session_test01\"},\"_meta\":{\"progressToken\":\"client-owned\"}}}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(values[1]["result"]["isError"], false);
+        assert_eq!(values[1]["result"]["structuredContent"]["opened"], true);
     }
 
     #[test]

@@ -160,6 +160,8 @@ version = "0.1.0"
 dependencies = [
  "context-core",
  "context-engine",
+ "context-mcp",
+ "context-session",
  "context-store",
  "context-structural",
  "context-workspace",
