@@ -6,6 +6,7 @@
     "docs/decisions/0004-source-language-and-parser-strategy.md",
     "docs/decisions/0010-structural-worker-protocol-and-isolation.md",
     "docs/decisions/0019-python-structural-language-admission.md",
+    "docs/decisions/0020-strict-json-configuration-evidence.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -44,6 +45,14 @@
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
+    },
+    {
+      "family": "Strict JSON configuration",
+      "extensions": [".json"],
+      "discovery": "recognized_configuration_filename",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported",
+      "recognized_filenames": ["package.json", "deno.json", "composer.json", "manifest.json"]
     },
     {
       "family": "Other eligible UTF-8 files",

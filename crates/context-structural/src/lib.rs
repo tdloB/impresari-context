@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -42,13 +42,15 @@ pub enum StructuralLanguage {
     Jsx,
     /// Python source.
     Python,
+    /// Strict JSON configuration source.
+    Json,
 }
 
 /// Requested structural fact classes.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 #[serde(rename_all = "snake_case")]
 pub enum FactClass {
-    /// A named declaration.
+    /// A named source binding or configuration key.
     Declaration,
     /// A declaration nested in another declaration.
     Contains,
@@ -1546,6 +1548,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
+        StructuralLanguage::Json => "tree-sitter-json-0.24.8",
     };
     if request.grammar_version != expected_grammar {
         return Err(StructuralError::ContractMismatch);
@@ -1561,6 +1564,7 @@ fn language(language: StructuralLanguage) -> Language {
             tree_sitter_javascript::LANGUAGE.into()
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
+        StructuralLanguage::Json => tree_sitter_json::LANGUAGE.into(),
     }
 }
 
@@ -1675,6 +1679,12 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
+        "pair" if request.language == StructuralLanguage::Json => {
+            let name = node
+                .child_by_field_name("key")
+                .and_then(|value| json_string_text(value, source));
+            (FactClass::Declaration, name, None)
+        }
         "import_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1781,6 +1791,10 @@ fn string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
     text(node, source).map(|value| value.trim_matches(['\'', '"']).to_owned())
 }
 
+fn json_string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
+    serde_json::from_str(&text(node, source)?).ok()
+}
+
 const fn class_name(class: FactClass) -> &'static str {
     match class {
         FactClass::Declaration => "declaration",
@@ -1866,6 +1880,7 @@ mod tests {
                 "tree-sitter-javascript-0.25.0"
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
+            StructuralLanguage::Json => "tree-sitter-json-0.24.8",
         };
         WorkerRequest {
             schema_name: "structural-worker-request".into(),
@@ -1980,6 +1995,53 @@ class Example:
                 && fact.name.as_deref() == Some("method")
                 && fact.parent_key.is_some()
         }));
+    }
+
+    #[test]
+    fn extracts_strict_json_configuration_keys_and_containment() {
+        let source = br#"{
+  "name": "example",
+  "scripts": { "test": "cargo test" },
+  "private": true
+}"#;
+        let mut request = request(source, StructuralLanguage::Json);
+        request.path = WorkerPath {
+            display_path: "package.json".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "unix_bytes".into(),
+            relative_units_base64url: "cGFja2FnZS5qc29u".into(),
+        };
+        let output = process_request(&request).expect("parse");
+        assert!(!output.syntax_errors);
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("name")
+                && fact.syntax_kind == "pair"
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration && fact.name.as_deref() == Some("scripts")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Contains
+                && fact.name.as_deref() == Some("test")
+                && fact.parent_key.is_some()
+        }));
+
+        let graph = build_graph(
+            &sha256(b"json-config-snapshot"),
+            vec![GraphFileInput {
+                path: request.path,
+                response: output,
+            }],
+        )
+        .expect("graph");
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .any(|node| { node.kind == "symbol" && node.name.as_deref() == Some("scripts") })
+        );
+        assert!(graph.edges.iter().any(|edge| edge.kind == "contains"));
     }
 
     #[test]

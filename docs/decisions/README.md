@@ -25,6 +25,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0017](0017-v0.1-release-assurance-policy.md) | Independent review deferred from the v0.1.0 gate to a pre-v1.0.0 assurance target, subject to earlier risk triggers | Accepted |
 | [ADR-0018](0018-first-class-client-integration-and-compatibility-contract.md) | Versioned language/client compatibility matrices, opt-in connection kits, and read-only diagnostics | Accepted |
 | [ADR-0019](0019-python-structural-language-admission.md) | Pinned Python Tree-sitter structural facts without interpreter or environment authority | Accepted |
+| [ADR-0020](0020-strict-json-configuration-evidence.md) | Pinned strict-JSON configuration facts without schema or runtime semantics | Accepted |
 
 ## Change Rules
 

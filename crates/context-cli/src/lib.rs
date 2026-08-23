@@ -1212,7 +1212,9 @@ mod tests {
             .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(
             structural_extensions,
-            std::collections::BTreeSet::from([".cjs", ".js", ".jsx", ".mjs", ".py", ".ts", ".tsx"]),
+            std::collections::BTreeSet::from([
+                ".cjs", ".js", ".json", ".jsx", ".mjs", ".py", ".ts", ".tsx",
+            ]),
             "the public manifest must match the shipped structural worker inventory"
         );
         assert_eq!(manifest["first_class_clients"], serde_json::json!([]));
