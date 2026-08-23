@@ -13,7 +13,7 @@ silently broaden the authority boundary.
 | Phase | Outcome | Current status |
 | --- | --- | --- |
 | 0 | Correct public language/client contract and read-only doctor | Complete |
-| 1 | Python and configuration evidence; first-class Codex, Claude Code, and Cursor kits | In progress: Python, narrow strict-JSON, bounded JSONC, bounded TOML, and Codex's non-mutating pre-admission kit complete; YAML and all first-class admissions pending |
+| 1 | Python and configuration evidence; first-class Codex, Claude Code, and Cursor kits | In progress: Python, narrow strict-JSON, bounded JSONC, bounded TOML, deliberately bounded YAML, and Codex's non-mutating pre-admission kit complete; all first-class admissions pending |
 | 2 | Rust and Go structural evidence; broader agent access | In progress: Rust and Go complete; Gemini CLI, GitHub Copilot CLI, and VS Code Copilot kits pending |
 | 3 | Deterministic context planner | Approved; not started |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Approved; not started |

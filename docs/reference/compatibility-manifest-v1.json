@@ -9,6 +9,7 @@
     "docs/decisions/0020-strict-json-configuration-evidence.md",
     "docs/decisions/0025-jsonc-configuration-evidence.md",
     "docs/decisions/0026-toml-configuration-evidence.md",
+    "docs/decisions/0027-yaml-configuration-evidence.md",
     "docs/decisions/0021-go-structural-language-admission.md",
     "docs/decisions/0022-rust-structural-language-admission.md",
     "docs/dependency-policy.md",
@@ -85,6 +86,13 @@
       "family": "TOML configuration",
       "extensions": [".toml"],
       "discovery": "toml_extension",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "YAML configuration",
+      "extensions": [".yaml", ".yml"],
+      "discovery": "yaml_extension",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
     },
