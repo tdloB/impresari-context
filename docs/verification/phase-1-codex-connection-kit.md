@@ -22,6 +22,7 @@
 | Read-only execution behavior | Passed, negative case | `codex exec --sandbox read-only` discovers the MCP server but blocks its tool call because that execution mode sets MCP approval to `never`. This is expected client policy behavior, not a server failure. The successful lifecycle check used Codex's explicit automatic approval mode while the MCP server itself retained the fixed read-only authority contract. |
 | Deterministic App Server tool lifecycle | Passed | `scripts/rehearse-codex-app-server.rb` starts a local Codex App Server with a one-use `-c` MCP definition, creates an ephemeral read-only thread, lists the dedicated server, and directly invokes `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close`. It never asks a model to select a tool or changes a Codex configuration file. |
 | Packet equivalence through Codex | Passed | The rehearsal creates a temporary TypeScript fixture and fixed startup/request time, proves direct-engine/in-process-MCP equivalence with `doctor mcp`, then requires byte-for-byte equality between a raw MCP child-process packet and the packet delivered through Codex App Server. The resolved session packet must equal the delivered packet; the fixture digest is unchanged. Packet identity intentionally differs between runs because the temporary fixture has a unique workspace identity. |
+| Temporary project-configuration trust gate | Passed, negative boundary | The same rehearsal's `--project-config` mode creates only a disposable `.codex/config.toml`, runs from that project, and fails before tool use when Codex does not expose the server. On Codex CLI `0.149.0-alpha.4.1` macOS aarch64, this confirms the client does not silently load an untrusted project configuration. |
 
 ## Deliberate limits
 
@@ -34,6 +35,10 @@ The current client CLI did not load a synthetic untrusted project configuration
 during read-only discovery. That behavior is expected from the documented trust
 gate and confirms that a first-class assertion requires an isolated trusted
 clean-install run rather than an automated configuration mutation.
+
+`scripts/rehearse-codex-app-server.rb --project-config` now makes that boundary
+reproducible. It must pass only after the client owner has explicitly trusted
+the disposable project; the script never attempts to create that trust state.
 
 A conversational `codex exec` session remains useful usability evidence, but
 is not the release gate: its model may select a different available MCP
