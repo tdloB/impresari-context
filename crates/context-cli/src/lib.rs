@@ -46,6 +46,9 @@ Usage:\n\
   impresari-context [global-options] doctor codex-config <root> <cache-root> <config-toml>\n\
   impresari-context [global-options] doctor cursor-config <root> <cache-root> <mcp-json>\n\
   impresari-context [global-options] doctor claude-config <root> <cache-root> <mcp-json>\n\
+  impresari-context [global-options] doctor gemini-config <root> <cache-root> <settings-json>\n\
+  impresari-context [global-options] doctor copilot-config <root> <cache-root> <mcp-json>\n\
+  impresari-context [global-options] doctor vscode-config <root> <cache-root> <mcp-json>\n\
 Global options:\n\
   --human                 Add a concise diagnostic to stderr.\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
@@ -334,6 +337,18 @@ fn dispatch(
             let report = doctor_client_config(root, cache, Path::new(config_path), "claude")?;
             Output::new("doctor claude-config", &report)
         }
+        ["doctor", "gemini-config", root, cache, config_path] => {
+            let report = doctor_client_config(root, cache, Path::new(config_path), "gemini")?;
+            Output::new("doctor gemini-config", &report)
+        }
+        ["doctor", "copilot-config", root, cache, config_path] => {
+            let report = doctor_client_config(root, cache, Path::new(config_path), "copilot")?;
+            Output::new("doctor copilot-config", &report)
+        }
+        ["doctor", "vscode-config", root, cache, config_path] => {
+            let report = doctor_client_config(root, cache, Path::new(config_path), "vscode")?;
+            Output::new("doctor vscode-config", &report)
+        }
         _ => Err(synthetic_error(
             Capability::WorkspaceOpen,
             PublicErrorCode::InvalidInput,
@@ -618,12 +633,15 @@ fn doctor_client_config(
 ) -> Result<DoctorReport, EngineError> {
     let mut report = doctor_inspect(Path::new(root), Path::new(cache))?;
     let config: serde_json::Value = read_json(config_path, Capability::WorkspaceOpen)?;
-    let passed = client_config_is_safe(&config);
+    let passed = client_config_is_safe(&config, client);
     report.checks.push(DoctorCheck {
-        id: if client == "cursor" {
-            "cursor_mcp_configuration"
-        } else {
-            "claude_mcp_configuration"
+        id: match client {
+            "cursor" => "cursor_mcp_configuration",
+            "claude" => "claude_mcp_configuration",
+            "gemini" => "gemini_mcp_configuration",
+            "copilot" => "copilot_mcp_configuration",
+            "vscode" => "vscode_mcp_configuration",
+            _ => unreachable!("only fixed named clients are dispatched"),
         },
         status: if passed { "passed" } else { "failed" },
         remediation: "use the documented fixed local-stdio argument shape and a separate cache",
@@ -631,13 +649,14 @@ fn doctor_client_config(
     if !passed {
         report.status = "failed";
     }
-    report.limitations.push(
-        if client == "cursor" {
-            "Cursor configuration syntax is checked without launching Cursor or modifying its configuration."
-        } else {
-            "Claude Code configuration syntax is checked without launching Claude Code or modifying its configuration."
-        },
-    );
+    report.limitations.push(match client {
+        "cursor" => "Cursor configuration syntax is checked without launching Cursor or modifying its configuration.",
+        "claude" => "Claude Code configuration syntax is checked without launching Claude Code or modifying its configuration.",
+        "gemini" => "Gemini CLI configuration syntax is checked without launching Gemini CLI or modifying its configuration.",
+        "copilot" => "GitHub Copilot CLI configuration syntax is checked without launching Copilot CLI or modifying its configuration.",
+        "vscode" => "VS Code configuration syntax is checked without launching VS Code or modifying its configuration.",
+        _ => unreachable!("only fixed named clients are dispatched"),
+    });
     Ok(report)
 }
 
@@ -714,21 +733,28 @@ fn configured_directory_matches(configured: &str, expected: &Path) -> bool {
     fs::canonicalize(configured).is_ok_and(|path| path == expected)
 }
 
-fn client_config_is_safe(config: &serde_json::Value) -> bool {
+fn client_config_is_safe(config: &serde_json::Value, client: &str) -> bool {
+    let top_level_servers = if client == "vscode" {
+        "servers"
+    } else {
+        "mcpServers"
+    };
     let Some(entry) = config
-        .get("mcpServers")
+        .get(top_level_servers)
         .and_then(serde_json::Value::as_object)
         .and_then(|servers| servers.get("impresari-context"))
         .and_then(serde_json::Value::as_object)
     else {
         return false;
     };
-    if !entry
-        .keys()
-        .all(|key| matches!(key.as_str(), "type" | "command" | "args"))
-        || entry
-            .get("type")
-            .is_some_and(|value| value.as_str() != Some("stdio"))
+    let allowed_keys = match client {
+        "cursor" | "claude" => &["type", "command", "args"][..],
+        "gemini" => &["command", "args", "trust", "includeTools"][..],
+        "copilot" => &["type", "command", "args", "tools"][..],
+        "vscode" => &["command", "args"][..],
+        _ => return false,
+    };
+    if !entry.keys().all(|key| allowed_keys.contains(&key.as_str()))
         || entry
             .get("command")
             .and_then(serde_json::Value::as_str)
@@ -747,7 +773,41 @@ fn client_config_is_safe(config: &serde_json::Value) -> bool {
     else {
         return false;
     };
-    fixed_stdio_args_are_safe(&args)
+    let client_options_are_safe = match client {
+        "cursor" | "claude" => entry
+            .get("type")
+            .is_none_or(|value| value.as_str() == Some("stdio")),
+        "gemini" => {
+            entry.get("trust").and_then(serde_json::Value::as_bool) == Some(false)
+                && exact_mcp_tool_allowlist(entry.get("includeTools"))
+        }
+        "copilot" => {
+            matches!(
+                entry.get("type").and_then(serde_json::Value::as_str),
+                Some("local" | "stdio")
+            ) && exact_mcp_tool_allowlist(entry.get("tools"))
+        }
+        "vscode" => true,
+        _ => false,
+    };
+    fixed_stdio_args_are_safe(&args) && client_options_are_safe
+}
+
+fn exact_mcp_tool_allowlist(value: Option<&serde_json::Value>) -> bool {
+    value
+        .and_then(serde_json::Value::as_array)
+        .is_some_and(|tools| {
+            tools
+                .iter()
+                .map(serde_json::Value::as_str)
+                .collect::<Option<Vec<_>>>()
+                == Some(vec![
+                    "context_session_open",
+                    "context_build",
+                    "context_packet_resolve",
+                    "context_session_close",
+                ])
+        })
 }
 
 fn fixed_stdio_args_are_safe(args: &[&str]) -> bool {
@@ -1443,7 +1503,7 @@ mod tests {
                 "args": ["--workspace", "${workspaceFolder}", "--cache", "${workspaceFolder}/.cache", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
             }}
         });
-        assert!(!client_config_is_safe(&unsafe_cache));
+        assert!(!client_config_is_safe(&unsafe_cache, "cursor"));
 
         let cursor_documented_shape = serde_json::json!({
             "mcpServers": { "impresari-context": {
@@ -1451,7 +1511,7 @@ mod tests {
                 "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
             }}
         });
-        assert!(client_config_is_safe(&cursor_documented_shape));
+        assert!(client_config_is_safe(&cursor_documented_shape, "cursor"));
 
         let environment_forwarding = serde_json::json!({
             "mcpServers": { "impresari-context": {
@@ -1460,7 +1520,7 @@ mod tests {
                 "env": {"UNSAFE": "1"}
             }}
         });
-        assert!(!client_config_is_safe(&environment_forwarding));
+        assert!(!client_config_is_safe(&environment_forwarding, "cursor"));
 
         let relative_command = serde_json::json!({
             "mcpServers": { "impresari-context": {
@@ -1468,7 +1528,35 @@ mod tests {
                 "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_cursor_local", "--role", "local_user"]
             }}
         });
-        assert!(!client_config_is_safe(&relative_command));
+        assert!(!client_config_is_safe(&relative_command, "cursor"));
+
+        let gemini_safe_shape = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "command": binary.as_str(),
+                "args": ["--workspace", "/work/source", "--cache", "/var/cache/impresari-context", "--consumer-id", "consumer_gemini_local", "--role", "local_user"],
+                "trust": false,
+                "includeTools": ["context_session_open", "context_build", "context_packet_resolve", "context_session_close"]
+            }}
+        });
+        assert!(client_config_is_safe(&gemini_safe_shape, "gemini"));
+
+        let copilot_safe_shape = serde_json::json!({
+            "mcpServers": { "impresari-context": {
+                "type": "local",
+                "command": binary.as_str(),
+                "args": ["--workspace", "/work/source", "--cache", "/var/cache/impresari-context", "--consumer-id", "consumer_copilot_local", "--role", "local_user"],
+                "tools": ["context_session_open", "context_build", "context_packet_resolve", "context_session_close"]
+            }}
+        });
+        assert!(client_config_is_safe(&copilot_safe_shape, "copilot"));
+
+        let vscode_safe_shape = serde_json::json!({
+            "servers": { "impresari-context": {
+                "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
+            }}
+        });
+        assert!(client_config_is_safe(&vscode_safe_shape, "vscode"));
     }
 
     #[test]

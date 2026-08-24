@@ -20,7 +20,12 @@ Copilot CLI, and VS Code Copilot.
 
 - Complete: Rust and Go structural evidence, including public compatibility,
   dependency/SBOM, and full hosted verification evidence.
-- Pending: all three broader-agent connection kits.
+- Complete: non-mutating preadmission guides and read-only configuration
+  validators for Gemini CLI, GitHub Copilot CLI, and VS Code Copilot. Each
+  preserves fixed local stdio authority and rejects remote transport,
+  environment forwarding, and automatic approval.
+- Pending: installed/authenticated client discovery and lifecycle evidence for
+  all three kits; no broader agent is first-class.
 
 ## Non-goals
 
