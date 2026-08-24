@@ -19,6 +19,7 @@ ruby ./scripts/check-abrupt-restart.rb
 ruby -c ./scripts/rehearse-codex-app-server.rb
 ruby -c ./scripts/rehearse-claude-code.rb
 ruby -c ./scripts/rehearse-cursor-preadmission.rb
+ruby -c ./scripts/rehearse-gemini-copilot-preadmission.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked
