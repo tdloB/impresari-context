@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -42,6 +42,8 @@ pub enum StructuralLanguage {
     Jsx,
     /// Python source.
     Python,
+    /// Java source.
+    Java,
     /// Strict JSON configuration source.
     Json,
     /// JSON with comments configuration source.
@@ -1562,6 +1564,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
+        StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -1582,6 +1585,7 @@ fn language(language: StructuralLanguage) -> Language {
             tree_sitter_javascript::LANGUAGE.into()
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
+        StructuralLanguage::Java => tree_sitter_java::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         StructuralLanguage::Yaml => tree_sitter_yaml::LANGUAGE.into(),
@@ -1677,13 +1681,16 @@ fn fact_for_node(
         "function_declaration"
         | "class_declaration"
         | "interface_declaration"
+        | "annotation_type_declaration"
         | "type_alias_declaration"
         | "enum_declaration"
+        | "record_declaration"
         | "method_definition"
         | "abstract_method_signature"
         | "function_definition"
         | "class_definition"
         | "method_declaration"
+        | "constructor_declaration"
         | "type_spec"
         | "type_alias" => {
             let name = node
@@ -1763,6 +1770,10 @@ fn fact_for_node(
                 .and_then(|value| string_text(value, source));
             (FactClass::Import, None, module)
         }
+        "import_declaration" if request.language == StructuralLanguage::Java => {
+            let module = java_import_module(node, source)?;
+            (FactClass::Import, None, Some(module))
+        }
         "export_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1780,6 +1791,15 @@ fn fact_for_node(
             } else {
                 None
             };
+            (FactClass::Call, name, None)
+        }
+        "method_invocation" if request.language == StructuralLanguage::Java => {
+            let name = node
+                .child_by_field_name("object")
+                .is_none()
+                .then(|| node.child_by_field_name("name"))
+                .flatten()
+                .and_then(|value| text(value, source));
             (FactClass::Call, name, None)
         }
         "identifier" if !is_declaration_name(node) && !is_call_callee(node) => {
@@ -1834,13 +1854,16 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                 "function_declaration"
                     | "class_declaration"
                     | "interface_declaration"
+                    | "annotation_type_declaration"
                     | "type_alias_declaration"
                     | "enum_declaration"
+                    | "record_declaration"
                     | "method_definition"
                     | "abstract_method_signature"
                     | "function_definition"
                     | "class_definition"
                     | "method_declaration"
+                    | "constructor_declaration"
                     | "type_spec"
                     | "type_alias"
                     | "struct_item"
@@ -1855,11 +1878,14 @@ fn is_declaration_name(node: Node<'_>) -> bool {
 }
 
 fn is_call_callee(node: Node<'_>) -> bool {
-    node.parent().is_some_and(|parent| {
-        parent.kind() == "call_expression"
-            && parent
-                .child_by_field_name("function")
-                .is_some_and(|candidate| candidate.id() == node.id())
+    node.parent().is_some_and(|parent| match parent.kind() {
+        "call_expression" => parent
+            .child_by_field_name("function")
+            .is_some_and(|candidate| candidate.id() == node.id()),
+        "method_invocation" => parent
+            .child_by_field_name("name")
+            .is_some_and(|candidate| candidate.id() == node.id()),
+        _ => false,
     })
 }
 
@@ -1871,6 +1897,17 @@ fn text(node: Node<'_>, source: &[u8]) -> Option<String> {
 
 fn string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
     text(node, source).map(|value| value.trim_matches(['\'', '"']).to_owned())
+}
+
+fn java_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let declaration = text(node, source)?;
+    let module = declaration
+        .trim()
+        .strip_prefix("import")?
+        .trim()
+        .strip_suffix(';')?
+        .trim();
+    (!module.starts_with("static ") && !module.ends_with(".*")).then(|| module.to_owned())
 }
 
 fn json_string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -1981,6 +2018,7 @@ mod tests {
                 "tree-sitter-javascript-0.25.0"
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
+            StructuralLanguage::Java => "tree-sitter-java-0.23.5",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
             StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2412,6 +2450,66 @@ fn execute() {
     }
 
     #[test]
+    fn extracts_bounded_java_types_methods_imports_calls_and_references() {
+        let source = br"package example;
+
+import java.util.List;
+import static java.util.Collections.emptyList;
+import example.internal.*;
+
+public record Service(List<String> values) {
+    public Service { values = List.copyOf(values); }
+
+    public void run() {
+        helper();
+        values.size();
+    }
+
+    private void helper() {}
+}
+";
+        let output = process_request(&request(source, StructuralLanguage::Java)).expect("parse");
+        assert!(!output.syntax_errors);
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Declaration
+                && fact.name.as_deref() == Some("Service")
+                && fact.syntax_kind == "record_declaration"
+        }));
+        for name in ["Service", "run", "helper"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import
+                && fact.module.as_deref() == Some("java.util.List")
+                && fact.syntax_kind == "import_declaration"
+        }));
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Import)
+                .count(),
+            1,
+            "static and wildcard imports are intentionally outside this admission"
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "method_invocation"
+        }));
+        assert!(
+            output.facts.iter().all(|fact| {
+                fact.class != FactClass::Call || fact.name.as_deref() != Some("size")
+            })
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Reference && fact.name.as_deref() == Some("values")
+        }));
+    }
+
+    #[test]
     fn rejects_hash_mismatch_and_fact_limit() {
         let mut invalid = request(b"const value = 1;", StructuralLanguage::TypeScript);
         invalid.content_hash = sha256(b"other");
@@ -2438,6 +2536,13 @@ fn execute() {
         wrong_yaml_grammar.grammar_version = "tree-sitter-yaml-0.0.0".into();
         assert_eq!(
             process_request(&wrong_yaml_grammar),
+            Err(StructuralError::ContractMismatch)
+        );
+
+        let mut wrong_java_grammar = request(b"class Service {}\n", StructuralLanguage::Java);
+        wrong_java_grammar.grammar_version = "tree-sitter-java-0.0.0".into();
+        assert_eq!(
+            process_request(&wrong_java_grammar),
             Err(StructuralError::ContractMismatch)
         );
     }

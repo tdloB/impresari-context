@@ -2343,6 +2343,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
             Some(StructuralLanguage::JavaScript)
         }
         Some(extension) if extension.eq_ignore_ascii_case("py") => Some(StructuralLanguage::Python),
+        Some(extension) if extension.eq_ignore_ascii_case("java") => Some(StructuralLanguage::Java),
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension) if extension.eq_ignore_ascii_case("toml") => Some(StructuralLanguage::Toml),
@@ -2406,6 +2407,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::TypeScript | StructuralLanguage::Tsx => "tree-sitter-typescript-0.23.2",
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
+        StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2822,6 +2824,18 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Python),
             "tree-sitter-python-0.25.0"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_java() {
+        assert_eq!(
+            structural_language("src/main/java/example/Service.java"),
+            Some(StructuralLanguage::Java)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Java),
+            "tree-sitter-java-0.23.5"
         );
     }
 
