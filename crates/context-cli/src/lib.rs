@@ -25,6 +25,7 @@ use context_store::AuditRetention;
 use context_structural::{StructuralGraph, WorkerLauncher};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
+use serde_json::json;
 
 const DOCTOR_SCHEMA_VERSION: &str = "1.0.0";
 
@@ -43,6 +44,7 @@ Usage:\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
+  impresari-context [global-options] client kit render <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root>\n\
   impresari-context [global-options] doctor inspect <root> <cache-root>\n\
   impresari-context [global-options] doctor mcp <root> <cache-root>\n\
   impresari-context [global-options] doctor codex-config <root> <cache-root> <config-toml>\n\
@@ -164,6 +166,20 @@ struct DoctorReport {
     schema_version: &'static str,
     status: &'static str,
     checks: Vec<DoctorCheck>,
+    limitations: Vec<&'static str>,
+}
+
+#[derive(Serialize)]
+struct ManagedConnectionKit {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    client: &'static str,
+    level: &'static str,
+    operation: &'static str,
+    target_scope: &'static str,
+    ownership: &'static str,
+    external_write_performed: bool,
+    configuration: serde_json::Value,
     limitations: Vec<&'static str>,
 }
 
@@ -358,6 +374,15 @@ fn dispatch(
                 filename,
             )?;
             Output::new("handoff export", &result)
+        }
+        ["client", "kit", "render", client, binary, root, cache] => {
+            let kit = managed_connection_kit(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+            )?;
+            Output::new("client kit render", &kit)
         }
         ["doctor", "inspect", root, cache] => {
             let report = doctor_inspect(Path::new(root), Path::new(cache))?;
@@ -903,6 +928,112 @@ fn canonical_directory(path: &Path) -> Result<PathBuf, EngineError> {
     })
 }
 
+fn managed_connection_kit(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+) -> Result<ManagedConnectionKit, EngineError> {
+    let binary = canonical_regular_file(binary)?;
+    let workspace = canonical_directory(workspace)?;
+    let cache = canonical_directory(cache)?;
+    if cache == workspace || cache.starts_with(&workspace) || workspace.starts_with(&cache) {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection requires a separate cache directory",
+        ));
+    }
+    let arguments = vec![
+        "--workspace".to_owned(),
+        workspace.display().to_string(),
+        "--cache".to_owned(),
+        cache.display().to_string(),
+        "--consumer-id".to_owned(),
+        format!("consumer_{client}_managed"),
+        "--role".to_owned(),
+        "local_user".to_owned(),
+    ];
+    let (client, target_scope, configuration) = match client {
+        "codex" => (
+            "codex",
+            "project",
+            json!({
+                "format": "toml",
+                "entry": format!(
+                    "[mcp_servers.\"impresari-context\"]\ncommand = \"{}\"\nargs = [{}]\ndefault_tools_approval_mode = \"prompt\"\n",
+                    binary.display(),
+                    arguments.iter().map(|value| format!("\"{value}\"")).collect::<Vec<_>>().join(", "),
+                ),
+            }),
+        ),
+        "claude" | "cursor" | "copilot" => (
+            match client {
+                "claude" => "claude",
+                "cursor" => "cursor",
+                _ => "copilot",
+            },
+            "project_or_user",
+            json!({"format": "json", "entry": {"mcpServers": {"impresari-context": {
+                "command": binary, "args": arguments
+            }}}}),
+        ),
+        "vscode" => (
+            "vscode",
+            "workspace_or_user",
+            json!({"format": "json", "entry": {"servers": {"impresari-context": {
+                "command": binary, "args": arguments
+            }}}}),
+        ),
+        _ => {
+            return Err(synthetic_error(
+                Capability::WorkspaceOpen,
+                PublicErrorCode::InvalidInput,
+                "unsupported managed connection client",
+            ));
+        }
+    };
+    Ok(ManagedConnectionKit {
+        schema_name: "managed-connection-kit",
+        schema_version: "1.0.0",
+        client,
+        level: "l1",
+        operation: "render",
+        target_scope,
+        ownership: "exact_fixed_entry:impresari-context",
+        external_write_performed: false,
+        configuration,
+        limitations: vec![
+            "Rendering does not write, trust, sign in, enable, or approve a client connection.",
+            "Install and owned-entry removal require separate explicit operations.",
+        ],
+    })
+}
+
+fn canonical_regular_file(path: &Path) -> Result<PathBuf, EngineError> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::PathNotFound,
+            "managed connection binary not found",
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection binary must be a regular file",
+        ));
+    }
+    fs::canonicalize(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InternalFailure,
+            "managed connection binary could not be resolved",
+        )
+    })
+}
+
 fn open_engine(
     root: &str,
     cache: &str,
@@ -1274,6 +1405,56 @@ mod tests {
         assert!(stderr.is_empty());
         let value = serde_json::from_slice(&stdout).expect("machine JSON");
         (code, value)
+    }
+
+    #[test]
+    fn managed_connection_kit_render_is_fixed_and_source_free_for_every_client() {
+        let root = TestRoot::new("managed-kit-workspace");
+        let cache = TestRoot::new("managed-kit-cache");
+        let binary = TestRoot::new("managed-kit-binary");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
+            .expect("source fixture");
+        let source_before = fs::read(root.0.join("source.ts")).expect("source before");
+        for client in ["codex", "claude", "cursor", "copilot", "vscode"] {
+            let command = vec![
+                "client".into(),
+                "kit".into(),
+                "render".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+            ];
+            let (code, value) = invoke(&command, "managedkit");
+            assert_eq!(code, 0, "{client}");
+            assert_eq!(value["schema_name"], "managed-connection-kit");
+            assert_eq!(value["client"], client);
+            assert_eq!(value["level"], "l1");
+            assert_eq!(value["operation"], "render");
+            assert_eq!(value["external_write_performed"], false);
+            assert_eq!(value["ownership"], "exact_fixed_entry:impresari-context");
+            assert!(value["configuration"].to_string().contains("--workspace"));
+            assert!(value["configuration"].to_string().contains("--cache"));
+            assert!(!value["configuration"].to_string().contains("env"));
+        }
+        assert_eq!(
+            fs::read(root.0.join("source.ts")).expect("source after"),
+            source_before
+        );
+        let invalid = vec![
+            "client".into(),
+            "kit".into(),
+            "render".into(),
+            "unknown".into(),
+            binary_path.display().to_string(),
+            root.0.display().to_string(),
+            cache.0.display().to_string(),
+        ];
+        let (code, value) = invoke(&invalid, "managedkit");
+        assert_eq!(code, 1);
+        assert_eq!(value["code"], "invalid_input");
     }
 
     fn toml_basic_string(value: &str) -> String {
