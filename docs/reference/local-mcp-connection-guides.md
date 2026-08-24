@@ -96,6 +96,12 @@ When validating a JSON configuration file before use, run:
 impresari-context doctor claude-config <workspace-root> <separate-cache> <mcp-json>
 ```
 
+The generic kit has additionally been exercised through Claude Code CLI
+`2.1.241` on macOS aarch64 using an isolated one-run `--mcp-config` and
+`--strict-mcp-config`; the test did not register a persistent server. Its
+evidence and remaining admission gaps are recorded in the [Phase 1 Claude Code
+kit record](../verification/phase-1-claude-code-connection-kit.md).
+
 ## Cursor
 
 Cursor documents local stdio entries in a project `.cursor/mcp.json` or user
@@ -143,10 +149,12 @@ Cursor's local approval state.
 ## What these guides do not establish
 
 These guides do not yet establish a maintained version range, supported OS
-matrix per client, clean-install behavior, direct-engine/MCP packet equivalence,
-configuration-parser conformance, safe automated removal, or client lifecycle
-coverage. The [compatibility matrix](compatibility-matrix.md) therefore keeps
-Codex, Claude Code, and Cursor in the **Generic local MCP** category.
+matrix per client, clean-install behavior, configuration-parser conformance, or
+safe automated removal. Codex has deterministic direct-tool and packet
+evidence; Claude Code has one real-client, model-directed lifecycle record;
+Cursor has pre-admission validation only. The [compatibility
+matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
+local MCP** category.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex

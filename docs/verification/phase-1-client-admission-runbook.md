@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Prepared; awaiting user-owned client sign-in
+- Status: Claude Code lifecycle recorded; Cursor awaiting user-owned sign-in
 - Date: 2026-08-23
 - Scope: Claude Code and Cursor only
 
@@ -15,15 +15,17 @@ and Impresari Context conformance work is read-only and can proceed here.
 Codex does not share this blocker: its deterministic local App Server
 conformance is recorded in the [Codex connection-kit record](phase-1-codex-connection-kit.md).
 
-## Claude Code admission prerequisite
+## Claude Code admission record
 
-1. Install the official Claude Code CLI and complete its normal interactive
-   sign-in flow in a terminal you control.
-2. Confirm it is available and authenticated with the CLI's documented status
-   or account command.
-3. Tell Codex that Claude Code is ready. Do not add an Impresari Context MCP
-   entry yet; the admission rehearsal will first render, inspect, and validate
-   the exact fixed-stdio definition.
+Completed on macOS aarch64 with Claude Code CLI `2.1.241` after user-owned
+installation and authentication. The one-run rehearsal used temporary
+`--mcp-config` and `--strict-mcp-config`, completed the fixed MCP lifecycle,
+preserved the fixture workspace, and confirmed that no persistent MCP server
+named `impresari_context_conformance` was registered.
+
+The result remains Generic local MCP because model-directed tool selection is
+not deterministic. The detailed evidence and remaining First-class criteria
+are in the [Claude Code kit record](phase-1-claude-code-connection-kit.md).
 
 The eventual user-reviewed registration, verification, and single-entry
 removal commands are in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#claude-code).

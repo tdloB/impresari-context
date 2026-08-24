@@ -118,8 +118,8 @@
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
       "first_class": false,
-      "conformance": "local_stdio_config_validation",
-      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+      "conformance": "local_stdio_config_validation_and_temporary_config_real_lifecycle",
+      "conformance_evidence": "docs/verification/phase-1-claude-code-connection-kit.md"
     },
     {
       "client": "Cursor",

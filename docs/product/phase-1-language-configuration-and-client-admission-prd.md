@@ -30,12 +30,16 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   plus packet-equivalence rehearsal. Codex remains Generic local MCP pending
   full client admission.
 - Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
-  read-only JSON configuration validation. Cursor's documented command/args
-  stdio form is accepted without allowing environment forwarding.
+  read-only JSON configuration validation. Claude Code `2.1.241` has completed
+  one isolated temporary-config real-client lifecycle without persistent
+  registration. Cursor's documented command/args stdio form is accepted
+  without allowing environment forwarding.
 - Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
   still needs trusted-project clean-install/configuration-parser, version/OS,
-  and entry-removal evidence. Claude Code and Cursor additionally need their
-  first real-client lifecycle admission after user-owned sign-in.
+  and entry-removal evidence. Claude Code needs deterministic client control,
+  packet-equivalence, configuration-parser, platform/version, and removal
+  evidence; Cursor still needs its first real-client lifecycle after user-owned
+  sign-in.
 
 ## Non-goals
 
