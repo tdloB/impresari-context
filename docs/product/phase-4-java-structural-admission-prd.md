@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: Java Structural Admission
 
-- Status: In progress
+- Status: Accepted
 - Date: 2026-08-24
 - Approved by: Founder (via the approved Phase 4 roadmap)
 - Roadmap role: First bounded language-admission slice within Phase 4; see the
@@ -37,4 +37,4 @@ authority.
 - The full policy, contract, evaluation, SBOM, format, test, and lint gate
   passes.
 - Hosted macOS, Linux, Windows, fuzzing, static-analysis, and dependency checks
-  pass before the slice is admitted.
+  passed before admission on 2026-08-24.
