@@ -16,6 +16,7 @@ ruby ./scripts/check-sbom.rb
 ruby ./scripts/check-evaluation.rb
 ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
+ruby -c ./scripts/rehearse-codex-app-server.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked

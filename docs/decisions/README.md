@@ -33,6 +33,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0025](0025-jsonc-configuration-evidence.md) | Separate bounded JSONC evidence from strict JSON and fail closed on non-strict JSON | Accepted |
 | [ADR-0026](0026-toml-configuration-evidence.md) | Pinned TOML syntax facts in the isolated worker without configuration evaluation | Accepted |
 | [ADR-0027](0027-yaml-configuration-evidence.md) | Pinned bounded YAML mapping-key facts without alias or consumer semantics | Accepted |
+| [ADR-0028](0028-codex-deterministic-mcp-tool-conformance.md) | Deterministic Codex App Server direct-tool conformance without model-directed selection | Accepted |
 
 ## Change Rules
 
