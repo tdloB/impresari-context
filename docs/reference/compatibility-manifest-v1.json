@@ -130,6 +130,30 @@
       "conformance_evidence": "docs/verification/phase-1-cursor-connection-kit.md"
     },
     {
+      "client": "Gemini CLI",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false,
+      "conformance": "project_config_preadmission_validation",
+      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+    },
+    {
+      "client": "GitHub Copilot CLI",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false,
+      "conformance": "project_config_preadmission_validation",
+      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+    },
+    {
+      "client": "VS Code Copilot",
+      "classification": "generic_local_mcp",
+      "transport": "local_stdio",
+      "first_class": false,
+      "conformance": "workspace_config_preadmission_validation",
+      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+    },
+    {
       "client": "Remote or HTTP MCP consumer",
       "classification": "unsupported",
       "transport": "none",

@@ -1,11 +1,11 @@
 # Local MCP Connection Guides
 
-- Version: 1.2
+- Version: 1.3
 - Published: 2026-08-23
 - Classification: Generic local MCP guides, not first-class integrations
 - Supported transport: local stdio only
 
-These guides render the fixed-launch contract for three common coding clients.
+These guides render the fixed-launch contract for six common coding clients.
 They do **not** run any command, modify a client configuration, install a hook,
 or edit a repository. A person must review and invoke any shown command or file
 change themselves.
@@ -149,6 +149,91 @@ discovered by Cursor Agent CLI `3.17.8` on macOS aarch64 without enabling the
 server; the evidence and remaining admission gaps are in the [Phase 1 Cursor
 kit record](../verification/phase-1-cursor-connection-kit.md).
 
+## Gemini CLI
+
+Gemini CLI reads a project `.gemini/settings.json` `mcpServers` object. A user
+who has reviewed that repository change may add only the fixed local-stdio
+entry below. `trust: false` preserves Gemini's normal tool confirmation, while
+`includeTools` prevents a future server tool from being silently exposed.
+
+```json
+{
+  "mcpServers": {
+    "impresari-context": {
+      "command": "/absolute/path/to/impresari-context-mcp",
+      "args": ["--workspace", "/absolute/path/to/source-workspace", "--cache", "/absolute/path/to/separate-cache", "--consumer-id", "consumer_gemini_local", "--role", "local_user"],
+      "trust": false,
+      "includeTools": ["context_session_open", "context_build", "context_packet_resolve", "context_session_close"]
+    }
+  }
+}
+```
+
+Do not add Gemini's `env`, `cwd`, `url`, `httpUrl`, or headers fields. They are
+not needed by Impresari Context. Validate the file without launching Gemini:
+
+```text
+impresari-context doctor gemini-config <workspace-root> <separate-cache> .gemini/settings.json
+```
+
+After a user starts Gemini in the reviewed workspace, `/mcp` is the
+client-side inspection surface. Remove only the `impresari-context` object.
+
+## GitHub Copilot CLI
+
+GitHub Copilot CLI supports project-local `.mcp.json` and loads it after the
+user confirms folder trust. It must not be installed with `copilot mcp add`,
+because that command changes the user's global configuration.
+
+```json
+{
+  "mcpServers": {
+    "impresari-context": {
+      "type": "local",
+      "command": "/absolute/path/to/impresari-context-mcp",
+      "args": ["--workspace", "/absolute/path/to/source-workspace", "--cache", "/absolute/path/to/separate-cache", "--consumer-id", "consumer_copilot_local", "--role", "local_user"],
+      "tools": ["context_session_open", "context_build", "context_packet_resolve", "context_session_close"]
+    }
+  }
+}
+```
+
+Do not add `env`, remote transport, headers, `--allow-all`, or automatic
+approval flags. Validate before use:
+
+```text
+impresari-context doctor copilot-config <workspace-root> <separate-cache> .mcp.json
+```
+
+`copilot mcp list --json` is a read-only inspection step after user
+installation, authentication, and folder trust. Remove only this project entry.
+
+## VS Code Copilot
+
+VS Code uses a workspace `.vscode/mcp.json` with a top-level `servers` object.
+The user must review the file and VS Code's local-server prompt before start:
+
+```json
+{
+  "servers": {
+    "impresari-context": {
+      "command": "/absolute/path/to/impresari-context-mcp",
+      "args": ["--workspace", "${workspaceFolder}", "--cache", "/absolute/path/to/separate-cache", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
+    }
+  }
+}
+```
+
+Do not add environment, URL, headers, input-variable, or automatic-approval
+fields. Validate without launching VS Code:
+
+```text
+impresari-context doctor vscode-config <workspace-root> <separate-cache> .vscode/mcp.json
+```
+
+The MCP view provides inspection after the user opens the trusted workspace.
+Remove only the `impresari-context` entry manually.
+
 ## What these guides do not establish
 
 These guides do not yet establish a maintained version range, supported OS
@@ -156,12 +241,16 @@ matrix per client, clean-install behavior, configuration-parser conformance, or
 safe automated removal. Codex has deterministic direct-tool and packet
 evidence; Claude Code has one real-client, model-directed lifecycle record;
 Cursor has authenticated temporary-configuration discovery but no approved
-tool lifecycle. The [compatibility
+tool lifecycle. Gemini CLI, GitHub Copilot CLI, and VS Code Copilot have
+read-only preadmission guides and validators only. The [compatibility
 matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
 local MCP** category.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex
 configuration basics](https://learn.chatgpt.com/docs/config-file/config-basic),
-[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp), and
-[Cursor MCP documentation](https://docs.cursor.com/context/model-context-protocol).
+[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp),
+[Cursor MCP documentation](https://docs.cursor.com/context/model-context-protocol),
+[Gemini CLI MCP documentation](https://github.com/google-gemini/gemini-cli/blob/main/docs/tools/mcp-server.md),
+[GitHub Copilot CLI MCP documentation](https://docs.github.com/en/copilot/how-tos/copilot-cli/customize-copilot/add-mcp-servers),
+and [VS Code MCP documentation](https://code.visualstudio.com/docs/agent-customization/mcp-servers).
