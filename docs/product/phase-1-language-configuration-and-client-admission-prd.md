@@ -32,14 +32,17 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
 - Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
   read-only JSON configuration validation. Claude Code `2.1.241` has completed
   one isolated temporary-config real-client lifecycle without persistent
-  registration. Cursor's documented command/args stdio form is accepted
-  without allowing environment forwarding.
+  registration. Signed-in Cursor Agent CLI `3.17.8` on macOS aarch64 discovered
+  an isolated temporary project configuration without enabling it. Cursor's
+  documented command/args stdio form is accepted without allowing environment
+  forwarding.
 - Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
   still needs trusted-project clean-install/configuration-parser, version/OS,
   and entry-removal evidence. Claude Code needs deterministic client control,
   packet-equivalence, configuration-parser, platform/version, and removal
-  evidence; Cursor still needs its first real-client lifecycle after user-owned
-  sign-in.
+  evidence; Cursor still needs a user-approved real-client lifecycle,
+  packet-equivalence, malformed-configuration, platform/version, removal, and
+  source-immutability evidence.
 
 ## Non-goals
 

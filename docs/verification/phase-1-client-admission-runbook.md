@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code lifecycle recorded; Cursor awaiting user-owned sign-in
+- Status: Claude Code lifecycle recorded; Cursor temporary configuration discovery recorded
 - Date: 2026-08-23
 - Scope: Claude Code and Cursor only
 
@@ -30,20 +30,22 @@ are in the [Claude Code kit record](phase-1-claude-code-connection-kit.md).
 The eventual user-reviewed registration, verification, and single-entry
 removal commands are in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#claude-code).
 
-## Cursor admission prerequisite
+## Cursor preadmission record
 
-1. Sign into the installed Cursor application or Cursor Agent CLI using its
-   normal interactive flow.
-2. Confirm the authenticated Agent CLI can execute the documented read-only
-   `agent mcp list` command.
-3. Tell Codex that Cursor is ready. Do not create or enable an Impresari
-   Context MCP entry yet; the admission rehearsal will validate the exact
-   project or user entry before use.
+Completed after the user signed into Cursor Agent CLI `3.17.8` on macOS
+aarch64. A development-only rehearsal made an isolated temporary workspace,
+separate cache, and `.cursor/mcp.json`; `cursor agent mcp list` discovered the
+fixed local-stdio server. It did not invoke `enable`, did not call an AI model,
+and preserved the temporary workspace after the configuration was written.
+
+The Cursor CLI treats MCP enablement as a change to local approval state. A
+real tool lifecycle therefore requires an intentional, user-owned approval of
+the exact temporary entry. It must not be replaced by automatic approval.
 
 The eventual user-reviewed configuration, inspection, and single-entry removal
 guidance is in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor).
 
-## Evidence to collect after each prerequisite
+## Evidence still required for first-class admission
 
 For each client, the admission record will capture:
 

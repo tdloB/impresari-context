@@ -126,8 +126,8 @@
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
       "first_class": false,
-      "conformance": "local_stdio_config_validation",
-      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+      "conformance": "local_stdio_config_validation_and_temporary_project_config_discovery",
+      "conformance_evidence": "docs/verification/phase-1-cursor-connection-kit.md"
     },
     {
       "client": "Remote or HTTP MCP consumer",
