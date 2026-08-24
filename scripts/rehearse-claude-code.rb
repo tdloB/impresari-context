@@ -27,12 +27,16 @@ QUERY = "__impresari_claude_conformance_probe__"
 options = {
   claude: DEFAULT_CLAUDE,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
+  malformed_config_only: false,
 }
 
 OptionParser.new do |parser|
   parser.banner = "Usage: scripts/rehearse-claude-code.rb [options]"
   parser.on("--claude PATH", "Claude Code CLI executable") { |value| options[:claude] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
+  parser.on("--malformed-config-only", "Verify strict temporary MCP configuration rejection without a model request") do
+    options[:malformed_config_only] = true
+  end
 end.parse!
 
 [options[:claude], options[:mcp]].each do |path|
@@ -73,12 +77,39 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
   workspace = File.join(temporary, "workspace")
   cache = File.join(temporary, "cache")
   config_path = File.join(temporary, "mcp.json")
+  malformed_config_path = File.join(temporary, "malformed-mcp.json")
   FileUtils.mkdir_p([workspace, cache])
   File.write(
     File.join(workspace, "probe.ts"),
     "export const __impresari_claude_conformance_probe__ = true;\n",
   )
   before = source_digest(workspace)
+  File.write(malformed_config_path, "{\"mcpServers\":")
+  malformed_stdout, malformed_stderr, malformed_status = Open3.capture3(
+    options[:claude], "-p", "Do not call any tool.",
+    "--mcp-config", malformed_config_path,
+    "--strict-mcp-config",
+    "--max-turns", "1",
+    "--output-format", "json",
+    chdir: workspace,
+  )
+  if malformed_status.success?
+    abort("Claude Code accepted malformed MCP configuration")
+  end
+  malformed_output = "#{malformed_stdout}\n#{malformed_stderr}"
+  if malformed_output.include?("__impresari_claude_conformance_probe__")
+    abort("Claude Code malformed configuration diagnostic exposed fixture source")
+  end
+  if options[:malformed_config_only]
+    abort("source workspace changed during malformed-config rehearsal") unless before == source_digest(workspace)
+    puts JSON.generate({
+      "status" => "passed",
+      "claude" => options[:claude],
+      "malformed_configuration_rejected" => true,
+      "source_immutable" => true,
+    })
+    next
+  end
   File.write(config_path, JSON.generate({
     "mcpServers" => {
       SERVER => {
@@ -160,6 +191,7 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     "server" => SERVER,
     "source_immutable" => true,
     "persistent_mcp_registration" => false,
+    "malformed_configuration_rejected" => true,
     "tool_lifecycle" => observed_tools,
   })
 end

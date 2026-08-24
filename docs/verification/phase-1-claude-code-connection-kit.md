@@ -16,6 +16,7 @@
 | Real temporary-config lifecycle | Passed | `scripts/rehearse-claude-code.rb` writes an MCP definition only inside a temporary directory, starts Claude with `--mcp-config` and `--strict-mcp-config`, makes built-in tools unavailable, and preapproves only the four fixed MCP operations. |
 | Complete operation sequence | Passed | Claude called `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close` in the required order; every tool result was present and non-error. |
 | Source and configuration containment | Passed | The fixture source digest remained unchanged, and a separate `claude mcp get impresari_context_conformance` confirmed no persistent registration was created. |
+| Client-rendered malformed configuration | Passed | `scripts/rehearse-claude-code.rb --malformed-config-only` gives Claude Code a malformed disposable MCP configuration under `--strict-mcp-config`. The client rejects it before any model call or MCP startup, and the fixture source digest remains unchanged. |
 
 ## Deliberate limits
 
