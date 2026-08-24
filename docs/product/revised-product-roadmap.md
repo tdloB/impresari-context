@@ -4,6 +4,7 @@
 - Date: 2026-08-23
 - Owner: Aaron Boldt
 - Authority: Founder-approved product roadmap
+- Client depth: [Client Integration Depth Roadmap](client-integration-roadmap.md)
 
 This roadmap is the phase-sequencing source of truth. It separates completed
 delivery slices from the phase that owns their product outcome. Individual
@@ -18,6 +19,19 @@ silently broaden the authority boundary.
 | 3 | Deterministic context planner | Approved; not started |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Approved; not started |
 | 5 | Demand-led language expansion | Approved; not started |
+
+## Parallel Client Integration Depth Track
+
+Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
+[Client Integration Depth Roadmap](client-integration-roadmap.md). A client is
+first-class only after its L1 managed-connection evidence passes; native
+guidance, planner-backed delivery, and deep lifecycle support are separately
+admitted L2–L4 claims. This track runs in parallel with Phases 1–4 and does not
+block structural-language or deterministic-planner releases.
+
+Gemini CLI remains generic legacy compatibility because Google's consumer path
+has moved to Antigravity. Do not invest in additional Gemini-specific depth
+until a stable Antigravity surface has been evaluated.
 
 ## Phase 0 — Correct the public contract
 
