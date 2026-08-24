@@ -1,6 +1,6 @@
 # Phase 4 Java structural-evidence verification
 
-- Status: Local release gate passed; hosted admission pending
+- Status: Accepted
 - Governing records: [Java delivery record](../product/phase-4-java-structural-admission-prd.md) and [ADR-0030](../decisions/0030-java-structural-language-admission.md)
 
 ## Admitted local behavior
@@ -29,9 +29,10 @@ claimed.
   SBOM (190 packages), evaluation and scale checks, cache restart, formatting,
   clippy, all unit/integration tests, and documentation tests.
 
-## Hosted admission requirement
+## Hosted admission
 
-This slice is not marked accepted until the pull request passes the required
-hosted macOS, Linux, Windows, fuzzing, static-analysis, and dependency-security
-checks. That final result updates the delivery record and ADR without changing
-the authority boundary.
+PR #39 passed the required hosted macOS, Linux (Rust 1.96, 1.97, and 1.98),
+Windows, fuzzing, CodeQL static-analysis, and dependency-security/license checks
+on 2026-08-24. It was squash-merged as
+`e005a64dc622e2901a65a756ecc41d105e07473d`. No authority-boundary change was
+required by the hosted evidence.

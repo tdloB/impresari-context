@@ -1,6 +1,6 @@
 # ADR-0030: Java structural-language admission
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-24
 - Scope: Phase 4 admission of Java source to the existing isolated structural worker
 

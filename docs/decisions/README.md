@@ -35,7 +35,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0027](0027-yaml-configuration-evidence.md) | Pinned bounded YAML mapping-key facts without alias or consumer semantics | Accepted |
 | [ADR-0028](0028-codex-deterministic-mcp-tool-conformance.md) | Deterministic Codex App Server direct-tool conformance without model-directed selection | Accepted |
 | [ADR-0029](0029-progressive-client-integration-depth-and-consent.md) | Progressive client integration depth with explicit consent and evidence | Accepted |
-| [ADR-0030](0030-java-structural-language-admission.md) | Pinned Java Tree-sitter structural facts without compiler or classpath resolution authority | Proposed |
+| [ADR-0030](0030-java-structural-language-admission.md) | Pinned Java Tree-sitter structural facts without compiler or classpath resolution authority | Accepted |
 
 ## Change Rules
 

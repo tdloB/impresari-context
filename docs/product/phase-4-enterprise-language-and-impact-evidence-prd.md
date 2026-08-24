@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java structural admission
+- Status: In progress: Java accepted; Kotlin structural admission underway
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
