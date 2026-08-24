@@ -27,8 +27,12 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
 - Complete: Codex's non-mutating project-scoped pre-admission kit and read-only
   configuration validator, while Codex remains Generic local MCP pending full
   client admission.
-- Pending: Codex first-class admission and all Claude Code and Cursor
-  first-class kit work.
+- Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
+  read-only JSON configuration validation. Cursor's documented command/args
+  stdio form is accepted without allowing environment forwarding.
+- Pending: first-class admission for Codex, Claude Code, and Cursor, including
+  the required version/OS matrix and client-specific lifecycle, packet,
+  removal, and source-immutability evidence.
 
 ## Non-goals
 
