@@ -14,6 +14,10 @@ and custom instructions; it exposed and permitted only
 stream included that exact MCP tool. The temporary workspace digest was
 unchanged, and no persistent client MCP configuration changed.
 
+The rehearsal also supplies a malformed disposable additional-MCP configuration
+to Copilot in `--malformed-copilot-config-only` mode. The client must reject it
+before any tool call; the source workspace digest is verified unchanged.
+
 ## Classification and remaining gaps
 
 Copilot remains **Generic local MCP**. A conversational model's tool choice
