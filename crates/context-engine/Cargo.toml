@@ -20,6 +20,8 @@ context-workspace = { version = "=0.1.0", path = "../context-workspace" }
 base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+serde_json_canonicalizer = { version = "=0.3.2", default-features = false }
+sha2 = { version = "=0.11.0", default-features = false }
 
 [dev-dependencies]
 jsonschema = { version = "=0.50.0", default-features = false }

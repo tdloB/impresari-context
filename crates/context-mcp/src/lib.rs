@@ -8,7 +8,7 @@ use std::{
 };
 
 use context_core::{PolicySubject, ResourceBudget};
-use context_engine::{ContextPlan, ContextPlanStep, LocalEngine, RequestContext};
+use context_engine::{ContextPlan, ContextPlanStep, LocalEngine, RequestContext, TaskProfile};
 use context_session::{SessionPolicy, SessionStore};
 use serde::Deserialize;
 use serde_json::{Value, json};
@@ -267,28 +267,39 @@ impl McpServer {
             event_id: String,
             purpose: String,
             occurred_at: String,
-            steps: Vec<ContextPlanStep>,
+            steps: Option<Vec<ContextPlanStep>>,
+            profile: Option<TaskProfile>,
+            query: Option<String>,
             budget: ResourceBudget,
             session_id: Option<String>,
         }
         let args: Args = serde_json::from_value(value).map_err(|_| "invalid context input")?;
-        let packet = self
-            .engine
-            .build_planned_context(
-                &RequestContext {
-                    request_id: args.request_id,
-                    event_id: args.event_id,
-                    subject: PolicySubject {
-                        caller_id: self.consumer_id.clone(),
-                        role: self.role.clone(),
-                        purpose: args.purpose,
-                    },
-                    occurred_at: args.occurred_at,
-                },
-                &ContextPlan { steps: args.steps },
-                args.budget,
-            )
-            .map_err(|_| "context build failed")?;
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let (packet, plan) = match (args.steps, args.profile, args.query) {
+            (Some(steps), None, None) => (
+                self.engine
+                    .build_planned_context(&context, &ContextPlan { steps }, args.budget)
+                    .map_err(|_| "context build failed")?,
+                None,
+            ),
+            (None, Some(profile), Some(query)) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_context(&context, profile, &query, args.budget)
+                    .map_err(|_| "profiled context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            _ => return Err("context build requires either steps or profile and query"),
+        };
         let reference = if let Some(session_id) = args.session_id {
             Some(
                 self.sessions
@@ -299,7 +310,7 @@ impl McpServer {
             None
         };
         Ok(
-            json!({"packet": packet, "reference": reference, "orchestration_authority_added": false, "filesystem_authority_added": false}),
+            json!({"packet": packet, "plan": plan, "reference": reference, "orchestration_authority_added": false, "filesystem_authority_added": false}),
         )
     }
 }
@@ -381,7 +392,7 @@ fn tool_definitions() -> Value {
     });
     json!([
         {"name":"context_session_open","title":"Open context session","description":"Open a bounded process-local session. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
-        {"name":"context_build","title":"Build verified context","description":"Build a bounded verified packet from the fixed authorized workspace.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},"budget":budget,"session_id":{"type":"string"}},"required":["request_id","event_id","purpose","occurred_at","steps","budget"]}},
+        {"name":"context_build","title":"Build verified context","description":"Build a bounded verified packet from explicit steps or a deterministic declared profile. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},"profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},"query":{"type":"string","minLength":1,"maxLength":4096},"budget":budget,"session_id":{"type":"string"}},"required":["request_id","event_id","purpose","occurred_at","budget"],"oneOf":[{"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]}]}},{"required":["profile","query"],"not":{"required":["steps"]}}]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -423,7 +434,7 @@ mod tests {
         }
     }
 
-    fn server() -> (McpServer, Root) {
+    fn server() -> (McpServer, Root, Root) {
         let source = Root::new("source");
         let cache = Root::new("cache");
         fs::write(source.0.join("auth.rs"), b"fn authenticate() {}\n").expect("source");
@@ -466,12 +477,13 @@ mod tests {
                 },
             ),
             source,
+            cache,
         )
     }
 
     #[test]
     fn lifecycle_tools_and_sessions_are_newline_clean() {
-        let (mut server, _source) = server();
+        let (mut server, _source, _cache) = server();
         let input = concat!(
             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/list\"}\n",
             "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
@@ -505,7 +517,7 @@ mod tests {
 
     #[test]
     fn initialize_negotiates_supported_legacy_revision() {
-        let (mut server, _source) = server();
+        let (mut server, _source, _cache) = server();
         let input = concat!(
             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
@@ -532,7 +544,7 @@ mod tests {
 
     #[test]
     fn tool_calls_accept_standard_metadata_without_authority_effect() {
-        let (mut server, _source) = server();
+        let (mut server, _source, _cache) = server();
         let input = concat!(
             "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
             "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
@@ -552,8 +564,48 @@ mod tests {
     }
 
     #[test]
+    fn profiled_context_build_returns_plan_and_packet_without_new_authority() {
+        let (mut server, _source, _cache) = server();
+        let budget = json!({
+            "unit_kind":"utf8_bytes", "requested":"4096", "hard":true,
+            "max_evidence_items":"20", "max_files":"100",
+            "max_excerpt_bytes_per_item":"256", "max_matches":"100",
+            "max_traversal_depth":"8", "max_elapsed_ms":"30000",
+            "max_memory_bytes":"1048576",
+            "policy_profile":"sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+        });
+        let request = json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
+                "name":"context_build", "arguments": {
+                    "request_id":"req_mcpprofile01", "event_id":"evt_mcpprofile01",
+                    "purpose":"configuration_change", "occurred_at":"2026-08-22T00:00:00Z",
+                    "profile":"configuration_change", "query":"auth", "budget":budget
+                }
+            }
+        });
+        let input = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"test\",\"version\":\"1\"}}}}}}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{request}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(values[1]["result"]["isError"], false, "{values:?}");
+        let content = &values[1]["result"]["structuredContent"];
+        assert_eq!(content["plan"]["schema_name"], "deterministic-context-plan");
+        assert_eq!(content["packet"]["purpose"], "configuration_change");
+        assert_eq!(content["orchestration_authority_added"], false);
+        assert_eq!(content["filesystem_authority_added"], false);
+    }
+
+    #[test]
     fn malformed_batch_duplicate_and_oversized_messages_fail_closed() {
-        let (mut server, _source) = server();
+        let (mut server, _source, _cache) = server();
         let oversized = "x".repeat(MAX_MESSAGE_BYTES + 1);
         let input = format!(
             "not-json\n[]\n{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}}\n{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"ping\"}}\n{oversized}\n{{\"jsonrpc\":\"2.0\",\"id\":2}}\n{{\"jsonrpc\":\"2.0\",\"id\":3,\"method\":\"ping\",\"unexpected\":true}}\n"

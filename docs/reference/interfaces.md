@@ -139,7 +139,7 @@ object accepts only `name`, `arguments`, and the inert optional `_meta` object.
 | Tool | Request | Successful structured content |
 | --- | --- | --- |
 | `context_session_open` | `{"session_id":"..."}` | Session ID, `opened: true`, `authority_added: false` |
-| `context_build` | IDs, purpose, RFC 3339 time, 1-8 plan steps, budget, optional session ID | Immutable packet, optional reference, false authority flags |
+| `context_build` | IDs, purpose, RFC 3339 time, budget, optional session ID, plus either 1-8 explicit plan steps or a declared profile and query | Immutable packet, optional deterministic plan, optional reference, false authority flags |
 | `context_packet_resolve` | `{"session_id":"...","packet_id":"..."}` | Owning-session reference and immutable packet |
 | `context_session_close` | `{"session_id":"..."}` | Session ID, `closed: true`, `authority_added: false` |
 
@@ -147,6 +147,14 @@ A plan step is
 `{"kind":"exact_path|filename|literal|lexical","query":"..."}`. The budget
 follows [`resource-budget.schema.json`](../../schemas/v1/resource-budget.schema.json):
 decimal counters are strings, `unit_kind` is `utf8_bytes`, and `hard` is true.
+
+For a deterministic planner request, replace `steps` with one of the declared
+profiles—`orientation`, `implementation`, `bug_investigation`,
+`change_review`, `security_review`, `test_selection`, or
+`configuration_change`—and a bounded `query`. The result includes an exact
+plan identity, ordered reason-coded steps, evidence-class coverage, explicit
+omissions, and the packet identity. This is rule-based retrieval selection;
+it does not interpret prompts, call a model, execute code, or grant authority.
 
 JSON-RPC protocol and parameter failures use JSON-RPC error objects. Tool-level
 engine, policy, session, and validation failures return `isError: true` with a

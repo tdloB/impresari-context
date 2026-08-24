@@ -1,6 +1,6 @@
 # Impresari Context — Phase 3: Deterministic Context Planner PRD
 
-- Status: Approved; not started
+- Status: Approved; initial implementation in progress
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
@@ -38,3 +38,14 @@ explicit rules and preserves Impresari Context's client-neutral authority model.
 - Unsupported evidence classes are reported explicitly rather than inferred.
 - Every selected or omitted candidate remains recoverable to exact evidence or
   a stable rule and budget reason.
+
+## Initial delivery boundary
+
+The initial implementation exposes all seven declared profiles through the
+core engine, CLI, and existing `context_build` MCP tool. Each build returns a
+canonical plan identity, ordered reason-coded steps, evidence-class coverage,
+profile omissions, and the exact packet identity. The planner deliberately
+uses only the existing bounded exact-path, filename, literal, and lexical
+retrievers. Structural relationship, change-set, associated-test, and
+configuration-to-code evidence are reported as unavailable until a separately
+admitted planner adapter can supply them.

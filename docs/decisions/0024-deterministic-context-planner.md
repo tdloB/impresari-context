@@ -1,6 +1,6 @@
 # ADR-0024: Deterministic Context Planner
 
-- Status: Accepted; implementation pending
+- Status: Accepted; initial implementation in progress
 - Date: 2026-08-23
 - Scope: Phase 3 deterministic evidence-selection layer
 
@@ -31,6 +31,12 @@ only admitted evidence classes and must make unavailable inputs visible.
 The planner becomes an auditable intelligence layer rather than a LeanCTX-style
 agent-governance system. It improves naturally as language and configuration
 evidence becomes available without overstating unsupported semantics.
+
+The initial slice binds plans to the actual snapshot and policy decision, uses
+only existing bounded retrieval strategies, and reports unavailable structural,
+change-set, associated-test, and configuration-to-code classes explicitly. It
+does not make a structural graph or configuration parser automatically imply a
+planner relationship.
 
 ## References
 
