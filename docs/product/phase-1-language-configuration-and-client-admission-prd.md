@@ -3,6 +3,7 @@
 - Status: Approved; implementation in progress
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
+- Related decision: [ADR-0028](../decisions/0028-codex-deterministic-mcp-tool-conformance.md)
 
 ## Objective
 
@@ -24,15 +25,17 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
 
 - Complete: Python, narrow strict-JSON, bounded JSONC, bounded TOML, and
   deliberately bounded YAML configuration evidence.
-- Complete: Codex's non-mutating project-scoped pre-admission kit and read-only
-  configuration validator, while Codex remains Generic local MCP pending full
-  client admission.
+- Complete: Codex's non-mutating project-scoped pre-admission kit, read-only
+  configuration validator, and deterministic App Server direct-tool lifecycle
+  plus packet-equivalence rehearsal. Codex remains Generic local MCP pending
+  full client admission.
 - Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
   read-only JSON configuration validation. Cursor's documented command/args
   stdio form is accepted without allowing environment forwarding.
-- Pending: first-class admission for Codex, Claude Code, and Cursor, including
-  the required version/OS matrix and client-specific lifecycle, packet,
-  removal, and source-immutability evidence.
+- Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
+  still needs trusted-project clean-install/configuration-parser, version/OS,
+  and entry-removal evidence. Claude Code and Cursor additionally need their
+  first real-client lifecycle admission after user-owned sign-in.
 
 ## Non-goals
 
