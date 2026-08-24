@@ -25,7 +25,11 @@ Copilot CLI, and VS Code Copilot.
   preserves fixed local stdio authority and rejects remote transport,
   environment forwarding, and automatic approval.
 - Pending: installed/authenticated client discovery and lifecycle evidence for
-  all three kits; no broader agent is first-class.
+  Gemini CLI and VS Code Copilot; no broader agent is first-class. GitHub
+  Copilot CLI `1.0.80` on macOS aarch64 has one isolated, model-directed
+  temporary-config session-open record without persistent client configuration.
+  Gemini CLI `0.56.0` is authenticated but its current free-tier service
+  rejects normal client startup as unsupported.
 
 ## Non-goals
 

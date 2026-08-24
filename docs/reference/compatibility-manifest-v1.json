@@ -134,7 +134,7 @@
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
       "first_class": false,
-      "conformance": "project_config_preadmission_validation",
+      "conformance": "project_config_preadmission_validation; normal_client_blocked_by_external_free_tier",
       "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
     },
     {
@@ -142,8 +142,8 @@
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
       "first_class": false,
-      "conformance": "project_config_preadmission_validation",
-      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+      "conformance": "project_config_preadmission_validation_and_temporary_config_model_directed_session_open",
+      "conformance_evidence": "docs/verification/phase-2-copilot-cli-connection-kit.md"
     },
     {
       "client": "VS Code Copilot",
