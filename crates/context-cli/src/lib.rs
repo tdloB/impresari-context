@@ -17,7 +17,7 @@ use context_core::{
 };
 use context_engine::{
     ContextPlan, ContextPlanStep, EngineConfig, EngineError, LocalEngine, QueryKind,
-    RequestContext, SnapshotStatus, TaskProfile,
+    RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -37,6 +37,7 @@ Usage:\n\
   impresari-context [global-options] search <root> <cache-root> <exact_path|filename|literal|lexical> <query>\n\
   impresari-context [global-options] context build <root> <cache-root> <kind> <query> <purpose>\n\
   impresari-context [global-options] context profile-build <root> <cache-root> <profile> <query>\n\
+  impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -228,6 +229,35 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context profile-build", &result)
+        }
+        [
+            "context",
+            "profile-structure-build",
+            root,
+            cache,
+            profile,
+            query,
+            graph_path,
+            start_node,
+            edge_kinds,
+        ] => {
+            let profile = parse_task_profile(profile)?;
+            let graph: StructuralGraph =
+                read_json(Path::new(graph_path), Capability::StructureQuery)?;
+            let edge_kinds = parse_edge_kinds(edge_kinds)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_structural_context(
+                &contexts.next(profile_purpose(profile)),
+                profile,
+                query,
+                &StructuralImpactRequest {
+                    graph,
+                    start_node: start_node.to_string(),
+                    edge_kinds,
+                },
+                default_budget(),
+            )?;
+            Output::new("context profile-structure-build", &result)
         }
         [
             "structure",

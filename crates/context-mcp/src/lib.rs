@@ -8,8 +8,11 @@ use std::{
 };
 
 use context_core::{PolicySubject, ResourceBudget};
-use context_engine::{ContextPlan, ContextPlanStep, LocalEngine, RequestContext, TaskProfile};
+use context_engine::{
+    ContextPlan, ContextPlanStep, LocalEngine, RequestContext, StructuralImpactRequest, TaskProfile,
+};
 use context_session::{SessionPolicy, SessionStore};
+use context_structural::StructuralGraph;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -270,6 +273,9 @@ impl McpServer {
             steps: Option<Vec<ContextPlanStep>>,
             profile: Option<TaskProfile>,
             query: Option<String>,
+            structural_graph: Option<StructuralGraph>,
+            start_node: Option<String>,
+            edge_kinds: Option<Vec<String>>,
             budget: ResourceBudget,
             session_id: Option<String>,
         }
@@ -284,18 +290,42 @@ impl McpServer {
             },
             occurred_at: args.occurred_at,
         };
-        let (packet, plan) = match (args.steps, args.profile, args.query) {
-            (Some(steps), None, None) => (
+        let (packet, plan) = match (
+            args.steps,
+            args.profile,
+            args.query,
+            args.structural_graph,
+            args.start_node,
+            args.edge_kinds,
+        ) {
+            (Some(steps), None, None, None, None, None) => (
                 self.engine
                     .build_planned_context(&context, &ContextPlan { steps }, args.budget)
                     .map_err(|_| "context build failed")?,
                 None,
             ),
-            (None, Some(profile), Some(query)) => {
+            (None, Some(profile), Some(query), None, None, None) => {
                 let profiled = self
                     .engine
                     .build_profiled_context(&context, profile, &query, args.budget)
                     .map_err(|_| "profiled context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (None, Some(profile), Some(query), Some(graph), Some(start_node), edge_kinds) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_structural_context(
+                        &context,
+                        profile,
+                        &query,
+                        &StructuralImpactRequest {
+                            graph,
+                            start_node,
+                            edge_kinds: edge_kinds.unwrap_or_default(),
+                        },
+                        args.budget,
+                    )
+                    .map_err(|_| "profiled structural context build failed")?;
                 (profiled.packet, Some(profiled.plan))
             }
             _ => return Err("context build requires either steps or profile and query"),
@@ -392,7 +422,7 @@ fn tool_definitions() -> Value {
     });
     json!([
         {"name":"context_session_open","title":"Open context session","description":"Open a bounded process-local session. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
-        {"name":"context_build","title":"Build verified context","description":"Build a bounded verified packet from explicit steps or a deterministic declared profile. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},"profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},"query":{"type":"string","minLength":1,"maxLength":4096},"budget":budget,"session_id":{"type":"string"}},"required":["request_id","event_id","purpose","occurred_at","budget"],"oneOf":[{"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]}]}},{"required":["profile","query"],"not":{"required":["steps"]}}]}},
+        {"name":"context_build","title":"Build verified context","description":"Build a bounded verified packet from explicit steps, a deterministic declared profile, or a profile plus an already validated snapshot-bound structural graph. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},"profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},"query":{"type":"string","minLength":1,"maxLength":4096},"structural_graph":{"type":"object"},"start_node":{"type":"string"},"edge_kinds":{"type":"array","maxItems":8,"items":{"enum":["declares","contains","imports","exports","calls","references"]}},"budget":budget,"session_id":{"type":"string"}},"required":["request_id","event_id","purpose","occurred_at","budget"],"oneOf":[{"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]}]}},{"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]}]}},{"required":["profile","query","structural_graph","start_node"],"not":{"required":["steps"]}}]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])

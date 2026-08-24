@@ -202,6 +202,67 @@ pub fn lookup_exact_path(
     reference_results(workspace, snapshot, [artifact], budget)
 }
 
+/// Recovers one exact, snapshot-bound source span as bounded evidence.
+///
+/// This is intended for an already validated structural edge. It does not
+/// resolve a symbol, infer a relationship, or accept a path outside the exact
+/// snapshot artifact inventory.
+///
+/// # Errors
+///
+/// Fails when the path is absent, source is stale, the span is empty or out of
+/// bounds, or the declared excerpt/resource limits cannot be met.
+pub fn evidence_for_span(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    path: &PathIdentity,
+    start_byte: u64,
+    end_byte: u64,
+    budget: SearchBudget,
+    extraction_method: &'static str,
+) -> Result<Evidence, RetrievalError> {
+    if workspace.identity() != snapshot.workspace_identity
+        || start_byte >= end_byte
+        || extraction_method.is_empty()
+    {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    let artifact = snapshot
+        .artifacts
+        .iter()
+        .find(|artifact| artifact.path == *path)
+        .ok_or_else(|| RetrievalError::new(RetrievalErrorCode::EvidenceUnavailable))?;
+    if artifact.size_bytes > budget.max_memory_bytes {
+        return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+    }
+    let started = Instant::now();
+    let exact = workspace
+        .read_exact(&artifact.path, artifact.size_bytes.max(1))
+        .map_err(map_workspace)?;
+    if started.elapsed() >= budget.max_elapsed {
+        return Err(RetrievalError::new(RetrievalErrorCode::ResourceLimit));
+    }
+    if exact.content_hash != artifact.content_hash {
+        return Err(RetrievalError::new(RetrievalErrorCode::StaleState));
+    }
+    let start = usize::try_from(start_byte)
+        .map_err(|_| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    let end = usize::try_from(end_byte)
+        .map_err(|_| RetrievalError::new(RetrievalErrorCode::InvalidInput))?;
+    if end > exact.bytes.len() || start >= end {
+        return Err(RetrievalError::new(RetrievalErrorCode::EvidenceUnavailable));
+    }
+    Ok(make_evidence(
+        snapshot,
+        artifact,
+        &exact.bytes,
+        start,
+        end,
+        budget.max_excerpt_bytes,
+        extraction_method,
+    ))
+}
+
 /// Finds filename/path-display matches and verifies each against current source.
 /// Matching is ASCII case-insensitive and results use stable native-path order.
 ///
@@ -1012,6 +1073,53 @@ mod tests {
                 .expect("filename")
                 .matches,
             exact.matches
+        );
+    }
+
+    #[test]
+    fn exact_span_recovery_is_snapshot_bound_and_range_checked() {
+        let (_source, _cache_root, workspace, snapshot, _cache) = setup();
+        let budget = SearchBudget::new(10, 10, 8, Duration::from_secs(1)).expect("budget");
+        let path = snapshot.artifacts[0].path.clone();
+        let evidence = evidence_for_span(
+            &workspace,
+            &snapshot,
+            &path,
+            6,
+            11,
+            budget,
+            "structural_graph_edge",
+        )
+        .expect("span evidence");
+        assert_eq!((evidence.start_byte, evidence.end_byte), (6, 11));
+        assert_eq!(evidence.extraction_method, "structural_graph_edge");
+        assert_eq!(
+            evidence_for_span(
+                &workspace,
+                &snapshot,
+                &path,
+                11,
+                11,
+                budget,
+                "structural_graph_edge",
+            )
+            .expect_err("empty span")
+            .code(),
+            RetrievalErrorCode::InvalidInput
+        );
+        assert_eq!(
+            evidence_for_span(
+                &workspace,
+                &snapshot,
+                &path,
+                6,
+                128,
+                budget,
+                "structural_graph_edge",
+            )
+            .expect_err("out-of-range span")
+            .code(),
+            RetrievalErrorCode::EvidenceUnavailable
         );
     }
 

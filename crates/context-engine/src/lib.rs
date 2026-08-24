@@ -18,8 +18,9 @@ use context_core::{
     packet_bytes, packet_validation_result, validate_packet,
 };
 use context_retrieval::{
-    RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_record,
-    expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
+    RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_for_span,
+    evidence_record, expand_evidence_record, lookup_exact_path, search_filename, search_lexical,
+    search_literal,
 };
 use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
@@ -256,6 +257,33 @@ pub struct DeterministicContextPlan {
     pub coverage: Vec<PlannerCoverage>,
     /// Profile candidates omitted before retrieval.
     pub omitted_candidates: Vec<PlannerOmission>,
+    /// Exact structural traversal used by this plan, when the caller selected
+    /// the separately admitted structural-impact adapter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structural_query: Option<StructuralPlannerQuery>,
+}
+
+/// Snapshot-bound structural traversal that contributed exact planner evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct StructuralPlannerQuery {
+    /// Content-derived identity of the complete declared traversal result.
+    pub query_id: String,
+    /// Requested graph relationship kinds; an empty list means every supported kind.
+    pub edge_kinds: Vec<String>,
+    /// Canonical graph traversal result that produced the structural evidence.
+    pub result: StructuralQueryResult,
+}
+
+/// Explicit bounded structural traversal input for the impact-planner adapter.
+#[derive(Clone, Debug)]
+pub struct StructuralImpactRequest {
+    /// Already validated canonical graph supplied by the caller.
+    pub graph: StructuralGraph,
+    /// Exact graph node from which bounded traversal begins.
+    pub start_node: String,
+    /// Relationship kinds requested by the caller; empty permits every kind.
+    pub edge_kinds: Vec<String>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -1081,6 +1109,7 @@ impl LocalEngine {
             budget,
             &decision.decision_id,
             started,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1095,6 +1124,61 @@ impl LocalEngine {
         )
     }
 
+    /// Builds one profiled packet with exact evidence recovered from one
+    /// current-snapshot structural traversal.
+    ///
+    /// The graph query is authorized through the existing `StructureQuery`
+    /// gateway before packet construction. This method adds no graph-building,
+    /// process, source-write, or semantic-resolution authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the graph is stale or malformed, the
+    /// traversal or packet exceeds a declared bound, or source bytes can no
+    /// longer be recovered exactly from the current snapshot.
+    pub fn build_profiled_structural_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralImpactRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let structure_context = derived_structure_query_context(context);
+        let traversal = self.query_structure(
+            &structure_context,
+            &structural_request.graph,
+            &structural_request.start_node,
+            &structural_request.edge_kinds,
+            &budget,
+        )?;
+        let structural_query = structural_planner_query(&structural_request.edge_kinds, traversal)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self.build_profiled_context_internal(
+            context,
+            profile,
+            query,
+            budget,
+            &decision.decision_id,
+            started,
+            Some(&structural_query),
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn build_profiled_context_internal(
         &mut self,
         context: &RequestContext,
@@ -1103,21 +1187,35 @@ impl LocalEngine {
         budget: ResourceBudget,
         policy_decision: &str,
         started: Instant,
+        structural_query: Option<&StructuralPlannerQuery>,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
-            failure(
-                context,
-                Capability::ContextBuild,
-                PublicErrorCode::StaleState,
-                "workspace snapshot required",
-                Some(self.workspace.identity()),
-                None,
-                Some(RecoveryAction::RefreshSnapshot),
-            )
-        })?;
-        let plan = deterministic_plan(profile, query, &snapshot.snapshot_id, policy_decision)
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot required",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .snapshot_id
+            .clone();
+        let mut plan = deterministic_plan(profile, query, &snapshot, policy_decision)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let packet = self.build_planned_context_internal(
+        if let Some(structural_query) = structural_query {
+            apply_structural_query_to_plan(&mut plan, structural_query)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.structural_evidence(context, value, &budget, started),
+        )?;
+        let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
                 steps: plan.steps.iter().map(|item| item.step.clone()).collect(),
@@ -1125,6 +1223,9 @@ impl LocalEngine {
             budget,
             policy_decision,
             started,
+            supplemental_evidence,
+            supplemental_unknowns,
+            Some(&snapshot),
         )?;
         let mut omitted_candidates = Vec::new();
         if packet.accounting.omitted_items != "0" {
@@ -1186,6 +1287,30 @@ impl LocalEngine {
         policy_decision: &str,
         started: Instant,
     ) -> Result<ContextPacket, EngineError> {
+        self.build_planned_context_with_supplemental_internal(
+            context,
+            plan,
+            budget,
+            policy_decision,
+            started,
+            Vec::new(),
+            Vec::new(),
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_planned_context_with_supplemental_internal(
+        &mut self,
+        context: &RequestContext,
+        plan: &ContextPlan,
+        budget: ResourceBudget,
+        policy_decision: &str,
+        started: Instant,
+        supplemental_evidence: Vec<EvidenceRecord>,
+        supplemental_unknowns: Vec<String>,
+        expected_snapshot: Option<&str>,
+    ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
             Err(failure(
                 context,
@@ -1199,9 +1324,12 @@ impl LocalEngine {
                 Some(RecoveryAction::ReduceScope),
             ))
         } else {
-            let mut evidence = std::collections::BTreeMap::new();
-            let mut unknowns = Vec::new();
-            let mut snapshot_id = None;
+            let mut evidence = supplemental_evidence
+                .into_iter()
+                .map(|item| (item.evidence_id.clone(), item))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            let mut unknowns = supplemental_unknowns;
+            let mut snapshot_id = expected_snapshot.map(str::to_owned);
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })?;
@@ -1281,6 +1409,110 @@ impl LocalEngine {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })
         }
+    }
+
+    fn structural_evidence(
+        &self,
+        context: &RequestContext,
+        structural_query: &StructuralPlannerQuery,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        let result = &structural_query.result;
+        if result.workspace_snapshot != snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "structural query is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let paths = result
+            .nodes
+            .iter()
+            .map(|node| (node.node_id.as_str(), &node.path))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let source_budget = search_budget(budget)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
+            core_error(context, Capability::ContextBuild, error.code(), self.ids())
+        })?;
+        let mut evidence = std::collections::BTreeMap::new();
+        for edge in &result.edges {
+            if elapsed_ms(started) >= elapsed_limit {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "context planning resource limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let worker_path = paths.get(edge.source_node.as_str()).ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "structural query has an invalid source node",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let path = PathIdentity::from_encoded_native_units(
+                &worker_path.platform_family,
+                &worker_path.unit_encoding,
+                &worker_path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "structural query has an invalid source path",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let recovered = evidence_for_span(
+                &self.workspace,
+                snapshot,
+                &path,
+                edge.span.start_byte,
+                edge.span.end_byte,
+                source_budget,
+                "structural_graph_edge",
+            )
+            .map_err(|error| {
+                retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
+            })?;
+            let record = evidence_record(&recovered);
+            evidence.entry(record.evidence_id.clone()).or_insert(record);
+        }
+        let mut unknowns = result.unknowns.clone();
+        if result.truncated {
+            unknowns.push("structural_query_limited".into());
+        }
+        unknowns.sort();
+        unknowns.dedup();
+        Ok((evidence.into_values().collect(), unknowns))
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -1992,6 +2224,7 @@ fn deterministic_plan(
         steps,
         coverage: planner_coverage(),
         omitted_candidates,
+        structural_query: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
@@ -2072,6 +2305,54 @@ fn planner_coverage_item(
     }
 }
 
+fn structural_planner_query(
+    edge_kinds: &[String],
+    result: StructuralQueryResult,
+) -> Result<StructuralPlannerQuery, context_core::CoreErrorCode> {
+    let mut edge_kinds = edge_kinds.to_vec();
+    edge_kinds.sort();
+    edge_kinds.dedup();
+    let mut query = StructuralPlannerQuery {
+        query_id: format!("sha256:{}", "0".repeat(64)),
+        edge_kinds,
+        result,
+    };
+    query.query_id = structural_query_identity(&query)?;
+    Ok(query)
+}
+
+fn apply_structural_query_to_plan(
+    plan: &mut DeterministicContextPlan,
+    structural_query: &StructuralPlannerQuery,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::StructuralRelationship)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "validated_structural_relationship_available".into();
+    plan.omitted_candidates.retain(|item| {
+        item.candidate != "structural_relationship"
+            || item.reason_code != "structural_relationship_evidence_not_connected"
+    });
+    plan.structural_query = Some(structural_query.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn structural_query_identity(
+    query: &StructuralPlannerQuery,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(query).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("query_id");
+    canonical_identity("structural-planner-query", &projected)
+}
+
 fn deterministic_plan_identity(
     plan: &DeterministicContextPlan,
 ) -> Result<String, context_core::CoreErrorCode> {
@@ -2081,10 +2362,19 @@ fn deterministic_plan_identity(
         .as_object_mut()
         .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
         .remove("plan_id");
-    let canonical = serde_json_canonicalizer::to_vec(&projected)
+    canonical_identity("deterministic-context-plan", &projected)
+}
+
+fn canonical_identity(
+    kind: &str,
+    value: &serde_json::Value,
+) -> Result<String, context_core::CoreErrorCode> {
+    let canonical = serde_json_canonicalizer::to_vec(value)
         .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
     let mut hasher = Sha256::new();
-    hasher.update(b"impresari-context\0deterministic-context-plan\0");
+    hasher.update(b"impresari-context\0");
+    hasher.update(kind.as_bytes());
+    hasher.update(b"\0");
     hasher.update(CONTRACT_VERSION.as_bytes());
     hasher.update(b"\0");
     hasher.update(canonical);
@@ -2766,6 +3056,23 @@ fn valid_identifier(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
+fn derived_structure_query_context(context: &RequestContext) -> RequestContext {
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0structural-impact-query-event\0");
+    hasher.update(context.event_id.as_bytes());
+    let mut event_id = String::from("evt_");
+    for byte in hasher.finalize() {
+        use fmt::Write as _;
+        write!(event_id, "{byte:02x}").expect("string write");
+    }
+    RequestContext {
+        request_id: context.request_id.clone(),
+        event_id,
+        subject: context.subject.clone(),
+        occurred_at: context.occurred_at.clone(),
+    }
+}
+
 fn valid_sha256(value: &str) -> bool {
     value.len() == 71
         && value.starts_with("sha256:")
@@ -3279,6 +3586,188 @@ mod tests {
                 .all(|step| !step.reason_code.is_empty())
         );
         validate_packet(&first.packet).expect("valid profiled packet");
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn profiled_structural_context_recovers_exact_bounded_graph_evidence() {
+        let source = TestRoot::new("structural-profile-source");
+        let first_cache = TestRoot::new("structural-profile-first-cache");
+        let second_cache = TestRoot::new("structural-profile-second-cache");
+        fs::write(
+            source.0.join("review.ts"),
+            b"export function reviewed_change() { return 1; }\n",
+        )
+        .expect("source");
+        let config_for = |cache_root: PathBuf| EngineConfig {
+            cache_root,
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let graph_for = |engine: &LocalEngine| {
+            let snapshot = engine.snapshot.as_ref().expect("snapshot");
+            let artifact = snapshot.artifacts.first().expect("artifact");
+            let path = WorkerPath {
+                display_path: artifact.path.display_path.clone(),
+                platform_family: artifact.path.platform_family.into(),
+                unit_encoding: artifact.path.unit_encoding.into(),
+                relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+            };
+            let provenance = context_structural::FactProvenance {
+                method: "tree_sitter".into(),
+                parser_version: "tree-sitter-0.26.12".into(),
+                grammar_version: "tree-sitter-typescript-0.23.2".into(),
+                resolver_version: RESOLVER_VERSION.into(),
+                graph_version: GRAPH_VERSION.into(),
+            };
+            context_structural::build_graph(
+                &snapshot.snapshot_id,
+                vec![GraphFileInput {
+                    path,
+                    response: context_structural::WorkerSuccess {
+                        schema_name: "structural-worker-success".into(),
+                        schema_version: PROTOCOL_VERSION.into(),
+                        request_id: "req_00000002".into(),
+                        content_hash: artifact.content_hash.clone(),
+                        syntax_errors: false,
+                        facts: vec![context_structural::StructuralFact {
+                            class: FactClass::Declaration,
+                            local_key: "declared_reviewed_change".into(),
+                            syntax_kind: "function_declaration".into(),
+                            name: Some("reviewed_change".into()),
+                            module: None,
+                            start_byte: 0,
+                            end_byte: 33,
+                            parent_key: None,
+                            confidence: "confirmed".into(),
+                            provenance,
+                        }],
+                        warnings: Vec::new(),
+                    },
+                }],
+            )
+            .expect("graph")
+        };
+        let profile_request = request(3, "security_review");
+        let (mut first_engine, _) = LocalEngine::open(
+            config_for(first_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("first open");
+        first_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("first snapshot");
+        let first_graph = graph_for(&first_engine);
+        let first_start = first_graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "file")
+            .expect("file node")
+            .node_id
+            .clone();
+        let first = first_engine
+            .build_profiled_structural_context(
+                &profile_request,
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: first_graph.clone(),
+                    start_node: first_start.clone(),
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect("first structural profile");
+        assert_schema("deterministic-context-plan.schema.json", &first.plan);
+        assert!(first.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.status == "available"
+                && coverage.reason_code == "validated_structural_relationship_available"
+        }));
+        let structural = first
+            .plan
+            .structural_query
+            .as_ref()
+            .expect("structural query");
+        assert_eq!(structural.result.graph_id, first_graph.graph_id);
+        assert_eq!(structural.result.start_node, first_start);
+        assert_eq!(structural.edge_kinds, vec!["declares"]);
+        assert_eq!(structural.result.edges.len(), 1);
+        assert!(
+            first
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|evidence| evidence.extraction.method == "structural_graph_edge")
+        );
+        validate_packet(&first.packet).expect("valid structural packet");
+        drop(first_engine);
+
+        let (mut second_engine, _) = LocalEngine::open(
+            config_for(second_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("second open");
+        second_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("second snapshot");
+        let second_graph = graph_for(&second_engine);
+        let second_start = second_graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "file")
+            .expect("file node")
+            .node_id
+            .clone();
+        let second = second_engine
+            .build_profiled_structural_context(
+                &profile_request,
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: second_graph,
+                    start_node: second_start,
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect("second structural profile");
+        assert_eq!(first.plan, second.plan);
+        assert_eq!(first.packet.packet_id, second.packet.packet_id);
+        drop(second_engine);
+
+        fs::write(
+            source.0.join("review.ts"),
+            b"export function reviewed_change() { return 2; }\n",
+        )
+        .expect("changed source");
+        let stale_cache = TestRoot::new("structural-profile-stale-cache");
+        let (mut stale_engine, _) = LocalEngine::open(
+            config_for(stale_cache.0.clone()),
+            &request(4, "open"),
+            &source.0,
+        )
+        .expect("stale open");
+        stale_engine
+            .build_snapshot(&request(5, "snapshot"), budget())
+            .expect("changed snapshot");
+        let stale = stale_engine
+            .build_profiled_structural_context(
+                &request(6, "security_review"),
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: first_graph,
+                    start_node: first_start,
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect_err("stale graph must fail before evidence recovery");
+        assert_eq!(stale.envelope().code, PublicErrorCode::StaleState);
     }
 
     #[test]
