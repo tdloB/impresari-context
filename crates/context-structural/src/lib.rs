@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -46,6 +46,8 @@ pub enum StructuralLanguage {
     Java,
     /// Kotlin source.
     Kotlin,
+    /// C# source.
+    CSharp,
     /// Strict JSON configuration source.
     Json,
     /// JSON with comments configuration source.
@@ -1568,6 +1570,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
+        StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -1590,6 +1593,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Java => tree_sitter_java::LANGUAGE.into(),
         StructuralLanguage::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
+        StructuralLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         StructuralLanguage::Yaml => tree_sitter_yaml::LANGUAGE.into(),
@@ -1689,6 +1693,8 @@ fn fact_for_node(
         | "type_alias_declaration"
         | "enum_declaration"
         | "record_declaration"
+        | "struct_declaration"
+        | "delegate_declaration"
         | "method_definition"
         | "abstract_method_signature"
         | "function_definition"
@@ -1799,6 +1805,10 @@ fn fact_for_node(
             let module = kotlin_import_module(node, source)?;
             (FactClass::Import, None, Some(module))
         }
+        "using_directive" if request.language == StructuralLanguage::CSharp => {
+            let module = csharp_using_module(node, source)?;
+            (FactClass::Import, None, Some(module))
+        }
         "export_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1828,6 +1838,13 @@ fn fact_for_node(
                 .flatten()
                 .and_then(|value| text(value, source));
             (FactClass::Call, name, None)
+        }
+        "invocation_expression" if request.language == StructuralLanguage::CSharp => {
+            let function = node.child_by_field_name("function")?;
+            let name = (function.kind() == "identifier")
+                .then(|| text(function, source))
+                .flatten()?;
+            (FactClass::Call, Some(name), None)
         }
         "identifier" if !is_declaration_name(node) && !is_call_callee(node) => {
             (FactClass::Reference, text(node, source), None)
@@ -1885,6 +1902,8 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "type_alias_declaration"
                     | "enum_declaration"
                     | "record_declaration"
+                    | "struct_declaration"
+                    | "delegate_declaration"
                     | "method_definition"
                     | "abstract_method_signature"
                     | "function_definition"
@@ -1913,6 +1932,9 @@ fn is_call_callee(node: Node<'_>) -> bool {
             .is_some_and(|candidate| candidate.id() == node.id()),
         "method_invocation" => parent
             .child_by_field_name("name")
+            .is_some_and(|candidate| candidate.id() == node.id()),
+        "invocation_expression" => parent
+            .child_by_field_name("function")
             .is_some_and(|candidate| candidate.id() == node.id()),
         _ => false,
     })
@@ -1944,6 +1966,15 @@ fn kotlin_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
     let module = declaration.trim().strip_prefix("import")?.trim();
     let module = module.strip_suffix(';').unwrap_or(module).trim();
     (!module.ends_with(".*") && !module.contains(" as ")).then(|| module.to_owned())
+}
+
+fn csharp_using_module(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let declaration = text(node, source)?;
+    let declaration = declaration.trim();
+    let declaration = declaration.strip_prefix("global ").unwrap_or(declaration);
+    let module = declaration.strip_prefix("using")?.trim();
+    let module = module.strip_suffix(';').unwrap_or(module).trim();
+    (!module.starts_with("static ") && !module.contains('=')).then(|| module.to_owned())
 }
 
 fn json_string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2056,6 +2087,7 @@ mod tests {
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Java => "tree-sitter-java-0.23.5",
             StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
+            StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
             StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2561,6 +2593,7 @@ class Service {
         helper()
         dependency.work()
     }
+
 }
 
 object Registry
@@ -2593,6 +2626,65 @@ fun helper() {}
             output.facts.iter().all(|fact| {
                 fact.class != FactClass::Call || fact.name.as_deref() != Some("work")
             })
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Reference && fact.name.as_deref() == Some("dependency")
+        }));
+    }
+
+    #[test]
+    fn extracts_bounded_csharp_declarations_usings_calls_and_references() {
+        let source = br"using System.Text;
+using static System.Math;
+using Alias = Example.Service;
+
+namespace Example;
+
+public record Service;
+public struct Value;
+public delegate void Handler();
+
+public class Worker {
+    public Worker() {}
+
+    public void Run() {
+        helper();
+        dependency.Execute();
+    }
+
+    private void helper() {}
+}
+";
+        let output = process_request(&request(source, StructuralLanguage::CSharp)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Service", "Value", "Handler", "Worker", "Run", "helper"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Import)
+                .map(|fact| fact.module.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("System.Text")],
+            "static and aliased using directives are intentionally outside this admission"
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "invocation_expression"
+        }));
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Call)
+                .count(),
+            1,
+            "qualified calls are deliberately outside the bounded C# admission"
         );
         assert!(output.facts.iter().any(|fact| {
             fact.class == FactClass::Reference && fact.name.as_deref() == Some("dependency")
@@ -2640,6 +2732,13 @@ fun helper() {}
         wrong_kotlin_grammar.grammar_version = "tree-sitter-kotlin-ng-0.0.0".into();
         assert_eq!(
             process_request(&wrong_kotlin_grammar),
+            Err(StructuralError::ContractMismatch)
+        );
+
+        let mut wrong_csharp_grammar = request(b"class Service {}\n", StructuralLanguage::CSharp);
+        wrong_csharp_grammar.grammar_version = "tree-sitter-c-sharp-0.0.0".into();
+        assert_eq!(
+            process_request(&wrong_csharp_grammar),
             Err(StructuralError::ContractMismatch)
         );
     }

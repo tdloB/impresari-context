@@ -37,6 +37,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0029](0029-progressive-client-integration-depth-and-consent.md) | Progressive client integration depth with explicit consent and evidence | Accepted |
 | [ADR-0030](0030-java-structural-language-admission.md) | Pinned Java Tree-sitter structural facts without compiler or classpath resolution authority | Accepted |
 | [ADR-0031](0031-kotlin-structural-language-admission.md) | Pinned Kotlin Tree-sitter structural facts without compiler or Gradle resolution authority | Proposed |
+| [ADR-0032](0032-csharp-structural-language-admission.md) | Pinned C# Tree-sitter structural facts without compiler, MSBuild, or project-resolution authority | Proposed |
 
 ## Change Rules
 

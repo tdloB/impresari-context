@@ -14,6 +14,7 @@
     "docs/decisions/0022-rust-structural-language-admission.md",
     "docs/decisions/0030-java-structural-language-admission.md",
     "docs/decisions/0031-kotlin-structural-language-admission.md",
+    "docs/decisions/0032-csharp-structural-language-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -63,6 +64,13 @@
     {
       "family": "Kotlin",
       "extensions": [".kt", ".kts"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "C#",
+      "extensions": [".cs"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
