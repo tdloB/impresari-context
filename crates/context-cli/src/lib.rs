@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![doc = "Thin command-line adapter over the shared Impresari Context engine."]
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::{
     fmt::Write as _,
     fs,
@@ -1332,6 +1334,14 @@ fn canonical_regular_file(path: &Path) -> Result<PathBuf, EngineError> {
             "managed connection binary must be a regular file",
         ));
     }
+    #[cfg(unix)]
+    if metadata.permissions().mode() & 0o111 == 0 {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection binary must be executable",
+        ));
+    }
     fs::canonicalize(path).map_err(|_| {
         synthetic_error(
             Capability::WorkspaceOpen,
@@ -2171,6 +2181,16 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    fn mark_executable(path: &Path) {
+        let mut permissions = fs::metadata(path).expect("binary metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("binary permissions");
+    }
+
+    #[cfg(not(unix))]
+    fn mark_executable(_path: &Path) {}
+
     fn direct_context(sequence: u64, purpose: &str) -> RequestContext {
         RequestContext {
             request_id: format!("req_abcdefgh{sequence:02}"),
@@ -2209,6 +2229,7 @@ mod tests {
         let binary = TestRoot::new("managed-kit-binary");
         let binary_path = binary.0.join("impresari-context-mcp");
         fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
         fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
             .expect("source fixture");
         let source_before = fs::read(root.0.join("source.ts")).expect("source before");
@@ -2260,6 +2281,7 @@ mod tests {
         let config_root = TestRoot::new("managed-lifecycle-config");
         let binary_path = binary.0.join("impresari-context-mcp");
         fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
         fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
             .expect("source fixture");
         let source_before = fs::read(root.0.join("source.ts")).expect("source before");
@@ -2352,6 +2374,7 @@ mod tests {
         let config_root = TestRoot::new("managed-reject-config");
         let binary_path = binary.0.join("impresari-context-mcp");
         fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
         let target = config_root.0.join("claude.json");
         fs::write(&target, "{not json").expect("malformed fixture");
         let command = vec![
