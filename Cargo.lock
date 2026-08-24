@@ -244,6 +244,7 @@ dependencies = [
  "context-engine",
  "context-session",
  "context-store",
+ "context-structural",
  "context-workspace",
  "serde",
  "serde_json",
