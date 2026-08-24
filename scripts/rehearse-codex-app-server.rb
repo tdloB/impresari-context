@@ -29,6 +29,7 @@ options = {
   codex: DEFAULT_CODEX,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   cli: ROOT.join("target/debug/impresari-context").to_s,
+  project_config: false,
 }
 
 OptionParser.new do |parser|
@@ -36,6 +37,9 @@ OptionParser.new do |parser|
   parser.on("--codex PATH", "Codex CLI executable") { |value| options[:codex] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
   parser.on("--cli PATH", "Impresari CLI executable") { |value| options[:cli] = value }
+  parser.on("--project-config", "Load the temporary project's .codex/config.toml instead of one-use overrides") do
+    options[:project_config] = true
+  end
 end.parse!
 
 [options[:codex], options[:mcp], options[:cli]].each do |path|
@@ -168,7 +172,6 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
   FileUtils.mkdir_p([workspace, direct_mcp_cache, codex_mcp_cache, cli_cache])
   fixture = File.join(workspace, "probe.ts")
   File.write(fixture, "export const __impresari_codex_conformance_probe__ = true;\n")
-  before = source_digest(workspace)
 
   direct_server_args = [
     "--workspace", workspace,
@@ -179,15 +182,32 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
   ]
   codex_server_args = direct_server_args.dup
   codex_server_args[codex_server_args.index(direct_mcp_cache)] = codex_mcp_cache
+  if options[:project_config]
+    config_directory = File.join(workspace, ".codex")
+    FileUtils.mkdir_p(config_directory)
+    config_path = File.join(config_directory, "config.toml")
+    File.write(config_path, <<~TOML)
+      [mcp_servers.#{SERVER}]
+      command = #{options[:mcp].to_json}
+      args = #{codex_server_args.to_json}
+      enabled = true
+      required = true
+    TOML
+  end
+  before = source_digest(workspace)
   direct_packet = direct_mcp_packet(options[:mcp], direct_server_args)
-  config = [
-    "mcp_servers.#{SERVER}.command=#{options[:mcp].to_json}",
-    "mcp_servers.#{SERVER}.args=#{codex_server_args.to_json}",
-    "mcp_servers.#{SERVER}.enabled=true",
-    "mcp_servers.#{SERVER}.required=true",
-  ]
-  command = [options[:codex]] + config.flat_map { |entry| ["-c", entry] } + ["app-server", "--stdio"]
-  stdin, stdout, stderr, wait = Open3.popen3(*command)
+  command = if options[:project_config]
+              [options[:codex], "app-server", "--stdio"]
+            else
+              config = [
+                "mcp_servers.#{SERVER}.command=#{options[:mcp].to_json}",
+                "mcp_servers.#{SERVER}.args=#{codex_server_args.to_json}",
+                "mcp_servers.#{SERVER}.enabled=true",
+                "mcp_servers.#{SERVER}.required=true",
+              ]
+              [options[:codex]] + config.flat_map { |entry| ["-c", entry] } + ["app-server", "--stdio"]
+            end
+  stdin, stdout, stderr, wait = Open3.popen3(*command, chdir: workspace)
   stderr_buffer = +""
   stderr_reader = Thread.new { stderr.each_line { |line| stderr_buffer << line } }
 
@@ -206,7 +226,12 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
     thread_id = thread.fetch("thread").fetch("id")
     status = rpc.call("mcpServerStatus/list", { "threadId" => thread_id, "detail" => "toolsAndAuthOnly" })
     status_json = JSON.generate(status)
-    raise "Codex did not expose the dedicated MCP server" unless status_json.include?(SERVER)
+    unless status_json.include?(SERVER)
+      detail = options[:project_config] ?
+        "Codex did not load the temporary project configuration; trust the project through Codex before claiming project-scope admission" :
+        "Codex did not expose the dedicated MCP server"
+      raise detail
+    end
 
     open = tool_payload(rpc.call("mcpServer/tool/call", {
       "server" => SERVER,
@@ -270,6 +295,7 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
     puts JSON.generate({
       "status" => "passed",
       "codex" => options[:codex],
+      "configuration_source" => options[:project_config] ? "temporary_project" : "one_use_override",
       "server" => SERVER,
       "packet_id" => packet_id,
       "source_immutable" => true,
