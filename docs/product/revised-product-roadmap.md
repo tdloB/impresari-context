@@ -16,7 +16,7 @@ silently broaden the authority boundary.
 | 0 | Correct public language/client contract and read-only doctor | Complete |
 | 1 | Python and configuration evidence; first-class Codex, Claude Code, and Cursor kits | In progress: Python, narrow strict-JSON, bounded JSONC, bounded TOML, deliberately bounded YAML, and non-mutating generic preadmission kits for Codex, Claude Code, and Cursor complete. Codex has deterministic App Server lifecycle/packet evidence; Claude Code has a real temporary-config lifecycle record; Cursor has authenticated temporary-configuration discovery without approval. All first-class admissions remain pending. |
 | 2 | Rust and Go structural evidence; broader agent access | In progress: Rust and Go complete; generic, non-mutating preadmission guides and validators for Gemini CLI, GitHub Copilot CLI, and VS Code Copilot complete. Copilot has one isolated temporary-config session-open record; Gemini normal-client testing is blocked by its current free-tier service; real-client admission remains pending. |
-| 3 | Deterministic context planner | Approved; not started |
+| 3 | Deterministic context planner | In progress: profile-bound deterministic plans, coverage/omission reporting, exact plan and packet identities, CLI, and MCP support are implemented; structural, change-set, associated-test, and configuration-to-code planner adapters remain explicitly unavailable. |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Approved; not started |
 | 5 | Demand-led language expansion | Approved; not started |
 

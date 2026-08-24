@@ -17,7 +17,7 @@ use context_core::{
 };
 use context_engine::{
     ContextPlan, ContextPlanStep, EngineConfig, EngineError, LocalEngine, QueryKind,
-    RequestContext, SnapshotStatus,
+    RequestContext, SnapshotStatus, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -36,6 +36,7 @@ Usage:\n\
   impresari-context [global-options] snapshot status <root> <cache-root> <expected-snapshot>\n\
   impresari-context [global-options] search <root> <cache-root> <exact_path|filename|literal|lexical> <query>\n\
   impresari-context [global-options] context build <root> <cache-root> <kind> <query> <purpose>\n\
+  impresari-context [global-options] context profile-build <root> <cache-root> <profile> <query>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -216,6 +217,17 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context build", &result)
+        }
+        ["context", "profile-build", root, cache, profile, query] => {
+            let profile = parse_task_profile(profile)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_context(
+                &contexts.next(profile_purpose(profile)),
+                profile,
+                query,
+                default_budget(),
+            )?;
+            Output::new("context profile-build", &result)
         }
         [
             "structure",
@@ -924,6 +936,35 @@ fn parse_kind(value: &str) -> Result<QueryKind, EngineError> {
     }
 }
 
+fn parse_task_profile(value: &str) -> Result<TaskProfile, EngineError> {
+    match value {
+        "orientation" => Ok(TaskProfile::Orientation),
+        "implementation" => Ok(TaskProfile::Implementation),
+        "bug_investigation" => Ok(TaskProfile::BugInvestigation),
+        "change_review" => Ok(TaskProfile::ChangeReview),
+        "security_review" => Ok(TaskProfile::SecurityReview),
+        "test_selection" => Ok(TaskProfile::TestSelection),
+        "configuration_change" => Ok(TaskProfile::ConfigurationChange),
+        _ => Err(synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid deterministic context profile",
+        )),
+    }
+}
+
+const fn profile_purpose(profile: TaskProfile) -> &'static str {
+    match profile {
+        TaskProfile::Orientation => "orientation",
+        TaskProfile::Implementation => "implementation",
+        TaskProfile::BugInvestigation => "bug_investigation",
+        TaskProfile::ChangeReview => "change_review",
+        TaskProfile::SecurityReview => "security_review",
+        TaskProfile::TestSelection => "test_selection",
+        TaskProfile::ConfigurationChange => "configuration_change",
+    }
+}
+
 fn parse_edge_kinds(value: &str) -> Result<Vec<String>, EngineError> {
     if value == "all" {
         return Ok(Vec::new());
@@ -1276,6 +1317,38 @@ mod tests {
         assert_eq!(
             cli_value,
             serde_json::to_value(direct).expect("direct JSON")
+        );
+    }
+
+    #[test]
+    fn cli_profile_build_returns_an_auditable_deterministic_plan() {
+        let source = TestRoot::new("profile-source");
+        let cache = TestRoot::new("profile-cache");
+        fs::write(
+            source.0.join("settings.toml"),
+            b"feature_name = \"planner\"\n",
+        )
+        .expect("source");
+        let before = fs::read(source.0.join("settings.toml")).expect("before");
+        let (code, result) = invoke(
+            &[
+                "context".into(),
+                "profile-build".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                "configuration_change".into(),
+                "feature_name".into(),
+            ],
+            "profilecli",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(result["schema_name"], "profiled-context-packet");
+        assert_eq!(result["plan"]["schema_name"], "deterministic-context-plan");
+        assert_eq!(result["plan"]["task_profile"], "configuration_change");
+        assert!(result["packet"]["packet_id"].as_str().is_some());
+        assert_eq!(
+            fs::read(source.0.join("settings.toml")).expect("after"),
+            before
         );
     }
 

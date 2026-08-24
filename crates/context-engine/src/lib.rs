@@ -35,6 +35,7 @@ use context_workspace::{
     WorkspaceSnapshot,
 };
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 
 const CONTRACT_VERSION: &str = "1.0.0";
 const ENGINE_VERSION: &str = "0.1.0";
@@ -155,6 +156,122 @@ pub struct ContextPlanStep {
 pub struct ContextPlan {
     /// Ordered retrieval steps. V1 accepts between one and eight.
     pub steps: Vec<ContextPlanStep>,
+}
+
+/// Declared deterministic context-planning profile.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TaskProfile {
+    /// Establish repository orientation from bounded filename and lexical evidence.
+    Orientation,
+    /// Gather implementation-relevant exact textual evidence.
+    Implementation,
+    /// Gather bounded literal and lexical evidence for an observed defect.
+    BugInvestigation,
+    /// Gather bounded review evidence; change-set semantics remain explicit when unavailable.
+    ChangeReview,
+    /// Gather bounded security-review evidence without claiming reachability.
+    SecurityReview,
+    /// Gather bounded test-selection evidence without claiming test association.
+    TestSelection,
+    /// Gather bounded configuration-change evidence without runtime inference.
+    ConfigurationChange,
+}
+
+/// A named evidence class accounted for by the deterministic planner.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PlannerEvidenceClass {
+    /// Exact relative-path lookup.
+    ExactPath,
+    /// Filename or display-path retrieval.
+    Filename,
+    /// Exact source-byte retrieval.
+    Literal,
+    /// Lexical candidates followed by source verification.
+    Lexical,
+    /// Structural relationship traversal.
+    StructuralRelationship,
+    /// Change-set-derived evidence.
+    ChangeSet,
+    /// Associated-test evidence.
+    AssociatedTest,
+    /// Exact configuration-to-code relationship evidence.
+    ConfigurationToCodeReference,
+}
+
+/// One selected deterministic retrieval step and its stable selection reason.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannedContextStep {
+    /// Bounded retrieval operation.
+    pub step: ContextPlanStep,
+    /// Stable profile rule that selected this operation.
+    pub reason_code: String,
+}
+
+/// Availability of one planner evidence class.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannerCoverage {
+    /// Evidence class being reported.
+    pub evidence_class: PlannerEvidenceClass,
+    /// `available` or `unavailable` for this planner implementation.
+    pub status: String,
+    /// Stable reason for availability or omission.
+    pub reason_code: String,
+}
+
+/// A candidate deliberately omitted from a deterministic plan or packet.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PlannerOmission {
+    /// Stable candidate category; never source content.
+    pub candidate: String,
+    /// Stable omission reason.
+    pub reason_code: String,
+    /// Number of omitted candidates when a bounded packet reports a count.
+    pub count: String,
+}
+
+/// Auditable deterministic retrieval plan bound to a snapshot and policy decision.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeterministicContextPlan {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Exact plan identity.
+    pub plan_id: String,
+    /// Declared profile used to select the plan.
+    pub task_profile: TaskProfile,
+    /// Snapshot to which this plan is bound.
+    pub workspace_snapshot: String,
+    /// Policy decision used by the eventual packet build.
+    pub policy_decision: String,
+    /// Selected retrieval operations in execution order.
+    pub steps: Vec<PlannedContextStep>,
+    /// Complete inventory of currently available and unavailable evidence classes.
+    pub coverage: Vec<PlannerCoverage>,
+    /// Profile candidates omitted before retrieval.
+    pub omitted_candidates: Vec<PlannerOmission>,
+}
+
+/// One deterministic plan together with its exact, bounded context packet.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct ProfiledContextPacket {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Retrieval plan used to build the packet.
+    pub plan: DeterministicContextPlan,
+    /// Immutable packet identity and evidence selected under the supplied budget.
+    pub packet: ContextPacket,
+    /// Additional omissions caused while packaging bounded evidence.
+    pub omitted_candidates: Vec<PlannerOmission>,
 }
 
 /// Public bounded search result.
@@ -937,6 +1054,95 @@ impl LocalEngine {
         )
     }
 
+    /// Builds one bounded packet from a declared deterministic task profile.
+    ///
+    /// The profile selects only documented retrieval rules. It does not inspect
+    /// repository text, call a model, execute code, or add authority. The
+    /// returned plan is bound to the exact snapshot and policy decision that
+    /// produced the returned packet.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured policy, stale-state, plan, retrieval, packet, or
+    /// audit failure.
+    pub fn build_profiled_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self.build_profiled_context_internal(
+            context,
+            profile,
+            query,
+            budget,
+            &decision.decision_id,
+            started,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    fn build_profiled_context_internal(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        budget: ResourceBudget,
+        policy_decision: &str,
+        started: Instant,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        let plan = deterministic_plan(profile, query, &snapshot.snapshot_id, policy_decision)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let packet = self.build_planned_context_internal(
+            context,
+            &ContextPlan {
+                steps: plan.steps.iter().map(|item| item.step.clone()).collect(),
+            },
+            budget,
+            policy_decision,
+            started,
+        )?;
+        let mut omitted_candidates = Vec::new();
+        if packet.accounting.omitted_items != "0" {
+            omitted_candidates.push(PlannerOmission {
+                candidate: "retrieved_evidence".into(),
+                reason_code: "evidence_budget".into(),
+                count: packet.accounting.omitted_items.clone(),
+            });
+        }
+        Ok(ProfiledContextPacket {
+            schema_name: "profiled-context-packet".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            plan,
+            packet,
+            omitted_candidates,
+        })
+    }
+
     /// Builds one packet from an ordered, bounded set of deterministic retrieval
     /// strategies. Exact evidence is deduplicated by identity before packaging;
     /// empty and limited steps remain visible as unknowns and truncations.
@@ -1690,6 +1896,204 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
         parse(&budget.max_memory_bytes)?,
     )
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn deterministic_plan(
+    profile: TaskProfile,
+    query: &str,
+    snapshot_id: &str,
+    policy_decision: &str,
+) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
+    if query.is_empty() || query.len() > 4_096 || query.contains('\0') {
+        return Err(context_core::CoreErrorCode::InvalidInput);
+    }
+    let mut omitted_candidates = Vec::new();
+    let steps = match profile {
+        TaskProfile::Orientation => vec![
+            planned_step(QueryKind::Filename, query, "profile_orientation_filename"),
+            planned_step(QueryKind::Lexical, query, "profile_orientation_lexical"),
+        ],
+        TaskProfile::Implementation => vec![
+            planned_step(QueryKind::Lexical, query, "profile_implementation_lexical"),
+            planned_step(QueryKind::Literal, query, "profile_implementation_literal"),
+        ],
+        TaskProfile::BugInvestigation => vec![
+            planned_step(
+                QueryKind::Literal,
+                query,
+                "profile_bug_investigation_literal",
+            ),
+            planned_step(
+                QueryKind::Lexical,
+                query,
+                "profile_bug_investigation_lexical",
+            ),
+        ],
+        TaskProfile::ChangeReview => {
+            omitted_candidates.push(planner_omission(
+                "change_set",
+                "change_set_evidence_unavailable",
+            ));
+            vec![
+                planned_step(QueryKind::Filename, query, "profile_change_review_filename"),
+                planned_step(QueryKind::Lexical, query, "profile_change_review_lexical"),
+            ]
+        }
+        TaskProfile::SecurityReview => {
+            omitted_candidates.push(planner_omission(
+                "structural_relationship",
+                "structural_relationship_evidence_not_connected",
+            ));
+            vec![
+                planned_step(QueryKind::Literal, query, "profile_security_review_literal"),
+                planned_step(QueryKind::Lexical, query, "profile_security_review_lexical"),
+            ]
+        }
+        TaskProfile::TestSelection => {
+            omitted_candidates.push(planner_omission(
+                "associated_test",
+                "associated_test_evidence_unavailable",
+            ));
+            vec![
+                planned_step(
+                    QueryKind::Filename,
+                    query,
+                    "profile_test_selection_filename",
+                ),
+                planned_step(QueryKind::Lexical, query, "profile_test_selection_lexical"),
+            ]
+        }
+        TaskProfile::ConfigurationChange => {
+            omitted_candidates.push(planner_omission(
+                "configuration_to_code_reference",
+                "configuration_to_code_reference_unavailable",
+            ));
+            vec![
+                planned_step(
+                    QueryKind::Filename,
+                    query,
+                    "profile_configuration_change_filename",
+                ),
+                planned_step(
+                    QueryKind::Literal,
+                    query,
+                    "profile_configuration_change_literal",
+                ),
+            ]
+        }
+    };
+    let mut plan = DeterministicContextPlan {
+        schema_name: "deterministic-context-plan".into(),
+        schema_version: CONTRACT_VERSION.into(),
+        plan_id: format!("sha256:{}", "0".repeat(64)),
+        task_profile: profile,
+        workspace_snapshot: snapshot_id.to_owned(),
+        policy_decision: policy_decision.to_owned(),
+        steps,
+        coverage: planner_coverage(),
+        omitted_candidates,
+    };
+    plan.plan_id = deterministic_plan_identity(&plan)?;
+    Ok(plan)
+}
+
+fn planned_step(kind: QueryKind, query: &str, reason_code: &str) -> PlannedContextStep {
+    PlannedContextStep {
+        step: ContextPlanStep {
+            kind,
+            query: query.to_owned(),
+        },
+        reason_code: reason_code.into(),
+    }
+}
+
+fn planner_omission(candidate: &str, reason_code: &str) -> PlannerOmission {
+    PlannerOmission {
+        candidate: candidate.into(),
+        reason_code: reason_code.into(),
+        count: "1".into(),
+    }
+}
+
+fn planner_coverage() -> Vec<PlannerCoverage> {
+    vec![
+        planner_coverage_item(
+            PlannerEvidenceClass::ExactPath,
+            "available",
+            "exact_path_available",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::Filename,
+            "available",
+            "filename_available",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::Literal,
+            "available",
+            "literal_available",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::Lexical,
+            "available",
+            "lexical_available",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::StructuralRelationship,
+            "unavailable",
+            "structural_relationship_evidence_not_connected",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::ChangeSet,
+            "unavailable",
+            "change_set_evidence_unavailable",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::AssociatedTest,
+            "unavailable",
+            "associated_test_evidence_unavailable",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::ConfigurationToCodeReference,
+            "unavailable",
+            "configuration_to_code_reference_unavailable",
+        ),
+    ]
+}
+
+fn planner_coverage_item(
+    evidence_class: PlannerEvidenceClass,
+    status: &str,
+    reason_code: &str,
+) -> PlannerCoverage {
+    PlannerCoverage {
+        evidence_class,
+        status: status.into(),
+        reason_code: reason_code.into(),
+    }
+}
+
+fn deterministic_plan_identity(
+    plan: &DeterministicContextPlan,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(plan).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("plan_id");
+    let canonical = serde_json_canonicalizer::to_vec(&projected)
+        .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0deterministic-context-plan\0");
+    hasher.update(CONTRACT_VERSION.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(canonical);
+    let mut identity = String::from("sha256:");
+    for byte in hasher.finalize() {
+        use fmt::Write as _;
+        write!(identity, "{byte:02x}").expect("string write");
+    }
+    Ok(identity)
 }
 
 fn bound_search_response(
@@ -2749,6 +3153,82 @@ mod tests {
         validate_packet(&packet).expect("valid planned packet");
         assert_eq!(packet.observed_evidence.len(), 1, "deduplicated evidence");
         assert!(packet.unknowns.contains(&"plan_step_2_no_evidence".into()));
+    }
+
+    #[test]
+    fn profiled_context_is_deterministic_and_reports_unavailable_evidence() {
+        let source = TestRoot::new("profiled-source");
+        let first_cache = TestRoot::new("profiled-first-cache");
+        let second_cache = TestRoot::new("profiled-second-cache");
+        fs::write(
+            source.0.join("review.rs"),
+            b"pub fn reviewed_change() { verify_change(); }\n",
+        )
+        .expect("source");
+        let config_for = |cache_root: PathBuf| EngineConfig {
+            cache_root,
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let profile_request = request(3, "change_review");
+        let (mut first_engine, _) = LocalEngine::open(
+            config_for(first_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("first open");
+        first_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("first snapshot");
+        let first = first_engine
+            .build_profiled_context(
+                &profile_request,
+                TaskProfile::ChangeReview,
+                "reviewed_change",
+                budget(),
+            )
+            .expect("first profiled packet");
+        drop(first_engine);
+
+        let (mut second_engine, _) = LocalEngine::open(
+            config_for(second_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("second open");
+        second_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("second snapshot");
+        let second = second_engine
+            .build_profiled_context(
+                &profile_request,
+                TaskProfile::ChangeReview,
+                "reviewed_change",
+                budget(),
+            )
+            .expect("second profiled packet");
+
+        assert_eq!(first.plan, second.plan);
+        assert_eq!(first.packet.packet_id, second.packet.packet_id);
+        assert_schema("deterministic-context-plan.schema.json", &first.plan);
+        assert!(first.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::ChangeSet
+                && coverage.status == "unavailable"
+                && coverage.reason_code == "change_set_evidence_unavailable"
+        }));
+        assert!(first.plan.omitted_candidates.iter().any(|omission| {
+            omission.candidate == "change_set"
+                && omission.reason_code == "change_set_evidence_unavailable"
+        }));
+        assert!(
+            first
+                .plan
+                .steps
+                .iter()
+                .all(|step| !step.reason_code.is_empty())
+        );
+        validate_packet(&first.packet).expect("valid profiled packet");
     }
 
     #[test]
