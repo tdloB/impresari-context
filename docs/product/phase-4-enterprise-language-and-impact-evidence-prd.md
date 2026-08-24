@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java and Kotlin accepted; C# structural admission underway
+- Status: In progress: Java, Kotlin, and C# accepted; structural-impact planner implementation underway
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
