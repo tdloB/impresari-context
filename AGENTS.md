@@ -4,6 +4,13 @@ The founder directs Codex to continue all accepted Impresari Context roadmap wor
 
 - Treat design, implementation, local quality gates, pull-request creation, CI monitoring, failure remediation, merge, and transition to the next accepted milestone as one continuous workflow.
 - Do not stop, ask for confirmation, or issue a final handoff merely because an ordinary milestone completes.
+- A pending CI run, queued hosted job, successful local gate, open pull request,
+  or ordinary rebase is not a stopping condition. Continue with independent
+  accepted work while it runs; when the external condition clears, resume its
+  merge and the next milestone without waiting for a new user message.
+- Do not issue a final response that says no user action is needed while
+  accepted, executable roadmap work remains. In that situation, keep working
+  and use concise progress commentary instead.
 - Stop only for a required manual user action, an unavoidable platform approval, an unresolved technical failure after safe in-scope alternatives, or completion of all accepted roadmap work.
 - Do not infer approval for a materially new product scope. If no accepted milestone remains, complete all non-dependent work and state the precise product decision needed to continue.
 - Keep the user informed with concise progress updates while work is active.
