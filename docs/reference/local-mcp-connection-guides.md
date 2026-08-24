@@ -144,7 +144,10 @@ On a signed-in Cursor Agent CLI, `agent mcp list` reports the configured
 server's source and transport, and `agent mcp list-tools <identifier>` lists
 its available tools. Those are read-only inspection steps. Do not use
 `agent mcp enable` or `agent mcp disable` as part of this kit: they change
-Cursor's local approval state.
+Cursor's local approval state. An isolated project configuration has been
+discovered by Cursor Agent CLI `3.17.8` on macOS aarch64 without enabling the
+server; the evidence and remaining admission gaps are in the [Phase 1 Cursor
+kit record](../verification/phase-1-cursor-connection-kit.md).
 
 ## What these guides do not establish
 
@@ -152,7 +155,8 @@ These guides do not yet establish a maintained version range, supported OS
 matrix per client, clean-install behavior, configuration-parser conformance, or
 safe automated removal. Codex has deterministic direct-tool and packet
 evidence; Claude Code has one real-client, model-directed lifecycle record;
-Cursor has pre-admission validation only. The [compatibility
+Cursor has authenticated temporary-configuration discovery but no approved
+tool lifecycle. The [compatibility
 matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
 local MCP** category.
 
