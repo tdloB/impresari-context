@@ -2349,6 +2349,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         {
             Some(StructuralLanguage::Kotlin)
         }
+        Some(extension) if extension.eq_ignore_ascii_case("cs") => Some(StructuralLanguage::CSharp),
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension) if extension.eq_ignore_ascii_case("toml") => Some(StructuralLanguage::Toml),
@@ -2414,6 +2415,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
+        StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2858,6 +2860,18 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Kotlin),
             "tree-sitter-kotlin-ng-1.1.0"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_csharp() {
+        assert_eq!(
+            structural_language("src/Service.cs"),
+            Some(StructuralLanguage::CSharp)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::CSharp),
+            "tree-sitter-c-sharp-0.23.5"
         );
     }
 
