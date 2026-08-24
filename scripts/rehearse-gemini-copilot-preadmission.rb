@@ -21,6 +21,7 @@ options = {
   gemini: "gemini",
   copilot: "copilot",
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
+  malformed_copilot_config_only: false,
 }
 
 OptionParser.new do |parser|
@@ -29,6 +30,9 @@ OptionParser.new do |parser|
   parser.on("--skip-gemini", "Skip Gemini discovery after an external client failure") { options[:gemini] = nil }
   parser.on("--copilot PATH", "Copilot CLI executable") { |value| options[:copilot] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
+  parser.on("--malformed-copilot-config-only", "Verify Copilot rejects malformed temporary MCP configuration") do
+    options[:malformed_copilot_config_only] = true
+  end
 end.parse!
 
 abort("missing executable: #{options[:mcp]}") unless File.file?(options[:mcp]) && File.executable?(options[:mcp])
@@ -63,10 +67,41 @@ Dir.mktmpdir("impresari-gemini-copilot-preadmission-") do |temporary|
     "mcpServers" => { SERVER => entry.merge("trust" => false, "includeTools" => TOOLS) },
   }))
   copilot_config = File.join(temporary, "copilot-mcp.json")
+  malformed_copilot_config = File.join(temporary, "malformed-copilot-mcp.json")
   File.write(copilot_config, JSON.generate({
     "mcpServers" => { SERVER => entry.merge("type" => "local", "tools" => TOOLS) },
   }))
   before = tree_digest(workspace)
+  File.write(malformed_copilot_config, "{\"mcpServers\":")
+  malformed_stdout, malformed_stderr, malformed_status = Open3.capture3(
+    options[:copilot],
+    "--additional-mcp-config", "@#{malformed_copilot_config}",
+    "--disable-builtin-mcps",
+    "--no-remote",
+    "--no-auto-update",
+    "--no-custom-instructions",
+    "--log-dir", temporary,
+    "--output-format", "json",
+    "--prompt", "Do not call any tool.",
+    chdir: workspace,
+  )
+  if malformed_status.success?
+    abort("Copilot accepted malformed temporary MCP configuration")
+  end
+  malformed_output = "#{malformed_stdout}\n#{malformed_stderr}"
+  if malformed_output.include?("__impresari_agent_probe__")
+    abort("Copilot malformed configuration diagnostic exposed fixture source")
+  end
+  abort("temporary workspace was altered during malformed Copilot configuration rehearsal") unless before == tree_digest(workspace)
+  if options[:malformed_copilot_config_only]
+    puts JSON.generate({
+      "status" => "passed",
+      "copilot_malformed_configuration_rejected" => true,
+      "workspace_immutable_after_configuration" => true,
+      "persistent_mcp_configuration_changed" => false,
+    })
+    next
+  end
   gemini_discovered = false
   unless options[:gemini].nil?
     gemini = run(
@@ -101,6 +136,7 @@ Dir.mktmpdir("impresari-gemini-copilot-preadmission-") do |temporary|
     "status" => "passed",
     "gemini_discovered": gemini_discovered,
     "copilot_discovered": true,
+    "copilot_malformed_configuration_rejected": true,
     "workspace_immutable_after_configuration" => true,
     "persistent_mcp_configuration_changed" => false,
   })
