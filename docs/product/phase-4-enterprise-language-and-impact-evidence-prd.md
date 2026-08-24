@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java, Kotlin, and C# accepted; structural-impact planner implementation candidate in verification
+- Status: In progress: Java, Kotlin, C#, and bounded structural-impact planner accepted; declared change-set packets implementation underway
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
@@ -22,7 +22,8 @@ Each language and impact capability requires isolated parser, resolver,
 evaluation, and authority-boundary evidence. No compiler, language server,
 repository-code execution, or opaque semantic claim is implied.
 
-The current structural-impact implementation is governed by the separate
-[delivery record](phase-4-structural-impact-planner-prd.md). The full local
-release gate has passed; acceptance remains contingent on hosted release gates.
-Subsequent impact capabilities require separate admission records.
+The bounded structural-impact planner is accepted with its own
+[delivery record](phase-4-structural-impact-planner-prd.md). The current
+declared change-set packet implementation is governed by its separate
+[delivery record](phase-4-declared-change-set-packets-prd.md). Subsequent
+impact capabilities require separate admission records.
