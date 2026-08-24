@@ -38,6 +38,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0030](0030-java-structural-language-admission.md) | Pinned Java Tree-sitter structural facts without compiler or classpath resolution authority | Accepted |
 | [ADR-0031](0031-kotlin-structural-language-admission.md) | Pinned Kotlin Tree-sitter structural facts without compiler or Gradle resolution authority | Accepted |
 | [ADR-0032](0032-csharp-structural-language-admission.md) | Pinned C# Tree-sitter structural facts without compiler, MSBuild, or project-resolution authority | Accepted |
+| [ADR-0033](0033-structural-impact-planner-admission.md) | Bind structural-impact planner evidence only to validated current-snapshot graphs | Accepted for implementation |
 
 ## Change Rules
 
