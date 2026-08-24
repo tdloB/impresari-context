@@ -1,6 +1,6 @@
 # Impresari Context — Phase 3: Deterministic Context Planner PRD
 
-- Status: Approved; initial implementation in progress
+- Status: Complete (approved initial scope)
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 

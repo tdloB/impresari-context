@@ -28,6 +28,7 @@ scrutiny than test-only dependencies.
 | `tree-sitter` | 0.26.12 | `context-structural` worker only | `std`; defaults disabled; WASM disabled | MIT | Upstream 1.77; project Rust 1.96 gate required | Bounded concrete-syntax parsing behind the ADR-0010 process boundary |
 | `tree-sitter-javascript` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned JavaScript/JSX grammar |
 | `tree-sitter-go` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Go grammar |
+| `tree-sitter-java` | 0.23.5 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Java grammar |
 | `tree-sitter-json` | 0.24.8 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned strict-JSON grammar |
 | `tree-sitter-python` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Python grammar |
 | `tree-sitter-rust` | 0.24.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Rust grammar |

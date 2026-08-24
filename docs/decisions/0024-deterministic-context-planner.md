@@ -1,6 +1,6 @@
 # ADR-0024: Deterministic Context Planner
 
-- Status: Accepted; initial implementation in progress
+- Status: Accepted; approved initial scope implemented
 - Date: 2026-08-23
 - Scope: Phase 3 deterministic evidence-selection layer
 
