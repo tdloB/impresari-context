@@ -1,6 +1,6 @@
 # Phase 4 Kotlin structural-evidence verification
 
-- Status: Local release gate passed; hosted admission pending
+- Status: Accepted
 - Governing records: [Kotlin delivery record](../product/phase-4-kotlin-structural-admission-prd.md) and [ADR-0031](../decisions/0031-kotlin-structural-language-admission.md)
 
 ## Admitted local behavior
@@ -28,7 +28,10 @@ intentionally not claimed.
   SBOM (191 packages), evaluation and scale checks, cache restart, formatting,
   clippy, all unit/integration tests, and documentation tests.
 
-## Admission requirement
+## Hosted admission
 
-Run the full release gate, then require hosted macOS, Linux, Windows, fuzzing,
-static-analysis, and dependency-security checks before marking Kotlin accepted.
+PR #41 passed the required hosted macOS, Linux (Rust 1.96, 1.97, and 1.98),
+Windows, fuzzing, CodeQL static-analysis, and dependency-security/license checks
+on 2026-08-24. It was squash-merged as
+`dc774500639763f3bfd7d8a3298c3054ae523c0e`. No authority-boundary change was
+required by the hosted evidence.
