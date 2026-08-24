@@ -1,6 +1,6 @@
 # ADR-0032: C# structural-language admission
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-24
 - Scope: Phase 4 C# admission to the isolated structural worker
 

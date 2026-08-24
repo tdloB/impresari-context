@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: C# Structural Admission
 
-- Status: In progress
+- Status: Accepted
 - Date: 2026-08-24
 - Approved by: Founder (via the approved Phase 4 roadmap)
 - Roadmap role: Third bounded language-admission slice within Phase 4.
@@ -32,4 +32,4 @@ source-write authority.
 - Tests prove the bounded C# subset and fail-closed behavior.
 - The full policy, contract, evaluation, SBOM, format, test, and lint gate passes.
 - Hosted macOS, Linux, Windows, fuzzing, static-analysis, and dependency checks
-  pass before admission.
+  passed before admission on 2026-08-24.
