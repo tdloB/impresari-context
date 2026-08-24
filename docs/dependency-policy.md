@@ -30,6 +30,7 @@ scrutiny than test-only dependencies.
 | `tree-sitter-go` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Go grammar |
 | `tree-sitter-java` | 0.23.5 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Java grammar |
 | `tree-sitter-json` | 0.24.8 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned strict-JSON grammar |
+| `tree-sitter-kotlin-ng` | 1.1.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Kotlin grammar |
 | `tree-sitter-python` | 0.25.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Python grammar |
 | `tree-sitter-rust` | 0.24.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Rust grammar |
 | `tree-sitter-toml-ng` | 0.7.0 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned TOML grammar; native parser remains inside the isolated worker |

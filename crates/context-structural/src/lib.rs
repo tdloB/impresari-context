@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -44,6 +44,8 @@ pub enum StructuralLanguage {
     Python,
     /// Java source.
     Java,
+    /// Kotlin source.
+    Kotlin,
     /// Strict JSON configuration source.
     Json,
     /// JSON with comments configuration source.
@@ -1565,6 +1567,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::JavaScript | StructuralLanguage::Jsx => "tree-sitter-javascript-0.25.0",
         StructuralLanguage::Python => "tree-sitter-python-0.25.0",
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
+        StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -1586,6 +1589,7 @@ fn language(language: StructuralLanguage) -> Language {
         }
         StructuralLanguage::Python => tree_sitter_python::LANGUAGE.into(),
         StructuralLanguage::Java => tree_sitter_java::LANGUAGE.into(),
+        StructuralLanguage::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         StructuralLanguage::Yaml => tree_sitter_yaml::LANGUAGE.into(),
@@ -1691,8 +1695,25 @@ fn fact_for_node(
         | "class_definition"
         | "method_declaration"
         | "constructor_declaration"
-        | "type_spec"
-        | "type_alias" => {
+        | "type_spec" => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "type_alias" if request.language == StructuralLanguage::Kotlin => {
+            let name = node
+                .child_by_field_name("type")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "type_alias" => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "object_declaration" if request.language == StructuralLanguage::Kotlin => {
             let name = node
                 .child_by_field_name("name")
                 .and_then(|value| text(value, source));
@@ -1774,6 +1795,10 @@ fn fact_for_node(
             let module = java_import_module(node, source)?;
             (FactClass::Import, None, Some(module))
         }
+        "import" if request.language == StructuralLanguage::Kotlin => {
+            let module = kotlin_import_module(node, source)?;
+            (FactClass::Import, None, Some(module))
+        }
         "export_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1785,7 +1810,9 @@ fn fact_for_node(
             (FactClass::Export, name, module)
         }
         "call_expression" | "call" => {
-            let function = node.child_by_field_name("function")?;
+            let function = node.child_by_field_name("function").or_else(|| {
+                (request.language == StructuralLanguage::Kotlin).then(|| node.named_child(0))?
+            })?;
             let name = if function.kind() == "identifier" {
                 text(function, source)
             } else {
@@ -1866,6 +1893,7 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "constructor_declaration"
                     | "type_spec"
                     | "type_alias"
+                    | "object_declaration"
                     | "struct_item"
                     | "enum_item"
                     | "union_item"
@@ -1881,6 +1909,7 @@ fn is_call_callee(node: Node<'_>) -> bool {
     node.parent().is_some_and(|parent| match parent.kind() {
         "call_expression" => parent
             .child_by_field_name("function")
+            .or_else(|| parent.named_child(0))
             .is_some_and(|candidate| candidate.id() == node.id()),
         "method_invocation" => parent
             .child_by_field_name("name")
@@ -1908,6 +1937,13 @@ fn java_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
         .strip_suffix(';')?
         .trim();
     (!module.starts_with("static ") && !module.ends_with(".*")).then(|| module.to_owned())
+}
+
+fn kotlin_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
+    let declaration = text(node, source)?;
+    let module = declaration.trim().strip_prefix("import")?.trim();
+    let module = module.strip_suffix(';').unwrap_or(module).trim();
+    (!module.ends_with(".*") && !module.contains(" as ")).then(|| module.to_owned())
 }
 
 fn json_string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2019,6 +2055,7 @@ mod tests {
             }
             StructuralLanguage::Python => "tree-sitter-python-0.25.0",
             StructuralLanguage::Java => "tree-sitter-java-0.23.5",
+            StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
             StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2510,6 +2547,59 @@ public record Service(List<String> values) {
     }
 
     #[test]
+    fn extracts_bounded_kotlin_declarations_imports_calls_and_references() {
+        let source = br"package example
+
+import example.support.Helper
+import example.support.*
+import example.tools.Helper as RenamedHelper
+
+typealias Alias = String
+
+class Service {
+    fun run() {
+        helper()
+        dependency.work()
+    }
+}
+
+object Registry
+
+fun helper() {}
+";
+        let output = process_request(&request(source, StructuralLanguage::Kotlin)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Alias", "Service", "Registry", "run", "helper"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Import)
+                .map(|fact| fact.module.as_deref())
+                .collect::<Vec<_>>(),
+            vec![Some("example.support.Helper")],
+            "wildcard and aliased imports are intentionally outside this admission"
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call
+                && fact.name.as_deref() == Some("helper")
+                && fact.syntax_kind == "call_expression"
+        }));
+        assert!(
+            output.facts.iter().all(|fact| {
+                fact.class != FactClass::Call || fact.name.as_deref() != Some("work")
+            })
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Reference && fact.name.as_deref() == Some("dependency")
+        }));
+    }
+
+    #[test]
     fn rejects_hash_mismatch_and_fact_limit() {
         let mut invalid = request(b"const value = 1;", StructuralLanguage::TypeScript);
         invalid.content_hash = sha256(b"other");
@@ -2543,6 +2633,13 @@ public record Service(List<String> values) {
         wrong_java_grammar.grammar_version = "tree-sitter-java-0.0.0".into();
         assert_eq!(
             process_request(&wrong_java_grammar),
+            Err(StructuralError::ContractMismatch)
+        );
+
+        let mut wrong_kotlin_grammar = request(b"class Service\n", StructuralLanguage::Kotlin);
+        wrong_kotlin_grammar.grammar_version = "tree-sitter-kotlin-ng-0.0.0".into();
+        assert_eq!(
+            process_request(&wrong_kotlin_grammar),
             Err(StructuralError::ContractMismatch)
         );
     }
