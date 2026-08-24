@@ -35,9 +35,12 @@ evidence, and unsupported/partial states. A structural row is published only
 when its pinned parser/grammar, project-owned resolver, source-provenance
 validation, security tests, and evaluation evidence are released together.
 
-The current initial structural set is TypeScript, TSX, JavaScript, and JSX.
-Other eligible UTF-8 files may receive lexical evidence but are not described
-as structurally supported until they satisfy this record and ADR-0004.
+The initial structural set at adoption was TypeScript, TSX, JavaScript, and
+JSX. The current structural inventory is published only in the versioned public
+language matrix; it is updated through the language-admission process rather
+than duplicated in this decision. Other eligible UTF-8 files may receive
+lexical evidence but are not described as structurally supported until they
+satisfy this record and ADR-0004.
 
 ### Client classifications
 
