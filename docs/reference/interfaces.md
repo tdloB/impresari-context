@@ -98,8 +98,11 @@ client is first-class.
 but report only a stable pass/fail category and remediation class. They validate
 the `impresari-context` entry's local-stdio shape, fixed argument order,
 consumer and role identifiers, and a cache value that is not a workspace child.
-They do not display, normalize, or rewrite the configuration; launch either
-client; verify the referenced binary; or claim the client is first-class.
+Cursor's documented type-less command/args stdio form and an explicit `stdio`
+type are accepted. Both validators reject environment forwarding and unrelated
+entry fields. They do not display, normalize, or rewrite the configuration;
+launch either client; verify the referenced binary; or claim the client is
+first-class.
 
 ## Local MCP process
 

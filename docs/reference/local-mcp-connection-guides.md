@@ -1,6 +1,6 @@
 # Local MCP Connection Guides
 
-- Version: 1.1
+- Version: 1.2
 - Published: 2026-08-23
 - Classification: Generic local MCP guides, not first-class integrations
 - Supported transport: local stdio only
@@ -70,11 +70,12 @@ first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/
 
 ## Claude Code
 
-Claude Code documents local stdio registration through `claude mcp add`. The
-following is a user-invoked, local-scope example:
+Claude Code documents local stdio registration through `claude mcp add`. Its
+current CLI defaults to local scope when no `--scope` is supplied; the
+following is therefore a user-invoked local-scope example:
 
 ```text
-claude mcp add impresari-context --scope local -- \
+claude mcp add --transport stdio impresari-context -- \
   /absolute/path/to/impresari-context-mcp \
   --workspace /absolute/path/to/source-workspace \
   --cache /absolute/path/to/separate-cache \
@@ -85,7 +86,9 @@ claude mcp add impresari-context --scope local -- \
 Verify with `claude mcp get impresari-context`; remove only the same entry with
 `claude mcp remove impresari-context`. Do not use a project-shared `.mcp.json`
 unless the team has separately reviewed the fixed workspace, separate cache,
-binary provenance, and source-control consequences.
+binary provenance, and source-control consequences. In particular,
+`--scope project` creates or updates `.mcp.json`; Impresari Context never runs
+that mutation on the user's behalf.
 
 When validating a JSON configuration file before use, run:
 
@@ -104,7 +107,6 @@ chosen the project scope may review an entry such as:
 {
   "mcpServers": {
     "impresari-context": {
-      "type": "stdio",
       "command": "/absolute/path/to/impresari-context-mcp",
       "args": [
         "--workspace", "${workspaceFolder}",
@@ -119,14 +121,24 @@ chosen the project scope may review an entry such as:
 
 `IMPRESARI_CONTEXT_CACHE` must resolve to an existing directory outside the
 workspace. Never set it to `${workspaceFolder}/.cache` or any other workspace
-child. Cursor's own UI can enable, disable, and remove the entry; removal must
-affect only `impresari-context` and preserve other `mcpServers` entries.
+child. The documented Cursor stdio form infers its local transport from
+`command` and `args`; the Impresari doctor accepts that form and also accepts
+an explicit `"type": "stdio"`. It rejects `env`, remote-transport, and other
+unrelated fields so the server cannot receive forwarded ambient environment.
+Cursor's own UI can enable, disable, and remove the entry; removal must affect
+only `impresari-context` and preserve other `mcpServers` entries.
 
 Before allowing Cursor to load it, run:
 
 ```text
 impresari-context doctor cursor-config <workspace-root> <separate-cache> .cursor/mcp.json
 ```
+
+On a signed-in Cursor Agent CLI, `agent mcp list` reports the configured
+server's source and transport, and `agent mcp list-tools <identifier>` lists
+its available tools. Those are read-only inspection steps. Do not use
+`agent mcp enable` or `agent mcp disable` as part of this kit: they change
+Cursor's local approval state.
 
 ## What these guides do not establish
 
@@ -139,5 +151,5 @@ Codex, Claude Code, and Cursor in the **Generic local MCP** category.
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex
 configuration basics](https://learn.chatgpt.com/docs/config-file/config-basic),
-[Claude Code MCP documentation](https://docs.anthropic.com/en/docs/claude-code/mcp),
-and [Cursor MCP documentation](https://cursor.com/docs/mcp).
+[Claude Code MCP documentation](https://code.claude.com/docs/en/mcp), and
+[Cursor MCP documentation](https://docs.cursor.com/context/model-context-protocol).

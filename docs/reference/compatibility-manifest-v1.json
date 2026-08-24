@@ -117,13 +117,17 @@
       "client": "Claude Code",
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
-      "first_class": false
+      "first_class": false,
+      "conformance": "local_stdio_config_validation",
+      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
     },
     {
       "client": "Cursor",
       "classification": "generic_local_mcp",
       "transport": "local_stdio",
-      "first_class": false
+      "first_class": false,
+      "conformance": "local_stdio_config_validation",
+      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
     },
     {
       "client": "Remote or HTTP MCP consumer",

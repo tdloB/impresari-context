@@ -57,8 +57,8 @@ loads repository configuration.
 | --- | --- | --- | --- |
 | Any client that can start a configured local stdio MCP child process | Generic local MCP | Launch `impresari-context-mcp` with fixed workspace, cache, consumer, role, and operation-time arguments. | No named client conformance or maintained configuration kit is claimed. |
 | Codex | Generic local MCP | A project-scoped, non-mutating configuration kit and read-only TOML validator are checked against Codex CLI `0.149.0-alpha.4.1` on macOS aarch64; see the [Phase 1 kit record](../verification/phase-1-codex-connection-kit.md). | Not first-class: clean-install client launch, packet-corpus equivalence through Codex, wider platform/version coverage, and entry-removal behavior still need evidence. |
-| Claude Code | Generic local MCP | May use the documented local stdio MCP process where the client can preserve the fixed launch contract. | Not first-class until a versioned kit and end-to-end conformance evidence are released. |
-| Cursor | Generic local MCP | May use the documented local stdio MCP process where the client can preserve the fixed launch contract. | Not first-class until a versioned kit and end-to-end conformance evidence are released. |
+| Claude Code | Generic local MCP | A non-mutating local-scope command and a read-only JSON shape validator preserve the fixed local-stdio contract. | No installed Claude Code CLI was available for lifecycle testing; first-class admission still requires a versioned scope/OS matrix and end-to-end conformance evidence. |
+| Cursor | Generic local MCP | A non-mutating project/global configuration guide and a read-only validator accept Cursor's documented type-less stdio entry while rejecting environment forwarding. | Cursor Agent's configuration/tool inspection surface is documented, but this host was unauthenticated; first-class admission still requires lifecycle, packet, removal, and source-immutability evidence. |
 | HTTP, remote MCP, daemon, or multi-client service consumers | Unsupported | None. | Impresari Context provides no network listener or remote transport. |
 
 **Classification meanings:**
