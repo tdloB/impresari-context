@@ -18,6 +18,7 @@
   - [Evaluation PRD](evaluation-prd.md)
   - [Phase 0: Language and Client Foundation PRD](phase-0-language-and-client-foundation-prd.md)
   - [Revised Product Roadmap](revised-product-roadmap.md)
+  - [Client Integration Depth Roadmap](client-integration-roadmap.md)
 
 ## Product Name
 
@@ -54,6 +55,9 @@ implementation sequence and phase scope:
 The roadmap document is authoritative for the detailed requirements, status,
 dependencies, and admission criteria of each phase. Future work must not
 renumber or reinterpret those phases without a superseding roadmap decision.
+The client-integration roadmap runs in parallel: it distinguishes first-class
+managed connections from deeper, opt-in native guidance and planner-backed
+context delivery without blocking language or planner releases.
 
 ## Background And Problem
 

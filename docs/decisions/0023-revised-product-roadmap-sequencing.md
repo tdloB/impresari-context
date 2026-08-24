@@ -15,6 +15,13 @@ Code Copilot admission; Phase 3 owns the deterministic context planner; Phase
 4 owns Java/Kotlin/C# and impact evidence; and Phase 5 owns demand-led language
 admission.
 
+Codex, Claude Code, Cursor, and GitHub Copilot also follow a parallel
+progressive client-integration track. Its L1 managed-connection admission does
+not block the Phase 3 planner or language phases; L2–L4 native guidance,
+planner-backed delivery, and lifecycle claims are independently admitted by
+ADR-0029. Gemini CLI remains generic legacy compatibility pending a separate
+Antigravity evaluation.
+
 ADR-0019 and ADR-0020 remain Phase 1 delivery records. ADR-0021 and ADR-0022
 remain Phase 2 delivery records. Their language-level acceptance does not mark
 the client portions of their parent phases complete.
@@ -35,3 +42,4 @@ the client portions of their parent phases complete.
 - [Phase 0 language and client foundation PRD](../product/phase-0-language-and-client-foundation-prd.md)
 - [ADR-0004: Source-language and parser strategy](0004-source-language-and-parser-strategy.md)
 - [ADR-0018: First-class client integration and compatibility contract](0018-first-class-client-integration-and-compatibility-contract.md)
+- [ADR-0029: Progressive client integration depth and consent](0029-progressive-client-integration-depth-and-consent.md)
