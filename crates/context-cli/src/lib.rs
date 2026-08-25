@@ -1304,10 +1304,28 @@ fn remove_managed_connection(
             "preview_ready",
         ));
     }
-    atomic_write_managed_config(&target, next.as_bytes())?;
+    if managed_document_is_empty(format, &next)? {
+        remove_managed_config(&target)?;
+    } else {
+        atomic_write_managed_config(&target, next.as_bytes())?;
+    }
     Ok(managed_operation(
         client, "remove", &target, &entry, true, "removed",
     ))
+}
+
+fn managed_document_is_empty(format: &str, contents: &str) -> Result<bool, EngineError> {
+    match format {
+        "toml" => Ok(contents.trim().is_empty()),
+        "json" => {
+            let value: serde_json::Value = serde_json::from_str(contents)
+                .map_err(|_| managed_config_error("managed JSON removal output is malformed"))?;
+            Ok(value == json!({"mcpServers": {}}))
+        }
+        _ => Err(managed_config_error(
+            "unsupported managed configuration format",
+        )),
+    }
 }
 
 #[derive(Clone, Copy, Eq, PartialEq)]
@@ -1470,6 +1488,18 @@ fn atomic_write_managed_config(path: &Path, contents: &[u8]) -> Result<(), Engin
         let _ = fs::remove_file(&temp);
         managed_config_error("managed configuration atomic replacement failed")
     })
+}
+
+fn remove_managed_config(path: &Path) -> Result<(), EngineError> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| managed_config_error("managed configuration disappeared before removal"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(managed_config_error(
+            "managed configuration is no longer a regular non-symlink file",
+        ));
+    }
+    fs::remove_file(path)
+        .map_err(|_| managed_config_error("managed configuration could not be removed"))
 }
 
 fn managed_toml_block(binary: &Path, arguments: &[String]) -> String {
@@ -2421,6 +2451,35 @@ mod tests {
             fs::read(root.0.join("source.ts")).expect("source after"),
             source_before
         );
+    }
+
+    #[test]
+    fn managed_connection_removal_restores_an_absent_target() {
+        let root = TestRoot::new("managed-empty-workspace");
+        let cache = TestRoot::new("managed-empty-cache");
+        let binary = TestRoot::new("managed-empty-binary");
+        let config_root = TestRoot::new("managed-empty-config");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
+        for client in ["codex", "claude"] {
+            let target = config_root.0.join(format!("{client}.config"));
+            let mut command = vec![
+                "client".into(),
+                "kit".into(),
+                "install".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+                target.display().to_string(),
+                "--apply".into(),
+            ];
+            assert_eq!(invoke(&command, "managedempty").0, 0, "{client} install");
+            command[2] = "remove".into();
+            assert_eq!(invoke(&command, "managedempty").0, 0, "{client} remove");
+            assert!(!target.exists(), "{client} empty target was not removed");
+        }
     }
 
     #[test]
