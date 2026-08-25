@@ -1,6 +1,6 @@
 # Phase 1 Claude Code connection-kit record
 
-- Date: 2026-08-23
+- Date: 2026-08-25
 - Client surface: Claude Code CLI `2.1.241`
 - OS/architecture scope exercised: macOS aarch64
 - Classification effect: **Generic local MCP** remains the published claim.
@@ -12,10 +12,10 @@
 | Requirement | Result | Evidence |
 | --- | --- | --- |
 | Client availability and authenticated health | Passed | `claude --version`, `claude auth status`, and `claude doctor` recorded a healthy native Claude Code `2.1.241` installation, first-party authentication, and macOS ARM64 platform. |
-| Fixed local-stdio configuration | Passed | The published local-scope command and `doctor claude-config` validator preserve fixed workspace, separate cache, consumer ID, and role without environment forwarding. |
-| Real temporary-config lifecycle | Passed | `scripts/rehearse-claude-code.rb` writes an MCP definition only inside a temporary directory, starts Claude with `--mcp-config` and `--strict-mcp-config`, makes built-in tools unavailable, and preapproves only the four fixed MCP operations. |
+| Fixed local-stdio configuration | Passed | The versioned managed kit renders and validates the fixed executable local-stdio command, workspace, separate cache, consumer ID, and role without environment forwarding. |
+| Real temporary-config lifecycle | Passed | `scripts/rehearse-claude-code.rb` explicitly uses managed install, validate, and exact removal against a disposable `--mcp-config`, starts Claude with `--strict-mcp-config`, makes built-in tools unavailable, and preapproves only the four fixed MCP operations. |
 | Complete operation sequence | Passed | Claude called `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close` in the required order; every tool result was present and non-error. |
-| Source and configuration containment | Passed | The fixture source digest remained unchanged, and a separate `claude mcp get impresari_context_conformance` confirmed no persistent registration was created. |
+| Source and configuration containment | Passed | The fixture source digest remained unchanged; the temporary managed configuration target was removed after the run; and `claude mcp get impresari-context` confirmed no persistent registration was created. |
 | Client-rendered malformed configuration | Passed | `scripts/rehearse-claude-code.rb --malformed-config-only` gives Claude Code a malformed disposable MCP configuration under `--strict-mcp-config`. The client rejects it before any model call or MCP startup, and the fixture source digest remains unchanged. |
 
 ## Deliberate limits
