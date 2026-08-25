@@ -261,6 +261,10 @@ pub struct DeterministicContextPlan {
     /// the separately admitted structural-impact adapter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub structural_query: Option<StructuralPlannerQuery>,
+    /// Current-snapshot-verified caller declaration used by this plan, when
+    /// the separately admitted declared-change-set adapter is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_change_set: Option<VerifiedDeclaredChangeSet>,
 }
 
 /// Snapshot-bound structural traversal that contributed exact planner evidence.
@@ -284,6 +288,62 @@ pub struct StructuralImpactRequest {
     pub start_node: String,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+}
+
+/// Lossless native path identity supplied in a declared change-set manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangePath {
+    /// Native platform family for the encoded relative units.
+    pub platform_family: String,
+    /// Native unit encoding for the encoded relative units.
+    pub unit_encoding: String,
+    /// Canonical unpadded base64url native relative path units.
+    pub relative_units_base64url: String,
+}
+
+/// One caller-declared current artifact expected to participate in review.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeEntry {
+    /// Lossless relative artifact identity.
+    pub path: DeclaredChangePath,
+    /// Expected SHA-256 hash of that artifact in the declared snapshot.
+    pub content_hash: String,
+}
+
+/// Untrusted caller declaration to be verified against the current snapshot.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeSet {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says the declared entries belong to.
+    pub workspace_snapshot: String,
+    /// Optional caller assertion about a base revision; never a computed diff.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Current artifact declarations to verify.
+    pub entries: Vec<DeclaredChangeEntry>,
+}
+
+/// Canonical, current-snapshot-verified change declaration bound into a plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredChangeSet {
+    /// Content-derived declaration identity.
+    pub declaration_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Caller assertion retained distinctly from observed source evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Whether the optional assertion matches bounded repository metadata.
+    pub base_revision_status: String,
+    /// Canonically ordered current-hash-verified entries.
+    pub entries: Vec<DeclaredChangeEntry>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -2225,6 +2285,7 @@ fn deterministic_plan(
         coverage: planner_coverage(),
         omitted_candidates,
         structural_query: None,
+        declared_change_set: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
