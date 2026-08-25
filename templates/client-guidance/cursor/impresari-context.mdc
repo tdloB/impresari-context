@@ -1,0 +1,14 @@
+---
+description: Use bounded, snapshot-grounded Impresari Context evidence for explicit repository-context tasks.
+alwaysApply: false
+---
+
+# Impresari Context evidence guidance
+
+Use an already configured local `impresari-context` MCP server only for an
+explicit supported task profile and hard evidence budget. Show packet ID, plan
+ID, reason codes, coverage, and omissions when using a returned packet.
+
+Do not change MCP configuration, trust, approvals, source files, or execution
+authority. Do not infer unsupported runtime behavior. If evidence is unavailable,
+continue with normal analysis and state the limitation.
