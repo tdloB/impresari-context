@@ -15,6 +15,12 @@ canonical graph.
 The adapter is an explicit one-shot operation. It is not a watcher, polling
 agent, Git-diff engine, background indexer, or synchronization service.
 
+Unchanged current artifacts are reconstructed only from exact cache entries
+keyed by native path units, current content hash, and pinned worker-toolchain
+identity. Changed artifacts must carry a complete worker response that passes
+the existing structural response validation before graph reconstruction. A
+graph's projected nodes and edges are never treated as sufficient parser input.
+
 ## Constraints
 
 - The prior graph and replacement manifest must be snapshot- and
