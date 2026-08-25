@@ -20,8 +20,8 @@ use context_core::{
 };
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, EngineConfig,
-    EngineError, IncrementalStructuralUpdate, LocalEngine, QueryKind, RepositoryOrientationRequest, RequestContext,
-    SnapshotStatus, StructuralImpactRequest, TaskProfile,
+    EngineError, IncrementalStructuralUpdate, LocalEngine, QueryKind, RepositoryOrientationRequest,
+    RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
