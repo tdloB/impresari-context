@@ -15,7 +15,8 @@
     "steps": {"type": "array", "minItems": 1, "maxItems": 8, "items": {"$ref": "#/$defs/step"}},
     "coverage": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/coverage"}},
     "omitted_candidates": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/omission"}},
-    "structural_query": {"$ref": "#/$defs/structuralQuery"}
+    "structural_query": {"$ref": "#/$defs/structuralQuery"},
+    "declared_change_set": {"$ref": "#/$defs/declaredChangeSet"}
   },
   "$defs": {
     "step": {
@@ -63,6 +64,36 @@
         "query_id": {"$ref": "common.schema.json#/$defs/sha256"},
         "edge_kinds": {"type": "array", "maxItems": 8, "items": {"enum": ["declares", "contains", "imports", "exports", "calls", "references"]}},
         "result": {"$ref": "structural-query.schema.json"}
+      }
+    },
+    "declaredChangeSet": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declaration_id", "workspace_snapshot", "base_revision_status", "entries"],
+      "properties": {
+        "declaration_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "asserted_base_revision": {"type": "string", "minLength": 1, "maxLength": 256},
+        "base_revision_status": {"enum": ["not_asserted", "matched_repository_metadata", "unavailable_or_mismatched"]},
+        "entries": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/declaredChangeEntry"}}
+      }
+    },
+    "declaredChangeEntry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "content_hash"],
+      "properties": {
+        "path": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["platform_family", "unit_encoding", "relative_units_base64url"],
+          "properties": {
+            "platform_family": {"enum": ["unix", "windows"]},
+            "unit_encoding": {"enum": ["unix_bytes", "windows_utf16le"]},
+            "relative_units_base64url": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[A-Za-z0-9_-]+$"}
+          }
+        },
+        "content_hash": {"$ref": "common.schema.json#/$defs/sha256"}
       }
     }
   }

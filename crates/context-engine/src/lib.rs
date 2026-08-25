@@ -261,6 +261,10 @@ pub struct DeterministicContextPlan {
     /// the separately admitted structural-impact adapter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub structural_query: Option<StructuralPlannerQuery>,
+    /// Current-snapshot-verified caller declaration used by this plan, when
+    /// the separately admitted declared-change-set adapter is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_change_set: Option<VerifiedDeclaredChangeSet>,
 }
 
 /// Snapshot-bound structural traversal that contributed exact planner evidence.
@@ -284,6 +288,62 @@ pub struct StructuralImpactRequest {
     pub start_node: String,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+}
+
+/// Lossless native path identity supplied in a declared change-set manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangePath {
+    /// Native platform family for the encoded relative units.
+    pub platform_family: String,
+    /// Native unit encoding for the encoded relative units.
+    pub unit_encoding: String,
+    /// Canonical unpadded base64url native relative path units.
+    pub relative_units_base64url: String,
+}
+
+/// One caller-declared current artifact expected to participate in review.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeEntry {
+    /// Lossless relative artifact identity.
+    pub path: DeclaredChangePath,
+    /// Expected SHA-256 hash of that artifact in the declared snapshot.
+    pub content_hash: String,
+}
+
+/// Untrusted caller declaration to be verified against the current snapshot.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeSet {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says the declared entries belong to.
+    pub workspace_snapshot: String,
+    /// Optional caller assertion about a base revision; never a computed diff.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Current artifact declarations to verify.
+    pub entries: Vec<DeclaredChangeEntry>,
+}
+
+/// Canonical, current-snapshot-verified change declaration bound into a plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredChangeSet {
+    /// Content-derived declaration identity.
+    pub declaration_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Caller assertion retained distinctly from observed source evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Whether the optional assertion matches bounded repository metadata.
+    pub base_revision_status: String,
+    /// Canonically ordered current-hash-verified entries.
+    pub entries: Vec<DeclaredChangeEntry>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -1110,6 +1170,7 @@ impl LocalEngine {
             &decision.decision_id,
             started,
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1164,7 +1225,55 @@ impl LocalEngine {
             &decision.decision_id,
             started,
             Some(&structural_query),
+            None,
         );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds one change-review packet anchored to a caller-declared set of
+    /// current artifacts.
+    ///
+    /// The declaration is not a Git diff and does not establish history. Every
+    /// declared path and hash is verified against the current authorized
+    /// snapshot before exact current-source evidence is recovered.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the declaration is malformed, stale,
+    /// exceeds the supplied budget, or does not exactly match the snapshot.
+    pub fn build_profiled_declared_change_set_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredChangeSet,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let declared_change_set =
+                self.verify_declared_change_set(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::ChangeReview,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                Some(&declared_change_set),
+            )
+        })();
         let outcome = result
             .as_ref()
             .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
@@ -1188,6 +1297,7 @@ impl LocalEngine {
         policy_decision: &str,
         started: Instant,
         structural_query: Option<&StructuralPlannerQuery>,
+        declared_change_set: Option<&VerifiedDeclaredChangeSet>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -1211,10 +1321,22 @@ impl LocalEngine {
             apply_structural_query_to_plan(&mut plan, structural_query)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
+        if let Some(declared_change_set) = declared_change_set {
+            apply_declared_change_set_to_plan(&mut plan, declared_change_set)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
         let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
             || Ok((Vec::new(), Vec::new())),
             |value| self.structural_evidence(context, value, &budget, started),
         )?;
+        let (declared_evidence, declared_unknowns) = declared_change_set.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.declared_change_set_evidence(context, value, &budget, started),
+        )?;
+        let mut supplemental_evidence = supplemental_evidence;
+        supplemental_evidence.extend(declared_evidence);
+        let mut supplemental_unknowns = supplemental_unknowns;
+        supplemental_unknowns.extend(declared_unknowns);
         let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
@@ -1513,6 +1635,240 @@ impl LocalEngine {
         unknowns.sort();
         unknowns.dedup();
         Ok((evidence.into_values().collect(), unknowns))
+    }
+
+    #[allow(clippy::too_many_lines)] // Each fail-closed manifest boundary retains its safe error mapping.
+    fn verify_declared_change_set(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredChangeSet,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredChangeSet, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declaration.schema_name != "declared-change-set"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.workspace_snapshot != snapshot.snapshot_id
+            || !valid_sha256(&declaration.workspace_snapshot)
+            || declaration.entries.is_empty()
+            || declaration.entries.len() > 10_000
+            || u64::try_from(declaration.entries.len()).unwrap_or(u64::MAX)
+                > budget.max_files_u64().map_err(|error| {
+                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?
+            || declaration
+                .asserted_base_revision
+                .as_ref()
+                .is_some_and(|value| value.is_empty() || value.len() > 256 || value.contains('\0'))
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared change-set",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let mut entries = std::collections::BTreeMap::new();
+        for entry in &declaration.entries {
+            if !valid_sha256(&entry.content_hash) {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                )
+            })?;
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| {
+                    artifact.path == path && artifact.content_hash == entry.content_hash
+                })
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::StaleState,
+                        "declared change-set does not match current snapshot",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            let canonical_entry = DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: artifact.path.platform_family.into(),
+                    unit_encoding: artifact.path.unit_encoding.into(),
+                    relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                },
+                content_hash: artifact.content_hash.clone(),
+            };
+            if entries
+                .insert(
+                    artifact.path.relative_units_base64url.clone(),
+                    canonical_entry,
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let metadata = self.workspace.repository_metadata();
+        let base_revision_status = match declaration.asserted_base_revision.as_deref() {
+            None => "not_asserted",
+            Some(value) if metadata.revision.as_deref() == Some(value) => {
+                "matched_repository_metadata"
+            }
+            Some(_) => "unavailable_or_mismatched",
+        };
+        let mut verified = VerifiedDeclaredChangeSet {
+            declaration_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: snapshot.snapshot_id.clone(),
+            asserted_base_revision: declaration.asserted_base_revision.clone(),
+            base_revision_status: base_revision_status.into(),
+            entries: entries.into_values().collect(),
+        };
+        verified.declaration_id = declared_change_set_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
+    fn declared_change_set_evidence(
+        &self,
+        context: &RequestContext,
+        declared_change_set: &VerifiedDeclaredChangeSet,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declared_change_set.workspace_snapshot != snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "declared change-set is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let source_budget = search_budget(budget)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
+            core_error(context, Capability::ContextBuild, error.code(), self.ids())
+        })?;
+        let mut evidence = Vec::with_capacity(declared_change_set.entries.len());
+        for entry in &declared_change_set.entries {
+            if elapsed_ms(started) >= elapsed_limit {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "context planning resource limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "verified declared change-set has an invalid path",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let recovered = lookup_exact_path(&self.workspace, snapshot, &path, source_budget)
+                .map_err(|error| {
+                    retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?;
+            let record = recovered.matches.into_iter().next().ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "declared change-set source is unavailable",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+            if record.content_hash != entry.content_hash {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "declared change-set source changed",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+            evidence.push(evidence_record(&record));
+        }
+        let unknowns = if declared_change_set.base_revision_status == "unavailable_or_mismatched" {
+            vec!["asserted_base_revision_unavailable_or_mismatched".into()]
+        } else {
+            Vec::new()
+        };
+        Ok((evidence, unknowns))
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -2225,6 +2581,7 @@ fn deterministic_plan(
         coverage: planner_coverage(),
         omitted_candidates,
         structural_query: None,
+        declared_change_set: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
@@ -2339,6 +2696,37 @@ fn apply_structural_query_to_plan(
     plan.structural_query = Some(structural_query.clone());
     plan.plan_id = deterministic_plan_identity(plan)?;
     Ok(())
+}
+
+fn apply_declared_change_set_to_plan(
+    plan: &mut DeterministicContextPlan,
+    declared_change_set: &VerifiedDeclaredChangeSet,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::ChangeSet)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_change_set_current_snapshot_verified".into();
+    plan.omitted_candidates.retain(|item| {
+        item.candidate != "change_set" || item.reason_code != "change_set_evidence_unavailable"
+    });
+    plan.declared_change_set = Some(declared_change_set.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn declared_change_set_identity(
+    declared_change_set: &VerifiedDeclaredChangeSet,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected = serde_json::to_value(declared_change_set)
+        .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("declaration_id");
+    canonical_identity("declared-change-set", &projected)
 }
 
 fn structural_query_identity(
@@ -3586,6 +3974,133 @@ mod tests {
                 .all(|step| !step.reason_code.is_empty())
         );
         validate_packet(&first.packet).expect("valid profiled packet");
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn declared_change_set_context_is_snapshot_verified_and_deterministic() {
+        let source = TestRoot::new("declared-change-set-source");
+        let first_cache = TestRoot::new("declared-change-set-first-cache");
+        let second_cache = TestRoot::new("declared-change-set-second-cache");
+        fs::write(source.0.join("review.rs"), b"pub fn reviewed_change() {}\n").expect("source");
+        fs::write(source.0.join("other.rs"), b"pub fn other() {}\n").expect("source");
+        let config_for = |cache_root: PathBuf| EngineConfig {
+            cache_root,
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let declaration_for = |engine: &LocalEngine| {
+            let snapshot = engine.snapshot.as_ref().expect("snapshot");
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| artifact.path.display_path == "review.rs")
+                .expect("review artifact");
+            DeclaredChangeSet {
+                schema_name: "declared-change-set".into(),
+                schema_version: CONTRACT_VERSION.into(),
+                workspace_snapshot: snapshot.snapshot_id.clone(),
+                asserted_base_revision: Some("unavailable-revision".into()),
+                entries: vec![DeclaredChangeEntry {
+                    path: DeclaredChangePath {
+                        platform_family: artifact.path.platform_family.into(),
+                        unit_encoding: artifact.path.unit_encoding.into(),
+                        relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                    },
+                    content_hash: artifact.content_hash.clone(),
+                }],
+            }
+        };
+        let profile_request = request(3, "declared_change_review");
+        let (mut first_engine, _) = LocalEngine::open(
+            config_for(first_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("first open");
+        first_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("first snapshot");
+        let declaration = declaration_for(&first_engine);
+        let first = first_engine
+            .build_profiled_declared_change_set_context(
+                &profile_request,
+                "reviewed_change",
+                &declaration,
+                budget(),
+            )
+            .expect("first declared packet");
+        assert_schema("deterministic-context-plan.schema.json", &first.plan);
+        assert!(first.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::ChangeSet
+                && coverage.status == "available"
+                && coverage.reason_code == "declared_change_set_current_snapshot_verified"
+        }));
+        let verified = first
+            .plan
+            .declared_change_set
+            .as_ref()
+            .expect("verified declaration");
+        assert_eq!(verified.entries, declaration.entries);
+        assert_eq!(verified.base_revision_status, "unavailable_or_mismatched");
+        assert!(
+            first
+                .packet
+                .unknowns
+                .contains(&"asserted_base_revision_unavailable_or_mismatched".into())
+        );
+        assert!(first.packet.observed_evidence.iter().any(|evidence| {
+            evidence.artifact.path.display_path == "review.rs"
+                && evidence.artifact.content_hash == declaration.entries[0].content_hash
+        }));
+        validate_packet(&first.packet).expect("valid declared packet");
+        drop(first_engine);
+
+        let (mut second_engine, _) = LocalEngine::open(
+            config_for(second_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("second open");
+        second_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("second snapshot");
+        let second_declaration = declaration_for(&second_engine);
+        let second = second_engine
+            .build_profiled_declared_change_set_context(
+                &profile_request,
+                "reviewed_change",
+                &second_declaration,
+                budget(),
+            )
+            .expect("second declared packet");
+        assert_eq!(first.plan, second.plan);
+        assert_eq!(first.packet.packet_id, second.packet.packet_id);
+
+        let mut mismatched = second_declaration.clone();
+        mismatched.entries[0].content_hash = format!("sha256:{}", "0".repeat(64));
+        let error = second_engine
+            .build_profiled_declared_change_set_context(
+                &request(4, "mismatched_change_review"),
+                "reviewed_change",
+                &mismatched,
+                budget(),
+            )
+            .expect_err("mismatched hash must fail closed");
+        assert_eq!(error.envelope().code, PublicErrorCode::StaleState);
+
+        let mut duplicate = second_declaration;
+        duplicate.entries.push(duplicate.entries[0].clone());
+        let error = second_engine
+            .build_profiled_declared_change_set_context(
+                &request(5, "duplicate_change_review"),
+                "reviewed_change",
+                &duplicate,
+                budget(),
+            )
+            .expect_err("duplicate entry must fail closed");
+        assert_eq!(error.envelope().code, PublicErrorCode::InvalidInput);
     }
 
     #[test]

@@ -39,6 +39,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0031](0031-kotlin-structural-language-admission.md) | Pinned Kotlin Tree-sitter structural facts without compiler or Gradle resolution authority | Accepted |
 | [ADR-0032](0032-csharp-structural-language-admission.md) | Pinned C# Tree-sitter structural facts without compiler, MSBuild, or project-resolution authority | Accepted |
 | [ADR-0033](0033-structural-impact-planner-admission.md) | Bind structural-impact planner evidence only to validated current-snapshot graphs | Accepted for implementation |
+| [ADR-0034](0034-declared-change-set-packets.md) | Bind caller-declared change-set packets only to current snapshot membership and hashes | Accepted for implementation |
 | [ADR-0035](0035-l1-managed-client-connection-kits.md) | Use previewable, owned, manifest-driven L1 client connection kits | Accepted for implementation |
 
 ## Change Rules

@@ -19,8 +19,8 @@ use context_core::{
     RecoveryAction, ResourceBudget, error_envelope,
 };
 use context_engine::{
-    ContextPlan, ContextPlanStep, EngineConfig, EngineError, LocalEngine, QueryKind,
-    RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
+    ContextPlan, ContextPlanStep, DeclaredChangeSet, EngineConfig, EngineError, LocalEngine,
+    QueryKind, RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -42,6 +42,7 @@ Usage:\n\
   impresari-context [global-options] context build <root> <cache-root> <kind> <query> <purpose>\n\
   impresari-context [global-options] context profile-build <root> <cache-root> <profile> <query>\n\
   impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
+  impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -305,6 +306,25 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context profile-structure-build", &result)
+        }
+        [
+            "context",
+            "profile-change-set-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredChangeSet =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_change_set_context(
+                &contexts.next("change_review"),
+                query,
+                &declaration,
+                default_budget(),
+            )?;
+            Output::new("context profile-change-set-build", &result)
         }
         [
             "structure",
@@ -2636,7 +2656,7 @@ mod tests {
             ],
             "profilecli",
         );
-        assert_eq!(code, 0);
+        assert_eq!(code, 0, "{result}");
         assert_eq!(result["schema_name"], "profiled-context-packet");
         assert_eq!(result["plan"]["schema_name"], "deterministic-context-plan");
         assert_eq!(result["plan"]["task_profile"], "configuration_change");
@@ -2644,6 +2664,80 @@ mod tests {
         assert_eq!(
             fs::read(source.0.join("settings.toml")).expect("after"),
             before
+        );
+    }
+
+    #[test]
+    fn cli_declared_change_set_build_uses_the_shared_verified_contract() {
+        let source = TestRoot::new("declared-change-set-cli-source");
+        let cache = TestRoot::new("declared-change-set-cli-cache");
+        let declaration = TestRoot::new("declared-change-set-cli-input");
+        fs::write(source.0.join("review.rs"), b"pub fn review() {}\n").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10_000, 536_870_912, 1_048_576, 32).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-14T12:00:00Z", 10_000, 10_485_760)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &direct_context(1, "workspace_open"), &source.0)
+                .expect("open");
+        engine
+            .build_snapshot(&direct_context(2, "snapshot_build"), default_budget())
+            .expect("snapshot");
+        let snapshot = engine
+            .snapshot_status(&direct_context(3, "snapshot_status"), default_budget())
+            .expect("snapshot status");
+        let evidence = engine
+            .search(
+                &direct_context(4, "search"),
+                QueryKind::ExactPath,
+                "review.rs",
+                &default_budget(),
+            )
+            .expect("exact evidence");
+        let artifact = &evidence.matches[0].artifact;
+        let manifest = json!({
+            "schema_name":"declared-change-set", "schema_version":"1.0.0",
+            "workspace_snapshot":snapshot.snapshot_id,
+            "entries":[{"path":{
+                "platform_family":artifact.path.platform_family,
+                "unit_encoding":artifact.path.unit_encoding,
+                "relative_units_base64url":artifact.path.relative_units_base64url
+            }, "content_hash":artifact.content_hash}]
+        });
+        let manifest_path = declaration.0.join("declared-change-set.json");
+        fs::write(
+            &manifest_path,
+            serde_json::to_vec(&manifest).expect("manifest JSON"),
+        )
+        .expect("manifest");
+        drop(engine);
+        let (code, result) = invoke(
+            &[
+                "context".into(),
+                "profile-change-set-build".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                "review".into(),
+                manifest_path.to_string_lossy().into_owned(),
+            ],
+            "declaredchangesetcli",
+        );
+        assert_eq!(code, 0, "{result}");
+        assert_eq!(result["plan"]["task_profile"], "change_review");
+        assert_eq!(
+            result["plan"]["declared_change_set"]["workspace_snapshot"],
+            manifest["workspace_snapshot"]
+        );
+        assert_eq!(
+            result["plan"]["coverage"]
+                .as_array()
+                .expect("coverage")
+                .iter()
+                .find(|coverage| coverage["evidence_class"] == "change_set")
+                .expect("change-set coverage")["status"],
+            "available"
         );
     }
 
