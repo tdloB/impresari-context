@@ -16,6 +16,7 @@ ruby ./scripts/check-sbom.rb
 ruby ./scripts/check-evaluation.rb
 ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
+ruby ./scripts/check-client-guidance-templates.rb
 ruby -c ./scripts/rehearse-codex-app-server.rb
 ruby -c ./scripts/rehearse-claude-code.rb
 ruby -c ./scripts/rehearse-cursor-preadmission.rb
