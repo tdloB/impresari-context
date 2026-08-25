@@ -20,8 +20,8 @@ use context_core::{
 };
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, EngineConfig,
-    EngineError, LocalEngine, QueryKind, RequestContext, SnapshotStatus, StructuralImpactRequest,
-    TaskProfile,
+    EngineError, LocalEngine, QueryKind, RepositoryOrientationRequest, RequestContext,
+    SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -45,6 +45,7 @@ Usage:\n\
   impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
   impresari-context [global-options] context profile-associated-test-build <root> <cache-root> <query> <declared-associated-tests-json>\n\
+  impresari-context [global-options] context profile-orientation-build <root> <cache-root> <query> <graph-json> <max-entries>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -346,6 +347,33 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context profile-associated-test-build", &result)
+        }
+        [
+            "context",
+            "profile-orientation-build",
+            root,
+            cache,
+            query,
+            graph_path,
+            max_entries,
+        ] => {
+            let graph: StructuralGraph =
+                read_json(Path::new(graph_path), Capability::StructureQuery)?;
+            let max_entries = max_entries.parse::<u32>().map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid repository map entry limit",
+                )
+            })?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_repository_orientation_context(
+                &contexts.next("orientation"),
+                query,
+                &RepositoryOrientationRequest { graph, max_entries },
+                default_budget(),
+            )?;
+            Output::new("context profile-orientation-build", &result)
         }
         [
             "structure",

@@ -10,7 +10,7 @@ use std::{
 use context_core::{PolicySubject, ResourceBudget};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, LocalEngine,
-    RequestContext, StructuralImpactRequest, TaskProfile,
+    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
 use context_structural::StructuralGraph;
@@ -280,6 +280,8 @@ impl McpServer {
             edge_kinds: Option<Vec<String>>,
             declared_change_set: Option<DeclaredChangeSet>,
             declared_associated_tests: Option<DeclaredAssociatedTests>,
+            orientation_graph: Option<StructuralGraph>,
+            max_orientation_entries: Option<u32>,
             budget: ResourceBudget,
             session_id: Option<String>,
         }
@@ -303,14 +305,16 @@ impl McpServer {
             args.edge_kinds,
             args.declared_change_set,
             args.declared_associated_tests,
+            args.orientation_graph,
+            args.max_orientation_entries,
         ) {
-            (Some(steps), None, None, None, None, None, None, None) => (
+            (Some(steps), None, None, None, None, None, None, None, None, None) => (
                 self.engine
                     .build_planned_context(&context, &ContextPlan { steps }, args.budget)
                     .map_err(|_| "context build failed")?,
                 None,
             ),
-            (None, Some(profile), Some(query), None, None, None, None, None) => {
+            (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
                 let profiled = self
                     .engine
                     .build_profiled_context(&context, profile, &query, args.budget)
@@ -324,6 +328,8 @@ impl McpServer {
                 Some(graph),
                 Some(start_node),
                 edge_kinds,
+                None,
+                None,
                 None,
                 None,
             ) => {
@@ -352,6 +358,8 @@ impl McpServer {
                 None,
                 Some(declaration),
                 None,
+                None,
+                None,
             ) => {
                 let profiled = self
                     .engine
@@ -373,6 +381,8 @@ impl McpServer {
                 None,
                 None,
                 Some(declaration),
+                None,
+                None,
             ) => {
                 let profiled = self
                     .engine
@@ -383,6 +393,29 @@ impl McpServer {
                         args.budget,
                     )
                     .map_err(|_| "declared associated-test context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(TaskProfile::Orientation),
+                Some(query),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(graph),
+                Some(max_entries),
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_repository_orientation_context(
+                        &context,
+                        &query,
+                        &RepositoryOrientationRequest { graph, max_entries },
+                        args.budget,
+                    )
+                    .map_err(|_| "repository orientation context build failed")?;
                 (profiled.packet, Some(profiled.plan))
             }
             _ => return Err("context build requires either steps or profile and query"),
@@ -480,15 +513,16 @@ fn context_build_definition(budget: &Value) -> Value {
                 "query":{"type":"string","minLength":1,"maxLength":4096},
                 "structural_graph":{"type":"object"}, "start_node":{"type":"string"},
                 "edge_kinds":{"type":"array","maxItems":8,"items":{"enum":["declares","contains","imports","exports","calls","references"]}},
-                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "budget":budget, "session_id":{"type":"string"}
+                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "orientation_graph":{"type":"object"}, "max_orientation_entries":{"type":"integer","minimum":1,"maximum":10000}, "budget":budget, "session_id":{"type":"string"}
             },
             "required":["request_id","event_id","purpose","occurred_at","budget"],
             "oneOf":[
-                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
-                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
-                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
-                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_associated_tests"]}]}},
-                {"required":["profile","query","declared_associated_tests"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]}]}}
+                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","declared_associated_tests"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","orientation_graph","max_orientation_entries"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}}
             ]
         }
     })
