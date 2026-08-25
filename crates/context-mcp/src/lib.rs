@@ -8,8 +8,13 @@ use std::{
 };
 
 use context_core::{PolicySubject, ResourceBudget};
-use context_engine::{ContextPlan, ContextPlanStep, LocalEngine, RequestContext, TaskProfile};
+use context_engine::{
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
+    DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine,
+    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, TaskProfile,
+};
 use context_session::{SessionPolicy, SessionStore};
+use context_structural::StructuralGraph;
 use serde::Deserialize;
 use serde_json::{Value, json};
 
@@ -205,6 +210,10 @@ impl McpServer {
         let result = match call.name.as_str() {
             "context_session_open" => self.session_open(call.arguments),
             "context_build" => self.context_build(call.arguments),
+            "context_convention_exemplar_build" => {
+                self.context_convention_exemplar_build(call.arguments)
+            }
+            "structure_incremental_update" => self.structure_incremental_update(call.arguments),
             "context_packet_resolve" => self.packet_resolve(call.arguments),
             "context_session_close" => self.session_close(call.arguments),
             _ => return error(id, -32602, "unknown tool"),
@@ -259,6 +268,73 @@ impl McpServer {
         Ok(json!({"reference": reference, "packet": packet, "authority_added": false}))
     }
 
+    fn context_convention_exemplar_build(&mut self, value: Value) -> Result<Value, &'static str> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            query: String,
+            declaration: DeclaredConventionExemplars,
+            budget: ResourceBudget,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid convention exemplar input")?;
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let profiled = self
+            .engine
+            .build_profiled_declared_convention_exemplar_context(
+                &context,
+                &args.query,
+                &args.declaration,
+                args.budget,
+            )
+            .map_err(|_| "convention exemplar context build failed")?;
+        Ok(json!({"packet": profiled.packet, "plan": profiled.plan, "authority_added": false}))
+    }
+
+    fn structure_incremental_update(&mut self, value: Value) -> Result<Value, &'static str> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            update: IncrementalStructuralUpdate,
+            budget: ResourceBudget,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid incremental update input")?;
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let graph = self
+            .engine
+            .apply_incremental_structural_update(&context, &args.update, &args.budget)
+            .map_err(|_| "incremental structural update failed")?;
+        Ok(json!({"graph": graph, "authority_added": false}))
+    }
+
+    #[allow(clippy::too_many_lines)] // One request grammar is kept co-located with its exclusive dispatch.
     fn context_build(&mut self, value: Value) -> Result<Value, &'static str> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
@@ -270,6 +346,13 @@ impl McpServer {
             steps: Option<Vec<ContextPlanStep>>,
             profile: Option<TaskProfile>,
             query: Option<String>,
+            structural_graph: Option<StructuralGraph>,
+            start_node: Option<String>,
+            edge_kinds: Option<Vec<String>>,
+            declared_change_set: Option<DeclaredChangeSet>,
+            declared_associated_tests: Option<DeclaredAssociatedTests>,
+            orientation_graph: Option<StructuralGraph>,
+            max_orientation_entries: Option<u32>,
             budget: ResourceBudget,
             session_id: Option<String>,
         }
@@ -284,18 +367,126 @@ impl McpServer {
             },
             occurred_at: args.occurred_at,
         };
-        let (packet, plan) = match (args.steps, args.profile, args.query) {
-            (Some(steps), None, None) => (
+        let (packet, plan) = match (
+            args.steps,
+            args.profile,
+            args.query,
+            args.structural_graph,
+            args.start_node,
+            args.edge_kinds,
+            args.declared_change_set,
+            args.declared_associated_tests,
+            args.orientation_graph,
+            args.max_orientation_entries,
+        ) {
+            (Some(steps), None, None, None, None, None, None, None, None, None) => (
                 self.engine
                     .build_planned_context(&context, &ContextPlan { steps }, args.budget)
                     .map_err(|_| "context build failed")?,
                 None,
             ),
-            (None, Some(profile), Some(query)) => {
+            (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
                 let profiled = self
                     .engine
                     .build_profiled_context(&context, profile, &query, args.budget)
                     .map_err(|_| "profiled context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(profile),
+                Some(query),
+                Some(graph),
+                Some(start_node),
+                edge_kinds,
+                None,
+                None,
+                None,
+                None,
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_structural_context(
+                        &context,
+                        profile,
+                        &query,
+                        &StructuralImpactRequest {
+                            graph,
+                            start_node,
+                            edge_kinds: edge_kinds.unwrap_or_default(),
+                        },
+                        args.budget,
+                    )
+                    .map_err(|_| "profiled structural context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(TaskProfile::ChangeReview),
+                Some(query),
+                None,
+                None,
+                None,
+                Some(declaration),
+                None,
+                None,
+                None,
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_declared_change_set_context(
+                        &context,
+                        &query,
+                        &declaration,
+                        args.budget,
+                    )
+                    .map_err(|_| "declared change-set context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(TaskProfile::TestSelection),
+                Some(query),
+                None,
+                None,
+                None,
+                None,
+                Some(declaration),
+                None,
+                None,
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_declared_associated_test_context(
+                        &context,
+                        &query,
+                        &declaration,
+                        args.budget,
+                    )
+                    .map_err(|_| "declared associated-test context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(TaskProfile::Orientation),
+                Some(query),
+                None,
+                None,
+                None,
+                None,
+                None,
+                Some(graph),
+                Some(max_entries),
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_repository_orientation_context(
+                        &context,
+                        &query,
+                        &RepositoryOrientationRequest { graph, max_entries },
+                        args.budget,
+                    )
+                    .map_err(|_| "repository orientation context build failed")?;
                 (profiled.packet, Some(profiled.plan))
             }
             _ => return Err("context build requires either steps or profile and query"),
@@ -377,6 +568,37 @@ fn tool_result(structured: Value, is_error: bool) -> Value {
     json!({"content": [{"type": "text", "text": text}], "structuredContent": structured, "isError": is_error})
 }
 
+fn context_build_definition(budget: &Value) -> Value {
+    json!({
+        "name":"context_build",
+        "title":"Build verified context",
+        "description":"Build a bounded verified packet from explicit steps, a deterministic declared profile, a verified caller-declared current change set or associated-test set, or a profile plus an already validated snapshot-bound structural graph. Adds no authority.",
+        "inputSchema":{
+            "type":"object",
+            "additionalProperties":false,
+            "properties":{
+                "request_id":{"type":"string"}, "event_id":{"type":"string"},
+                "purpose":{"type":"string"}, "occurred_at":{"type":"string"},
+                "steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},
+                "profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},
+                "query":{"type":"string","minLength":1,"maxLength":4096},
+                "structural_graph":{"type":"object"}, "start_node":{"type":"string"},
+                "edge_kinds":{"type":"array","maxItems":8,"items":{"enum":["declares","contains","imports","exports","calls","references"]}},
+                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "orientation_graph":{"type":"object"}, "max_orientation_entries":{"type":"integer","minimum":1,"maximum":10000}, "budget":budget, "session_id":{"type":"string"}
+            },
+            "required":["request_id","event_id","purpose","occurred_at","budget"],
+            "oneOf":[
+                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","declared_associated_tests"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
+                {"required":["profile","query","orientation_graph","max_orientation_entries"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}}
+            ]
+        }
+    })
+}
+
 fn tool_definitions() -> Value {
     let budget = json!({
         "type":"object", "additionalProperties":false,
@@ -392,7 +614,9 @@ fn tool_definitions() -> Value {
     });
     json!([
         {"name":"context_session_open","title":"Open context session","description":"Open a bounded process-local session. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
-        {"name":"context_build","title":"Build verified context","description":"Build a bounded verified packet from explicit steps or a deterministic declared profile. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},"profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},"query":{"type":"string","minLength":1,"maxLength":4096},"budget":budget,"session_id":{"type":"string"}},"required":["request_id","event_id","purpose","occurred_at","budget"],"oneOf":[{"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]}]}},{"required":["profile","query"],"not":{"required":["steps"]}}]}},
+        context_build_definition(&budget),
+        {"name":"context_convention_exemplar_build","title":"Build verified convention exemplar context","description":"Build exact current-source evidence from caller-declared opaque labels and verified artifacts. It does not infer conventions or rank examples.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096},"declaration":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","query","declaration","budget"]}},
+        {"name":"structure_incremental_update","title":"Apply verified incremental structural update","description":"Rebuild a current structural graph from exact cached unchanged results and caller-declared validated replacements. Does not watch, poll, or launch a parser.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"update":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","update","budget"]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -509,7 +733,7 @@ mod tests {
         assert_eq!(values[1]["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(
             values[2]["result"]["tools"].as_array().map(Vec::len),
-            Some(4)
+            Some(6)
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
@@ -538,7 +762,7 @@ mod tests {
         );
         assert_eq!(
             values[1]["result"]["tools"].as_array().map(Vec::len),
-            Some(4)
+            Some(6)
         );
     }
 
@@ -601,6 +825,76 @@ mod tests {
         assert_eq!(content["packet"]["purpose"], "configuration_change");
         assert_eq!(content["orchestration_authority_added"], false);
         assert_eq!(content["filesystem_authority_added"], false);
+    }
+
+    #[test]
+    fn declared_change_set_context_build_uses_the_shared_verified_contract() {
+        let (mut server, _source, _cache) = server();
+        let exact = server
+            .engine
+            .search(
+                &RequestContext {
+                    request_id: "req_mcpdeclaredlookup".into(),
+                    event_id: "evt_mcpdeclaredlookup".into(),
+                    subject: PolicySubject {
+                        caller_id: "consumer_mcptest01".into(),
+                        role: "client".into(),
+                        purpose: "change_review".into(),
+                    },
+                    occurred_at: "2026-08-22T00:00:00Z".into(),
+                },
+                context_engine::QueryKind::ExactPath,
+                "auth.rs",
+                &ResourceBudget::conservative(4096, 20, 100, 256, 100, 8, 30_000, 1_048_576)
+                    .expect("budget"),
+            )
+            .expect("exact evidence");
+        let artifact = &exact.matches[0].artifact;
+        let budget = json!({
+            "unit_kind":"utf8_bytes", "requested":"4096", "hard":true,
+            "max_evidence_items":"20", "max_files":"100",
+            "max_excerpt_bytes_per_item":"256", "max_matches":"100",
+            "max_traversal_depth":"8", "max_elapsed_ms":"30000",
+            "max_memory_bytes":"1048576",
+            "policy_profile":"sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+        });
+        let request = json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
+                "name":"context_build", "arguments": {
+                    "request_id":"req_mcpdeclared01", "event_id":"evt_mcpdeclared01",
+                    "purpose":"change_review", "occurred_at":"2026-08-22T00:00:00Z",
+                    "profile":"change_review", "query":"authenticate", "budget":budget,
+                    "declared_change_set": {
+                        "schema_name":"declared-change-set", "schema_version":"1.0.0",
+                        "workspace_snapshot":exact.snapshot_id,
+                        "entries":[{"path": {
+                            "platform_family":artifact.path.platform_family,
+                            "unit_encoding":artifact.path.unit_encoding,
+                            "relative_units_base64url":artifact.path.relative_units_base64url
+                        }, "content_hash":artifact.content_hash}]
+                    }
+                }
+            }
+        });
+        let input = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"test\",\"version\":\"1\"}}}}}}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{request}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(values[1]["result"]["isError"], false, "{values:?}");
+        let content = &values[1]["result"]["structuredContent"];
+        assert_eq!(content["plan"]["task_profile"], "change_review");
+        assert_eq!(
+            content["plan"]["declared_change_set"]["workspace_snapshot"],
+            request["params"]["arguments"]["declared_change_set"]["workspace_snapshot"]
+        );
     }
 
     #[test]

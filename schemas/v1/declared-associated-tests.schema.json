@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/declared-associated-tests.schema.json",
+  "title": "Caller-declared current source-to-test associations",
+  "description": "Untrusted caller assertions to be verified against an authorized current snapshot; neither discovery nor coverage evidence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "workspace_snapshot", "associations"],
+  "properties": {
+    "schema_name": {"const": "declared-associated-tests"},
+    "schema_version": {"const": "1.0.0"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "associations": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/association"}}
+  },
+  "$defs": {
+    "entry": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "content_hash"],
+      "properties": {
+        "path": {"type": "object", "additionalProperties": false, "required": ["platform_family", "unit_encoding", "relative_units_base64url"], "properties": {"platform_family": {"enum": ["unix", "windows"]}, "unit_encoding": {"enum": ["unix_bytes", "windows_utf16le"]}, "relative_units_base64url": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[A-Za-z0-9_-]+$"}}},
+        "content_hash": {"$ref": "common.schema.json#/$defs/sha256"}
+      }
+    },
+    "association": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source", "test"],
+      "properties": {"source": {"$ref": "#/$defs/entry"}, "test": {"$ref": "#/$defs/entry"}}
+    }
+  }
+}

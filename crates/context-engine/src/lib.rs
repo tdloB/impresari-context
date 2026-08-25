@@ -18,17 +18,18 @@ use context_core::{
     packet_bytes, packet_validation_result, validate_packet,
 };
 use context_retrieval::{
-    RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_record,
-    expand_evidence_record, lookup_exact_path, search_filename, search_lexical, search_literal,
+    RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_for_span,
+    evidence_record, expand_evidence_record, lookup_exact_path, search_filename, search_lexical,
+    search_literal,
 };
 use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
 };
 use context_structural::{
-    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
-    StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher, WorkerPath,
-    WorkerRequest, build_graph_with_unknowns, query_graph, validate_graph, validate_worker_success,
-    worker_toolchain_identity,
+    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, RepositoryMap,
+    StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher,
+    WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns, query_graph,
+    repository_map, validate_graph, validate_worker_success, worker_toolchain_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -198,6 +199,10 @@ pub enum PlannerEvidenceClass {
     AssociatedTest,
     /// Exact configuration-to-code relationship evidence.
     ConfigurationToCodeReference,
+    /// Caller-declared convention and exemplar assertion with exact current evidence.
+    ConventionExemplar,
+    /// Bounded repository directory and manifest map.
+    RepositoryOrientation,
 }
 
 /// One selected deterministic retrieval step and its stable selection reason.
@@ -256,6 +261,219 @@ pub struct DeterministicContextPlan {
     pub coverage: Vec<PlannerCoverage>,
     /// Profile candidates omitted before retrieval.
     pub omitted_candidates: Vec<PlannerOmission>,
+    /// Exact structural traversal used by this plan, when the caller selected
+    /// the separately admitted structural-impact adapter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub structural_query: Option<StructuralPlannerQuery>,
+    /// Current-snapshot-verified caller declaration used by this plan, when
+    /// the separately admitted declared-change-set adapter is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_change_set: Option<VerifiedDeclaredChangeSet>,
+    /// Current-snapshot-verified caller-declared source-to-test associations
+    /// used by this plan, when the separately admitted adapter is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_associated_tests: Option<VerifiedDeclaredAssociatedTests>,
+    /// Current-snapshot-verified caller convention/exemplar assertion.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_convention_exemplars: Option<VerifiedDeclaredConventionExemplars>,
+    /// Current-snapshot repository map used by the admitted orientation adapter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_orientation: Option<RepositoryOrientationMap>,
+}
+
+/// Snapshot-bound structural traversal that contributed exact planner evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct StructuralPlannerQuery {
+    /// Content-derived identity of the complete declared traversal result.
+    pub query_id: String,
+    /// Requested graph relationship kinds; an empty list means every supported kind.
+    pub edge_kinds: Vec<String>,
+    /// Canonical graph traversal result that produced the structural evidence.
+    pub result: StructuralQueryResult,
+}
+
+/// Explicit bounded structural traversal input for the impact-planner adapter.
+#[derive(Clone, Debug)]
+pub struct StructuralImpactRequest {
+    /// Already validated canonical graph supplied by the caller.
+    pub graph: StructuralGraph,
+    /// Exact graph node from which bounded traversal begins.
+    pub start_node: String,
+    /// Relationship kinds requested by the caller; empty permits every kind.
+    pub edge_kinds: Vec<String>,
+}
+
+/// Explicit bounded repository-map input for the orientation adapter.
+#[derive(Clone, Debug)]
+pub struct RepositoryOrientationRequest {
+    /// Already validated canonical graph supplied by the caller.
+    pub graph: StructuralGraph,
+    /// Maximum combined directory and package entries.
+    pub max_entries: u32,
+}
+
+/// Snapshot-bound repository-map projection that contributed orientation metadata.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RepositoryOrientationMap {
+    /// Content-derived identity of this canonical map.
+    pub map_id: String,
+    /// Canonical bounded repository map.
+    pub result: RepositoryMap,
+}
+
+/// One caller-supplied current parser result replacing an artifact in a prior graph.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IncrementalStructuralReplacement {
+    /// Exact lossless path identity of the current artifact.
+    pub path: WorkerPath,
+    /// Expected current source hash.
+    pub content_hash: String,
+    /// Complete untrusted parser result, revalidated by the engine.
+    pub response: WorkerSuccess,
+}
+
+/// Explicit one-shot structural replacement manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IncrementalStructuralUpdate {
+    /// Canonical graph from which this update proceeds.
+    pub prior_graph: StructuralGraph,
+    /// Current parser results replacing changed artifacts.
+    pub replacements: Vec<IncrementalStructuralReplacement>,
+    /// Paths asserted removed from the current snapshot.
+    pub removed_paths: Vec<WorkerPath>,
+}
+
+/// Lossless native path identity supplied in a declared change-set manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangePath {
+    /// Native platform family for the encoded relative units.
+    pub platform_family: String,
+    /// Native unit encoding for the encoded relative units.
+    pub unit_encoding: String,
+    /// Canonical unpadded base64url native relative path units.
+    pub relative_units_base64url: String,
+}
+
+/// One caller-declared current artifact expected to participate in review.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeEntry {
+    /// Lossless relative artifact identity.
+    pub path: DeclaredChangePath,
+    /// Expected SHA-256 hash of that artifact in the declared snapshot.
+    pub content_hash: String,
+}
+
+/// Untrusted caller declaration to be verified against the current snapshot.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredChangeSet {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says the declared entries belong to.
+    pub workspace_snapshot: String,
+    /// Optional caller assertion about a base revision; never a computed diff.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Current artifact declarations to verify.
+    pub entries: Vec<DeclaredChangeEntry>,
+}
+
+/// Canonical, current-snapshot-verified change declaration bound into a plan.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredChangeSet {
+    /// Content-derived declaration identity.
+    pub declaration_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Caller assertion retained distinctly from observed source evidence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub asserted_base_revision: Option<String>,
+    /// Whether the optional assertion matches bounded repository metadata.
+    pub base_revision_status: String,
+    /// Canonically ordered current-hash-verified entries.
+    pub entries: Vec<DeclaredChangeEntry>,
+}
+
+/// One caller-declared association between a current source artifact and a
+/// current test artifact. The association itself is untrusted caller input.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredAssociatedTest {
+    /// Caller-selected current source artifact.
+    pub source: DeclaredChangeEntry,
+    /// Caller-selected current test artifact.
+    pub test: DeclaredChangeEntry,
+}
+
+/// Untrusted caller declaration of current source-to-test associations.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredAssociatedTests {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says every endpoint belongs to.
+    pub workspace_snapshot: String,
+    /// Source-to-test assertions to verify against that snapshot.
+    pub associations: Vec<DeclaredAssociatedTest>,
+}
+
+/// Canonical current-snapshot-verified source-to-test association assertion.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredAssociatedTests {
+    /// Content-derived identity of the verified association set.
+    pub association_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Canonically ordered source-to-test assertions with verified current hashes.
+    pub associations: Vec<DeclaredAssociatedTest>,
+}
+
+/// One caller assertion associating an opaque label with an exact current artifact.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredConventionExemplar {
+    /// Opaque bounded caller label; not observed evidence.
+    pub label: String,
+    /// Current artifact declaration to verify.
+    pub artifact: DeclaredChangeEntry,
+}
+
+/// Untrusted caller declaration of convention/exemplar examples.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredConventionExemplars {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says every exemplar belongs to.
+    pub workspace_snapshot: String,
+    /// Opaque labels and current artifact assertions to verify.
+    pub exemplars: Vec<DeclaredConventionExemplar>,
+}
+
+/// Canonical current-snapshot-verified convention/exemplar assertion.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredConventionExemplars {
+    /// Content-derived identity of this verified declaration.
+    pub declaration_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Canonically ordered opaque labels and verified current artifact assertions.
+    pub exemplars: Vec<DeclaredConventionExemplar>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -547,6 +765,314 @@ impl LocalEngine {
             result,
             elapsed_ms(started),
         )
+    }
+
+    /// Applies one explicit current-snapshot structural replacement manifest.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for a stale or malformed prior graph, malformed replacement,
+    /// changed source, missing exact cache entry, removal mismatch, or resource limit.
+    pub fn apply_incremental_structural_update(
+        &mut self,
+        context: &RequestContext,
+        update: &IncrementalStructuralUpdate,
+        budget: &ResourceBudget,
+    ) -> Result<StructuralGraph, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        let result =
+            self.apply_incremental_structural_update_internal(context, update, budget, started);
+        let outcome = result.as_ref().map_or(AuditOutcome::Failed, |graph| {
+            if graph.completeness == "partial" {
+                AuditOutcome::Limited
+            } else {
+                AuditOutcome::Allowed
+            }
+        });
+        self.finalize(
+            context,
+            &decision,
+            Capability::StructureBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    #[allow(clippy::too_many_lines)] // The complete fail-closed manifest validation is intentionally co-located.
+    fn apply_incremental_structural_update_internal(
+        &mut self,
+        context: &RequestContext,
+        update: &IncrementalStructuralUpdate,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<StructuralGraph, EngineError> {
+        validate_graph(&update.prior_graph).map_err(|error| {
+            structural_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &update.prior_graph.workspace_snapshot,
+            )
+        })?;
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        if update.prior_graph.workspace_snapshot == snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InvalidInput,
+                "incremental update requires a newer workspace snapshot",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let limits = structural_limits(context, budget, self.ids())?;
+        let mut replacements = std::collections::BTreeMap::new();
+        for replacement in &update.replacements {
+            if replacement.path.relative_units_base64url.is_empty()
+                || replacements
+                    .insert(
+                        replacement.path.relative_units_base64url.as_str(),
+                        replacement,
+                    )
+                    .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid incremental replacement manifest",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let current_paths = snapshot
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.relative_units_base64url.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        for removed in &update.removed_paths {
+            if current_paths.contains(removed.relative_units_base64url.as_str()) {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "declared removed artifact remains in current snapshot",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+        }
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| {
+                        cache_error(
+                            context,
+                            Capability::StructureBuild,
+                            error.code(),
+                            Some(self.ids()),
+                        )
+                    },
+                )?,
+            );
+        }
+        let mut files = Vec::new();
+        let mut unknowns = Vec::new();
+        for artifact in snapshot
+            .artifacts
+            .iter()
+            .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+        {
+            if elapsed_ms(started) >= limits.elapsed_ms {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "structural elapsed-time limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let Some(language) = structural_language(&artifact.path.display_path) else {
+                unknowns.push("unsupported_structural_language".into());
+                continue;
+            };
+            let exact = self
+                .workspace
+                .read_exact(&artifact.path, artifact.size_bytes)
+                .map_err(|error| {
+                    self.workspace_failure(context, Capability::StructureBuild, error.code())
+                })?;
+            if exact.content_hash != artifact.content_hash {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace changed during incremental structural update",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+            let request = structural_request(context, language, exact, limits);
+            let response = if let Some(replacement) =
+                replacements.remove(request.path.relative_units_base64url.as_str())
+            {
+                if replacement.path != request.path
+                    || replacement.content_hash != request.content_hash
+                {
+                    return Err(failure(
+                        context,
+                        Capability::StructureBuild,
+                        PublicErrorCode::StaleState,
+                        "incremental replacement does not match current artifact",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    ));
+                }
+                validate_worker_success(&replacement.response, &request).map_err(|error| {
+                    structural_failure(
+                        context,
+                        error,
+                        self.workspace.identity(),
+                        &snapshot.snapshot_id,
+                    )
+                })?;
+                replacement.response.clone()
+            } else {
+                self.load_cached_structural(context, &snapshot.snapshot_id, &request)?
+            };
+            files.push(GraphFileInput {
+                path: request.path,
+                response,
+            });
+        }
+        if !replacements.is_empty() {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "incremental replacement is absent from current snapshot",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
+            unknowns.push("structural_file_limit_reached".into());
+        }
+        let graph =
+            build_graph_with_unknowns(&snapshot.snapshot_id, files, unknowns).map_err(|error| {
+                structural_failure(
+                    context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+        let payload = serde_json::to_vec(&graph).map_err(|_| {
+            failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InternalFailure,
+                "structural graph serialization failed",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                None,
+            )
+        })?;
+        self.cache
+            .as_mut()
+            .ok_or_else(|| {
+                structural_cache_unavailable(
+                    context,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?
+            .promote_graph(&CachedGraph {
+                graph_id: graph.graph_id.clone(),
+                snapshot_id: graph.workspace_snapshot.clone(),
+                payload,
+            })
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?;
+        Ok(graph)
+    }
+
+    fn load_cached_structural(
+        &self,
+        context: &RequestContext,
+        snapshot_id: &str,
+        request: &WorkerRequest,
+    ) -> Result<WorkerSuccess, EngineError> {
+        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
+            structural_failure(context, error, self.workspace.identity(), snapshot_id)
+        })?;
+        let cached = self
+            .cache
+            .as_ref()
+            .ok_or_else(|| {
+                structural_cache_unavailable(context, self.workspace.identity(), snapshot_id)
+            })?
+            .structural_file(
+                &request.path.relative_units_base64url,
+                &request.content_hash,
+                &toolchain_identity,
+            )
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?;
+        let response = cached
+            .and_then(|entry| serde_json::from_slice(&entry.payload).ok())
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "exact cached structural result is unavailable",
+                    Some(self.workspace.identity()),
+                    Some(snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+        validate_worker_success(&response, request).map_err(|error| {
+            structural_failure(context, error, self.workspace.identity(), snapshot_id)
+        })?;
+        Ok(response)
     }
 
     /// Loads and fully revalidates the graph cached for the current snapshot.
@@ -1081,6 +1607,11 @@ impl LocalEngine {
             budget,
             &decision.decision_id,
             started,
+            None,
+            None,
+            None,
+            None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1095,6 +1626,313 @@ impl LocalEngine {
         )
     }
 
+    /// Builds one profiled packet with exact evidence recovered from one
+    /// current-snapshot structural traversal.
+    ///
+    /// The graph query is authorized through the existing `StructureQuery`
+    /// gateway before packet construction. This method adds no graph-building,
+    /// process, source-write, or semantic-resolution authority.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the graph is stale or malformed, the
+    /// traversal or packet exceeds a declared bound, or source bytes can no
+    /// longer be recovered exactly from the current snapshot.
+    pub fn build_profiled_structural_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralImpactRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let structure_context = derived_structure_query_context(context);
+        let traversal = self.query_structure(
+            &structure_context,
+            &structural_request.graph,
+            &structural_request.start_node,
+            &structural_request.edge_kinds,
+            &budget,
+        )?;
+        let structural_query = structural_planner_query(&structural_request.edge_kinds, traversal)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self.build_profiled_context_internal(
+            context,
+            profile,
+            query,
+            budget,
+            &decision.decision_id,
+            started,
+            Some(&structural_query),
+            None,
+            None,
+            None,
+            None,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds a snapshot-bound orientation packet from a bounded repository map.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the supplied graph is malformed or stale,
+    /// the map exceeds a declared bound, or ordinary packet retrieval fails.
+    pub fn build_profiled_repository_orientation_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        request: &RepositoryOrientationRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let structure_context = derived_structure_query_context(context);
+        let started = Instant::now();
+        let structure_decision = self.authorize(
+            &structure_context,
+            Capability::StructureQuery,
+            Some(budget.clone()),
+        )?;
+        let orientation = (|| {
+            let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+                failure(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+            if request.graph.workspace_snapshot != snapshot.snapshot_id {
+                return Err(failure(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    PublicErrorCode::StaleState,
+                    "structural graph is stale",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                ));
+            }
+            let result = repository_map(&request.graph, request.max_entries).map_err(|error| {
+                structural_query_failure(
+                    &structure_context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+            let mut value = RepositoryOrientationMap {
+                map_id: format!("sha256:{}", "0".repeat(64)),
+                result,
+            };
+            value.map_id = repository_orientation_identity(&value).map_err(|code| {
+                core_error(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    code,
+                    self.ids(),
+                )
+            })?;
+            Ok(value)
+        })();
+        let structure_outcome = orientation.as_ref().map_or(AuditOutcome::Failed, |value| {
+            if value.result.truncated {
+                AuditOutcome::Limited
+            } else {
+                AuditOutcome::Allowed
+            }
+        });
+        let orientation = self.finalize(
+            &structure_context,
+            &structure_decision,
+            Capability::StructureQuery,
+            structure_outcome,
+            orientation,
+            elapsed_ms(started),
+        )?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self.build_profiled_context_internal(
+            context,
+            TaskProfile::Orientation,
+            query,
+            budget,
+            &decision.decision_id,
+            Instant::now(),
+            None,
+            None,
+            None,
+            Some(&orientation),
+            None,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds one change-review packet anchored to a caller-declared set of
+    /// current artifacts.
+    ///
+    /// The declaration is not a Git diff and does not establish history. Every
+    /// declared path and hash is verified against the current authorized
+    /// snapshot before exact current-source evidence is recovered.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the declaration is malformed, stale,
+    /// exceeds the supplied budget, or does not exactly match the snapshot.
+    pub fn build_profiled_declared_change_set_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredChangeSet,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let declared_change_set =
+                self.verify_declared_change_set(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::ChangeReview,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                Some(&declared_change_set),
+                None,
+                None,
+                None,
+            )
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds one test-selection packet from caller-declared, current-snapshot
+    /// source-to-test associations. It neither discovers nor executes tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when an asserted pair is malformed, stale,
+    /// self-associated, duplicate, out of budget, or cannot be read exactly.
+    pub fn build_profiled_declared_associated_test_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredAssociatedTests,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let associated =
+                self.verify_declared_associated_tests(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::TestSelection,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                None,
+                Some(&associated),
+                None,
+                None,
+            )
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds an implementation packet with caller-declared verified convention exemplars.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the declaration is malformed, stale,
+    /// over budget, or exact current evidence cannot be recovered.
+    pub fn build_profiled_declared_convention_exemplar_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredConventionExemplars,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let conventions =
+                self.verify_declared_convention_exemplars(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::Implementation,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                None,
+                None,
+                None,
+                Some(&conventions),
+            )
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
     fn build_profiled_context_internal(
         &mut self,
         context: &RequestContext,
@@ -1103,21 +1941,78 @@ impl LocalEngine {
         budget: ResourceBudget,
         policy_decision: &str,
         started: Instant,
+        structural_query: Option<&StructuralPlannerQuery>,
+        declared_change_set: Option<&VerifiedDeclaredChangeSet>,
+        declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
+        repository_orientation: Option<&RepositoryOrientationMap>,
+        declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
-            failure(
-                context,
-                Capability::ContextBuild,
-                PublicErrorCode::StaleState,
-                "workspace snapshot required",
-                Some(self.workspace.identity()),
-                None,
-                Some(RecoveryAction::RefreshSnapshot),
-            )
-        })?;
-        let plan = deterministic_plan(profile, query, &snapshot.snapshot_id, policy_decision)
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot required",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .snapshot_id
+            .clone();
+        let mut plan = deterministic_plan(profile, query, &snapshot, policy_decision)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let packet = self.build_planned_context_internal(
+        if let Some(structural_query) = structural_query {
+            apply_structural_query_to_plan(&mut plan, structural_query)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        if let Some(declared_change_set) = declared_change_set {
+            apply_declared_change_set_to_plan(&mut plan, declared_change_set)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        if let Some(associated) = declared_associated_tests {
+            apply_declared_associated_tests_to_plan(&mut plan, associated)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        if let Some(conventions) = declared_convention_exemplars {
+            apply_declared_convention_exemplars_to_plan(&mut plan, conventions)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        if let Some(orientation) = repository_orientation {
+            apply_repository_orientation_to_plan(&mut plan, orientation)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.structural_evidence(context, value, &budget, started),
+        )?;
+        let (declared_evidence, declared_unknowns) = declared_change_set.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.declared_change_set_evidence(context, value, &budget, started),
+        )?;
+        let (associated_evidence, associated_unknowns) = declared_associated_tests.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.declared_associated_test_evidence(context, value, &budget, started),
+        )?;
+        let (convention_evidence, convention_unknowns) = declared_convention_exemplars
+            .map_or_else(
+                || Ok((Vec::new(), Vec::new())),
+                |value| {
+                    self.declared_convention_exemplar_evidence(context, value, &budget, started)
+                },
+            )?;
+        let mut supplemental_evidence = supplemental_evidence;
+        supplemental_evidence.extend(declared_evidence);
+        supplemental_evidence.extend(associated_evidence);
+        supplemental_evidence.extend(convention_evidence);
+        let mut supplemental_unknowns = supplemental_unknowns;
+        supplemental_unknowns.extend(declared_unknowns);
+        supplemental_unknowns.extend(associated_unknowns);
+        supplemental_unknowns.extend(convention_unknowns);
+        let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
                 steps: plan.steps.iter().map(|item| item.step.clone()).collect(),
@@ -1125,6 +2020,9 @@ impl LocalEngine {
             budget,
             policy_decision,
             started,
+            supplemental_evidence,
+            supplemental_unknowns,
+            Some(&snapshot),
         )?;
         let mut omitted_candidates = Vec::new();
         if packet.accounting.omitted_items != "0" {
@@ -1186,6 +2084,30 @@ impl LocalEngine {
         policy_decision: &str,
         started: Instant,
     ) -> Result<ContextPacket, EngineError> {
+        self.build_planned_context_with_supplemental_internal(
+            context,
+            plan,
+            budget,
+            policy_decision,
+            started,
+            Vec::new(),
+            Vec::new(),
+            None,
+        )
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn build_planned_context_with_supplemental_internal(
+        &mut self,
+        context: &RequestContext,
+        plan: &ContextPlan,
+        budget: ResourceBudget,
+        policy_decision: &str,
+        started: Instant,
+        supplemental_evidence: Vec<EvidenceRecord>,
+        supplemental_unknowns: Vec<String>,
+        expected_snapshot: Option<&str>,
+    ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
             Err(failure(
                 context,
@@ -1199,9 +2121,12 @@ impl LocalEngine {
                 Some(RecoveryAction::ReduceScope),
             ))
         } else {
-            let mut evidence = std::collections::BTreeMap::new();
-            let mut unknowns = Vec::new();
-            let mut snapshot_id = None;
+            let mut evidence = supplemental_evidence
+                .into_iter()
+                .map(|item| (item.evidence_id.clone(), item))
+                .collect::<std::collections::BTreeMap<_, _>>();
+            let mut unknowns = supplemental_unknowns;
+            let mut snapshot_id = expected_snapshot.map(str::to_owned);
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })?;
@@ -1281,6 +2206,633 @@ impl LocalEngine {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })
         }
+    }
+
+    fn structural_evidence(
+        &self,
+        context: &RequestContext,
+        structural_query: &StructuralPlannerQuery,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        let result = &structural_query.result;
+        if result.workspace_snapshot != snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "structural query is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let paths = result
+            .nodes
+            .iter()
+            .map(|node| (node.node_id.as_str(), &node.path))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let source_budget = search_budget(budget)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
+            core_error(context, Capability::ContextBuild, error.code(), self.ids())
+        })?;
+        let mut evidence = std::collections::BTreeMap::new();
+        for edge in &result.edges {
+            if elapsed_ms(started) >= elapsed_limit {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "context planning resource limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let worker_path = paths.get(edge.source_node.as_str()).ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "structural query has an invalid source node",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let path = PathIdentity::from_encoded_native_units(
+                &worker_path.platform_family,
+                &worker_path.unit_encoding,
+                &worker_path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "structural query has an invalid source path",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let recovered = evidence_for_span(
+                &self.workspace,
+                snapshot,
+                &path,
+                edge.span.start_byte,
+                edge.span.end_byte,
+                source_budget,
+                "structural_graph_edge",
+            )
+            .map_err(|error| {
+                retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
+            })?;
+            let record = evidence_record(&recovered);
+            evidence.entry(record.evidence_id.clone()).or_insert(record);
+        }
+        let mut unknowns = result.unknowns.clone();
+        if result.truncated {
+            unknowns.push("structural_query_limited".into());
+        }
+        unknowns.sort();
+        unknowns.dedup();
+        Ok((evidence.into_values().collect(), unknowns))
+    }
+
+    #[allow(clippy::too_many_lines)] // Each fail-closed manifest boundary retains its safe error mapping.
+    fn verify_declared_change_set(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredChangeSet,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredChangeSet, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declaration.schema_name != "declared-change-set"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.workspace_snapshot != snapshot.snapshot_id
+            || !valid_sha256(&declaration.workspace_snapshot)
+            || declaration.entries.is_empty()
+            || declaration.entries.len() > 10_000
+            || u64::try_from(declaration.entries.len()).unwrap_or(u64::MAX)
+                > budget.max_files_u64().map_err(|error| {
+                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?
+            || declaration
+                .asserted_base_revision
+                .as_ref()
+                .is_some_and(|value| value.is_empty() || value.len() > 256 || value.contains('\0'))
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared change-set",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let mut entries = std::collections::BTreeMap::new();
+        for entry in &declaration.entries {
+            if !valid_sha256(&entry.content_hash) {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                )
+            })?;
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| {
+                    artifact.path == path && artifact.content_hash == entry.content_hash
+                })
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::StaleState,
+                        "declared change-set does not match current snapshot",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            let canonical_entry = DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: artifact.path.platform_family.into(),
+                    unit_encoding: artifact.path.unit_encoding.into(),
+                    relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                },
+                content_hash: artifact.content_hash.clone(),
+            };
+            if entries
+                .insert(
+                    artifact.path.relative_units_base64url.clone(),
+                    canonical_entry,
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared change-set",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let metadata = self.workspace.repository_metadata();
+        let base_revision_status = match declaration.asserted_base_revision.as_deref() {
+            None => "not_asserted",
+            Some(value) if metadata.revision.as_deref() == Some(value) => {
+                "matched_repository_metadata"
+            }
+            Some(_) => "unavailable_or_mismatched",
+        };
+        let mut verified = VerifiedDeclaredChangeSet {
+            declaration_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: snapshot.snapshot_id.clone(),
+            asserted_base_revision: declaration.asserted_base_revision.clone(),
+            base_revision_status: base_revision_status.into(),
+            entries: entries.into_values().collect(),
+        };
+        verified.declaration_id = declared_change_set_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
+    fn verify_declared_convention_exemplars(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredConventionExemplars,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredConventionExemplars, EngineError> {
+        if declaration.schema_name != "declared-convention-exemplars"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.exemplars.is_empty()
+            || declaration.exemplars.len() > 10_000
+            || declaration.exemplars.iter().any(|item| {
+                item.label.is_empty() || item.label.len() > 128 || item.label.contains('\0')
+            })
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared convention exemplars",
+                Some(self.workspace.identity()),
+                self.snapshot
+                    .as_ref()
+                    .map(|snapshot| snapshot.snapshot_id.as_str()),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let verified_entries = self.verify_declared_change_set(
+            context,
+            &DeclaredChangeSet {
+                schema_name: "declared-change-set".into(),
+                schema_version: CONTRACT_VERSION.into(),
+                workspace_snapshot: declaration.workspace_snapshot.clone(),
+                asserted_base_revision: None,
+                entries: declaration
+                    .exemplars
+                    .iter()
+                    .map(|item| item.artifact.clone())
+                    .collect(),
+            },
+            budget,
+        )?;
+        let canonical_entries = verified_entries
+            .entries
+            .into_iter()
+            .map(|item| (item.path.relative_units_base64url.clone(), item))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut exemplars = std::collections::BTreeMap::new();
+        for item in &declaration.exemplars {
+            let key = &item.artifact.path.relative_units_base64url;
+            let artifact = canonical_entries
+                .get(key)
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::IntegrityFailure,
+                        "declared convention exemplar verification failed",
+                        Some(self.workspace.identity()),
+                        Some(&declaration.workspace_snapshot),
+                        None,
+                    )
+                })?
+                .clone();
+            let identity = format!("{}:{}", item.label, key);
+            if exemplars
+                .insert(
+                    identity,
+                    DeclaredConventionExemplar {
+                        label: item.label.clone(),
+                        artifact,
+                    },
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared convention exemplars",
+                    Some(self.workspace.identity()),
+                    Some(&declaration.workspace_snapshot),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let mut verified = VerifiedDeclaredConventionExemplars {
+            declaration_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: declaration.workspace_snapshot.clone(),
+            exemplars: exemplars.into_values().collect(),
+        };
+        verified.declaration_id = declared_convention_exemplars_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
+    #[allow(clippy::too_many_lines)] // Each manifest boundary retains its explicit fail-closed mapping.
+    fn verify_declared_associated_tests(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredAssociatedTests,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredAssociatedTests, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declaration.schema_name != "declared-associated-tests"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.workspace_snapshot != snapshot.snapshot_id
+            || declaration.associations.is_empty()
+            || declaration.associations.len() > 10_000
+            || u64::try_from(declaration.associations.len()).unwrap_or(u64::MAX)
+                > budget.max_files_u64().map_err(|error| {
+                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared associated tests",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let canonical = |entry: &DeclaredChangeEntry| -> Result<DeclaredChangeEntry, EngineError> {
+            if !valid_sha256(&entry.content_hash) {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                )
+            })?;
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| {
+                    artifact.path == path && artifact.content_hash == entry.content_hash
+                })
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::StaleState,
+                        "declared associated tests do not match current snapshot",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            Ok(DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: artifact.path.platform_family.into(),
+                    unit_encoding: artifact.path.unit_encoding.into(),
+                    relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                },
+                content_hash: artifact.content_hash.clone(),
+            })
+        };
+        let mut associations = std::collections::BTreeMap::new();
+        for association in &declaration.associations {
+            let source = canonical(&association.source)?;
+            let test = canonical(&association.test)?;
+            let source_key = &source.path.relative_units_base64url;
+            let test_key = &test.path.relative_units_base64url;
+            if source_key == test_key {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let mut pair = [source_key.clone(), test_key.clone()];
+            pair.sort();
+            if associations
+                .insert(
+                    (pair[0].clone(), pair[1].clone()),
+                    DeclaredAssociatedTest { source, test },
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let mut verified = VerifiedDeclaredAssociatedTests {
+            association_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: snapshot.snapshot_id.clone(),
+            associations: associations.into_values().collect(),
+        };
+        verified.association_id = declared_associated_tests_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
+    fn declared_change_set_evidence(
+        &self,
+        context: &RequestContext,
+        declared_change_set: &VerifiedDeclaredChangeSet,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declared_change_set.workspace_snapshot != snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "declared change-set is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let source_budget = search_budget(budget)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
+            core_error(context, Capability::ContextBuild, error.code(), self.ids())
+        })?;
+        let mut evidence = Vec::with_capacity(declared_change_set.entries.len());
+        for entry in &declared_change_set.entries {
+            if elapsed_ms(started) >= elapsed_limit {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "context planning resource limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::IntegrityFailure,
+                    "verified declared change-set has an invalid path",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+            let recovered = lookup_exact_path(&self.workspace, snapshot, &path, source_budget)
+                .map_err(|error| {
+                    retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?;
+            let record = recovered.matches.into_iter().next().ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "declared change-set source is unavailable",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+            if record.content_hash != entry.content_hash {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "declared change-set source changed",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+            evidence.push(evidence_record(&record));
+        }
+        let unknowns = if declared_change_set.base_revision_status == "unavailable_or_mismatched" {
+            vec!["asserted_base_revision_unavailable_or_mismatched".into()]
+        } else {
+            Vec::new()
+        };
+        Ok((evidence, unknowns))
+    }
+
+    fn declared_associated_test_evidence(
+        &self,
+        context: &RequestContext,
+        associated: &VerifiedDeclaredAssociatedTests,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let mut entries = std::collections::BTreeMap::new();
+        for pair in &associated.associations {
+            for entry in [&pair.source, &pair.test] {
+                entries
+                    .entry(entry.path.relative_units_base64url.clone())
+                    .or_insert_with(|| entry.clone());
+            }
+        }
+        let declared = VerifiedDeclaredChangeSet {
+            declaration_id: "associated-test-evidence".into(),
+            workspace_snapshot: associated.workspace_snapshot.clone(),
+            asserted_base_revision: None,
+            base_revision_status: "not_asserted".into(),
+            entries: entries.into_values().collect(),
+        };
+        self.declared_change_set_evidence(context, &declared, budget, started)
+    }
+
+    fn declared_convention_exemplar_evidence(
+        &self,
+        context: &RequestContext,
+        conventions: &VerifiedDeclaredConventionExemplars,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let mut entries = conventions
+            .exemplars
+            .iter()
+            .map(|item| item.artifact.clone())
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            left.path
+                .relative_units_base64url
+                .cmp(&right.path.relative_units_base64url)
+        });
+        entries.dedup_by(|left, right| {
+            left.path.relative_units_base64url == right.path.relative_units_base64url
+        });
+        let declaration = VerifiedDeclaredChangeSet {
+            declaration_id: conventions.declaration_id.clone(),
+            workspace_snapshot: conventions.workspace_snapshot.clone(),
+            asserted_base_revision: None,
+            base_revision_status: "not_asserted".into(),
+            entries,
+        };
+        self.declared_change_set_evidence(context, &declaration, budget, started)
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -1992,6 +3544,11 @@ fn deterministic_plan(
         steps,
         coverage: planner_coverage(),
         omitted_candidates,
+        structural_query: None,
+        declared_change_set: None,
+        declared_associated_tests: None,
+        declared_convention_exemplars: None,
+        repository_orientation: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
@@ -2057,6 +3614,16 @@ fn planner_coverage() -> Vec<PlannerCoverage> {
             "unavailable",
             "configuration_to_code_reference_unavailable",
         ),
+        planner_coverage_item(
+            PlannerEvidenceClass::ConventionExemplar,
+            "unavailable",
+            "convention_exemplar_evidence_unavailable",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::RepositoryOrientation,
+            "unavailable",
+            "repository_orientation_map_not_connected",
+        ),
     ]
 }
 
@@ -2072,6 +3639,171 @@ fn planner_coverage_item(
     }
 }
 
+fn structural_planner_query(
+    edge_kinds: &[String],
+    result: StructuralQueryResult,
+) -> Result<StructuralPlannerQuery, context_core::CoreErrorCode> {
+    let mut edge_kinds = edge_kinds.to_vec();
+    edge_kinds.sort();
+    edge_kinds.dedup();
+    let mut query = StructuralPlannerQuery {
+        query_id: format!("sha256:{}", "0".repeat(64)),
+        edge_kinds,
+        result,
+    };
+    query.query_id = structural_query_identity(&query)?;
+    Ok(query)
+}
+
+fn apply_structural_query_to_plan(
+    plan: &mut DeterministicContextPlan,
+    structural_query: &StructuralPlannerQuery,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::StructuralRelationship)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "validated_structural_relationship_available".into();
+    plan.omitted_candidates.retain(|item| {
+        item.candidate != "structural_relationship"
+            || item.reason_code != "structural_relationship_evidence_not_connected"
+    });
+    plan.structural_query = Some(structural_query.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn apply_declared_change_set_to_plan(
+    plan: &mut DeterministicContextPlan,
+    declared_change_set: &VerifiedDeclaredChangeSet,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::ChangeSet)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_change_set_current_snapshot_verified".into();
+    plan.omitted_candidates.retain(|item| {
+        item.candidate != "change_set" || item.reason_code != "change_set_evidence_unavailable"
+    });
+    plan.declared_change_set = Some(declared_change_set.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn apply_declared_associated_tests_to_plan(
+    plan: &mut DeterministicContextPlan,
+    associated: &VerifiedDeclaredAssociatedTests,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::AssociatedTest)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_associated_test_current_snapshot_verified".into();
+    plan.omitted_candidates
+        .retain(|item| item.candidate != "associated_test");
+    plan.declared_associated_tests = Some(associated.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn apply_declared_convention_exemplars_to_plan(
+    plan: &mut DeterministicContextPlan,
+    conventions: &VerifiedDeclaredConventionExemplars,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::ConventionExemplar)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_convention_exemplar_current_snapshot_verified".into();
+    plan.declared_convention_exemplars = Some(conventions.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn apply_repository_orientation_to_plan(
+    plan: &mut DeterministicContextPlan,
+    orientation: &RepositoryOrientationMap,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::RepositoryOrientation)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "validated_repository_orientation_map_available".into();
+    plan.repository_orientation = Some(orientation.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn repository_orientation_identity(
+    orientation: &RepositoryOrientationMap,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected = serde_json::to_value(orientation)
+        .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("map_id");
+    canonical_identity("repository-orientation-map", &projected)
+}
+
+fn declared_associated_tests_identity(
+    value: &VerifiedDeclaredAssociatedTests,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(value).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("association_id");
+    canonical_identity("declared-associated-tests", &projected)
+}
+
+fn declared_convention_exemplars_identity(
+    value: &VerifiedDeclaredConventionExemplars,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(value).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("declaration_id");
+    canonical_identity("declared-convention-exemplars", &projected)
+}
+
+fn declared_change_set_identity(
+    declared_change_set: &VerifiedDeclaredChangeSet,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected = serde_json::to_value(declared_change_set)
+        .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("declaration_id");
+    canonical_identity("declared-change-set", &projected)
+}
+
+fn structural_query_identity(
+    query: &StructuralPlannerQuery,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(query).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("query_id");
+    canonical_identity("structural-planner-query", &projected)
+}
+
 fn deterministic_plan_identity(
     plan: &DeterministicContextPlan,
 ) -> Result<String, context_core::CoreErrorCode> {
@@ -2081,10 +3813,19 @@ fn deterministic_plan_identity(
         .as_object_mut()
         .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
         .remove("plan_id");
-    let canonical = serde_json_canonicalizer::to_vec(&projected)
+    canonical_identity("deterministic-context-plan", &projected)
+}
+
+fn canonical_identity(
+    kind: &str,
+    value: &serde_json::Value,
+) -> Result<String, context_core::CoreErrorCode> {
+    let canonical = serde_json_canonicalizer::to_vec(value)
         .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
     let mut hasher = Sha256::new();
-    hasher.update(b"impresari-context\0deterministic-context-plan\0");
+    hasher.update(b"impresari-context\0");
+    hasher.update(kind.as_bytes());
+    hasher.update(b"\0");
     hasher.update(CONTRACT_VERSION.as_bytes());
     hasher.update(b"\0");
     hasher.update(canonical);
@@ -2766,6 +4507,23 @@ fn valid_identifier(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
+fn derived_structure_query_context(context: &RequestContext) -> RequestContext {
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0structural-impact-query-event\0");
+    hasher.update(context.event_id.as_bytes());
+    let mut event_id = String::from("evt_");
+    for byte in hasher.finalize() {
+        use fmt::Write as _;
+        write!(event_id, "{byte:02x}").expect("string write");
+    }
+    RequestContext {
+        request_id: context.request_id.clone(),
+        event_id,
+        subject: context.subject.clone(),
+        occurred_at: context.occurred_at.clone(),
+    }
+}
+
 fn valid_sha256(value: &str) -> bool {
     value.len() == 71
         && value.starts_with("sha256:")
@@ -3279,6 +5037,399 @@ mod tests {
                 .all(|step| !step.reason_code.is_empty())
         );
         validate_packet(&first.packet).expect("valid profiled packet");
+    }
+
+    #[test]
+    fn declared_associated_tests_are_verified_and_recovered() {
+        let source = TestRoot::new("associated-test-source");
+        let cache = TestRoot::new("associated-test-cache");
+        fs::write(source.0.join("lib.rs"), b"pub fn subject() {}\n").expect("source");
+        fs::write(source.0.join("lib_test.rs"), b"fn subject_test() {}\n").expect("test");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        let snapshot = engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let entry = |name: &str| {
+            let found = engine
+                .snapshot
+                .as_ref()
+                .expect("snapshot")
+                .artifacts
+                .iter()
+                .find(|item| item.path.display_path == name)
+                .expect("artifact");
+            DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: found.path.platform_family.into(),
+                    unit_encoding: found.path.unit_encoding.into(),
+                    relative_units_base64url: found.path.relative_units_base64url.clone(),
+                },
+                content_hash: found.content_hash.clone(),
+            }
+        };
+        let declaration = DeclaredAssociatedTests {
+            schema_name: "declared-associated-tests".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            workspace_snapshot: snapshot.snapshot_id,
+            associations: vec![DeclaredAssociatedTest {
+                source: entry("lib.rs"),
+                test: entry("lib_test.rs"),
+            }],
+        };
+        let packet = engine
+            .build_profiled_declared_associated_test_context(
+                &request(4, "test_selection"),
+                "subject",
+                &declaration,
+                budget(),
+            )
+            .expect("packet");
+        assert!(packet.plan.declared_associated_tests.is_some());
+        assert!(
+            packet
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|item| item.artifact.path.display_path == "lib.rs")
+        );
+        assert!(
+            packet
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|item| item.artifact.path.display_path == "lib_test.rs")
+        );
+        let mut self_pair = declaration;
+        self_pair.associations[0].test = self_pair.associations[0].source.clone();
+        assert_eq!(
+            engine
+                .build_profiled_declared_associated_test_context(
+                    &request(5, "test_selection"),
+                    "subject",
+                    &self_pair,
+                    budget()
+                )
+                .expect_err("self pair")
+                .envelope()
+                .code,
+            PublicErrorCode::InvalidInput
+        );
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn declared_change_set_context_is_snapshot_verified_and_deterministic() {
+        let source = TestRoot::new("declared-change-set-source");
+        let first_cache = TestRoot::new("declared-change-set-first-cache");
+        let second_cache = TestRoot::new("declared-change-set-second-cache");
+        fs::write(source.0.join("review.rs"), b"pub fn reviewed_change() {}\n").expect("source");
+        fs::write(source.0.join("other.rs"), b"pub fn other() {}\n").expect("source");
+        let config_for = |cache_root: PathBuf| EngineConfig {
+            cache_root,
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let declaration_for = |engine: &LocalEngine| {
+            let snapshot = engine.snapshot.as_ref().expect("snapshot");
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| artifact.path.display_path == "review.rs")
+                .expect("review artifact");
+            DeclaredChangeSet {
+                schema_name: "declared-change-set".into(),
+                schema_version: CONTRACT_VERSION.into(),
+                workspace_snapshot: snapshot.snapshot_id.clone(),
+                asserted_base_revision: Some("unavailable-revision".into()),
+                entries: vec![DeclaredChangeEntry {
+                    path: DeclaredChangePath {
+                        platform_family: artifact.path.platform_family.into(),
+                        unit_encoding: artifact.path.unit_encoding.into(),
+                        relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                    },
+                    content_hash: artifact.content_hash.clone(),
+                }],
+            }
+        };
+        let profile_request = request(3, "declared_change_review");
+        let (mut first_engine, _) = LocalEngine::open(
+            config_for(first_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("first open");
+        first_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("first snapshot");
+        let declaration = declaration_for(&first_engine);
+        let first = first_engine
+            .build_profiled_declared_change_set_context(
+                &profile_request,
+                "reviewed_change",
+                &declaration,
+                budget(),
+            )
+            .expect("first declared packet");
+        assert_schema("deterministic-context-plan.schema.json", &first.plan);
+        assert!(first.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::ChangeSet
+                && coverage.status == "available"
+                && coverage.reason_code == "declared_change_set_current_snapshot_verified"
+        }));
+        let verified = first
+            .plan
+            .declared_change_set
+            .as_ref()
+            .expect("verified declaration");
+        assert_eq!(verified.entries, declaration.entries);
+        assert_eq!(verified.base_revision_status, "unavailable_or_mismatched");
+        assert!(
+            first
+                .packet
+                .unknowns
+                .contains(&"asserted_base_revision_unavailable_or_mismatched".into())
+        );
+        assert!(first.packet.observed_evidence.iter().any(|evidence| {
+            evidence.artifact.path.display_path == "review.rs"
+                && evidence.artifact.content_hash == declaration.entries[0].content_hash
+        }));
+        validate_packet(&first.packet).expect("valid declared packet");
+        drop(first_engine);
+
+        let (mut second_engine, _) = LocalEngine::open(
+            config_for(second_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("second open");
+        second_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("second snapshot");
+        let second_declaration = declaration_for(&second_engine);
+        let second = second_engine
+            .build_profiled_declared_change_set_context(
+                &profile_request,
+                "reviewed_change",
+                &second_declaration,
+                budget(),
+            )
+            .expect("second declared packet");
+        assert_eq!(first.plan, second.plan);
+        assert_eq!(first.packet.packet_id, second.packet.packet_id);
+
+        let mut mismatched = second_declaration.clone();
+        mismatched.entries[0].content_hash = format!("sha256:{}", "0".repeat(64));
+        let error = second_engine
+            .build_profiled_declared_change_set_context(
+                &request(4, "mismatched_change_review"),
+                "reviewed_change",
+                &mismatched,
+                budget(),
+            )
+            .expect_err("mismatched hash must fail closed");
+        assert_eq!(error.envelope().code, PublicErrorCode::StaleState);
+
+        let mut duplicate = second_declaration;
+        duplicate.entries.push(duplicate.entries[0].clone());
+        let error = second_engine
+            .build_profiled_declared_change_set_context(
+                &request(5, "duplicate_change_review"),
+                "reviewed_change",
+                &duplicate,
+                budget(),
+            )
+            .expect_err("duplicate entry must fail closed");
+        assert_eq!(error.envelope().code, PublicErrorCode::InvalidInput);
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn profiled_structural_context_recovers_exact_bounded_graph_evidence() {
+        let source = TestRoot::new("structural-profile-source");
+        let first_cache = TestRoot::new("structural-profile-first-cache");
+        let second_cache = TestRoot::new("structural-profile-second-cache");
+        fs::write(
+            source.0.join("review.ts"),
+            b"export function reviewed_change() { return 1; }\n",
+        )
+        .expect("source");
+        let config_for = |cache_root: PathBuf| EngineConfig {
+            cache_root,
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let graph_for = |engine: &LocalEngine| {
+            let snapshot = engine.snapshot.as_ref().expect("snapshot");
+            let artifact = snapshot.artifacts.first().expect("artifact");
+            let path = WorkerPath {
+                display_path: artifact.path.display_path.clone(),
+                platform_family: artifact.path.platform_family.into(),
+                unit_encoding: artifact.path.unit_encoding.into(),
+                relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+            };
+            let provenance = context_structural::FactProvenance {
+                method: "tree_sitter".into(),
+                parser_version: "tree-sitter-0.26.12".into(),
+                grammar_version: "tree-sitter-typescript-0.23.2".into(),
+                resolver_version: RESOLVER_VERSION.into(),
+                graph_version: GRAPH_VERSION.into(),
+            };
+            context_structural::build_graph(
+                &snapshot.snapshot_id,
+                vec![GraphFileInput {
+                    path,
+                    response: context_structural::WorkerSuccess {
+                        schema_name: "structural-worker-success".into(),
+                        schema_version: PROTOCOL_VERSION.into(),
+                        request_id: "req_00000002".into(),
+                        content_hash: artifact.content_hash.clone(),
+                        syntax_errors: false,
+                        facts: vec![context_structural::StructuralFact {
+                            class: FactClass::Declaration,
+                            local_key: "declared_reviewed_change".into(),
+                            syntax_kind: "function_declaration".into(),
+                            name: Some("reviewed_change".into()),
+                            module: None,
+                            start_byte: 0,
+                            end_byte: 33,
+                            parent_key: None,
+                            confidence: "confirmed".into(),
+                            provenance,
+                        }],
+                        warnings: Vec::new(),
+                    },
+                }],
+            )
+            .expect("graph")
+        };
+        let profile_request = request(3, "security_review");
+        let (mut first_engine, _) = LocalEngine::open(
+            config_for(first_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("first open");
+        first_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("first snapshot");
+        let first_graph = graph_for(&first_engine);
+        let first_start = first_graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "file")
+            .expect("file node")
+            .node_id
+            .clone();
+        let first = first_engine
+            .build_profiled_structural_context(
+                &profile_request,
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: first_graph.clone(),
+                    start_node: first_start.clone(),
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect("first structural profile");
+        assert_schema("deterministic-context-plan.schema.json", &first.plan);
+        assert!(first.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.status == "available"
+                && coverage.reason_code == "validated_structural_relationship_available"
+        }));
+        let structural = first
+            .plan
+            .structural_query
+            .as_ref()
+            .expect("structural query");
+        assert_eq!(structural.result.graph_id, first_graph.graph_id);
+        assert_eq!(structural.result.start_node, first_start);
+        assert_eq!(structural.edge_kinds, vec!["declares"]);
+        assert_eq!(structural.result.edges.len(), 1);
+        assert!(
+            first
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|evidence| evidence.extraction.method == "structural_graph_edge")
+        );
+        validate_packet(&first.packet).expect("valid structural packet");
+        drop(first_engine);
+
+        let (mut second_engine, _) = LocalEngine::open(
+            config_for(second_cache.0.clone()),
+            &request(1, "open"),
+            &source.0,
+        )
+        .expect("second open");
+        second_engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("second snapshot");
+        let second_graph = graph_for(&second_engine);
+        let second_start = second_graph
+            .nodes
+            .iter()
+            .find(|node| node.kind == "file")
+            .expect("file node")
+            .node_id
+            .clone();
+        let second = second_engine
+            .build_profiled_structural_context(
+                &profile_request,
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: second_graph,
+                    start_node: second_start,
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect("second structural profile");
+        assert_eq!(first.plan, second.plan);
+        assert_eq!(first.packet.packet_id, second.packet.packet_id);
+        drop(second_engine);
+
+        fs::write(
+            source.0.join("review.ts"),
+            b"export function reviewed_change() { return 2; }\n",
+        )
+        .expect("changed source");
+        let stale_cache = TestRoot::new("structural-profile-stale-cache");
+        let (mut stale_engine, _) = LocalEngine::open(
+            config_for(stale_cache.0.clone()),
+            &request(4, "open"),
+            &source.0,
+        )
+        .expect("stale open");
+        stale_engine
+            .build_snapshot(&request(5, "snapshot"), budget())
+            .expect("changed snapshot");
+        let stale = stale_engine
+            .build_profiled_structural_context(
+                &request(6, "security_review"),
+                TaskProfile::SecurityReview,
+                "reviewed_change",
+                &StructuralImpactRequest {
+                    graph: first_graph,
+                    start_node: first_start,
+                    edge_kinds: vec!["declares".into()],
+                },
+                budget(),
+            )
+            .expect_err("stale graph must fail before evidence recovery");
+        assert_eq!(stale.envelope().code, PublicErrorCode::StaleState);
     }
 
     #[test]
