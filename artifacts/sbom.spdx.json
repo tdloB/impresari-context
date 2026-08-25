@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-748670332ce2",
-  "documentNamespace": "https://impresari-context.invalid/sbom/748670332ce2239b8e8ea0c696237c1342ac8290827937be91da32f7ea92f247",
+  "name": "impresari-context-cargo-lock-98de79be9e46",
+  "documentNamespace": "https://impresari-context.invalid/sbom/98de79be9e4613eeb7336636ecfe6c0b20c77d90c454012d30311b78f879ee3a",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
@@ -446,8 +446,8 @@
     {
       "SPDXID": "SPDXRef-Package-15",
       "name": "cap-std",
-      "versionInfo": "4.0.2",
-      "downloadLocation": "https://crates.io/crates/cap-std/4.0.2",
+      "versionInfo": "4.0.3",
+      "downloadLocation": "https://crates.io/crates/cap-std/4.0.3",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
@@ -456,7 +456,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/cap-std@4.0.2"
+          "referenceLocator": "pkg:cargo/cap-std@4.0.3"
         }
       ]
     },
