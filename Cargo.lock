@@ -152,6 +152,7 @@ dependencies = [
  "context-store",
  "context-workspace",
  "serde",
+ "serde_json",
 ]
 
 [[package]]

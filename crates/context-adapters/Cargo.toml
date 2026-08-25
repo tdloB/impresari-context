@@ -19,3 +19,4 @@ serde = { version = "=1.0.229", default-features = false, features = ["derive", 
 [dev-dependencies]
 context-store = { version = "=0.1.0", path = "../context-store" }
 context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
