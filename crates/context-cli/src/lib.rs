@@ -886,7 +886,7 @@ fn codex_config_is_safe(config: &toml::Value, workspace: &Path, cache: &Path) ->
     if !entry.keys().all(|key| {
         matches!(
             key.as_str(),
-            "command" | "args" | "enabled" | "default_tools_approval_mode"
+            "command" | "args" | "enabled" | "required" | "default_tools_approval_mode"
         )
     }) {
         return false;
@@ -898,6 +898,9 @@ fn codex_config_is_safe(config: &toml::Value, workspace: &Path, cache: &Path) ->
         && configured_directory_matches(args[3], cache)
         && entry
             .get("enabled")
+            .is_none_or(|value| value.as_bool() == Some(true))
+        && entry
+            .get("required")
             .is_none_or(|value| value.as_bool() == Some(true))
         && entry
             .get("default_tools_approval_mode")
@@ -1504,7 +1507,7 @@ fn remove_managed_config(path: &Path) -> Result<(), EngineError> {
 
 fn managed_toml_block(binary: &Path, arguments: &[String]) -> String {
     format!(
-        "# Impresari Context managed connection kit v1; ownership=exact_fixed_entry:impresari-context\n[mcp_servers.\"impresari-context\"]\ncommand = {}\nargs = [{}]\ndefault_tools_approval_mode = \"prompt\"",
+        "# Impresari Context managed connection kit v1; ownership=exact_fixed_entry:impresari-context\n[mcp_servers.\"impresari-context\"]\ncommand = {}\nargs = [{}]\nenabled = true\nrequired = true\ndefault_tools_approval_mode = \"prompt\"",
         toml_string_literal(&binary.display().to_string()),
         arguments
             .iter()
@@ -2335,6 +2338,18 @@ mod tests {
             assert!(value["configuration"].to_string().contains("--workspace"));
             assert!(value["configuration"].to_string().contains("--cache"));
             assert!(!value["configuration"].to_string().contains("env"));
+            if client == "codex" {
+                assert!(
+                    value["configuration"]["entry"]
+                        .as_str()
+                        .is_some_and(|entry| entry.contains("enabled = true"))
+                );
+                assert!(
+                    value["configuration"]["entry"]
+                        .as_str()
+                        .is_some_and(|entry| entry.contains("required = true"))
+                );
+            }
         }
         assert_eq!(
             fs::read(root.0.join("source.ts")).expect("source after"),
