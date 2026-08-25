@@ -46,6 +46,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0038](0038-incremental-structural-updates.md) | Apply structural changes only through verified explicit current-snapshot update manifests | Accepted for implementation |
 | [ADR-0039](0039-convention-and-exemplar-evidence.md) | Bind convention/exemplar context only to caller-declared verified current artifacts | Accepted for implementation |
 | [ADR-0040](0040-demand-led-language-admission.md) | Select Phase 5 languages only from documented demand and evaluation evidence | Accepted |
+| [ADR-0041](0041-native-agent-guidance-artifacts.md) | Use owned, opt-in native guidance artifacts without automatic delivery | Accepted for implementation |
 
 ## Change Rules
 
