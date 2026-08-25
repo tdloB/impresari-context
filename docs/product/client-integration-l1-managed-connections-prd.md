@@ -55,13 +55,20 @@ client kit render   <client> <binary> <workspace> <cache>
 client kit inspect  <client> <binary> <workspace> <cache> <config-file>
 client kit validate <client> <binary> <workspace> <cache> <config-file>
 client kit install  <client> <binary> <workspace> <cache> <config-file> [--apply]
+client kit update   <client> <old-binary> <old-workspace> <old-cache> <binary> <workspace> <cache> <config-file> [--apply]
 client kit remove   <client> <binary> <workspace> <cache> <config-file> [--apply]
 ```
 
-`install` and `remove` are previews unless the caller passes `--apply`; no
+`install`, `update`, and `remove` are previews unless the caller passes
+`--apply`; no
 command discovers or targets a default client configuration. The target parent
 must already exist and may not itself be a symlink. The target must be absent
 or a bounded, UTF-8, regular non-symlink file. JSON modifications are
 token-local edits that retain unrelated values; TOML additions and removals
 append/remove only the exact ownership-marked Impresari table. Any malformed,
 duplicate, conflicting, or unowned Impresari entry fails closed.
+
+`update` requires both the exact prior contract and the desired replacement
+contract. It proves that the named target contains the former before it renders
+or atomically replaces it with the latter. It never performs a name-based or
+automatic overwrite.
