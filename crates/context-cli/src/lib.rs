@@ -20,8 +20,8 @@ use context_core::{
 };
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, EngineConfig,
-    EngineError, LocalEngine, QueryKind, RepositoryOrientationRequest, RequestContext,
-    SnapshotStatus, StructuralImpactRequest, TaskProfile,
+    EngineError, IncrementalStructuralUpdate, LocalEngine, QueryKind, RepositoryOrientationRequest,
+    RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -46,6 +46,7 @@ Usage:\n\
   impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
   impresari-context [global-options] context profile-associated-test-build <root> <cache-root> <query> <declared-associated-tests-json>\n\
   impresari-context [global-options] context profile-orientation-build <root> <cache-root> <query> <graph-json> <max-entries>\n\
+  impresari-context [global-options] structure incremental-update <root> <cache-root> <incremental-update-json>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -397,6 +398,17 @@ fn dispatch(
                 &launcher,
             )?;
             Output::new("structure build", &result)
+        }
+        ["structure", "incremental-update", root, cache, update_path] => {
+            let update: IncrementalStructuralUpdate =
+                read_json(Path::new(update_path), Capability::StructureBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.apply_incremental_structural_update(
+                &contexts.next("structure_incremental_update"),
+                &update,
+                &default_budget(),
+            )?;
+            Output::new("structure incremental-update", &result)
         }
         [
             "structure",
@@ -859,6 +871,7 @@ fn doctor_mcp_exchange(
         == Some(vec![
             "context_session_open",
             "context_build",
+            "structure_incremental_update",
             "context_packet_resolve",
             "context_session_close",
         ]);

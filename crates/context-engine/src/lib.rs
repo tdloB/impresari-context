@@ -28,8 +28,8 @@ use context_store::{
 use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, RepositoryMap,
     StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher,
-    WorkerPath, WorkerRequest, build_graph_with_unknowns, query_graph, repository_map,
-    validate_graph, validate_worker_success, worker_toolchain_identity,
+    WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns, query_graph,
+    repository_map, validate_graph, validate_worker_success, worker_toolchain_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -316,6 +316,30 @@ pub struct RepositoryOrientationMap {
     pub map_id: String,
     /// Canonical bounded repository map.
     pub result: RepositoryMap,
+}
+
+/// One caller-supplied current parser result replacing an artifact in a prior graph.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IncrementalStructuralReplacement {
+    /// Exact lossless path identity of the current artifact.
+    pub path: WorkerPath,
+    /// Expected current source hash.
+    pub content_hash: String,
+    /// Complete untrusted parser result, revalidated by the engine.
+    pub response: WorkerSuccess,
+}
+
+/// Explicit one-shot structural replacement manifest.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct IncrementalStructuralUpdate {
+    /// Canonical graph from which this update proceeds.
+    pub prior_graph: StructuralGraph,
+    /// Current parser results replacing changed artifacts.
+    pub replacements: Vec<IncrementalStructuralReplacement>,
+    /// Paths asserted removed from the current snapshot.
+    pub removed_paths: Vec<WorkerPath>,
 }
 
 /// Lossless native path identity supplied in a declared change-set manifest.
@@ -700,6 +724,314 @@ impl LocalEngine {
             result,
             elapsed_ms(started),
         )
+    }
+
+    /// Applies one explicit current-snapshot structural replacement manifest.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for a stale or malformed prior graph, malformed replacement,
+    /// changed source, missing exact cache entry, removal mismatch, or resource limit.
+    pub fn apply_incremental_structural_update(
+        &mut self,
+        context: &RequestContext,
+        update: &IncrementalStructuralUpdate,
+        budget: &ResourceBudget,
+    ) -> Result<StructuralGraph, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        let result =
+            self.apply_incremental_structural_update_internal(context, update, budget, started);
+        let outcome = result.as_ref().map_or(AuditOutcome::Failed, |graph| {
+            if graph.completeness == "partial" {
+                AuditOutcome::Limited
+            } else {
+                AuditOutcome::Allowed
+            }
+        });
+        self.finalize(
+            context,
+            &decision,
+            Capability::StructureBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    #[allow(clippy::too_many_lines)] // The complete fail-closed manifest validation is intentionally co-located.
+    fn apply_incremental_structural_update_internal(
+        &mut self,
+        context: &RequestContext,
+        update: &IncrementalStructuralUpdate,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<StructuralGraph, EngineError> {
+        validate_graph(&update.prior_graph).map_err(|error| {
+            structural_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &update.prior_graph.workspace_snapshot,
+            )
+        })?;
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        if update.prior_graph.workspace_snapshot == snapshot.snapshot_id {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InvalidInput,
+                "incremental update requires a newer workspace snapshot",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        let limits = structural_limits(context, budget, self.ids())?;
+        let mut replacements = std::collections::BTreeMap::new();
+        for replacement in &update.replacements {
+            if replacement.path.relative_units_base64url.is_empty()
+                || replacements
+                    .insert(
+                        replacement.path.relative_units_base64url.as_str(),
+                        replacement,
+                    )
+                    .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid incremental replacement manifest",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let current_paths = snapshot
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.relative_units_base64url.as_str())
+            .collect::<std::collections::BTreeSet<_>>();
+        for removed in &update.removed_paths {
+            if current_paths.contains(removed.relative_units_base64url.as_str()) {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "declared removed artifact remains in current snapshot",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+        }
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| {
+                        cache_error(
+                            context,
+                            Capability::StructureBuild,
+                            error.code(),
+                            Some(self.ids()),
+                        )
+                    },
+                )?,
+            );
+        }
+        let mut files = Vec::new();
+        let mut unknowns = Vec::new();
+        for artifact in snapshot
+            .artifacts
+            .iter()
+            .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+        {
+            if elapsed_ms(started) >= limits.elapsed_ms {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::ResourceLimit,
+                    "structural elapsed-time limit exceeded",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let Some(language) = structural_language(&artifact.path.display_path) else {
+                unknowns.push("unsupported_structural_language".into());
+                continue;
+            };
+            let exact = self
+                .workspace
+                .read_exact(&artifact.path, artifact.size_bytes)
+                .map_err(|error| {
+                    self.workspace_failure(context, Capability::StructureBuild, error.code())
+                })?;
+            if exact.content_hash != artifact.content_hash {
+                return Err(failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace changed during incremental structural update",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                ));
+            }
+            let request = structural_request(context, language, exact, limits);
+            let response = if let Some(replacement) =
+                replacements.remove(request.path.relative_units_base64url.as_str())
+            {
+                if replacement.path != request.path
+                    || replacement.content_hash != request.content_hash
+                {
+                    return Err(failure(
+                        context,
+                        Capability::StructureBuild,
+                        PublicErrorCode::StaleState,
+                        "incremental replacement does not match current artifact",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    ));
+                }
+                validate_worker_success(&replacement.response, &request).map_err(|error| {
+                    structural_failure(
+                        context,
+                        error,
+                        self.workspace.identity(),
+                        &snapshot.snapshot_id,
+                    )
+                })?;
+                replacement.response.clone()
+            } else {
+                self.load_cached_structural(context, &snapshot.snapshot_id, &request)?
+            };
+            files.push(GraphFileInput {
+                path: request.path,
+                response,
+            });
+        }
+        if !replacements.is_empty() {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "incremental replacement is absent from current snapshot",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
+            unknowns.push("structural_file_limit_reached".into());
+        }
+        let graph =
+            build_graph_with_unknowns(&snapshot.snapshot_id, files, unknowns).map_err(|error| {
+                structural_failure(
+                    context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+        let payload = serde_json::to_vec(&graph).map_err(|_| {
+            failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InternalFailure,
+                "structural graph serialization failed",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                None,
+            )
+        })?;
+        self.cache
+            .as_mut()
+            .ok_or_else(|| {
+                structural_cache_unavailable(
+                    context,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?
+            .promote_graph(&CachedGraph {
+                graph_id: graph.graph_id.clone(),
+                snapshot_id: graph.workspace_snapshot.clone(),
+                payload,
+            })
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?;
+        Ok(graph)
+    }
+
+    fn load_cached_structural(
+        &self,
+        context: &RequestContext,
+        snapshot_id: &str,
+        request: &WorkerRequest,
+    ) -> Result<WorkerSuccess, EngineError> {
+        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
+            structural_failure(context, error, self.workspace.identity(), snapshot_id)
+        })?;
+        let cached = self
+            .cache
+            .as_ref()
+            .ok_or_else(|| {
+                structural_cache_unavailable(context, self.workspace.identity(), snapshot_id)
+            })?
+            .structural_file(
+                &request.path.relative_units_base64url,
+                &request.content_hash,
+                &toolchain_identity,
+            )
+            .map_err(|error| {
+                cache_error(
+                    context,
+                    Capability::StructureBuild,
+                    error.code(),
+                    Some(self.ids()),
+                )
+            })?;
+        let response = cached
+            .and_then(|entry| serde_json::from_slice(&entry.payload).ok())
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "exact cached structural result is unavailable",
+                    Some(self.workspace.identity()),
+                    Some(snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                )
+            })?;
+        validate_worker_success(&response, request).map_err(|error| {
+            structural_failure(context, error, self.workspace.identity(), snapshot_id)
+        })?;
+        Ok(response)
     }
 
     /// Loads and fully revalidates the graph cached for the current snapshot.

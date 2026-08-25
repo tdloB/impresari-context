@@ -43,6 +43,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0035](0035-l1-managed-client-connection-kits.md) | Use previewable, owned, manifest-driven L1 client connection kits | Accepted for implementation |
 | [ADR-0036](0036-declared-associated-test-evidence.md) | Bind caller-declared source-to-test associations only to verified current snapshot artifacts | Accepted for implementation |
 | [ADR-0037](0037-repository-orientation-packets.md) | Bind repository orientation only to bounded, validated current structural maps | Accepted for implementation |
+| [ADR-0038](0038-incremental-structural-updates.md) | Apply structural changes only through verified explicit current-snapshot update manifests | Accepted for implementation |
 
 ## Change Rules
 

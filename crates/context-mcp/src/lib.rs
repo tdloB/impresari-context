@@ -9,8 +9,9 @@ use std::{
 
 use context_core::{PolicySubject, ResourceBudget};
 use context_engine::{
-    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, LocalEngine,
-    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, TaskProfile,
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
+    IncrementalStructuralUpdate, LocalEngine, RepositoryOrientationRequest, RequestContext,
+    StructuralImpactRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
 use context_structural::StructuralGraph;
@@ -209,6 +210,7 @@ impl McpServer {
         let result = match call.name.as_str() {
             "context_session_open" => self.session_open(call.arguments),
             "context_build" => self.context_build(call.arguments),
+            "structure_incremental_update" => self.structure_incremental_update(call.arguments),
             "context_packet_resolve" => self.packet_resolve(call.arguments),
             "context_session_close" => self.session_close(call.arguments),
             _ => return error(id, -32602, "unknown tool"),
@@ -261,6 +263,36 @@ impl McpServer {
             .resolve(&args.session_id, &self.consumer_id, &args.packet_id)
             .map_err(|_| "packet resolve failed")?;
         Ok(json!({"reference": reference, "packet": packet, "authority_added": false}))
+    }
+
+    fn structure_incremental_update(&mut self, value: Value) -> Result<Value, &'static str> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            update: IncrementalStructuralUpdate,
+            budget: ResourceBudget,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid incremental update input")?;
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let graph = self
+            .engine
+            .apply_incremental_structural_update(&context, &args.update, &args.budget)
+            .map_err(|_| "incremental structural update failed")?;
+        Ok(json!({"graph": graph, "authority_added": false}))
     }
 
     #[allow(clippy::too_many_lines)] // One request grammar is kept co-located with its exclusive dispatch.
@@ -544,6 +576,7 @@ fn tool_definitions() -> Value {
     json!([
         {"name":"context_session_open","title":"Open context session","description":"Open a bounded process-local session. Adds no authority.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}},
         context_build_definition(&budget),
+        {"name":"structure_incremental_update","title":"Apply verified incremental structural update","description":"Rebuild a current structural graph from exact cached unchanged results and caller-declared validated replacements. Does not watch, poll, or launch a parser.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"update":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","update","budget"]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -660,7 +693,7 @@ mod tests {
         assert_eq!(values[1]["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(
             values[2]["result"]["tools"].as_array().map(Vec::len),
-            Some(4)
+            Some(5)
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
@@ -689,7 +722,7 @@ mod tests {
         );
         assert_eq!(
             values[1]["result"]["tools"].as_array().map(Vec::len),
-            Some(4)
+            Some(5)
         );
     }
 
