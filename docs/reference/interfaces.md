@@ -174,3 +174,15 @@ Normative behavior is defined by
 [ADR-0014](../decisions/0014-local-stdio-mcp-transport.md), the
 [threat model](../security/threat-model.md), and the
 [schema registry](../../schemas/v1/registry.json).
+## Managed client-connection operations
+
+`client kit update <client> <old-binary> <old-workspace> <old-cache>
+<binary> <workspace> <cache> <config-file> [--apply]` is a source-free,
+caller-targeted compare-and-replace operation. It previews an exact owned-entry
+replacement by default. With `--apply`, it writes atomically only when the
+existing entry exactly matches the declared old binary/workspace/cache
+contract; malformed, duplicate, unowned, or drifted entries fail closed.
+The receipt includes the prior and replacement entries, target, ownership,
+planned effect, write status, and operation state. It does not discover a
+default target, change client trust/sign-in/approval, or modify workspace
+source.
