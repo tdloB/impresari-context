@@ -36,6 +36,19 @@ deterministic client behavior.
 
 ## Delivery Sequence
 
+## Current checkpoint — 2026-08-25
+
+| Track | Current evidence-backed status | Next gate |
+| --- | --- | --- |
+| CI-1 managed connections | Shared render/inspect/validate/install/remove capability and deterministic fixture coverage exist. An explicit owned-update implementation is locally release-gated and awaiting hosted acceptance. All named clients remain L0 until their independent real-client/version/OS admission records are complete. | Merge the owned-update decision and implementation after hosted CI; complete only user-consented, disposable client lifecycle evidence where required. |
+| CI-2 native guidance | PRD/ADR accepted. Versioned Codex, Claude Code, Cursor, and Copilot templates plus a static authority-boundary checker are implemented locally and awaiting hosted acceptance. | Merge template implementation; then admit managed install/remove and client/version/OS smoke evidence separately per client. |
+| CI-3 guided delivery | PRD/ADR/ARD define an explicit consented delivery intent, deterministic packet equivalence, and no-delivery degradation. No client adapter is implemented or claimed. | Admit a client-neutral intent/receipt contract, then evaluate only stable official lifecycle surfaces one client at a time. |
+| CI-4 lifecycle maintenance | PRD/ADR/ARD define source-free on-demand compatibility checks. No health adapter is implemented or claimed. | Admit a source-free manifest/receipt contract only after one client has a stable L1/L2/L3 surface. |
+
+This checkpoint preserves the roadmap sequence. It does not promote any client
+based on templates, local fixtures, conversational tool selection, or pending
+hosted checks.
+
 ### CI-1 — First-Class Managed Connections
 
 Target: Codex, Claude Code, Cursor, and Copilot. For each client, release a
