@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java, Kotlin, C#, and bounded structural-impact planner accepted; declared change-set packets implemented locally and pending hosted acceptance
+- Status: Complete: all approved Phase 4 language and bounded impact-evidence slices accepted after full hosted CI
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
@@ -22,8 +22,7 @@ Each language and impact capability requires isolated parser, resolver,
 evaluation, and authority-boundary evidence. No compiler, language server,
 repository-code execution, or opaque semantic claim is implied.
 
-The bounded structural-impact planner is accepted with its own
-[delivery record](phase-4-structural-impact-planner-prd.md). The current
-declared change-set packet implementation is governed by its separate
-[delivery record](phase-4-declared-change-set-packets-prd.md). Subsequent
-impact capabilities require separate admission records.
+The bounded structural-impact planner, declared change-set packets,
+associated-test evidence, repository orientation, explicit incremental updates,
+and convention/exemplar evidence are accepted through their separate delivery
+records. Future impact capabilities still require separate admission records.

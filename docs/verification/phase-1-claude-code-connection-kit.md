@@ -37,7 +37,6 @@ Do not promote Claude Code to **First-class** yet. Still required:
 - deterministic client-control capability or an approved alternative admission
   criterion;
 - direct-engine versus Claude-delivered packet-equivalence evidence;
-- malformed configuration behavior rendered by Claude Code itself;
 - version/OS matrix beyond the exercised macOS aarch64 client; and
 - verified entry-specific removal behavior in local, project, and user scopes.
 
