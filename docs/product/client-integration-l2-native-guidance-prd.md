@@ -4,6 +4,7 @@
 - Date: 2026-08-24
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
+- Architecture requirements: [CI-2 native guidance ARD](../architecture/ci-2-native-guidance-artifacts-ard.md)
 - Dependency: CI-1 managed connection kits remain the first-class (L1) promotion gate.
 
 ## Objective
