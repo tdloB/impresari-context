@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java, Kotlin, C#, and bounded structural-impact planner accepted; declared change-set packets implementation underway
+- Status: In progress: Java, Kotlin, C#, and bounded structural-impact planner accepted; declared change-set packets implemented locally and pending hosted acceptance
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 

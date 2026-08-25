@@ -13,6 +13,7 @@
     {"name": "session-packet-reference", "path": "session-packet-reference.schema.json", "identity_object_kind": null},
     {"name": "consumer-context-acquisition", "path": "consumer-context-acquisition.schema.json", "identity_object_kind": null},
     {"name": "deterministic-context-plan", "path": "deterministic-context-plan.schema.json", "identity_object_kind": "deterministic-context-plan"},
+    {"name": "declared-change-set", "path": "declared-change-set.schema.json", "identity_object_kind": "declared-change-set"},
     {"name": "extension-contract", "path": "extension-contract.schema.json", "identity_object_kind": null},
     {"name": "repository-map", "path": "repository-map.schema.json", "identity_object_kind": null},
     {"name": "structural-graph", "path": "structural-graph.schema.json", "identity_object_kind": "structural-graph"},

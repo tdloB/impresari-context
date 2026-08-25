@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: Declared Change-Set Packets
 
-- Status: Accepted for implementation after structural-impact planner admission
+- Status: Implemented locally; hosted acceptance pending
 - Date: 2026-08-24
 - Approved by: Founder (via the approved Phase 4 roadmap and autonomous delivery directive)
 - Roadmap role: Next bounded impact-evidence slice.
