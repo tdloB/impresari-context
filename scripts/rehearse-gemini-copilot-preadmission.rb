@@ -20,6 +20,7 @@ TOOLS = %w[context_session_open context_build context_packet_resolve context_ses
 options = {
   gemini: "gemini",
   copilot: "copilot",
+  cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   malformed_copilot_config_only: false,
 }
@@ -29,6 +30,7 @@ OptionParser.new do |parser|
   parser.on("--gemini PATH", "Gemini CLI executable") { |value| options[:gemini] = value }
   parser.on("--skip-gemini", "Skip Gemini discovery after an external client failure") { options[:gemini] = nil }
   parser.on("--copilot PATH", "Copilot CLI executable") { |value| options[:copilot] = value }
+  parser.on("--cli PATH", "Impresari CLI executable") { |value| options[:cli] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
   parser.on("--malformed-copilot-config-only", "Verify Copilot rejects malformed temporary MCP configuration") do
     options[:malformed_copilot_config_only] = true
@@ -36,6 +38,7 @@ OptionParser.new do |parser|
 end.parse!
 
 abort("missing executable: #{options[:mcp]}") unless File.file?(options[:mcp]) && File.executable?(options[:mcp])
+abort("missing executable: #{options[:cli]}") unless File.file?(options[:cli]) && File.executable?(options[:cli])
 
 def tree_digest(root)
   Digest::SHA256.hexdigest(
@@ -68,9 +71,6 @@ Dir.mktmpdir("impresari-gemini-copilot-preadmission-") do |temporary|
   }))
   copilot_config = File.join(temporary, "copilot-mcp.json")
   malformed_copilot_config = File.join(temporary, "malformed-copilot-mcp.json")
-  File.write(copilot_config, JSON.generate({
-    "mcpServers" => { SERVER => entry.merge("type" => "local", "tools" => TOOLS) },
-  }))
   before = tree_digest(workspace)
   File.write(malformed_copilot_config, "{\"mcpServers\":")
   malformed_stdout, malformed_stderr, malformed_status = Open3.capture3(
@@ -102,6 +102,16 @@ Dir.mktmpdir("impresari-gemini-copilot-preadmission-") do |temporary|
     })
     next
   end
+  install_stdout, install_stderr, install_status = Open3.capture3(
+    options[:cli], "client", "kit", "install", "copilot", options[:mcp], workspace, cache, copilot_config, "--apply",
+  )
+  abort("managed Copilot configuration install failed:\n#{install_stderr}\n#{install_stdout}") unless install_status.success?
+  install = JSON.parse(install_stdout)
+  abort("managed Copilot configuration did not report an explicit write") unless install["external_write_performed"] == true
+  validate_stdout, validate_stderr, validate_status = Open3.capture3(
+    options[:cli], "client", "kit", "validate", "copilot", options[:mcp], workspace, cache, copilot_config,
+  )
+  abort("managed Copilot configuration validation failed:\n#{validate_stderr}\n#{validate_stdout}") unless validate_status.success?
   gemini_discovered = false
   unless options[:gemini].nil?
     gemini = run(
@@ -131,12 +141,18 @@ Dir.mktmpdir("impresari-gemini-copilot-preadmission-") do |temporary|
   )
   abort("Copilot did not discover temporary server:\n#{copilot}") unless copilot.include?(SERVER)
   abort("Copilot did not call the permitted temporary MCP tool:\n#{copilot}") unless copilot.include?("context_session_open")
+  remove_stdout, remove_stderr, remove_status = Open3.capture3(
+    options[:cli], "client", "kit", "remove", "copilot", options[:mcp], workspace, cache, copilot_config, "--apply",
+  )
+  abort("managed Copilot configuration removal failed:\n#{remove_stderr}\n#{remove_stdout}") unless remove_status.success?
+  abort("managed Copilot configuration target was not removed") if File.exist?(copilot_config)
   abort("temporary workspace was altered") unless before == tree_digest(workspace)
   puts JSON.generate({
     "status" => "passed",
     "gemini_discovered": gemini_discovered,
     "copilot_discovered": true,
     "copilot_malformed_configuration_rejected": true,
+    "copilot_managed_install_validate_remove": true,
     "workspace_immutable_after_configuration" => true,
     "persistent_mcp_configuration_changed" => false,
   })

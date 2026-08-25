@@ -1,18 +1,20 @@
 # Phase 2 GitHub Copilot CLI connection-kit record
 
-- Status: Generic local MCP; one temporary-config model-directed session-open recorded
-- Date: 2026-08-23
+- Status: Generic local MCP; managed temporary-config model-directed session-open recorded
+- Date: 2026-08-25
 - Client: GitHub Copilot CLI `1.0.80`, macOS aarch64
 
 ## Evidence recorded
 
 After user-owned installation, sign-in, and workspace trust, an isolated
-rehearsal supplied a temporary MCP configuration for this session only. The
-test disabled Copilot's built-in MCP server, remote control, automatic update,
-and custom instructions; it exposed and permitted only
+rehearsal used the versioned managed kit to explicitly install, validate, and
+remove a temporary MCP configuration for this session only. The test disabled
+Copilot's built-in MCP server, remote control, automatic update, and custom
+instructions; it exposed and permitted only
 `impresari-context(context_session_open)`. The model-directed client event
-stream included that exact MCP tool. The temporary workspace digest was
-unchanged, and no persistent client MCP configuration changed.
+stream included that exact MCP tool. The temporary configuration target was
+absent after exact removal, the workspace digest was unchanged, and no
+persistent client MCP configuration changed.
 
 The rehearsal also supplies a malformed disposable additional-MCP configuration
 to Copilot in `--malformed-copilot-config-only` mode. The client must reject it
@@ -22,9 +24,10 @@ before any tool call; the source workspace digest is verified unchanged.
 
 Copilot remains **Generic local MCP**. A conversational model's tool choice
 cannot establish deterministic client conformance. First-class admission still
-requires a maintained configuration-parser record, complete lifecycle and
-packet-equivalence evidence, malformed configuration behavior, safe removal,
-and supported version/operating-system coverage.
+requires a complete lifecycle and packet-equivalence record plus supported
+version/operating-system coverage. This current record proves managed
+configuration parsing/discovery, malformed configuration rejection, exact
+removal, and a bounded one-tool real-client smoke only.
 
 ## Gemini CLI note
 

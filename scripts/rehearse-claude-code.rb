@@ -16,8 +16,7 @@ require "tempfile"
 ROOT = Pathname.new(__dir__).join("..").expand_path
 DEFAULT_CLAUDE = "/Users/aaronboldt/.local/bin/claude"
 FIXED_TIME = "2026-08-23T12:00:00Z"
-SERVER = "impresari_context_conformance"
-CONSUMER = "consumer_claude_conformance"
+SERVER = "impresari-context"
 SESSION = "session_claude_conformance01"
 REQUEST = "req_claude_conformance01"
 EVENT = "evt_claude_conformance01"
@@ -26,6 +25,7 @@ QUERY = "__impresari_claude_conformance_probe__"
 
 options = {
   claude: DEFAULT_CLAUDE,
+  cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   malformed_config_only: false,
 }
@@ -33,13 +33,14 @@ options = {
 OptionParser.new do |parser|
   parser.banner = "Usage: scripts/rehearse-claude-code.rb [options]"
   parser.on("--claude PATH", "Claude Code CLI executable") { |value| options[:claude] = value }
+  parser.on("--cli PATH", "Impresari CLI executable") { |value| options[:cli] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
   parser.on("--malformed-config-only", "Verify strict temporary MCP configuration rejection without a model request") do
     options[:malformed_config_only] = true
   end
 end.parse!
 
-[options[:claude], options[:mcp]].each do |path|
+[options[:claude], options[:cli], options[:mcp]].each do |path|
   abort("missing executable: #{path}") unless File.file?(path) && File.executable?(path)
 end
 
@@ -110,20 +111,16 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     })
     next
   end
-  File.write(config_path, JSON.generate({
-    "mcpServers" => {
-      SERVER => {
-        "command" => options[:mcp],
-        "args" => [
-          "--workspace", workspace,
-          "--cache", cache,
-          "--consumer-id", CONSUMER,
-          "--role", "local_user",
-          "--occurred-at", FIXED_TIME,
-        ],
-      },
-    },
-  }))
+  install_stdout, install_stderr, install_status = Open3.capture3(
+    options[:cli], "client", "kit", "install", "claude", options[:mcp], workspace, cache, config_path, "--apply",
+  )
+  abort("managed Claude configuration install failed:\n#{install_stderr}\n#{install_stdout}") unless install_status.success?
+  install = JSON.parse(install_stdout)
+  abort("managed Claude configuration did not report an explicit write") unless install["external_write_performed"] == true
+  validate_stdout, validate_stderr, validate_status = Open3.capture3(
+    options[:cli], "client", "kit", "validate", "claude", options[:mcp], workspace, cache, config_path,
+  )
+  abort("managed Claude configuration validation failed:\n#{validate_stderr}\n#{validate_stdout}") unless validate_status.success?
 
   tools = [
     "mcp__#{SERVER}__context_session_open",
@@ -184,6 +181,11 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
   if persistent_status.success?
     abort("Claude Code persistent configuration unexpectedly contains #{SERVER}:\n#{persistent_stderr}")
   end
+  remove_stdout, remove_stderr, remove_status = Open3.capture3(
+    options[:cli], "client", "kit", "remove", "claude", options[:mcp], workspace, cache, config_path, "--apply",
+  )
+  abort("managed Claude configuration removal failed:\n#{remove_stderr}\n#{remove_stdout}") unless remove_status.success?
+  abort("managed Claude configuration target was not removed") if File.exist?(config_path)
   abort("source workspace changed during Claude Code rehearsal") unless before == source_digest(workspace)
   puts JSON.generate({
     "status" => "passed",
@@ -192,6 +194,7 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     "source_immutable" => true,
     "persistent_mcp_registration" => false,
     "malformed_configuration_rejected" => true,
+    "managed_install_validate_remove" => true,
     "tool_lifecycle" => observed_tools,
   })
 end
