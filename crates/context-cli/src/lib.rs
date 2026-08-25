@@ -201,9 +201,17 @@ struct ManagedConnectionOperation {
     operation: &'static str,
     target_config: String,
     ownership: &'static str,
+    owned_entry: serde_json::Value,
+    planned_effect: &'static str,
     external_write_performed: bool,
     state: &'static str,
     limitations: Vec<&'static str>,
+}
+
+struct ManagedEntryDetails<'a> {
+    format: &'a str,
+    binary: &'a Path,
+    arguments: &'a [String],
 }
 
 #[allow(clippy::too_many_lines)]
@@ -1139,6 +1147,7 @@ fn managed_operation(
     client: &'static str,
     operation: &'static str,
     target: &Path,
+    entry: &ManagedEntryDetails<'_>,
     external_write_performed: bool,
     state: &'static str,
 ) -> ManagedConnectionOperation {
@@ -1150,12 +1159,28 @@ fn managed_operation(
         operation,
         target_config: target.display().to_string(),
         ownership: "exact_fixed_entry:impresari-context",
+        owned_entry: managed_entry_preview(entry.format, entry.binary, entry.arguments),
+        planned_effect: match operation {
+            "install" => "add_exact_owned_entry",
+            "remove" => "remove_exact_owned_entry",
+            _ => "inspect_exact_owned_entry",
+        },
         external_write_performed,
         state,
         limitations: vec![
             "This operation does not trust, sign in, enable, or approve a client connection.",
             "Only an explicit --apply install or remove can write the named configuration file.",
         ],
+    }
+}
+
+fn managed_entry_preview(format: &str, binary: &Path, arguments: &[String]) -> serde_json::Value {
+    match format {
+        "toml" => json!({"format": "toml", "entry": managed_toml_block(binary, arguments)}),
+        "json" => {
+            json!({"format": "json", "entry": {"mcpServers": {"impresari-context": json_managed_entry(binary, arguments)}}})
+        }
+        _ => json!({"format": "unsupported"}),
     }
 }
 
@@ -1168,6 +1193,11 @@ fn inspect_managed_connection(
 ) -> Result<ManagedConnectionOperation, EngineError> {
     let (client, binary, arguments, format) =
         managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
     let target = managed_config_target(target)?;
     let state = match read_managed_config(&target)? {
         None => "absent",
@@ -1179,7 +1209,9 @@ fn inspect_managed_connection(
         }
         Some(_) => "unowned_or_conflicting",
     };
-    Ok(managed_operation(client, "inspect", &target, false, state))
+    Ok(managed_operation(
+        client, "inspect", &target, &entry, false, state,
+    ))
 }
 
 fn validate_managed_connection(
@@ -1191,6 +1223,11 @@ fn validate_managed_connection(
 ) -> Result<ManagedConnectionOperation, EngineError> {
     let (client, binary, arguments, format) =
         managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
     let target = managed_config_target(target)?;
     let text = read_managed_config(&target)?
         .ok_or_else(|| managed_config_error("managed connection configuration is absent"))?;
@@ -1200,7 +1237,7 @@ fn validate_managed_connection(
         ));
     }
     Ok(managed_operation(
-        client, "validate", &target, false, "owned",
+        client, "validate", &target, &entry, false, "owned",
     ))
 }
 
@@ -1214,6 +1251,11 @@ fn install_managed_connection(
 ) -> Result<ManagedConnectionOperation, EngineError> {
     let (client, binary, arguments, format) =
         managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
     let target = managed_config_target(target)?;
     let current = read_managed_config(&target)?;
     let next = install_managed_entry(format, current.as_deref(), &binary, &arguments)?;
@@ -1222,12 +1264,15 @@ fn install_managed_connection(
             client,
             "install",
             &target,
+            &entry,
             false,
             "preview_ready",
         ));
     }
     atomic_write_managed_config(&target, next.as_bytes())?;
-    Ok(managed_operation(client, "install", &target, true, "owned"))
+    Ok(managed_operation(
+        client, "install", &target, &entry, true, "owned",
+    ))
 }
 
 fn remove_managed_connection(
@@ -1240,6 +1285,11 @@ fn remove_managed_connection(
 ) -> Result<ManagedConnectionOperation, EngineError> {
     let (client, binary, arguments, format) =
         managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
     let target = managed_config_target(target)?;
     let current = read_managed_config(&target)?
         .ok_or_else(|| managed_config_error("managed connection configuration is absent"))?;
@@ -1249,13 +1299,14 @@ fn remove_managed_connection(
             client,
             "remove",
             &target,
+            &entry,
             false,
             "preview_ready",
         ));
     }
     atomic_write_managed_config(&target, next.as_bytes())?;
     Ok(managed_operation(
-        client, "remove", &target, true, "removed",
+        client, "remove", &target, &entry, true, "removed",
     ))
 }
 
@@ -2307,6 +2358,12 @@ mod tests {
             let (code, preview) = invoke(&base, "managedlife");
             assert_eq!(code, 0, "{client} preview");
             assert_eq!(preview["external_write_performed"], false);
+            assert_eq!(preview["planned_effect"], "add_exact_owned_entry");
+            assert!(
+                preview["owned_entry"]
+                    .to_string()
+                    .contains("impresari-context")
+            );
             assert_eq!(
                 fs::read_to_string(&target).expect("preview target"),
                 original
