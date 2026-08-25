@@ -26,10 +26,10 @@ use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
 };
 use context_structural::{
-    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
-    StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher, WorkerPath,
-    WorkerRequest, build_graph_with_unknowns, query_graph, validate_graph, validate_worker_success,
-    worker_toolchain_identity,
+    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, RepositoryMap,
+    StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher,
+    WorkerPath, WorkerRequest, build_graph_with_unknowns, query_graph, repository_map,
+    validate_graph, validate_worker_success, worker_toolchain_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -199,6 +199,8 @@ pub enum PlannerEvidenceClass {
     AssociatedTest,
     /// Exact configuration-to-code relationship evidence.
     ConfigurationToCodeReference,
+    /// Bounded repository directory and manifest map.
+    RepositoryOrientation,
 }
 
 /// One selected deterministic retrieval step and its stable selection reason.
@@ -269,6 +271,9 @@ pub struct DeterministicContextPlan {
     /// used by this plan, when the separately admitted adapter is active.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub declared_associated_tests: Option<VerifiedDeclaredAssociatedTests>,
+    /// Current-snapshot repository map used by the admitted orientation adapter.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub repository_orientation: Option<RepositoryOrientationMap>,
 }
 
 /// Snapshot-bound structural traversal that contributed exact planner evidence.
@@ -292,6 +297,25 @@ pub struct StructuralImpactRequest {
     pub start_node: String,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+}
+
+/// Explicit bounded repository-map input for the orientation adapter.
+#[derive(Clone, Debug)]
+pub struct RepositoryOrientationRequest {
+    /// Already validated canonical graph supplied by the caller.
+    pub graph: StructuralGraph,
+    /// Maximum combined directory and package entries.
+    pub max_entries: u32,
+}
+
+/// Snapshot-bound repository-map projection that contributed orientation metadata.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RepositoryOrientationMap {
+    /// Content-derived identity of this canonical map.
+    pub map_id: String,
+    /// Canonical bounded repository map.
+    pub result: RepositoryMap,
 }
 
 /// Lossless native path identity supplied in a declared change-set manifest.
@@ -1213,6 +1237,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1269,6 +1294,113 @@ impl LocalEngine {
             Some(&structural_query),
             None,
             None,
+            None,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds a snapshot-bound orientation packet from a bounded repository map.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the supplied graph is malformed or stale,
+    /// the map exceeds a declared bound, or ordinary packet retrieval fails.
+    pub fn build_profiled_repository_orientation_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        request: &RepositoryOrientationRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let structure_context = derived_structure_query_context(context);
+        let started = Instant::now();
+        let structure_decision = self.authorize(
+            &structure_context,
+            Capability::StructureQuery,
+            Some(budget.clone()),
+        )?;
+        let orientation = (|| {
+            let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+                failure(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+            if request.graph.workspace_snapshot != snapshot.snapshot_id {
+                return Err(failure(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    PublicErrorCode::StaleState,
+                    "structural graph is stale",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RebuildIndex),
+                ));
+            }
+            let result = repository_map(&request.graph, request.max_entries).map_err(|error| {
+                structural_query_failure(
+                    &structure_context,
+                    error,
+                    self.workspace.identity(),
+                    &snapshot.snapshot_id,
+                )
+            })?;
+            let mut value = RepositoryOrientationMap {
+                map_id: format!("sha256:{}", "0".repeat(64)),
+                result,
+            };
+            value.map_id = repository_orientation_identity(&value).map_err(|code| {
+                core_error(
+                    &structure_context,
+                    Capability::StructureQuery,
+                    code,
+                    self.ids(),
+                )
+            })?;
+            Ok(value)
+        })();
+        let structure_outcome = orientation.as_ref().map_or(AuditOutcome::Failed, |value| {
+            if value.result.truncated {
+                AuditOutcome::Limited
+            } else {
+                AuditOutcome::Allowed
+            }
+        });
+        let orientation = self.finalize(
+            &structure_context,
+            &structure_decision,
+            Capability::StructureQuery,
+            structure_outcome,
+            orientation,
+            elapsed_ms(started),
+        )?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = self.build_profiled_context_internal(
+            context,
+            TaskProfile::Orientation,
+            query,
+            budget,
+            &decision.decision_id,
+            Instant::now(),
+            None,
+            None,
+            None,
+            Some(&orientation),
         );
         let outcome = result
             .as_ref()
@@ -1316,6 +1448,7 @@ impl LocalEngine {
                 None,
                 Some(&declared_change_set),
                 None,
+                None,
             )
         })();
         let outcome = result
@@ -1360,6 +1493,7 @@ impl LocalEngine {
                 None,
                 None,
                 Some(&associated),
+                None,
             )
         })();
         let outcome = result
@@ -1387,6 +1521,7 @@ impl LocalEngine {
         structural_query: Option<&StructuralPlannerQuery>,
         declared_change_set: Option<&VerifiedDeclaredChangeSet>,
         declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
+        repository_orientation: Option<&RepositoryOrientationMap>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -1416,6 +1551,10 @@ impl LocalEngine {
         }
         if let Some(associated) = declared_associated_tests {
             apply_declared_associated_tests_to_plan(&mut plan, associated)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
+        if let Some(orientation) = repository_orientation {
+            apply_repository_orientation_to_plan(&mut plan, orientation)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
         let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
@@ -2846,6 +2985,7 @@ fn deterministic_plan(
         structural_query: None,
         declared_change_set: None,
         declared_associated_tests: None,
+        repository_orientation: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
@@ -2910,6 +3050,11 @@ fn planner_coverage() -> Vec<PlannerCoverage> {
             PlannerEvidenceClass::ConfigurationToCodeReference,
             "unavailable",
             "configuration_to_code_reference_unavailable",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::RepositoryOrientation,
+            "unavailable",
+            "repository_orientation_map_not_connected",
         ),
     ]
 }
@@ -2997,6 +3142,34 @@ fn apply_declared_associated_tests_to_plan(
     plan.declared_associated_tests = Some(associated.clone());
     plan.plan_id = deterministic_plan_identity(plan)?;
     Ok(())
+}
+
+fn apply_repository_orientation_to_plan(
+    plan: &mut DeterministicContextPlan,
+    orientation: &RepositoryOrientationMap,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::RepositoryOrientation)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "validated_repository_orientation_map_available".into();
+    plan.repository_orientation = Some(orientation.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn repository_orientation_identity(
+    orientation: &RepositoryOrientationMap,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected = serde_json::to_value(orientation)
+        .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("map_id");
+    canonical_identity("repository-orientation-map", &projected)
 }
 
 fn declared_associated_tests_identity(
