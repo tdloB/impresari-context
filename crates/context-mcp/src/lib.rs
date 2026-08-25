@@ -468,7 +468,7 @@ fn context_build_definition(budget: &Value) -> Value {
     json!({
         "name":"context_build",
         "title":"Build verified context",
-        "description":"Build a bounded verified packet from explicit steps, a deterministic declared profile, a verified caller-declared current change set, or a profile plus an already validated snapshot-bound structural graph. Adds no authority.",
+        "description":"Build a bounded verified packet from explicit steps, a deterministic declared profile, a verified caller-declared current change set or associated-test set, or a profile plus an already validated snapshot-bound structural graph. Adds no authority.",
         "inputSchema":{
             "type":"object",
             "additionalProperties":false,
@@ -480,14 +480,15 @@ fn context_build_definition(budget: &Value) -> Value {
                 "query":{"type":"string","minLength":1,"maxLength":4096},
                 "structural_graph":{"type":"object"}, "start_node":{"type":"string"},
                 "edge_kinds":{"type":"array","maxItems":8,"items":{"enum":["declares","contains","imports","exports","calls","references"]}},
-                "declared_change_set":{"type":"object"}, "budget":budget, "session_id":{"type":"string"}
+                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "budget":budget, "session_id":{"type":"string"}
             },
             "required":["request_id","event_id","purpose","occurred_at","budget"],
             "oneOf":[
-                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]}]}},
-                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]}]}},
-                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]}]}},
-                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]}]}}
+                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
+                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
+                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}},
+                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_associated_tests"]}]}},
+                {"required":["profile","query","declared_associated_tests"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]}]}}
             ]
         }
     })
