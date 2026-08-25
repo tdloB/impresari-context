@@ -58,6 +58,7 @@ Usage:\n\
   impresari-context [global-options] client kit inspect <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit validate <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit install <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client kit update <codex|claude|cursor|copilot|vscode> <old-mcp-binary> <old-workspace> <old-cache-root> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] doctor inspect <root> <cache-root>\n\
   impresari-context [global-options] doctor mcp <root> <cache-root>\n\
@@ -72,7 +73,7 @@ Global options:\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
   --cutoff <UTC>          Explicit audit retention cutoff.\n\
   --id-seed <8-64 chars>  Deterministic request/event identifier seed.\n\
-  --apply                 Permit the explicit client-kit install or remove write.\n\
+  --apply                 Permit the explicit client-kit install, update, or remove write.\n\
   --help                  Show this help.\n";
 
 #[derive(Debug)]
@@ -209,6 +210,8 @@ struct ManagedConnectionOperation {
     target_config: String,
     ownership: &'static str,
     owned_entry: serde_json::Value,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    previous_owned_entry: Option<serde_json::Value>,
     planned_effect: &'static str,
     external_write_performed: bool,
     state: &'static str,
@@ -574,6 +577,32 @@ fn dispatch(
                 options.apply,
             )?;
             Output::new("client kit install", &operation)
+        }
+        [
+            "client",
+            "kit",
+            "update",
+            client,
+            old_binary,
+            old_root,
+            old_cache,
+            binary,
+            root,
+            cache,
+            target,
+        ] => {
+            let operation = update_managed_connection(
+                client,
+                Path::new(old_binary),
+                Path::new(old_root),
+                Path::new(old_cache),
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+                options.apply,
+            )?;
+            Output::new("client kit update", &operation)
         }
         [
             "client",
@@ -1267,6 +1296,7 @@ fn managed_operation(
         target_config: target.display().to_string(),
         ownership: "exact_fixed_entry:impresari-context",
         owned_entry: managed_entry_preview(entry.format, entry.binary, entry.arguments),
+        previous_owned_entry: None,
         planned_effect: match operation {
             "install" => "add_exact_owned_entry",
             "remove" => "remove_exact_owned_entry",
@@ -1276,7 +1306,7 @@ fn managed_operation(
         state,
         limitations: vec![
             "This operation does not trust, sign in, enable, or approve a client connection.",
-            "Only an explicit --apply install or remove can write the named configuration file.",
+            "Only an explicit --apply install, update, or remove can write the named configuration file.",
         ],
     }
 }
@@ -1380,6 +1410,69 @@ fn install_managed_connection(
     Ok(managed_operation(
         client, "install", &target, &entry, true, "owned",
     ))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn update_managed_connection(
+    client: &str,
+    old_binary: &Path,
+    old_workspace: &Path,
+    old_cache: &Path,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+    apply: bool,
+) -> Result<ManagedConnectionOperation, EngineError> {
+    let (old_client, old_binary, old_arguments, old_format) =
+        managed_connection_contract(client, old_binary, old_workspace, old_cache)?;
+    let (new_client, binary, arguments, format) =
+        managed_connection_contract(client, binary, workspace, cache)?;
+    if old_client != new_client || old_format != format {
+        return Err(managed_config_error(
+            "managed connection update client contract changed unexpectedly",
+        ));
+    }
+    let old_entry = ManagedEntryDetails {
+        format: old_format,
+        binary: &old_binary,
+        arguments: &old_arguments,
+    };
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
+    let target = managed_config_target(target)?;
+    let current = read_managed_config(&target)?
+        .ok_or_else(|| managed_config_error("managed connection configuration is absent"))?;
+    if managed_entry_state(format, &current, &old_binary, &old_arguments)?
+        != ManagedEntryState::Owned
+    {
+        return Err(managed_config_error(
+            "managed connection update requires the exact declared prior owned entry",
+        ));
+    }
+    let without_old = remove_managed_entry(format, &current, &old_binary, &old_arguments)?;
+    let next = install_managed_entry(format, Some(&without_old), &binary, &arguments)?;
+    let mut operation = managed_operation(
+        new_client,
+        "update",
+        &target,
+        &entry,
+        apply,
+        if apply { "owned" } else { "preview_ready" },
+    );
+    operation.previous_owned_entry = Some(managed_entry_preview(
+        old_entry.format,
+        old_entry.binary,
+        old_entry.arguments,
+    ));
+    operation.planned_effect = "replace_exact_owned_entry";
+    if apply {
+        atomic_write_managed_config(&target, next.as_bytes())?;
+    }
+    Ok(operation)
 }
 
 fn remove_managed_connection(
@@ -2599,6 +2692,104 @@ mod tests {
             assert_eq!(invoke(&command, "managedempty").0, 0, "{client} remove");
             assert!(!target.exists(), "{client} empty target was not removed");
         }
+    }
+
+    #[test]
+    fn managed_connection_update_requires_exact_prior_contract_and_preserves_unrelated_configuration()
+     {
+        let root = TestRoot::new("managed-update-workspace");
+        let old_cache = TestRoot::new("managed-update-old-cache");
+        let new_cache = TestRoot::new("managed-update-new-cache");
+        let binary = TestRoot::new("managed-update-binary");
+        let config_root = TestRoot::new("managed-update-config");
+        let old_binary = binary.0.join("old-mcp");
+        let new_binary = binary.0.join("new-mcp");
+        fs::write(&old_binary, b"old fixture").expect("old binary fixture");
+        fs::write(&new_binary, b"new fixture").expect("new binary fixture");
+        mark_executable(&old_binary);
+        mark_executable(&new_binary);
+        fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
+            .expect("source fixture");
+        let source_before = fs::read(root.0.join("source.ts")).expect("source before");
+
+        for client in ["codex", "claude", "cursor", "copilot", "vscode"] {
+            let target = config_root.0.join(format!("{client}.config"));
+            let unrelated = if client == "codex" {
+                "[other]\nname = \"stable\"\n".to_owned()
+            } else {
+                "{\n  \"mcpServers\": {\"other\": {\"command\": \"other\"}},\n  \"unrelated\": true\n}\n".to_owned()
+            };
+            fs::write(&target, unrelated).expect("configuration fixture");
+            let install = vec![
+                "client".into(),
+                "kit".into(),
+                "install".into(),
+                client.into(),
+                old_binary.display().to_string(),
+                root.0.display().to_string(),
+                old_cache.0.display().to_string(),
+                target.display().to_string(),
+                "--apply".into(),
+            ];
+            assert_eq!(invoke(&install, "managedupdate").0, 0, "{client} install");
+            let update = vec![
+                "client".into(),
+                "kit".into(),
+                "update".into(),
+                client.into(),
+                old_binary.display().to_string(),
+                root.0.display().to_string(),
+                old_cache.0.display().to_string(),
+                new_binary.display().to_string(),
+                root.0.display().to_string(),
+                new_cache.0.display().to_string(),
+                target.display().to_string(),
+            ];
+            let before_preview = fs::read_to_string(&target).expect("target before preview");
+            let (code, preview) = invoke(&update, "managedupdate");
+            assert_eq!(code, 0, "{client} update preview");
+            assert_eq!(preview["planned_effect"], "replace_exact_owned_entry");
+            assert_eq!(preview["external_write_performed"], false);
+            assert!(
+                preview["previous_owned_entry"]
+                    .to_string()
+                    .contains("old-mcp")
+            );
+            assert_eq!(
+                fs::read_to_string(&target).expect("target after preview"),
+                before_preview
+            );
+
+            let mut apply = update.clone();
+            apply.push("--apply".into());
+            let (code, applied) = invoke(&apply, "managedupdate");
+            assert_eq!(code, 0, "{client} update apply");
+            assert_eq!(applied["state"], "owned");
+            let validate = vec![
+                "client".into(),
+                "kit".into(),
+                "validate".into(),
+                client.into(),
+                new_binary.display().to_string(),
+                root.0.display().to_string(),
+                new_cache.0.display().to_string(),
+                target.display().to_string(),
+            ];
+            assert_eq!(
+                invoke(&validate, "managedupdate").0,
+                0,
+                "{client} new contract validates"
+            );
+            assert_ne!(
+                invoke(&update, "managedupdate").0,
+                0,
+                "{client} stale prior is rejected"
+            );
+        }
+        assert_eq!(
+            fs::read(root.0.join("source.ts")).expect("source after"),
+            source_before
+        );
     }
 
     #[test]
