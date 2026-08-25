@@ -49,6 +49,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0041](0041-native-agent-guidance-artifacts.md) | Use owned, opt-in native guidance artifacts without automatic delivery | Accepted for implementation |
 | [ADR-0042](0042-planner-backed-guided-context-delivery.md) | Deliver only explicit deterministic planner packets through opt-in client adapters | Accepted for implementation |
 | [ADR-0043](0043-source-free-client-lifecycle-maintenance.md) | Use on-demand source-free compatibility checks instead of background client control | Accepted for implementation |
+| [ADR-0044](0044-owned-managed-connection-update.md) | Compare-and-replace only explicitly declared owned connection contracts | Accepted for implementation |
 
 ## Change Rules
 
