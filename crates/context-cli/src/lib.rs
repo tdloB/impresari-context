@@ -19,8 +19,9 @@ use context_core::{
     RecoveryAction, ResourceBudget, error_envelope,
 };
 use context_engine::{
-    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, EngineConfig,
-    EngineError, IncrementalStructuralUpdate, LocalEngine, QueryKind, RepositoryOrientationRequest,
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
+    DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
+    LocalEngine, QueryKind, RepositoryOrientationRequest,
     RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
@@ -45,6 +46,7 @@ Usage:\n\
   impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
   impresari-context [global-options] context profile-associated-test-build <root> <cache-root> <query> <declared-associated-tests-json>\n\
+  impresari-context [global-options] context profile-convention-exemplar-build <root> <cache-root> <query> <declared-convention-exemplars-json>\n\
   impresari-context [global-options] context profile-orientation-build <root> <cache-root> <query> <graph-json> <max-entries>\n\
   impresari-context [global-options] structure incremental-update <root> <cache-root> <incremental-update-json>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
@@ -348,6 +350,14 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context profile-associated-test-build", &result)
+        }
+        ["context", "profile-convention-exemplar-build", root, cache, query, declaration_path] => {
+            let declaration: DeclaredConventionExemplars = read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_convention_exemplar_context(
+                &contexts.next("implementation"), query, &declaration, default_budget(),
+            )?;
+            Output::new("context profile-convention-exemplar-build", &result)
         }
         [
             "context",

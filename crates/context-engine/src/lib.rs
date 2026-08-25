@@ -199,6 +199,8 @@ pub enum PlannerEvidenceClass {
     AssociatedTest,
     /// Exact configuration-to-code relationship evidence.
     ConfigurationToCodeReference,
+    /// Caller-declared convention and exemplar assertion with exact current evidence.
+    ConventionExemplar,
     /// Bounded repository directory and manifest map.
     RepositoryOrientation,
 }
@@ -271,6 +273,9 @@ pub struct DeterministicContextPlan {
     /// used by this plan, when the separately admitted adapter is active.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub declared_associated_tests: Option<VerifiedDeclaredAssociatedTests>,
+    /// Current-snapshot-verified caller convention/exemplar assertion.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_convention_exemplars: Option<VerifiedDeclaredConventionExemplars>,
     /// Current-snapshot repository map used by the admitted orientation adapter.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub repository_orientation: Option<RepositoryOrientationMap>,
@@ -433,6 +438,42 @@ pub struct VerifiedDeclaredAssociatedTests {
     pub workspace_snapshot: String,
     /// Canonically ordered source-to-test assertions with verified current hashes.
     pub associations: Vec<DeclaredAssociatedTest>,
+}
+
+/// One caller assertion associating an opaque label with an exact current artifact.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredConventionExemplar {
+    /// Opaque bounded caller label; not observed evidence.
+    pub label: String,
+    /// Current artifact declaration to verify.
+    pub artifact: DeclaredChangeEntry,
+}
+
+/// Untrusted caller declaration of convention/exemplar examples.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredConventionExemplars {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says every exemplar belongs to.
+    pub workspace_snapshot: String,
+    /// Opaque labels and current artifact assertions to verify.
+    pub exemplars: Vec<DeclaredConventionExemplar>,
+}
+
+/// Canonical current-snapshot-verified convention/exemplar assertion.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredConventionExemplars {
+    /// Content-derived identity of this verified declaration.
+    pub declaration_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Canonically ordered opaque labels and verified current artifact assertions.
+    pub exemplars: Vec<DeclaredConventionExemplar>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -1570,6 +1611,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1624,6 +1666,7 @@ impl LocalEngine {
             &decision.decision_id,
             started,
             Some(&structural_query),
+            None,
             None,
             None,
             None,
@@ -1733,6 +1776,7 @@ impl LocalEngine {
             None,
             None,
             Some(&orientation),
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1781,6 +1825,7 @@ impl LocalEngine {
                 Some(&declared_change_set),
                 None,
                 None,
+                None,
             )
         })();
         let outcome = result
@@ -1826,6 +1871,52 @@ impl LocalEngine {
                 None,
                 Some(&associated),
                 None,
+                None,
+            )
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds an implementation packet with caller-declared verified convention exemplars.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when the declaration is malformed, stale,
+    /// over budget, or exact current evidence cannot be recovered.
+    pub fn build_profiled_declared_convention_exemplar_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredConventionExemplars,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let conventions =
+                self.verify_declared_convention_exemplars(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::Implementation,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                None,
+                None,
+                None,
+                Some(&conventions),
             )
         })();
         let outcome = result
@@ -1854,6 +1945,7 @@ impl LocalEngine {
         declared_change_set: Option<&VerifiedDeclaredChangeSet>,
         declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
         repository_orientation: Option<&RepositoryOrientationMap>,
+        declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -1885,6 +1977,10 @@ impl LocalEngine {
             apply_declared_associated_tests_to_plan(&mut plan, associated)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
+        if let Some(conventions) = declared_convention_exemplars {
+            apply_declared_convention_exemplars_to_plan(&mut plan, conventions)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
         if let Some(orientation) = repository_orientation {
             apply_repository_orientation_to_plan(&mut plan, orientation)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
@@ -1901,12 +1997,21 @@ impl LocalEngine {
             || Ok((Vec::new(), Vec::new())),
             |value| self.declared_associated_test_evidence(context, value, &budget, started),
         )?;
+        let (convention_evidence, convention_unknowns) = declared_convention_exemplars
+            .map_or_else(
+                || Ok((Vec::new(), Vec::new())),
+                |value| {
+                    self.declared_convention_exemplar_evidence(context, value, &budget, started)
+                },
+            )?;
         let mut supplemental_evidence = supplemental_evidence;
         supplemental_evidence.extend(declared_evidence);
         supplemental_evidence.extend(associated_evidence);
+        supplemental_evidence.extend(convention_evidence);
         let mut supplemental_unknowns = supplemental_unknowns;
         supplemental_unknowns.extend(declared_unknowns);
         supplemental_unknowns.extend(associated_unknowns);
+        supplemental_unknowns.extend(convention_unknowns);
         let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
@@ -2342,6 +2447,101 @@ impl LocalEngine {
         Ok(verified)
     }
 
+    fn verify_declared_convention_exemplars(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredConventionExemplars,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredConventionExemplars, EngineError> {
+        if declaration.schema_name != "declared-convention-exemplars"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.exemplars.is_empty()
+            || declaration.exemplars.len() > 10_000
+            || declaration.exemplars.iter().any(|item| {
+                item.label.is_empty() || item.label.len() > 128 || item.label.contains('\0')
+            })
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared convention exemplars",
+                Some(self.workspace.identity()),
+                self.snapshot
+                    .as_ref()
+                    .map(|snapshot| snapshot.snapshot_id.as_str()),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let verified_entries = self.verify_declared_change_set(
+            context,
+            &DeclaredChangeSet {
+                schema_name: "declared-change-set".into(),
+                schema_version: CONTRACT_VERSION.into(),
+                workspace_snapshot: declaration.workspace_snapshot.clone(),
+                asserted_base_revision: None,
+                entries: declaration
+                    .exemplars
+                    .iter()
+                    .map(|item| item.artifact.clone())
+                    .collect(),
+            },
+            budget,
+        )?;
+        let canonical_entries = verified_entries
+            .entries
+            .into_iter()
+            .map(|item| (item.path.relative_units_base64url.clone(), item))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        let mut exemplars = std::collections::BTreeMap::new();
+        for item in &declaration.exemplars {
+            let key = &item.artifact.path.relative_units_base64url;
+            let artifact = canonical_entries
+                .get(key)
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::IntegrityFailure,
+                        "declared convention exemplar verification failed",
+                        Some(self.workspace.identity()),
+                        Some(&declaration.workspace_snapshot),
+                        None,
+                    )
+                })?
+                .clone();
+            let identity = format!("{}:{}", item.label, key);
+            if exemplars
+                .insert(
+                    identity,
+                    DeclaredConventionExemplar {
+                        label: item.label.clone(),
+                        artifact,
+                    },
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared convention exemplars",
+                    Some(self.workspace.identity()),
+                    Some(&declaration.workspace_snapshot),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let mut verified = VerifiedDeclaredConventionExemplars {
+            declaration_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: declaration.workspace_snapshot.clone(),
+            exemplars: exemplars.into_values().collect(),
+        };
+        verified.declaration_id = declared_convention_exemplars_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
     #[allow(clippy::too_many_lines)] // Each manifest boundary retains its explicit fail-closed mapping.
     fn verify_declared_associated_tests(
         &self,
@@ -2603,6 +2803,36 @@ impl LocalEngine {
             entries: entries.into_values().collect(),
         };
         self.declared_change_set_evidence(context, &declared, budget, started)
+    }
+
+    fn declared_convention_exemplar_evidence(
+        &self,
+        context: &RequestContext,
+        conventions: &VerifiedDeclaredConventionExemplars,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let mut entries = conventions
+            .exemplars
+            .iter()
+            .map(|item| item.artifact.clone())
+            .collect::<Vec<_>>();
+        entries.sort_by(|left, right| {
+            left.path
+                .relative_units_base64url
+                .cmp(&right.path.relative_units_base64url)
+        });
+        entries.dedup_by(|left, right| {
+            left.path.relative_units_base64url == right.path.relative_units_base64url
+        });
+        let declaration = VerifiedDeclaredChangeSet {
+            declaration_id: conventions.declaration_id.clone(),
+            workspace_snapshot: conventions.workspace_snapshot.clone(),
+            asserted_base_revision: None,
+            base_revision_status: "not_asserted".into(),
+            entries,
+        };
+        self.declared_change_set_evidence(context, &declaration, budget, started)
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -3317,6 +3547,7 @@ fn deterministic_plan(
         structural_query: None,
         declared_change_set: None,
         declared_associated_tests: None,
+        declared_convention_exemplars: None,
         repository_orientation: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
@@ -3382,6 +3613,11 @@ fn planner_coverage() -> Vec<PlannerCoverage> {
             PlannerEvidenceClass::ConfigurationToCodeReference,
             "unavailable",
             "configuration_to_code_reference_unavailable",
+        ),
+        planner_coverage_item(
+            PlannerEvidenceClass::ConventionExemplar,
+            "unavailable",
+            "convention_exemplar_evidence_unavailable",
         ),
         planner_coverage_item(
             PlannerEvidenceClass::RepositoryOrientation,
@@ -3476,6 +3712,22 @@ fn apply_declared_associated_tests_to_plan(
     Ok(())
 }
 
+fn apply_declared_convention_exemplars_to_plan(
+    plan: &mut DeterministicContextPlan,
+    conventions: &VerifiedDeclaredConventionExemplars,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::ConventionExemplar)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_convention_exemplar_current_snapshot_verified".into();
+    plan.declared_convention_exemplars = Some(conventions.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
 fn apply_repository_orientation_to_plan(
     plan: &mut DeterministicContextPlan,
     orientation: &RepositoryOrientationMap,
@@ -3514,6 +3766,18 @@ fn declared_associated_tests_identity(
         .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
         .remove("association_id");
     canonical_identity("declared-associated-tests", &projected)
+}
+
+fn declared_convention_exemplars_identity(
+    value: &VerifiedDeclaredConventionExemplars,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(value).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("declaration_id");
+    canonical_identity("declared-convention-exemplars", &projected)
 }
 
 fn declared_change_set_identity(
