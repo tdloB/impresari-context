@@ -18,6 +18,7 @@
     "structural_query": {"$ref": "#/$defs/structuralQuery"},
     "declared_change_set": {"$ref": "#/$defs/declaredChangeSet"},
     "declared_associated_tests": {"$ref": "#/$defs/declaredAssociatedTests"},
+    "declared_convention_exemplars": {"$ref": "#/$defs/declaredConventionExemplars"},
     "repository_orientation": {"$ref": "#/$defs/repositoryOrientation"}
   },
   "$defs": {
@@ -43,7 +44,7 @@
       "additionalProperties": false,
       "required": ["evidence_class", "status", "reason_code"],
       "properties": {
-        "evidence_class": {"enum": ["exact_path", "filename", "literal", "lexical", "structural_relationship", "change_set", "associated_test", "configuration_to_code_reference", "repository_orientation"]},
+        "evidence_class": {"enum": ["exact_path", "filename", "literal", "lexical", "structural_relationship", "change_set", "associated_test", "configuration_to_code_reference", "repository_orientation", "convention_exemplar"]},
         "status": {"enum": ["available", "unavailable"]},
         "reason_code": {"type": "string", "pattern": "^[a-z0-9_]{1,128}$"}
       }
@@ -106,6 +107,25 @@
         "association_id": {"$ref": "common.schema.json#/$defs/sha256"},
         "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
         "associations": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/declaredAssociation"}}
+      }
+    },
+    "declaredConventionExemplars": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["declaration_id", "workspace_snapshot", "exemplars"],
+      "properties": {
+        "declaration_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "exemplars": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/conventionExemplar"}}
+      }
+    },
+    "conventionExemplar": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["label", "artifact"],
+      "properties": {
+        "label": {"type": "string", "minLength": 1, "maxLength": 128},
+        "artifact": {"$ref": "#/$defs/declaredChangeEntry"}
       }
     },
     "repositoryOrientation": {
