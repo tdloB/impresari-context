@@ -1212,6 +1212,7 @@ impl LocalEngine {
             started,
             None,
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1267,6 +1268,7 @@ impl LocalEngine {
             started,
             Some(&structural_query),
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1313,6 +1315,51 @@ impl LocalEngine {
                 started,
                 None,
                 Some(&declared_change_set),
+                None,
+            )
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds one test-selection packet from caller-declared, current-snapshot
+    /// source-to-test associations. It neither discovers nor executes tests.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure when an asserted pair is malformed, stale,
+    /// self-associated, duplicate, out of budget, or cannot be read exactly.
+    pub fn build_profiled_declared_associated_test_context(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        declaration: &DeclaredAssociatedTests,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let result = (|| {
+            let associated =
+                self.verify_declared_associated_tests(context, declaration, &budget)?;
+            self.build_profiled_context_internal(
+                context,
+                TaskProfile::TestSelection,
+                query,
+                budget,
+                &decision.decision_id,
+                started,
+                None,
+                None,
+                Some(&associated),
             )
         })();
         let outcome = result
@@ -1339,6 +1386,7 @@ impl LocalEngine {
         started: Instant,
         structural_query: Option<&StructuralPlannerQuery>,
         declared_change_set: Option<&VerifiedDeclaredChangeSet>,
+        declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -1366,6 +1414,10 @@ impl LocalEngine {
             apply_declared_change_set_to_plan(&mut plan, declared_change_set)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
+        if let Some(associated) = declared_associated_tests {
+            apply_declared_associated_tests_to_plan(&mut plan, associated)
+                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        }
         let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
             || Ok((Vec::new(), Vec::new())),
             |value| self.structural_evidence(context, value, &budget, started),
@@ -1374,10 +1426,16 @@ impl LocalEngine {
             || Ok((Vec::new(), Vec::new())),
             |value| self.declared_change_set_evidence(context, value, &budget, started),
         )?;
+        let (associated_evidence, associated_unknowns) = declared_associated_tests.map_or_else(
+            || Ok((Vec::new(), Vec::new())),
+            |value| self.declared_associated_test_evidence(context, value, &budget, started),
+        )?;
         let mut supplemental_evidence = supplemental_evidence;
         supplemental_evidence.extend(declared_evidence);
+        supplemental_evidence.extend(associated_evidence);
         let mut supplemental_unknowns = supplemental_unknowns;
         supplemental_unknowns.extend(declared_unknowns);
+        supplemental_unknowns.extend(associated_unknowns);
         let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
@@ -1813,6 +1871,145 @@ impl LocalEngine {
         Ok(verified)
     }
 
+    #[allow(clippy::too_many_lines)] // Each manifest boundary retains its explicit fail-closed mapping.
+    fn verify_declared_associated_tests(
+        &self,
+        context: &RequestContext,
+        declaration: &DeclaredAssociatedTests,
+        budget: &ResourceBudget,
+    ) -> Result<VerifiedDeclaredAssociatedTests, EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "workspace snapshot required",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if declaration.schema_name != "declared-associated-tests"
+            || declaration.schema_version != CONTRACT_VERSION
+            || declaration.workspace_snapshot != snapshot.snapshot_id
+            || declaration.associations.is_empty()
+            || declaration.associations.len() > 10_000
+            || u64::try_from(declaration.associations.len()).unwrap_or(u64::MAX)
+                > budget.max_files_u64().map_err(|error| {
+                    core_error(context, Capability::ContextBuild, error.code(), self.ids())
+                })?
+        {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid declared associated tests",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
+        let canonical = |entry: &DeclaredChangeEntry| -> Result<DeclaredChangeEntry, EngineError> {
+            if !valid_sha256(&entry.content_hash) {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let path = PathIdentity::from_encoded_native_units(
+                &entry.path.platform_family,
+                &entry.path.unit_encoding,
+                &entry.path.relative_units_base64url,
+            )
+            .map_err(|_| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                )
+            })?;
+            let artifact = snapshot
+                .artifacts
+                .iter()
+                .find(|artifact| {
+                    artifact.path == path && artifact.content_hash == entry.content_hash
+                })
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::ContextBuild,
+                        PublicErrorCode::StaleState,
+                        "declared associated tests do not match current snapshot",
+                        Some(self.workspace.identity()),
+                        Some(&snapshot.snapshot_id),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            Ok(DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: artifact.path.platform_family.into(),
+                    unit_encoding: artifact.path.unit_encoding.into(),
+                    relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                },
+                content_hash: artifact.content_hash.clone(),
+            })
+        };
+        let mut associations = std::collections::BTreeMap::new();
+        for association in &declaration.associations {
+            let source = canonical(&association.source)?;
+            let test = canonical(&association.test)?;
+            let source_key = &source.path.relative_units_base64url;
+            let test_key = &test.path.relative_units_base64url;
+            if source_key == test_key {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+            let mut pair = [source_key.clone(), test_key.clone()];
+            pair.sort();
+            if associations
+                .insert(
+                    (pair[0].clone(), pair[1].clone()),
+                    DeclaredAssociatedTest { source, test },
+                )
+                .is_some()
+            {
+                return Err(failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid declared associated tests",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::ReduceScope),
+                ));
+            }
+        }
+        let mut verified = VerifiedDeclaredAssociatedTests {
+            association_id: format!("sha256:{}", "0".repeat(64)),
+            workspace_snapshot: snapshot.snapshot_id.clone(),
+            associations: associations.into_values().collect(),
+        };
+        verified.association_id = declared_associated_tests_identity(&verified)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok(verified)
+    }
+
     fn declared_change_set_evidence(
         &self,
         context: &RequestContext,
@@ -1910,6 +2107,31 @@ impl LocalEngine {
             Vec::new()
         };
         Ok((evidence, unknowns))
+    }
+
+    fn declared_associated_test_evidence(
+        &self,
+        context: &RequestContext,
+        associated: &VerifiedDeclaredAssociatedTests,
+        budget: &ResourceBudget,
+        started: Instant,
+    ) -> Result<(Vec<EvidenceRecord>, Vec<String>), EngineError> {
+        let mut entries = std::collections::BTreeMap::new();
+        for pair in &associated.associations {
+            for entry in [&pair.source, &pair.test] {
+                entries
+                    .entry(entry.path.relative_units_base64url.clone())
+                    .or_insert_with(|| entry.clone());
+            }
+        }
+        let declared = VerifiedDeclaredChangeSet {
+            declaration_id: "associated-test-evidence".into(),
+            workspace_snapshot: associated.workspace_snapshot.clone(),
+            asserted_base_revision: None,
+            base_revision_status: "not_asserted".into(),
+            entries: entries.into_values().collect(),
+        };
+        self.declared_change_set_evidence(context, &declared, budget, started)
     }
 
     /// Reauthorizes and expands exact evidence from current source.
@@ -2757,6 +2979,36 @@ fn apply_declared_change_set_to_plan(
     plan.declared_change_set = Some(declared_change_set.clone());
     plan.plan_id = deterministic_plan_identity(plan)?;
     Ok(())
+}
+
+fn apply_declared_associated_tests_to_plan(
+    plan: &mut DeterministicContextPlan,
+    associated: &VerifiedDeclaredAssociatedTests,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::AssociatedTest)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "available".into();
+    coverage.reason_code = "declared_associated_test_current_snapshot_verified".into();
+    plan.omitted_candidates
+        .retain(|item| item.candidate != "associated_test");
+    plan.declared_associated_tests = Some(associated.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn declared_associated_tests_identity(
+    value: &VerifiedDeclaredAssociatedTests,
+) -> Result<String, context_core::CoreErrorCode> {
+    let mut projected =
+        serde_json::to_value(value).map_err(|_| context_core::CoreErrorCode::IntegrityFailure)?;
+    projected
+        .as_object_mut()
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?
+        .remove("association_id");
+    canonical_identity("declared-associated-tests", &projected)
 }
 
 fn declared_change_set_identity(
@@ -4016,6 +4268,90 @@ mod tests {
                 .all(|step| !step.reason_code.is_empty())
         );
         validate_packet(&first.packet).expect("valid profiled packet");
+    }
+
+    #[test]
+    fn declared_associated_tests_are_verified_and_recovered() {
+        let source = TestRoot::new("associated-test-source");
+        let cache = TestRoot::new("associated-test-cache");
+        fs::write(source.0.join("lib.rs"), b"pub fn subject() {}\n").expect("source");
+        fs::write(source.0.join("lib_test.rs"), b"fn subject_test() {}\n").expect("test");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        let snapshot = engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let entry = |name: &str| {
+            let found = engine
+                .snapshot
+                .as_ref()
+                .expect("snapshot")
+                .artifacts
+                .iter()
+                .find(|item| item.path.display_path == name)
+                .expect("artifact");
+            DeclaredChangeEntry {
+                path: DeclaredChangePath {
+                    platform_family: found.path.platform_family.into(),
+                    unit_encoding: found.path.unit_encoding.into(),
+                    relative_units_base64url: found.path.relative_units_base64url.clone(),
+                },
+                content_hash: found.content_hash.clone(),
+            }
+        };
+        let declaration = DeclaredAssociatedTests {
+            schema_name: "declared-associated-tests".into(),
+            schema_version: CONTRACT_VERSION.into(),
+            workspace_snapshot: snapshot.snapshot_id,
+            associations: vec![DeclaredAssociatedTest {
+                source: entry("lib.rs"),
+                test: entry("lib_test.rs"),
+            }],
+        };
+        let packet = engine
+            .build_profiled_declared_associated_test_context(
+                &request(4, "test_selection"),
+                "subject",
+                &declaration,
+                budget(),
+            )
+            .expect("packet");
+        assert!(packet.plan.declared_associated_tests.is_some());
+        assert!(
+            packet
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|item| item.artifact.path.display_path == "lib.rs")
+        );
+        assert!(
+            packet
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|item| item.artifact.path.display_path == "lib_test.rs")
+        );
+        let mut self_pair = declaration;
+        self_pair.associations[0].test = self_pair.associations[0].source.clone();
+        assert_eq!(
+            engine
+                .build_profiled_declared_associated_test_context(
+                    &request(5, "test_selection"),
+                    "subject",
+                    &self_pair,
+                    budget()
+                )
+                .expect_err("self pair")
+                .envelope()
+                .code,
+            PublicErrorCode::InvalidInput
+        );
     }
 
     #[test]

@@ -19,8 +19,9 @@ use context_core::{
     RecoveryAction, ResourceBudget, error_envelope,
 };
 use context_engine::{
-    ContextPlan, ContextPlanStep, DeclaredChangeSet, EngineConfig, EngineError, LocalEngine,
-    QueryKind, RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, EngineConfig,
+    EngineError, LocalEngine, QueryKind, RequestContext, SnapshotStatus, StructuralImpactRequest,
+    TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -43,6 +44,7 @@ Usage:\n\
   impresari-context [global-options] context profile-build <root> <cache-root> <profile> <query>\n\
   impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
+  impresari-context [global-options] context profile-associated-test-build <root> <cache-root> <query> <declared-associated-tests-json>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
@@ -325,6 +327,25 @@ fn dispatch(
                 default_budget(),
             )?;
             Output::new("context profile-change-set-build", &result)
+        }
+        [
+            "context",
+            "profile-associated-test-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredAssociatedTests =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_associated_test_context(
+                &contexts.next("test_selection"),
+                query,
+                &declaration,
+                default_budget(),
+            )?;
+            Output::new("context profile-associated-test-build", &result)
         }
         [
             "structure",

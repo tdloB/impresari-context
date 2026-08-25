@@ -9,8 +9,8 @@ use std::{
 
 use context_core::{PolicySubject, ResourceBudget};
 use context_engine::{
-    ContextPlan, ContextPlanStep, DeclaredChangeSet, LocalEngine, RequestContext,
-    StructuralImpactRequest, TaskProfile,
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet, LocalEngine,
+    RequestContext, StructuralImpactRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
 use context_structural::StructuralGraph;
@@ -279,6 +279,7 @@ impl McpServer {
             start_node: Option<String>,
             edge_kinds: Option<Vec<String>>,
             declared_change_set: Option<DeclaredChangeSet>,
+            declared_associated_tests: Option<DeclaredAssociatedTests>,
             budget: ResourceBudget,
             session_id: Option<String>,
         }
@@ -301,21 +302,31 @@ impl McpServer {
             args.start_node,
             args.edge_kinds,
             args.declared_change_set,
+            args.declared_associated_tests,
         ) {
-            (Some(steps), None, None, None, None, None, None) => (
+            (Some(steps), None, None, None, None, None, None, None) => (
                 self.engine
                     .build_planned_context(&context, &ContextPlan { steps }, args.budget)
                     .map_err(|_| "context build failed")?,
                 None,
             ),
-            (None, Some(profile), Some(query), None, None, None, None) => {
+            (None, Some(profile), Some(query), None, None, None, None, None) => {
                 let profiled = self
                     .engine
                     .build_profiled_context(&context, profile, &query, args.budget)
                     .map_err(|_| "profiled context build failed")?;
                 (profiled.packet, Some(profiled.plan))
             }
-            (None, Some(profile), Some(query), Some(graph), Some(start_node), edge_kinds, None) => {
+            (
+                None,
+                Some(profile),
+                Some(query),
+                Some(graph),
+                Some(start_node),
+                edge_kinds,
+                None,
+                None,
+            ) => {
                 let profiled = self
                     .engine
                     .build_profiled_structural_context(
@@ -340,6 +351,7 @@ impl McpServer {
                 None,
                 None,
                 Some(declaration),
+                None,
             ) => {
                 let profiled = self
                     .engine
@@ -350,6 +362,27 @@ impl McpServer {
                         args.budget,
                     )
                     .map_err(|_| "declared change-set context build failed")?;
+                (profiled.packet, Some(profiled.plan))
+            }
+            (
+                None,
+                Some(TaskProfile::TestSelection),
+                Some(query),
+                None,
+                None,
+                None,
+                None,
+                Some(declaration),
+            ) => {
+                let profiled = self
+                    .engine
+                    .build_profiled_declared_associated_test_context(
+                        &context,
+                        &query,
+                        &declaration,
+                        args.budget,
+                    )
+                    .map_err(|_| "declared associated-test context build failed")?;
                 (profiled.packet, Some(profiled.plan))
             }
             _ => return Err("context build requires either steps or profile and query"),
