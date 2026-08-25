@@ -21,8 +21,8 @@ use context_core::{
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
-    LocalEngine, QueryKind, RepositoryOrientationRequest,
-    RequestContext, SnapshotStatus, StructuralImpactRequest, TaskProfile,
+    LocalEngine, QueryKind, RepositoryOrientationRequest, RequestContext, SnapshotStatus,
+    StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -351,11 +351,22 @@ fn dispatch(
             )?;
             Output::new("context profile-associated-test-build", &result)
         }
-        ["context", "profile-convention-exemplar-build", root, cache, query, declaration_path] => {
-            let declaration: DeclaredConventionExemplars = read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+        [
+            "context",
+            "profile-convention-exemplar-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredConventionExemplars =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
             let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
             let result = engine.build_profiled_declared_convention_exemplar_context(
-                &contexts.next("implementation"), query, &declaration, default_budget(),
+                &contexts.next("implementation"),
+                query,
+                &declaration,
+                default_budget(),
             )?;
             Output::new("context profile-convention-exemplar-build", &result)
         }
@@ -881,6 +892,7 @@ fn doctor_mcp_exchange(
         == Some(vec![
             "context_session_open",
             "context_build",
+            "context_convention_exemplar_build",
             "structure_incremental_update",
             "context_packet_resolve",
             "context_session_close",

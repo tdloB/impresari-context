@@ -11,8 +11,7 @@ use context_core::{PolicySubject, ResourceBudget};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine,
-    RepositoryOrientationRequest, RequestContext,
-    StructuralImpactRequest, TaskProfile,
+    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
 use context_structural::StructuralGraph;
@@ -211,7 +210,9 @@ impl McpServer {
         let result = match call.name.as_str() {
             "context_session_open" => self.session_open(call.arguments),
             "context_build" => self.context_build(call.arguments),
-            "context_convention_exemplar_build" => self.context_convention_exemplar_build(call.arguments),
+            "context_convention_exemplar_build" => {
+                self.context_convention_exemplar_build(call.arguments)
+            }
             "structure_incremental_update" => self.structure_incremental_update(call.arguments),
             "context_packet_resolve" => self.packet_resolve(call.arguments),
             "context_session_close" => self.session_close(call.arguments),
@@ -270,10 +271,36 @@ impl McpServer {
     fn context_convention_exemplar_build(&mut self, value: Value) -> Result<Value, &'static str> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
-        struct Args { request_id: String, event_id: String, purpose: String, occurred_at: String, query: String, declaration: DeclaredConventionExemplars, budget: ResourceBudget }
-        let args: Args = serde_json::from_value(value).map_err(|_| "invalid convention exemplar input")?;
-        let context = RequestContext { request_id: args.request_id, event_id: args.event_id, subject: PolicySubject { caller_id: self.consumer_id.clone(), role: self.role.clone(), purpose: args.purpose }, occurred_at: args.occurred_at };
-        let profiled = self.engine.build_profiled_declared_convention_exemplar_context(&context, &args.query, &args.declaration, args.budget).map_err(|_| "convention exemplar context build failed")?;
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            query: String,
+            declaration: DeclaredConventionExemplars,
+            budget: ResourceBudget,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid convention exemplar input")?;
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let profiled = self
+            .engine
+            .build_profiled_declared_convention_exemplar_context(
+                &context,
+                &args.query,
+                &args.declaration,
+                args.budget,
+            )
+            .map_err(|_| "convention exemplar context build failed")?;
         Ok(json!({"packet": profiled.packet, "plan": profiled.plan, "authority_added": false}))
     }
 
@@ -706,7 +733,7 @@ mod tests {
         assert_eq!(values[1]["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(
             values[2]["result"]["tools"].as_array().map(Vec::len),
-            Some(5)
+            Some(6)
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
@@ -735,7 +762,7 @@ mod tests {
         );
         assert_eq!(
             values[1]["result"]["tools"].as_array().map(Vec::len),
-            Some(5)
+            Some(6)
         );
     }
 
