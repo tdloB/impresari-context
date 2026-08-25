@@ -1,6 +1,6 @@
 # Phase 4 C# structural-evidence verification
 
-- Status: Local release gate passed; hosted admission pending
+- Status: Accepted
 - Governing records: [C# delivery record](../product/phase-4-csharp-structural-admission-prd.md) and [ADR-0032](../decisions/0032-csharp-structural-language-admission.md)
 
 ## Admitted local behavior
@@ -28,8 +28,10 @@ injection, and runtime behavior are deliberately not claimed.
   SBOM (192 packages), evaluation and scale checks, cache restart, formatting,
   clippy, all unit/integration tests, and documentation tests.
 
-## Admission requirement
+## Hosted admission
 
-Require the full local release gate plus hosted macOS, Linux, Windows,
-fuzzing, static-analysis, and dependency-security checks before marking C#
-accepted.
+PR #42 passed the required hosted macOS, Linux (Rust 1.96, 1.97, and 1.98),
+Windows, fuzzing, CodeQL static-analysis, and dependency-security/license checks
+on 2026-08-24. It was squash-merged as
+`1f8b236b23f993ef9c195a7bd65dfe2c18ea1256`. No authority-boundary change was
+required by the hosted evidence.

@@ -1,23 +1,25 @@
 # Phase 1 Cursor connection-kit record
 
 - Status: Generic local MCP; temporary configuration discovery recorded
-- Date: 2026-08-23
+- Date: 2026-08-25
 - Client: Cursor Agent CLI `3.17.8` (`2026.08.11-e8db854`), macOS aarch64
 
 ## Evidence recorded
 
 The user authenticated Cursor Agent CLI through its normal interactive flow.
 `scripts/rehearse-cursor-preadmission.rb` then created an isolated temporary
-workspace, separate cache, and project `.cursor/mcp.json` containing only the
-fixed Impresari Context local-stdio command and arguments. `cursor agent mcp
-list` discovered `impresari_context_conformance`; the fixture workspace digest
-was unchanged after the configuration was created and listed.
+workspace and separate cache. It invokes the versioned managed-kit CLI to
+explicitly install the exact owned `.cursor/mcp.json` entry, validates that
+entry, asks `cursor agent mcp list` to discover it, then explicitly removes it.
+The target file is absent after the removal and the fixture workspace digest is
+unchanged. Cursor Agent discovered `impresari-context` on CLI `3.17.8`
+(`2026.08.11-e8db854`), macOS aarch64.
 
 The rehearsal did not invoke `cursor agent mcp enable`, `disable`, or an AI
 model. No MCP approval was granted and no user or project configuration was
-persisted. The connection shape remains bounded: an absolute MCP binary,
-fixed workspace, separate cache, consumer identity, and local-user role, with
-environment forwarding rejected by the Impresari Context validator.
+persisted. The connection shape remains bounded: an executable absolute MCP
+binary, fixed workspace, separate cache, consumer identity, and local-user
+role, with environment forwarding rejected by the Impresari Context validator.
 
 ## Classification and remaining gaps
 
@@ -29,8 +31,7 @@ First-class admission still requires all of the following:
 
 - intentional user approval of an exact, isolated MCP entry and a real-client
   tool lifecycle;
-- packet identity/equivalence and source-immutability evidence;
-- malformed-configuration behavior and safe removal of only this entry; and
+- packet identity/equivalence and source-immutability evidence; and
 - maintained version and operating-system coverage.
 
 This evidence is deliberately not substituted with `--approve-mcps` or an

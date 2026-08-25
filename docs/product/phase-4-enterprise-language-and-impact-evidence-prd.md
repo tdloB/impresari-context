@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4: Enterprise Languages and Impact Evidence PRD
 
-- Status: In progress: Java accepted; Kotlin structural admission underway
+- Status: Complete: all approved Phase 4 language and bounded impact-evidence slices accepted after full hosted CI
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
@@ -21,3 +21,8 @@ Kotlin, and C# and strengthening deterministic impact-oriented evidence.
 Each language and impact capability requires isolated parser, resolver,
 evaluation, and authority-boundary evidence. No compiler, language server,
 repository-code execution, or opaque semantic claim is implied.
+
+The bounded structural-impact planner, declared change-set packets,
+associated-test evidence, repository orientation, explicit incremental updates,
+and convention/exemplar evidence are accepted through their separate delivery
+records. Future impact capabilities still require separate admission records.

@@ -17,7 +17,7 @@ ROOT = Pathname.new(__dir__).join("..").expand_path
 DEFAULT_CODEX = "/Applications/ChatGPT.app/Contents/Resources/codex"
 FIXED_TIME = "2026-08-23T12:00:00Z"
 FIXED_CUTOFF = "2026-08-16T12:00:00Z"
-SERVER = "impresari_context_conformance"
+SERVER = "impresari-context"
 CONSUMER = "consumer_codex_conformance"
 SESSION = "session_codex_conformance01"
 REQUEST = "req_codex_conformance01"
@@ -186,13 +186,14 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
     config_directory = File.join(workspace, ".codex")
     FileUtils.mkdir_p(config_directory)
     config_path = File.join(config_directory, "config.toml")
-    File.write(config_path, <<~TOML)
-      [mcp_servers.#{SERVER}]
-      command = #{options[:mcp].to_json}
-      args = #{codex_server_args.to_json}
-      enabled = true
-      required = true
-    TOML
+    install_stdout, install_stderr, install_status = Open3.capture3(
+      options[:cli], "client", "kit", "install", "codex", options[:mcp], workspace, codex_mcp_cache, config_path, "--apply",
+    )
+    abort_with("managed Codex project configuration install failed", "#{install_stderr}\n#{install_stdout}") unless install_status.success?
+    validate_stdout, validate_stderr, validate_status = Open3.capture3(
+      options[:cli], "client", "kit", "validate", "codex", options[:mcp], workspace, codex_mcp_cache, config_path,
+    )
+    abort_with("managed Codex project configuration validation failed", "#{validate_stderr}\n#{validate_stdout}") unless validate_status.success?
   end
   before = source_digest(workspace)
   direct_packet = direct_mcp_packet(options[:mcp], direct_server_args)
@@ -308,5 +309,12 @@ Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
     stdout.close unless stdout.closed?
     wait.join(10)
     stderr_reader.join(10)
+    if options[:project_config] && defined?(config_path) && File.exist?(config_path)
+      remove_stdout, remove_stderr, remove_status = Open3.capture3(
+        options[:cli], "client", "kit", "remove", "codex", options[:mcp], workspace, codex_mcp_cache, config_path, "--apply",
+      )
+      abort_with("managed Codex project configuration removal failed", "#{remove_stderr}\n#{remove_stdout}") unless remove_status.success?
+      abort("managed Codex project configuration target was not removed") if File.exist?(config_path)
+    end
   end
 end

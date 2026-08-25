@@ -2,7 +2,10 @@
 #![forbid(unsafe_code)]
 #![doc = "Thin command-line adapter over the shared Impresari Context engine."]
 
+#[cfg(unix)]
+use std::os::unix::fs::PermissionsExt;
 use std::{
+    fmt::Write as _,
     fs,
     io::{self, Cursor, Write},
     path::Path,
@@ -16,8 +19,10 @@ use context_core::{
     RecoveryAction, ResourceBudget, error_envelope,
 };
 use context_engine::{
-    ContextPlan, ContextPlanStep, EngineConfig, EngineError, LocalEngine, QueryKind,
-    RequestContext, SnapshotStatus, TaskProfile,
+    ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
+    DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
+    LocalEngine, QueryKind, RepositoryOrientationRequest, RequestContext, SnapshotStatus,
+    StructuralImpactRequest, TaskProfile,
 };
 use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
@@ -25,6 +30,7 @@ use context_store::AuditRetention;
 use context_structural::{StructuralGraph, WorkerLauncher};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
+use serde_json::json;
 
 const DOCTOR_SCHEMA_VERSION: &str = "1.0.0";
 
@@ -37,11 +43,22 @@ Usage:\n\
   impresari-context [global-options] search <root> <cache-root> <exact_path|filename|literal|lexical> <query>\n\
   impresari-context [global-options] context build <root> <cache-root> <kind> <query> <purpose>\n\
   impresari-context [global-options] context profile-build <root> <cache-root> <profile> <query>\n\
+  impresari-context [global-options] context profile-structure-build <root> <cache-root> <profile> <query> <graph-json> <start-node> <edge-kinds|all>\n\
+  impresari-context [global-options] context profile-change-set-build <root> <cache-root> <query> <declared-change-set-json>\n\
+  impresari-context [global-options] context profile-associated-test-build <root> <cache-root> <query> <declared-associated-tests-json>\n\
+  impresari-context [global-options] context profile-convention-exemplar-build <root> <cache-root> <query> <declared-convention-exemplars-json>\n\
+  impresari-context [global-options] context profile-orientation-build <root> <cache-root> <query> <graph-json> <max-entries>\n\
+  impresari-context [global-options] structure incremental-update <root> <cache-root> <incremental-update-json>\n\
   impresari-context [global-options] structure build <root> <cache-root> <worker> <worker-sha256> <empty-dir>\n\
   impresari-context [global-options] structure query <root> <cache-root> <graph-json> <start-node> <edge-kinds|all>\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
+  impresari-context [global-options] client kit render <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root>\n\
+  impresari-context [global-options] client kit inspect <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client kit validate <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client kit install <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] doctor inspect <root> <cache-root>\n\
   impresari-context [global-options] doctor mcp <root> <cache-root>\n\
   impresari-context [global-options] doctor codex-config <root> <cache-root> <config-toml>\n\
@@ -55,6 +72,7 @@ Global options:\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
   --cutoff <UTC>          Explicit audit retention cutoff.\n\
   --id-seed <8-64 chars>  Deterministic request/event identifier seed.\n\
+  --apply                 Permit the explicit client-kit install or remove write.\n\
   --help                  Show this help.\n";
 
 #[derive(Debug)]
@@ -63,6 +81,7 @@ struct GlobalOptions {
     at: String,
     cutoff: String,
     id_seed: String,
+    apply: bool,
     command: Vec<String>,
 }
 
@@ -166,6 +185,42 @@ struct DoctorReport {
     limitations: Vec<&'static str>,
 }
 
+#[derive(Serialize)]
+struct ManagedConnectionKit {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    client: &'static str,
+    level: &'static str,
+    operation: &'static str,
+    target_scope: &'static str,
+    ownership: &'static str,
+    external_write_performed: bool,
+    configuration: serde_json::Value,
+    limitations: Vec<&'static str>,
+}
+
+#[derive(Serialize)]
+struct ManagedConnectionOperation {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    client: &'static str,
+    level: &'static str,
+    operation: &'static str,
+    target_config: String,
+    ownership: &'static str,
+    owned_entry: serde_json::Value,
+    planned_effect: &'static str,
+    external_write_performed: bool,
+    state: &'static str,
+    limitations: Vec<&'static str>,
+}
+
+struct ManagedEntryDetails<'a> {
+    format: &'a str,
+    binary: &'a Path,
+    arguments: &'a [String],
+}
+
 #[allow(clippy::too_many_lines)]
 fn dispatch(
     options: &GlobalOptions,
@@ -230,6 +285,119 @@ fn dispatch(
             Output::new("context profile-build", &result)
         }
         [
+            "context",
+            "profile-structure-build",
+            root,
+            cache,
+            profile,
+            query,
+            graph_path,
+            start_node,
+            edge_kinds,
+        ] => {
+            let profile = parse_task_profile(profile)?;
+            let graph: StructuralGraph =
+                read_json(Path::new(graph_path), Capability::StructureQuery)?;
+            let edge_kinds = parse_edge_kinds(edge_kinds)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_structural_context(
+                &contexts.next(profile_purpose(profile)),
+                profile,
+                query,
+                &StructuralImpactRequest {
+                    graph,
+                    start_node: start_node.to_string(),
+                    edge_kinds,
+                },
+                default_budget(),
+            )?;
+            Output::new("context profile-structure-build", &result)
+        }
+        [
+            "context",
+            "profile-change-set-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredChangeSet =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_change_set_context(
+                &contexts.next("change_review"),
+                query,
+                &declaration,
+                default_budget(),
+            )?;
+            Output::new("context profile-change-set-build", &result)
+        }
+        [
+            "context",
+            "profile-associated-test-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredAssociatedTests =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_associated_test_context(
+                &contexts.next("test_selection"),
+                query,
+                &declaration,
+                default_budget(),
+            )?;
+            Output::new("context profile-associated-test-build", &result)
+        }
+        [
+            "context",
+            "profile-convention-exemplar-build",
+            root,
+            cache,
+            query,
+            declaration_path,
+        ] => {
+            let declaration: DeclaredConventionExemplars =
+                read_json(Path::new(declaration_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_declared_convention_exemplar_context(
+                &contexts.next("implementation"),
+                query,
+                &declaration,
+                default_budget(),
+            )?;
+            Output::new("context profile-convention-exemplar-build", &result)
+        }
+        [
+            "context",
+            "profile-orientation-build",
+            root,
+            cache,
+            query,
+            graph_path,
+            max_entries,
+        ] => {
+            let graph: StructuralGraph =
+                read_json(Path::new(graph_path), Capability::StructureQuery)?;
+            let max_entries = max_entries.parse::<u32>().map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid repository map entry limit",
+                )
+            })?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.build_profiled_repository_orientation_context(
+                &contexts.next("orientation"),
+                query,
+                &RepositoryOrientationRequest { graph, max_entries },
+                default_budget(),
+            )?;
+            Output::new("context profile-orientation-build", &result)
+        }
+        [
             "structure",
             "build",
             root,
@@ -251,6 +419,17 @@ fn dispatch(
                 &launcher,
             )?;
             Output::new("structure build", &result)
+        }
+        ["structure", "incremental-update", root, cache, update_path] => {
+            let update: IncrementalStructuralUpdate =
+                read_json(Path::new(update_path), Capability::StructureBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result = engine.apply_incremental_structural_update(
+                &contexts.next("structure_incremental_update"),
+                &update,
+                &default_budget(),
+            )?;
+            Output::new("structure incremental-update", &result)
         }
         [
             "structure",
@@ -328,6 +507,93 @@ fn dispatch(
                 filename,
             )?;
             Output::new("handoff export", &result)
+        }
+        ["client", "kit", "render", client, binary, root, cache] => {
+            let kit = managed_connection_kit(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+            )?;
+            Output::new("client kit render", &kit)
+        }
+        [
+            "client",
+            "kit",
+            "inspect",
+            client,
+            binary,
+            root,
+            cache,
+            target,
+        ] => {
+            let operation = inspect_managed_connection(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+            )?;
+            Output::new("client kit inspect", &operation)
+        }
+        [
+            "client",
+            "kit",
+            "validate",
+            client,
+            binary,
+            root,
+            cache,
+            target,
+        ] => {
+            let operation = validate_managed_connection(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+            )?;
+            Output::new("client kit validate", &operation)
+        }
+        [
+            "client",
+            "kit",
+            "install",
+            client,
+            binary,
+            root,
+            cache,
+            target,
+        ] => {
+            let operation = install_managed_connection(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+                options.apply,
+            )?;
+            Output::new("client kit install", &operation)
+        }
+        [
+            "client",
+            "kit",
+            "remove",
+            client,
+            binary,
+            root,
+            cache,
+            target,
+        ] => {
+            let operation = remove_managed_connection(
+                client,
+                Path::new(binary),
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+                options.apply,
+            )?;
+            Output::new("client kit remove", &operation)
         }
         ["doctor", "inspect", root, cache] => {
             let report = doctor_inspect(Path::new(root), Path::new(cache))?;
@@ -626,6 +892,8 @@ fn doctor_mcp_exchange(
         == Some(vec![
             "context_session_open",
             "context_build",
+            "context_convention_exemplar_build",
+            "structure_incremental_update",
             "context_packet_resolve",
             "context_session_close",
         ]);
@@ -722,7 +990,7 @@ fn codex_config_is_safe(config: &toml::Value, workspace: &Path, cache: &Path) ->
     if !entry.keys().all(|key| {
         matches!(
             key.as_str(),
-            "command" | "args" | "enabled" | "default_tools_approval_mode"
+            "command" | "args" | "enabled" | "required" | "default_tools_approval_mode"
         )
     }) {
         return false;
@@ -734,6 +1002,9 @@ fn codex_config_is_safe(config: &toml::Value, workspace: &Path, cache: &Path) ->
         && configured_directory_matches(args[3], cache)
         && entry
             .get("enabled")
+            .is_none_or(|value| value.as_bool() == Some(true))
+        && entry
+            .get("required")
             .is_none_or(|value| value.as_bool() == Some(true))
         && entry
             .get("default_tools_approval_mode")
@@ -871,6 +1142,887 @@ fn canonical_directory(path: &Path) -> Result<PathBuf, EngineError> {
             "doctor input directory could not be resolved",
         )
     })
+}
+
+fn managed_connection_kit(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+) -> Result<ManagedConnectionKit, EngineError> {
+    let binary = canonical_regular_file(binary)?;
+    let workspace = canonical_directory(workspace)?;
+    let cache = canonical_directory(cache)?;
+    if cache == workspace || cache.starts_with(&workspace) || workspace.starts_with(&cache) {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection requires a separate cache directory",
+        ));
+    }
+    let arguments = vec![
+        "--workspace".to_owned(),
+        workspace.display().to_string(),
+        "--cache".to_owned(),
+        cache.display().to_string(),
+        "--consumer-id".to_owned(),
+        format!("consumer_{client}_managed"),
+        "--role".to_owned(),
+        "local_user".to_owned(),
+    ];
+    let (client, target_scope, configuration) = match client {
+        "codex" => (
+            "codex",
+            "project",
+            json!({
+                "format": "toml",
+                "entry": managed_toml_block(&binary, &arguments),
+            }),
+        ),
+        "claude" | "cursor" | "copilot" => (
+            match client {
+                "claude" => "claude",
+                "cursor" => "cursor",
+                _ => "copilot",
+            },
+            "project_or_user",
+            json!({"format": "json", "entry": {"mcpServers": {"impresari-context": {
+                "command": binary, "args": arguments
+            }}}}),
+        ),
+        "vscode" => (
+            "vscode",
+            "workspace_or_user",
+            json!({"format": "json", "entry": {"servers": {"impresari-context": {
+                "command": binary, "args": arguments
+            }}}}),
+        ),
+        _ => {
+            return Err(synthetic_error(
+                Capability::WorkspaceOpen,
+                PublicErrorCode::InvalidInput,
+                "unsupported managed connection client",
+            ));
+        }
+    };
+    Ok(ManagedConnectionKit {
+        schema_name: "managed-connection-kit",
+        schema_version: "1.0.0",
+        client,
+        level: "l1",
+        operation: "render",
+        target_scope,
+        ownership: "exact_fixed_entry:impresari-context",
+        external_write_performed: false,
+        configuration,
+        limitations: vec![
+            "Rendering does not write, trust, sign in, enable, or approve a client connection.",
+            "Install and owned-entry removal require separate explicit operations.",
+        ],
+    })
+}
+
+fn managed_connection_contract(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+) -> Result<(&'static str, PathBuf, Vec<String>, &'static str), EngineError> {
+    let kit = managed_connection_kit(client, binary, workspace, cache)?;
+    let binary = canonical_regular_file(binary)?;
+    let workspace = canonical_directory(workspace)?;
+    let cache = canonical_directory(cache)?;
+    let arguments = vec![
+        "--workspace".to_owned(),
+        workspace.display().to_string(),
+        "--cache".to_owned(),
+        cache.display().to_string(),
+        "--consumer-id".to_owned(),
+        format!("consumer_{}_managed", kit.client),
+        "--role".to_owned(),
+        "local_user".to_owned(),
+    ];
+    let format = if kit.client == "codex" {
+        "toml"
+    } else {
+        "json"
+    };
+    Ok((kit.client, binary, arguments, format))
+}
+
+fn managed_operation(
+    client: &'static str,
+    operation: &'static str,
+    target: &Path,
+    entry: &ManagedEntryDetails<'_>,
+    external_write_performed: bool,
+    state: &'static str,
+) -> ManagedConnectionOperation {
+    ManagedConnectionOperation {
+        schema_name: "managed-connection-operation",
+        schema_version: "1.0.0",
+        client,
+        level: "l1",
+        operation,
+        target_config: target.display().to_string(),
+        ownership: "exact_fixed_entry:impresari-context",
+        owned_entry: managed_entry_preview(entry.format, entry.binary, entry.arguments),
+        planned_effect: match operation {
+            "install" => "add_exact_owned_entry",
+            "remove" => "remove_exact_owned_entry",
+            _ => "inspect_exact_owned_entry",
+        },
+        external_write_performed,
+        state,
+        limitations: vec![
+            "This operation does not trust, sign in, enable, or approve a client connection.",
+            "Only an explicit --apply install or remove can write the named configuration file.",
+        ],
+    }
+}
+
+fn managed_entry_preview(format: &str, binary: &Path, arguments: &[String]) -> serde_json::Value {
+    match format {
+        "toml" => json!({"format": "toml", "entry": managed_toml_block(binary, arguments)}),
+        "json" => {
+            json!({"format": "json", "entry": {"mcpServers": {"impresari-context": json_managed_entry(binary, arguments)}}})
+        }
+        _ => json!({"format": "unsupported"}),
+    }
+}
+
+fn inspect_managed_connection(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+) -> Result<ManagedConnectionOperation, EngineError> {
+    let (client, binary, arguments, format) =
+        managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
+    let target = managed_config_target(target)?;
+    let state = match read_managed_config(&target)? {
+        None => "absent",
+        Some(text)
+            if managed_entry_state(format, &text, &binary, &arguments)?
+                == ManagedEntryState::Owned =>
+        {
+            "owned"
+        }
+        Some(_) => "unowned_or_conflicting",
+    };
+    Ok(managed_operation(
+        client, "inspect", &target, &entry, false, state,
+    ))
+}
+
+fn validate_managed_connection(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+) -> Result<ManagedConnectionOperation, EngineError> {
+    let (client, binary, arguments, format) =
+        managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
+    let target = managed_config_target(target)?;
+    let text = read_managed_config(&target)?
+        .ok_or_else(|| managed_config_error("managed connection configuration is absent"))?;
+    if managed_entry_state(format, &text, &binary, &arguments)? != ManagedEntryState::Owned {
+        return Err(managed_config_error(
+            "managed connection configuration is not the exact owned entry",
+        ));
+    }
+    Ok(managed_operation(
+        client, "validate", &target, &entry, false, "owned",
+    ))
+}
+
+fn install_managed_connection(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+    apply: bool,
+) -> Result<ManagedConnectionOperation, EngineError> {
+    let (client, binary, arguments, format) =
+        managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
+    let target = managed_config_target(target)?;
+    let current = read_managed_config(&target)?;
+    let next = install_managed_entry(format, current.as_deref(), &binary, &arguments)?;
+    if !apply {
+        return Ok(managed_operation(
+            client,
+            "install",
+            &target,
+            &entry,
+            false,
+            "preview_ready",
+        ));
+    }
+    atomic_write_managed_config(&target, next.as_bytes())?;
+    Ok(managed_operation(
+        client, "install", &target, &entry, true, "owned",
+    ))
+}
+
+fn remove_managed_connection(
+    client: &str,
+    binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+    apply: bool,
+) -> Result<ManagedConnectionOperation, EngineError> {
+    let (client, binary, arguments, format) =
+        managed_connection_contract(client, binary, workspace, cache)?;
+    let entry = ManagedEntryDetails {
+        format,
+        binary: &binary,
+        arguments: &arguments,
+    };
+    let target = managed_config_target(target)?;
+    let current = read_managed_config(&target)?
+        .ok_or_else(|| managed_config_error("managed connection configuration is absent"))?;
+    let next = remove_managed_entry(format, &current, &binary, &arguments)?;
+    if !apply {
+        return Ok(managed_operation(
+            client,
+            "remove",
+            &target,
+            &entry,
+            false,
+            "preview_ready",
+        ));
+    }
+    if managed_document_is_empty(format, &next)? {
+        remove_managed_config(&target)?;
+    } else {
+        atomic_write_managed_config(&target, next.as_bytes())?;
+    }
+    Ok(managed_operation(
+        client, "remove", &target, &entry, true, "removed",
+    ))
+}
+
+fn managed_document_is_empty(format: &str, contents: &str) -> Result<bool, EngineError> {
+    match format {
+        "toml" => Ok(contents.trim().is_empty()),
+        "json" => {
+            let value: serde_json::Value = serde_json::from_str(contents)
+                .map_err(|_| managed_config_error("managed JSON removal output is malformed"))?;
+            Ok(value == json!({"mcpServers": {}}))
+        }
+        _ => Err(managed_config_error(
+            "unsupported managed configuration format",
+        )),
+    }
+}
+
+#[derive(Clone, Copy, Eq, PartialEq)]
+enum ManagedEntryState {
+    Owned,
+    Absent,
+    Conflicting,
+}
+
+fn managed_entry_state(
+    format: &str,
+    text: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<ManagedEntryState, EngineError> {
+    match format {
+        "toml" => toml_managed_entry_state(text, binary, arguments),
+        "json" => json_managed_entry_state(text, binary, arguments),
+        _ => Err(managed_config_error(
+            "unsupported managed configuration format",
+        )),
+    }
+}
+
+fn install_managed_entry(
+    format: &str,
+    current: Option<&str>,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    match format {
+        "toml" => install_toml_managed_entry(current, binary, arguments),
+        "json" => install_json_managed_entry(current, binary, arguments),
+        _ => Err(managed_config_error(
+            "unsupported managed configuration format",
+        )),
+    }
+}
+
+fn remove_managed_entry(
+    format: &str,
+    current: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    match format {
+        "toml" => remove_toml_managed_entry(current, binary, arguments),
+        "json" => remove_json_managed_entry(current, binary, arguments),
+        _ => Err(managed_config_error(
+            "unsupported managed configuration format",
+        )),
+    }
+}
+
+fn managed_config_error(message: &str) -> EngineError {
+    synthetic_error(
+        Capability::WorkspaceOpen,
+        PublicErrorCode::InvalidInput,
+        message,
+    )
+}
+
+fn canonical_regular_file(path: &Path) -> Result<PathBuf, EngineError> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::PathNotFound,
+            "managed connection binary not found",
+        )
+    })?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection binary must be a regular file",
+        ));
+    }
+    #[cfg(unix)]
+    if metadata.permissions().mode() & 0o111 == 0 {
+        return Err(synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InvalidInput,
+            "managed connection binary must be executable",
+        ));
+    }
+    fs::canonicalize(path).map_err(|_| {
+        synthetic_error(
+            Capability::WorkspaceOpen,
+            PublicErrorCode::InternalFailure,
+            "managed connection binary could not be resolved",
+        )
+    })
+}
+
+fn managed_config_target(path: &Path) -> Result<PathBuf, EngineError> {
+    let file_name = path
+        .file_name()
+        .ok_or_else(|| managed_config_error("managed configuration requires a file target"))?;
+    let parent = path.parent().ok_or_else(|| {
+        managed_config_error("managed configuration requires an existing parent directory")
+    })?;
+    let metadata = fs::symlink_metadata(parent)
+        .map_err(|_| managed_config_error("managed configuration parent directory not found"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(managed_config_error(
+            "managed configuration parent must be a non-symlink directory",
+        ));
+    }
+    let parent = fs::canonicalize(parent)
+        .map_err(|_| managed_config_error("managed configuration parent could not be resolved"))?;
+    Ok(parent.join(file_name))
+}
+
+fn read_managed_config(path: &Path) -> Result<Option<String>, EngineError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => {
+            return Err(managed_config_error(
+                "managed configuration could not be inspected",
+            ));
+        }
+    };
+    if metadata.file_type().is_symlink() || !metadata.is_file() || metadata.len() > 1_048_576 {
+        return Err(managed_config_error(
+            "managed configuration must be a bounded regular non-symlink file",
+        ));
+    }
+    fs::read_to_string(path)
+        .map(Some)
+        .map_err(|_| managed_config_error("managed configuration is not valid UTF-8"))
+}
+
+fn atomic_write_managed_config(path: &Path, contents: &[u8]) -> Result<(), EngineError> {
+    if contents.len() > 1_048_576 {
+        return Err(managed_config_error(
+            "managed configuration would exceed its size limit",
+        ));
+    }
+    let parent = path
+        .parent()
+        .ok_or_else(|| managed_config_error("managed configuration parent is unavailable"))?;
+    let temp = parent.join(format!(
+        ".impcx-{}.tmp",
+        unique_seed()
+            .map_err(|_| managed_config_error("managed configuration temporary name failed"))?
+    ));
+    let mut options = fs::OpenOptions::new();
+    options.write(true).create_new(true);
+    let mut file = options.open(&temp).map_err(|_| {
+        managed_config_error("managed configuration temporary file could not be created")
+    })?;
+    file.write_all(contents)
+        .and_then(|()| file.sync_all())
+        .map_err(|_| {
+            let _ = fs::remove_file(&temp);
+            managed_config_error("managed configuration could not be written atomically")
+        })?;
+    fs::rename(&temp, path).map_err(|_| {
+        let _ = fs::remove_file(&temp);
+        managed_config_error("managed configuration atomic replacement failed")
+    })
+}
+
+fn remove_managed_config(path: &Path) -> Result<(), EngineError> {
+    let metadata = fs::symlink_metadata(path)
+        .map_err(|_| managed_config_error("managed configuration disappeared before removal"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_file() {
+        return Err(managed_config_error(
+            "managed configuration is no longer a regular non-symlink file",
+        ));
+    }
+    fs::remove_file(path)
+        .map_err(|_| managed_config_error("managed configuration could not be removed"))
+}
+
+fn managed_toml_block(binary: &Path, arguments: &[String]) -> String {
+    format!(
+        "# Impresari Context managed connection kit v1; ownership=exact_fixed_entry:impresari-context\n[mcp_servers.\"impresari-context\"]\ncommand = {}\nargs = [{}]\nenabled = true\nrequired = true\ndefault_tools_approval_mode = \"prompt\"",
+        toml_string_literal(&binary.display().to_string()),
+        arguments
+            .iter()
+            .map(|value| toml_string_literal(value))
+            .collect::<Vec<_>>()
+            .join(", "),
+    )
+}
+
+fn toml_string_literal(value: &str) -> String {
+    let mut encoded = String::from("\"");
+    for character in value.chars() {
+        match character {
+            '\\' => encoded.push_str("\\\\"),
+            '"' => encoded.push_str("\\\""),
+            '\u{08}' => encoded.push_str("\\b"),
+            '\t' => encoded.push_str("\\t"),
+            '\n' => encoded.push_str("\\n"),
+            '\u{0C}' => encoded.push_str("\\f"),
+            '\r' => encoded.push_str("\\r"),
+            character if character.is_control() => {
+                let _ = write!(encoded, "\\u{:04X}", character as u32);
+            }
+            character => encoded.push(character),
+        }
+    }
+    encoded.push('"');
+    encoded
+}
+
+fn toml_managed_entry_state(
+    text: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<ManagedEntryState, EngineError> {
+    let value: toml::Value = toml::from_str(text)
+        .map_err(|_| managed_config_error("managed TOML configuration is malformed"))?;
+    let Some(entry) = value
+        .get("mcp_servers")
+        .and_then(toml::Value::as_table)
+        .and_then(|servers| servers.get("impresari-context"))
+    else {
+        return Ok(ManagedEntryState::Absent);
+    };
+    let expected: toml::Value = toml::from_str(&managed_toml_block(binary, arguments))
+        .map_err(|_| managed_config_error("managed TOML template is invalid"))?;
+    let expected_entry = expected
+        .get("mcp_servers")
+        .and_then(toml::Value::as_table)
+        .and_then(|servers| servers.get("impresari-context"));
+    Ok(if Some(entry) == expected_entry {
+        ManagedEntryState::Owned
+    } else {
+        ManagedEntryState::Conflicting
+    })
+}
+
+fn install_toml_managed_entry(
+    current: Option<&str>,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    if let Some(text) = current {
+        if toml_managed_entry_state(text, binary, arguments)? != ManagedEntryState::Absent {
+            return Err(managed_config_error(
+                "managed TOML configuration already has an Impresari entry",
+            ));
+        }
+        let separator = if text.is_empty() {
+            ""
+        } else if text.ends_with('\n') {
+            "\n"
+        } else {
+            "\n\n"
+        };
+        Ok(format!(
+            "{text}{separator}{}\n",
+            managed_toml_block(binary, arguments)
+        ))
+    } else {
+        Ok(format!("{}\n", managed_toml_block(binary, arguments)))
+    }
+}
+
+fn remove_toml_managed_entry(
+    current: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    if toml_managed_entry_state(current, binary, arguments)? != ManagedEntryState::Owned {
+        return Err(managed_config_error(
+            "managed TOML configuration does not contain the exact owned entry",
+        ));
+    }
+    let block = managed_toml_block(binary, arguments);
+    let start = current
+        .find(&block)
+        .ok_or_else(|| managed_config_error("managed TOML ownership marker is absent"))?;
+    if current[start + block.len()..].contains(&block) {
+        return Err(managed_config_error(
+            "managed TOML ownership marker is ambiguous",
+        ));
+    }
+    let mut remove_start = start;
+    if remove_start > 0 && current.as_bytes()[remove_start - 1] == b'\n' {
+        remove_start -= 1;
+    }
+    let mut remove_end = start + block.len();
+    if current.as_bytes().get(remove_end) == Some(&b'\n') {
+        remove_end += 1;
+    }
+    Ok(format!(
+        "{}{}",
+        &current[..remove_start],
+        &current[remove_end..]
+    ))
+}
+
+#[derive(Debug)]
+struct JsonMember {
+    key: String,
+    start: usize,
+    end: usize,
+    value_start: usize,
+    value_end: usize,
+}
+
+#[derive(Debug)]
+struct JsonObject {
+    closing: usize,
+    members: Vec<JsonMember>,
+}
+
+fn json_managed_entry(binary: &Path, arguments: &[String]) -> serde_json::Value {
+    json!({"command": binary, "args": arguments})
+}
+
+fn json_managed_entry_state(
+    text: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<ManagedEntryState, EngineError> {
+    let root = json_root_object(text)?;
+    let Some(servers) = root
+        .members
+        .iter()
+        .find(|member| member.key == "mcpServers")
+    else {
+        return Ok(ManagedEntryState::Absent);
+    };
+    let server_object = json_object_at(text, servers.value_start)?;
+    let entries = server_object
+        .members
+        .iter()
+        .filter(|member| member.key == "impresari-context")
+        .collect::<Vec<_>>();
+    if entries.is_empty() {
+        return Ok(ManagedEntryState::Absent);
+    }
+    if entries.len() != 1 {
+        return Err(managed_config_error(
+            "managed JSON configuration has duplicate Impresari entries",
+        ));
+    }
+    let actual: serde_json::Value =
+        serde_json::from_str(&text[entries[0].value_start..entries[0].value_end])
+            .map_err(|_| managed_config_error("managed JSON Impresari entry is malformed"))?;
+    Ok(if actual == json_managed_entry(binary, arguments) {
+        ManagedEntryState::Owned
+    } else {
+        ManagedEntryState::Conflicting
+    })
+}
+
+fn install_json_managed_entry(
+    current: Option<&str>,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    let entry = serde_json::to_string(&json_managed_entry(binary, arguments))
+        .map_err(|_| managed_config_error("managed JSON template could not be serialized"))?;
+    let Some(text) = current else {
+        return Ok(format!(
+            "{{\n  \"mcpServers\": {{\n    \"impresari-context\": {entry}\n  }}\n}}\n"
+        ));
+    };
+    let root = json_root_object(text)?;
+    if let Some(servers) = root
+        .members
+        .iter()
+        .find(|member| member.key == "mcpServers")
+    {
+        let server_object = json_object_at(text, servers.value_start)?;
+        if server_object
+            .members
+            .iter()
+            .any(|member| member.key == "impresari-context")
+        {
+            return Err(managed_config_error(
+                "managed JSON configuration already has an Impresari entry",
+            ));
+        }
+        Ok(insert_json_member(
+            text,
+            &server_object,
+            "impresari-context",
+            &entry,
+        ))
+    } else {
+        let value = format!("{{\n    \"impresari-context\": {entry}\n  }}");
+        Ok(insert_json_member(text, &root, "mcpServers", &value))
+    }
+}
+
+fn remove_json_managed_entry(
+    current: &str,
+    binary: &Path,
+    arguments: &[String],
+) -> Result<String, EngineError> {
+    if json_managed_entry_state(current, binary, arguments)? != ManagedEntryState::Owned {
+        return Err(managed_config_error(
+            "managed JSON configuration does not contain the exact owned entry",
+        ));
+    }
+    let root = json_root_object(current)?;
+    let servers = root
+        .members
+        .iter()
+        .find(|member| member.key == "mcpServers")
+        .ok_or_else(|| managed_config_error("managed JSON server container is absent"))?;
+    let server_object = json_object_at(current, servers.value_start)?;
+    let index = server_object
+        .members
+        .iter()
+        .position(|member| member.key == "impresari-context")
+        .ok_or_else(|| managed_config_error("managed JSON entry is absent"))?;
+    Ok(remove_json_member(current, &server_object, index))
+}
+
+fn json_root_object(text: &str) -> Result<JsonObject, EngineError> {
+    serde_json::from_str::<serde_json::Value>(text)
+        .map_err(|_| managed_config_error("managed JSON configuration is malformed"))?;
+    let start = skip_json_whitespace(text, 0);
+    let root = json_object_at(text, start)?;
+    if skip_json_whitespace(text, root.closing + 1) != text.len() {
+        return Err(managed_config_error(
+            "managed JSON configuration has trailing data",
+        ));
+    }
+    Ok(root)
+}
+
+fn json_object_at(text: &str, start: usize) -> Result<JsonObject, EngineError> {
+    if text.as_bytes().get(start) != Some(&b'{') {
+        return Err(managed_config_error(
+            "managed JSON configuration root must be an object",
+        ));
+    }
+    let mut index = skip_json_whitespace(text, start + 1);
+    let mut members = Vec::new();
+    if text.as_bytes().get(index) == Some(&b'}') {
+        return Ok(JsonObject {
+            closing: index,
+            members,
+        });
+    }
+    loop {
+        let member_start = index;
+        let key_end = json_string_end(text, index)?;
+        let key: String = serde_json::from_str(&text[index..key_end])
+            .map_err(|_| managed_config_error("managed JSON key is malformed"))?;
+        index = skip_json_whitespace(text, key_end);
+        if text.as_bytes().get(index) != Some(&b':') {
+            return Err(managed_config_error("managed JSON key lacks a value"));
+        }
+        let value_start = skip_json_whitespace(text, index + 1);
+        let value_end = json_value_end(text, value_start)?;
+        members.push(JsonMember {
+            key,
+            start: member_start,
+            end: value_end,
+            value_start,
+            value_end,
+        });
+        index = skip_json_whitespace(text, value_end);
+        match text.as_bytes().get(index) {
+            Some(b',') => index = skip_json_whitespace(text, index + 1),
+            Some(b'}') => {
+                return Ok(JsonObject {
+                    closing: index,
+                    members,
+                });
+            }
+            _ => {
+                return Err(managed_config_error(
+                    "managed JSON object separator is invalid",
+                ));
+            }
+        }
+    }
+}
+
+fn json_string_end(text: &str, start: usize) -> Result<usize, EngineError> {
+    if text.as_bytes().get(start) != Some(&b'\"') {
+        return Err(managed_config_error("managed JSON string is malformed"));
+    }
+    let bytes = text.as_bytes();
+    let mut index = start + 1;
+    while index < bytes.len() {
+        match bytes[index] {
+            b'\\' => index += 2,
+            b'\"' => return Ok(index + 1),
+            _ => index += 1,
+        }
+    }
+    Err(managed_config_error("managed JSON string is unterminated"))
+}
+
+fn json_value_end(text: &str, start: usize) -> Result<usize, EngineError> {
+    let bytes = text.as_bytes();
+    match bytes.get(start) {
+        Some(b'\"') => json_string_end(text, start),
+        Some(b'{' | b'[') => {
+            let mut stack = vec![bytes[start]];
+            let mut index = start + 1;
+            while index < bytes.len() {
+                match bytes[index] {
+                    b'\"' => index = json_string_end(text, index)?,
+                    b'{' | b'[' => {
+                        stack.push(bytes[index]);
+                        index += 1;
+                    }
+                    b'}' => {
+                        if stack.pop() != Some(b'{') {
+                            return Err(managed_config_error("managed JSON nesting is invalid"));
+                        }
+                        index += 1;
+                        if stack.is_empty() {
+                            return Ok(index);
+                        }
+                    }
+                    b']' => {
+                        if stack.pop() != Some(b'[') {
+                            return Err(managed_config_error("managed JSON nesting is invalid"));
+                        }
+                        index += 1;
+                        if stack.is_empty() {
+                            return Ok(index);
+                        }
+                    }
+                    _ => index += 1,
+                }
+            }
+            Err(managed_config_error("managed JSON value is unterminated"))
+        }
+        Some(_) => {
+            let mut index = start;
+            while index < bytes.len()
+                && !matches!(
+                    bytes[index],
+                    b',' | b'}' | b']' | b' ' | b'\n' | b'\r' | b'\t'
+                )
+            {
+                index += 1;
+            }
+            if index == start {
+                Err(managed_config_error("managed JSON value is malformed"))
+            } else {
+                Ok(index)
+            }
+        }
+        None => Err(managed_config_error("managed JSON value is absent")),
+    }
+}
+
+fn skip_json_whitespace(text: &str, mut index: usize) -> usize {
+    while matches!(
+        text.as_bytes().get(index),
+        Some(b' ' | b'\n' | b'\r' | b'\t')
+    ) {
+        index += 1;
+    }
+    index
+}
+
+fn insert_json_member(text: &str, object: &JsonObject, key: &str, value: &str) -> String {
+    let prefix = if object.members.is_empty() {
+        "\n  "
+    } else {
+        ",\n  "
+    };
+    format!(
+        "{}{}\"{}\": {}\n{}",
+        &text[..object.closing],
+        prefix,
+        key,
+        value,
+        &text[object.closing..]
+    )
+}
+
+fn remove_json_member(text: &str, object: &JsonObject, index: usize) -> String {
+    let member = &object.members[index];
+    let (start, end) = if object.members.len() == 1 {
+        (member.start, member.end)
+    } else if index + 1 < object.members.len() {
+        (member.start, object.members[index + 1].start)
+    } else {
+        (object.members[index - 1].end, member.end)
+    };
+    format!("{}{}", &text[..start], &text[end..])
 }
 
 fn open_engine(
@@ -1069,12 +2221,14 @@ fn parse_globals(arguments: &[String]) -> Result<GlobalOptions, String> {
         at: timestamp(now),
         cutoff: timestamp(now.saturating_sub(7 * 24 * 60 * 60)),
         id_seed: unique_seed()?,
+        apply: false,
         command: Vec::new(),
     };
     let mut index = 0;
     while index < arguments.len() {
         match arguments[index].as_str() {
             "--human" => options.human = true,
+            "--apply" => options.apply = true,
             "--at" | "--cutoff" | "--id-seed" => {
                 let flag = arguments[index].as_str();
                 index += 1;
@@ -1215,6 +2369,16 @@ mod tests {
         }
     }
 
+    #[cfg(unix)]
+    fn mark_executable(path: &Path) {
+        let mut permissions = fs::metadata(path).expect("binary metadata").permissions();
+        permissions.set_mode(0o700);
+        fs::set_permissions(path, permissions).expect("binary permissions");
+    }
+
+    #[cfg(not(unix))]
+    fn mark_executable(_path: &Path) {}
+
     fn direct_context(sequence: u64, purpose: &str) -> RequestContext {
         RequestContext {
             request_id: format!("req_abcdefgh{sequence:02}"),
@@ -1244,6 +2408,241 @@ mod tests {
         assert!(stderr.is_empty());
         let value = serde_json::from_slice(&stdout).expect("machine JSON");
         (code, value)
+    }
+
+    #[test]
+    fn managed_connection_kit_render_is_fixed_and_source_free_for_every_client() {
+        let root = TestRoot::new("managed-kit-workspace");
+        let cache = TestRoot::new("managed-kit-cache");
+        let binary = TestRoot::new("managed-kit-binary");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
+        fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
+            .expect("source fixture");
+        let source_before = fs::read(root.0.join("source.ts")).expect("source before");
+        for client in ["codex", "claude", "cursor", "copilot", "vscode"] {
+            let command = vec![
+                "client".into(),
+                "kit".into(),
+                "render".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+            ];
+            let (code, value) = invoke(&command, "managedkit");
+            assert_eq!(code, 0, "{client}");
+            assert_eq!(value["schema_name"], "managed-connection-kit");
+            assert_eq!(value["client"], client);
+            assert_eq!(value["level"], "l1");
+            assert_eq!(value["operation"], "render");
+            assert_eq!(value["external_write_performed"], false);
+            assert_eq!(value["ownership"], "exact_fixed_entry:impresari-context");
+            assert!(value["configuration"].to_string().contains("--workspace"));
+            assert!(value["configuration"].to_string().contains("--cache"));
+            assert!(!value["configuration"].to_string().contains("env"));
+            if client == "codex" {
+                assert!(
+                    value["configuration"]["entry"]
+                        .as_str()
+                        .is_some_and(|entry| entry.contains("enabled = true"))
+                );
+                assert!(
+                    value["configuration"]["entry"]
+                        .as_str()
+                        .is_some_and(|entry| entry.contains("required = true"))
+                );
+            }
+        }
+        assert_eq!(
+            fs::read(root.0.join("source.ts")).expect("source after"),
+            source_before
+        );
+        let invalid = vec![
+            "client".into(),
+            "kit".into(),
+            "render".into(),
+            "unknown".into(),
+            binary_path.display().to_string(),
+            root.0.display().to_string(),
+            cache.0.display().to_string(),
+        ];
+        let (code, value) = invoke(&invalid, "managedkit");
+        assert_eq!(code, 1);
+        assert_eq!(value["code"], "invalid_input");
+    }
+
+    #[test]
+    fn managed_connection_lifecycle_is_explicit_owned_and_preserves_unrelated_configuration() {
+        let root = TestRoot::new("managed-lifecycle-workspace");
+        let cache = TestRoot::new("managed-lifecycle-cache");
+        let binary = TestRoot::new("managed-lifecycle-binary");
+        let config_root = TestRoot::new("managed-lifecycle-config");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
+        fs::write(root.0.join("source.ts"), b"export const stable = true;\n")
+            .expect("source fixture");
+        let source_before = fs::read(root.0.join("source.ts")).expect("source before");
+
+        for client in ["codex", "claude", "cursor", "copilot", "vscode"] {
+            let target = config_root.0.join(format!("{client}.config"));
+            let original = if client == "codex" {
+                "[other]\nname = \"stable\"\n".to_owned()
+            } else {
+                "{\n  \"mcpServers\": {\"other\": {\"command\": \"other\"}},\n  \"unrelated\": true\n}\n".to_owned()
+            };
+            fs::write(&target, &original).expect("configuration fixture");
+            let base = vec![
+                "client".into(),
+                "kit".into(),
+                "install".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+                target.display().to_string(),
+            ];
+            let (code, preview) = invoke(&base, "managedlife");
+            assert_eq!(code, 0, "{client} preview");
+            assert_eq!(preview["external_write_performed"], false);
+            assert_eq!(preview["planned_effect"], "add_exact_owned_entry");
+            assert!(
+                preview["owned_entry"]
+                    .to_string()
+                    .contains("impresari-context")
+            );
+            assert_eq!(
+                fs::read_to_string(&target).expect("preview target"),
+                original
+            );
+
+            let mut install = base.clone();
+            install.push("--apply".into());
+            let (code, installed) = invoke(&install, "managedlife");
+            assert_eq!(code, 0, "{client} install");
+            assert_eq!(installed["external_write_performed"], true);
+
+            let validate = vec![
+                "client".into(),
+                "kit".into(),
+                "validate".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+                target.display().to_string(),
+            ];
+            assert_eq!(invoke(&validate, "managedlife").0, 0, "{client} validate");
+
+            let mut remove = vec![
+                "client".into(),
+                "kit".into(),
+                "remove".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+                target.display().to_string(),
+            ];
+            assert_eq!(
+                invoke(&remove, "managedlife").0,
+                0,
+                "{client} remove preview"
+            );
+            remove.push("--apply".into());
+            let (code, removed) = invoke(&remove, "managedlife");
+            assert_eq!(code, 0, "{client} remove");
+            assert_eq!(removed["external_write_performed"], true);
+            let after = fs::read_to_string(&target).expect("removed target");
+            assert!(!after.contains("impresari-context"));
+            if client == "codex" {
+                assert_eq!(after, original);
+            } else {
+                let after: serde_json::Value =
+                    serde_json::from_str(&after).expect("valid JSON after removal");
+                assert_eq!(after["unrelated"], true);
+                assert_eq!(after["mcpServers"]["other"]["command"], "other");
+            }
+        }
+        assert_eq!(
+            fs::read(root.0.join("source.ts")).expect("source after"),
+            source_before
+        );
+    }
+
+    #[test]
+    fn managed_connection_removal_restores_an_absent_target() {
+        let root = TestRoot::new("managed-empty-workspace");
+        let cache = TestRoot::new("managed-empty-cache");
+        let binary = TestRoot::new("managed-empty-binary");
+        let config_root = TestRoot::new("managed-empty-config");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
+        for client in ["codex", "claude"] {
+            let target = config_root.0.join(format!("{client}.config"));
+            let mut command = vec![
+                "client".into(),
+                "kit".into(),
+                "install".into(),
+                client.into(),
+                binary_path.display().to_string(),
+                root.0.display().to_string(),
+                cache.0.display().to_string(),
+                target.display().to_string(),
+                "--apply".into(),
+            ];
+            assert_eq!(invoke(&command, "managedempty").0, 0, "{client} install");
+            command[2] = "remove".into();
+            assert_eq!(invoke(&command, "managedempty").0, 0, "{client} remove");
+            assert!(!target.exists(), "{client} empty target was not removed");
+        }
+    }
+
+    #[test]
+    fn managed_connection_rejects_malformed_conflicting_and_non_explicit_writes() {
+        let root = TestRoot::new("managed-reject-workspace");
+        let cache = TestRoot::new("managed-reject-cache");
+        let binary = TestRoot::new("managed-reject-binary");
+        let config_root = TestRoot::new("managed-reject-config");
+        let binary_path = binary.0.join("impresari-context-mcp");
+        fs::write(&binary_path, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary_path);
+        let target = config_root.0.join("claude.json");
+        fs::write(&target, "{not json").expect("malformed fixture");
+        let command = vec![
+            "client".into(),
+            "kit".into(),
+            "install".into(),
+            "claude".into(),
+            binary_path.display().to_string(),
+            root.0.display().to_string(),
+            cache.0.display().to_string(),
+            target.display().to_string(),
+            "--apply".into(),
+        ];
+        let (code, value) = invoke(&command, "managedreject");
+        assert_eq!(code, 1);
+        assert_eq!(value["code"], "invalid_input");
+        assert_eq!(
+            fs::read_to_string(&target).expect("malformed preserved"),
+            "{not json"
+        );
+
+        fs::write(
+            &target,
+            "{\"mcpServers\": {\"impresari-context\": {\"command\": \"unexpected\"}}}",
+        )
+        .expect("conflicting fixture");
+        let (code, _) = invoke(&command, "managedreject");
+        assert_eq!(code, 1);
+        assert!(
+            fs::read_to_string(&target)
+                .expect("conflicting preserved")
+                .contains("unexpected")
+        );
     }
 
     fn toml_basic_string(value: &str) -> String {
@@ -1341,7 +2740,7 @@ mod tests {
             ],
             "profilecli",
         );
-        assert_eq!(code, 0);
+        assert_eq!(code, 0, "{result}");
         assert_eq!(result["schema_name"], "profiled-context-packet");
         assert_eq!(result["plan"]["schema_name"], "deterministic-context-plan");
         assert_eq!(result["plan"]["task_profile"], "configuration_change");
@@ -1349,6 +2748,80 @@ mod tests {
         assert_eq!(
             fs::read(source.0.join("settings.toml")).expect("after"),
             before
+        );
+    }
+
+    #[test]
+    fn cli_declared_change_set_build_uses_the_shared_verified_contract() {
+        let source = TestRoot::new("declared-change-set-cli-source");
+        let cache = TestRoot::new("declared-change-set-cli-cache");
+        let declaration = TestRoot::new("declared-change-set-cli-input");
+        fs::write(source.0.join("review.rs"), b"pub fn review() {}\n").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10_000, 536_870_912, 1_048_576, 32).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-14T12:00:00Z", 10_000, 10_485_760)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &direct_context(1, "workspace_open"), &source.0)
+                .expect("open");
+        engine
+            .build_snapshot(&direct_context(2, "snapshot_build"), default_budget())
+            .expect("snapshot");
+        let snapshot = engine
+            .snapshot_status(&direct_context(3, "snapshot_status"), default_budget())
+            .expect("snapshot status");
+        let evidence = engine
+            .search(
+                &direct_context(4, "search"),
+                QueryKind::ExactPath,
+                "review.rs",
+                &default_budget(),
+            )
+            .expect("exact evidence");
+        let artifact = &evidence.matches[0].artifact;
+        let manifest = json!({
+            "schema_name":"declared-change-set", "schema_version":"1.0.0",
+            "workspace_snapshot":snapshot.snapshot_id,
+            "entries":[{"path":{
+                "platform_family":artifact.path.platform_family,
+                "unit_encoding":artifact.path.unit_encoding,
+                "relative_units_base64url":artifact.path.relative_units_base64url
+            }, "content_hash":artifact.content_hash}]
+        });
+        let manifest_path = declaration.0.join("declared-change-set.json");
+        fs::write(
+            &manifest_path,
+            serde_json::to_vec(&manifest).expect("manifest JSON"),
+        )
+        .expect("manifest");
+        drop(engine);
+        let (code, result) = invoke(
+            &[
+                "context".into(),
+                "profile-change-set-build".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                "review".into(),
+                manifest_path.to_string_lossy().into_owned(),
+            ],
+            "declaredchangesetcli",
+        );
+        assert_eq!(code, 0, "{result}");
+        assert_eq!(result["plan"]["task_profile"], "change_review");
+        assert_eq!(
+            result["plan"]["declared_change_set"]["workspace_snapshot"],
+            manifest["workspace_snapshot"]
+        );
+        assert_eq!(
+            result["plan"]["coverage"]
+                .as_array()
+                .expect("coverage")
+                .iter()
+                .find(|coverage| coverage["evidence_class"] == "change_set")
+                .expect("change-set coverage")["status"],
+            "available"
         );
     }
 
