@@ -16,7 +16,8 @@
     "coverage": {"type": "array", "minItems": 1, "maxItems": 16, "items": {"$ref": "#/$defs/coverage"}},
     "omitted_candidates": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/omission"}},
     "structural_query": {"$ref": "#/$defs/structuralQuery"},
-    "declared_change_set": {"$ref": "#/$defs/declaredChangeSet"}
+    "declared_change_set": {"$ref": "#/$defs/declaredChangeSet"},
+    "declared_associated_tests": {"$ref": "#/$defs/declaredAssociatedTests"}
   },
   "$defs": {
     "step": {
@@ -94,6 +95,25 @@
           }
         },
         "content_hash": {"$ref": "common.schema.json#/$defs/sha256"}
+      }
+    },
+    "declaredAssociatedTests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["association_id", "workspace_snapshot", "associations"],
+      "properties": {
+        "association_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "associations": {"type": "array", "minItems": 1, "maxItems": 10000, "items": {"$ref": "#/$defs/declaredAssociation"}}
+      }
+    },
+    "declaredAssociation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source", "test"],
+      "properties": {
+        "source": {"$ref": "#/$defs/declaredChangeEntry"},
+        "test": {"$ref": "#/$defs/declaredChangeEntry"}
       }
     }
   }

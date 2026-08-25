@@ -265,6 +265,10 @@ pub struct DeterministicContextPlan {
     /// the separately admitted declared-change-set adapter is active.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub declared_change_set: Option<VerifiedDeclaredChangeSet>,
+    /// Current-snapshot-verified caller-declared source-to-test associations
+    /// used by this plan, when the separately admitted adapter is active.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub declared_associated_tests: Option<VerifiedDeclaredAssociatedTests>,
 }
 
 /// Snapshot-bound structural traversal that contributed exact planner evidence.
@@ -344,6 +348,43 @@ pub struct VerifiedDeclaredChangeSet {
     pub base_revision_status: String,
     /// Canonically ordered current-hash-verified entries.
     pub entries: Vec<DeclaredChangeEntry>,
+}
+
+/// One caller-declared association between a current source artifact and a
+/// current test artifact. The association itself is untrusted caller input.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredAssociatedTest {
+    /// Caller-selected current source artifact.
+    pub source: DeclaredChangeEntry,
+    /// Caller-selected current test artifact.
+    pub test: DeclaredChangeEntry,
+}
+
+/// Untrusted caller declaration of current source-to-test associations.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct DeclaredAssociatedTests {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Snapshot the caller says every endpoint belongs to.
+    pub workspace_snapshot: String,
+    /// Source-to-test assertions to verify against that snapshot.
+    pub associations: Vec<DeclaredAssociatedTest>,
+}
+
+/// Canonical current-snapshot-verified source-to-test association assertion.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct VerifiedDeclaredAssociatedTests {
+    /// Content-derived identity of the verified association set.
+    pub association_id: String,
+    /// Exact verified workspace snapshot.
+    pub workspace_snapshot: String,
+    /// Canonically ordered source-to-test assertions with verified current hashes.
+    pub associations: Vec<DeclaredAssociatedTest>,
 }
 
 /// One deterministic plan together with its exact, bounded context packet.
@@ -2582,6 +2623,7 @@ fn deterministic_plan(
         omitted_candidates,
         structural_query: None,
         declared_change_set: None,
+        declared_associated_tests: None,
     };
     plan.plan_id = deterministic_plan_identity(&plan)?;
     Ok(plan)
