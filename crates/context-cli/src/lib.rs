@@ -31,6 +31,7 @@ use context_structural::{StructuralGraph, WorkerLauncher};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
 use serde_json::json;
+use sha2::{Digest, Sha256};
 
 const DOCTOR_SCHEMA_VERSION: &str = "1.0.0";
 
@@ -60,6 +61,11 @@ Usage:\n\
   impresari-context [global-options] client kit install <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit update <codex|claude|cursor|copilot|vscode> <old-mcp-binary> <old-workspace> <old-cache-root> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
+  impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
+  impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
+  impresari-context [global-options] client guidance install <codex|claude|cursor|copilot> <project-root>\n\
+  impresari-context [global-options] client guidance remove <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] doctor inspect <root> <cache-root>\n\
   impresari-context [global-options] doctor mcp <root> <cache-root>\n\
   impresari-context [global-options] doctor codex-config <root> <cache-root> <config-toml>\n\
@@ -222,6 +228,31 @@ struct ManagedEntryDetails<'a> {
     format: &'a str,
     binary: &'a Path,
     arguments: &'a [String],
+}
+
+#[derive(Serialize)]
+struct GuidanceOperation {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    client: &'static str,
+    level: &'static str,
+    operation: &'static str,
+    target_scope: &'static str,
+    relative_target: &'static str,
+    target_file: String,
+    ownership: &'static str,
+    content_sha256: String,
+    artifact: &'static str,
+    planned_effect: &'static str,
+    external_write_performed: bool,
+    state: &'static str,
+    limitations: Vec<&'static str>,
+}
+
+struct GuidanceTemplate {
+    client: &'static str,
+    relative_target: &'static str,
+    contents: &'static str,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -624,6 +655,25 @@ fn dispatch(
             )?;
             Output::new("client kit remove", &operation)
         }
+        ["client", "guidance", "render", client] => {
+            Output::new("client guidance render", &guidance_render(client)?)
+        }
+        ["client", "guidance", "inspect", client, root] => Output::new(
+            "client guidance inspect",
+            &inspect_guidance(client, Path::new(root))?,
+        ),
+        ["client", "guidance", "validate", client, root] => Output::new(
+            "client guidance validate",
+            &validate_guidance(client, Path::new(root))?,
+        ),
+        ["client", "guidance", "install", client, root] => Output::new(
+            "client guidance install",
+            &install_guidance(client, Path::new(root), options.apply)?,
+        ),
+        ["client", "guidance", "remove", client, root] => Output::new(
+            "client guidance remove",
+            &remove_guidance(client, Path::new(root), options.apply)?,
+        ),
         ["doctor", "inspect", root, cache] => {
             let report = doctor_inspect(Path::new(root), Path::new(cache))?;
             Output::new("doctor inspect", &report)
@@ -1512,6 +1562,265 @@ fn remove_managed_connection(
     Ok(managed_operation(
         client, "remove", &target, &entry, true, "removed",
     ))
+}
+
+const GUIDANCE_MAX_BYTES: u64 = 16 * 1024;
+const GUIDANCE_OWNERSHIP: &str = "exact_fixed_artifact:impresari-context";
+
+fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
+    let template = match client {
+        "codex" => GuidanceTemplate {
+            client: "codex",
+            relative_target: "AGENTS.md",
+            contents: include_str!("../../../templates/client-guidance/codex/AGENTS.md"),
+        },
+        "claude" => GuidanceTemplate {
+            client: "claude",
+            relative_target: ".claude/skills/impresari-context/SKILL.md",
+            contents: include_str!("../../../templates/client-guidance/claude/SKILL.md"),
+        },
+        "cursor" => GuidanceTemplate {
+            client: "cursor",
+            relative_target: ".cursor/rules/impresari-context.mdc",
+            contents: include_str!(
+                "../../../templates/client-guidance/cursor/impresari-context.mdc"
+            ),
+        },
+        "copilot" => GuidanceTemplate {
+            client: "copilot",
+            relative_target: ".github/instructions/impresari-context.instructions.md",
+            contents: include_str!(
+                "../../../templates/client-guidance/copilot/impresari-context.instructions.md"
+            ),
+        },
+        _ => return Err(guidance_error("unsupported native guidance client")),
+    };
+    if template.contents.len() > usize::try_from(GUIDANCE_MAX_BYTES).unwrap_or(usize::MAX)
+        || !template
+            .contents
+            .contains("ownership=exact_fixed_artifact:impresari-context")
+    {
+        return Err(guidance_error(
+            "released native guidance template is invalid",
+        ));
+    }
+    Ok(template)
+}
+
+fn guidance_digest(contents: &str) -> String {
+    let digest = Sha256::digest(contents.as_bytes());
+    let mut encoded = String::with_capacity(digest.len() * 2);
+    for byte in digest {
+        let _ = write!(&mut encoded, "{byte:02x}");
+    }
+    encoded
+}
+
+fn guidance_operation(
+    template: &GuidanceTemplate,
+    operation: &'static str,
+    target: &Path,
+    external_write_performed: bool,
+    state: &'static str,
+) -> GuidanceOperation {
+    GuidanceOperation {
+        schema_name: "native-guidance-operation",
+        schema_version: "1.0.0",
+        client: template.client,
+        level: "l2",
+        operation,
+        target_scope: "project",
+        relative_target: template.relative_target,
+        target_file: target.display().to_string(),
+        ownership: GUIDANCE_OWNERSHIP,
+        content_sha256: guidance_digest(template.contents),
+        artifact: template.contents,
+        planned_effect: match operation {
+            "install" => "create_exact_owned_artifact",
+            "remove" => "remove_exact_owned_artifact",
+            _ => "inspect_exact_owned_artifact",
+        },
+        external_write_performed,
+        state,
+        limitations: vec![
+            "This operation does not trust, sign in, enable, approve, configure, or invoke a client.",
+            "Only an explicit --apply install or remove can write the fixed owned guidance artifact.",
+        ],
+    }
+}
+
+fn guidance_target(root: &Path, template: &GuidanceTemplate) -> Result<PathBuf, EngineError> {
+    let metadata = fs::symlink_metadata(root)
+        .map_err(|_| guidance_error("native guidance project root not found"))?;
+    if metadata.file_type().is_symlink() || !metadata.is_dir() {
+        return Err(guidance_error(
+            "native guidance project root must be a non-symlink directory",
+        ));
+    }
+    let root = fs::canonicalize(root)
+        .map_err(|_| guidance_error("native guidance project root could not be resolved"))?;
+    let relative = Path::new(template.relative_target);
+    let file_name = relative
+        .file_name()
+        .ok_or_else(|| guidance_error("native guidance target is invalid"))?;
+    let parent_relative = relative.parent().unwrap_or_else(|| Path::new(""));
+    let requested_parent = root.join(parent_relative);
+    let parent_metadata = fs::symlink_metadata(&requested_parent)
+        .map_err(|_| guidance_error("native guidance target parent directory not found"))?;
+    if parent_metadata.file_type().is_symlink() || !parent_metadata.is_dir() {
+        return Err(guidance_error(
+            "native guidance target parent must be a non-symlink directory",
+        ));
+    }
+    let parent = fs::canonicalize(&requested_parent)
+        .map_err(|_| guidance_error("native guidance target parent could not be resolved"))?;
+    if !parent.starts_with(&root) {
+        return Err(guidance_error(
+            "native guidance target parent escapes the project root",
+        ));
+    }
+    Ok(parent.join(file_name))
+}
+
+fn read_guidance_target(path: &Path) -> Result<Option<String>, EngineError> {
+    let metadata = match fs::symlink_metadata(path) {
+        Ok(metadata) => metadata,
+        Err(error) if error.kind() == io::ErrorKind::NotFound => return Ok(None),
+        Err(_) => {
+            return Err(guidance_error(
+                "native guidance target could not be inspected",
+            ));
+        }
+    };
+    if metadata.file_type().is_symlink()
+        || !metadata.is_file()
+        || metadata.len() > GUIDANCE_MAX_BYTES
+    {
+        return Err(guidance_error(
+            "native guidance target must be a bounded regular non-symlink file",
+        ));
+    }
+    fs::read_to_string(path)
+        .map(Some)
+        .map_err(|_| guidance_error("native guidance target is not valid UTF-8"))
+}
+
+fn guidance_state(contents: Option<&str>, template: &GuidanceTemplate) -> &'static str {
+    match contents {
+        None => "absent",
+        Some(contents) if contents == template.contents => "owned",
+        Some(_) => "unowned_or_conflicting",
+    }
+}
+
+fn guidance_render(client: &str) -> Result<GuidanceOperation, EngineError> {
+    let template = guidance_template(client)?;
+    Ok(guidance_operation(
+        &template,
+        "render",
+        Path::new(template.relative_target),
+        false,
+        "rendered",
+    ))
+}
+
+fn inspect_guidance(client: &str, root: &Path) -> Result<GuidanceOperation, EngineError> {
+    let template = guidance_template(client)?;
+    let target = guidance_target(root, &template)?;
+    let state = guidance_state(read_guidance_target(&target)?.as_deref(), &template);
+    Ok(guidance_operation(
+        &template, "inspect", &target, false, state,
+    ))
+}
+
+fn validate_guidance(client: &str, root: &Path) -> Result<GuidanceOperation, EngineError> {
+    let template = guidance_template(client)?;
+    let target = guidance_target(root, &template)?;
+    if guidance_state(read_guidance_target(&target)?.as_deref(), &template) != "owned" {
+        return Err(guidance_error(
+            "native guidance target is not the exact owned artifact",
+        ));
+    }
+    Ok(guidance_operation(
+        &template, "validate", &target, false, "owned",
+    ))
+}
+
+fn install_guidance(
+    client: &str,
+    root: &Path,
+    apply: bool,
+) -> Result<GuidanceOperation, EngineError> {
+    let template = guidance_template(client)?;
+    let target = guidance_target(root, &template)?;
+    if read_guidance_target(&target)?.is_some() {
+        return Err(guidance_error(
+            "native guidance target already exists and will not be overwritten",
+        ));
+    }
+    if !apply {
+        return Ok(guidance_operation(
+            &template,
+            "install",
+            &target,
+            false,
+            "preview_ready",
+        ));
+    }
+    atomic_write_guidance_target(&target, template.contents.as_bytes())?;
+    Ok(guidance_operation(
+        &template, "install", &target, true, "owned",
+    ))
+}
+
+fn remove_guidance(
+    client: &str,
+    root: &Path,
+    apply: bool,
+) -> Result<GuidanceOperation, EngineError> {
+    let template = guidance_template(client)?;
+    let target = guidance_target(root, &template)?;
+    if guidance_state(read_guidance_target(&target)?.as_deref(), &template) != "owned" {
+        return Err(guidance_error(
+            "native guidance removal requires the exact owned artifact",
+        ));
+    }
+    if !apply {
+        return Ok(guidance_operation(
+            &template,
+            "remove",
+            &target,
+            false,
+            "preview_ready",
+        ));
+    }
+    remove_guidance_target(&target)?;
+    Ok(guidance_operation(
+        &template, "remove", &target, true, "removed",
+    ))
+}
+
+fn atomic_write_guidance_target(path: &Path, contents: &[u8]) -> Result<(), EngineError> {
+    if contents.len() > usize::try_from(GUIDANCE_MAX_BYTES).unwrap_or(usize::MAX) {
+        return Err(guidance_error(
+            "native guidance artifact would exceed its size limit",
+        ));
+    }
+    atomic_write_managed_config(path, contents)
+        .map_err(|_| guidance_error("native guidance artifact could not be written atomically"))
+}
+
+fn remove_guidance_target(path: &Path) -> Result<(), EngineError> {
+    remove_managed_config(path)
+        .map_err(|_| guidance_error("native guidance artifact could not be removed"))
+}
+
+fn guidance_error(message: &str) -> EngineError {
+    synthetic_error(
+        Capability::WorkspaceOpen,
+        PublicErrorCode::InvalidInput,
+        message,
+    )
 }
 
 fn managed_document_is_empty(format: &str, contents: &str) -> Result<bool, EngineError> {
@@ -2692,6 +3001,156 @@ mod tests {
             assert_eq!(invoke(&command, "managedempty").0, 0, "{client} remove");
             assert!(!target.exists(), "{client} empty target was not removed");
         }
+    }
+
+    #[test]
+    fn native_guidance_lifecycle_is_explicit_exact_and_source_free_for_every_client() {
+        let clients = ["codex", "claude", "cursor", "copilot"];
+        for client in clients {
+            let root = TestRoot::new(&format!("guidance-{client}"));
+            let source = root.0.join("source.ts");
+            fs::write(&source, b"export const untouched = true;\n").expect("source fixture");
+            let source_before = fs::read(&source).expect("source before");
+            let template = guidance_template(client).expect("template");
+            let target = root.0.join(template.relative_target);
+            fs::create_dir_all(target.parent().expect("target parent")).expect("target parent");
+
+            let render = vec![
+                "client".into(),
+                "guidance".into(),
+                "render".into(),
+                client.into(),
+            ];
+            let (code, rendered) = invoke(&render, "guidancerender");
+            assert_eq!(code, 0, "{client} render");
+            assert_eq!(rendered["level"], "l2");
+            assert_eq!(rendered["relative_target"], template.relative_target);
+            assert_eq!(rendered["artifact"], template.contents);
+
+            let install = vec![
+                "client".into(),
+                "guidance".into(),
+                "install".into(),
+                client.into(),
+                root.0.display().to_string(),
+            ];
+            let (code, preview) = invoke(&install, "guidancelife");
+            assert_eq!(code, 0, "{client} install preview");
+            assert_eq!(preview["external_write_performed"], false);
+            assert!(!target.exists(), "{client} preview wrote target");
+
+            let mut apply = install.clone();
+            apply.push("--apply".into());
+            let (code, applied) = invoke(&apply, "guidancelife");
+            assert_eq!(code, 0, "{client} install apply");
+            assert_eq!(applied["state"], "owned");
+            assert_eq!(
+                fs::read_to_string(&target).expect("artifact"),
+                template.contents
+            );
+            assert_eq!(
+                fs::read(&source).expect("source after install"),
+                source_before
+            );
+
+            let inspect = vec![
+                "client".into(),
+                "guidance".into(),
+                "inspect".into(),
+                client.into(),
+                root.0.display().to_string(),
+            ];
+            assert_eq!(invoke(&inspect, "guidancelife").1["state"], "owned");
+            let validate = vec![
+                "client".into(),
+                "guidance".into(),
+                "validate".into(),
+                client.into(),
+                root.0.display().to_string(),
+            ];
+            assert_eq!(invoke(&validate, "guidancelife").0, 0, "{client} validate");
+
+            let remove = vec![
+                "client".into(),
+                "guidance".into(),
+                "remove".into(),
+                client.into(),
+                root.0.display().to_string(),
+            ];
+            let (code, preview) = invoke(&remove, "guidancelife");
+            assert_eq!(code, 0, "{client} remove preview");
+            assert_eq!(preview["external_write_performed"], false);
+            assert!(target.exists(), "{client} preview removed target");
+            let mut apply = remove;
+            apply.push("--apply".into());
+            let (code, removed) = invoke(&apply, "guidancelife");
+            assert_eq!(code, 0, "{client} remove apply");
+            assert_eq!(removed["state"], "removed");
+            assert!(!target.exists(), "{client} target not removed");
+            assert_eq!(
+                fs::read(&source).expect("source after remove"),
+                source_before
+            );
+        }
+    }
+
+    #[test]
+    fn native_guidance_refuses_existing_missing_parent_and_oversized_targets_without_writes() {
+        let root = TestRoot::new("guidance-reject");
+        let source = root.0.join("source.ts");
+        fs::write(&source, b"export const untouched = true;\n").expect("source fixture");
+        let source_before = fs::read(&source).expect("source before");
+
+        let codex_install = vec![
+            "client".into(),
+            "guidance".into(),
+            "install".into(),
+            "codex".into(),
+            root.0.display().to_string(),
+            "--apply".into(),
+        ];
+        fs::write(root.0.join("AGENTS.md"), b"unowned instructions\n").expect("conflict");
+        assert_eq!(invoke(&codex_install, "guidancereject").0, 1);
+        assert_eq!(
+            fs::read(root.0.join("AGENTS.md")).expect("conflict unchanged"),
+            b"unowned instructions\n"
+        );
+
+        let cursor_install = vec![
+            "client".into(),
+            "guidance".into(),
+            "install".into(),
+            "cursor".into(),
+            root.0.display().to_string(),
+            "--apply".into(),
+        ];
+        assert_eq!(invoke(&cursor_install, "guidancereject").0, 1);
+        assert!(!root.0.join(".cursor").exists());
+
+        let copilot_parent = root.0.join(".github/instructions");
+        fs::create_dir_all(&copilot_parent).expect("copilot parent");
+        let oversized = copilot_parent.join("impresari-context.instructions.md");
+        fs::write(
+            &oversized,
+            vec![b'x'; usize::try_from(GUIDANCE_MAX_BYTES).unwrap() + 1],
+        )
+        .expect("oversized fixture");
+        let copilot_inspect = vec![
+            "client".into(),
+            "guidance".into(),
+            "inspect".into(),
+            "copilot".into(),
+            root.0.display().to_string(),
+        ];
+        assert_eq!(invoke(&copilot_inspect, "guidancereject").0, 1);
+        assert_eq!(
+            fs::metadata(&oversized).expect("oversized unchanged").len(),
+            GUIDANCE_MAX_BYTES + 1
+        );
+        assert_eq!(
+            fs::read(&source).expect("source after rejection"),
+            source_before
+        );
     }
 
     #[test]
