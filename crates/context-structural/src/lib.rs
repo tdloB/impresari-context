@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -48,6 +48,14 @@ pub enum StructuralLanguage {
     Kotlin,
     /// C# source.
     CSharp,
+    /// Scala source.
+    Scala,
+    /// Elixir source.
+    Elixir,
+    /// Clojure source.
+    Clojure,
+    /// Haskell source.
+    Haskell,
     /// Strict JSON configuration source.
     Json,
     /// JSON with comments configuration source.
@@ -1571,6 +1579,10 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+        StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
+        StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
+        StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
+        StructuralLanguage::Haskell => "tree-sitter-haskell-0.23.1",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -1594,6 +1606,10 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Java => tree_sitter_java::LANGUAGE.into(),
         StructuralLanguage::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         StructuralLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+        StructuralLanguage::Scala => tree_sitter_scala::LANGUAGE.into(),
+        StructuralLanguage::Elixir => tree_sitter_elixir::LANGUAGE.into(),
+        StructuralLanguage::Clojure => tree_sitter_clojure_orchard::LANGUAGE.into(),
+        StructuralLanguage::Haskell => tree_sitter_haskell::LANGUAGE.into(),
         StructuralLanguage::Json | StructuralLanguage::Jsonc => tree_sitter_json::LANGUAGE.into(),
         StructuralLanguage::Toml => tree_sitter_toml_ng::LANGUAGE.into(),
         StructuralLanguage::Yaml => tree_sitter_yaml::LANGUAGE.into(),
@@ -1695,6 +1711,9 @@ fn fact_for_node(
         | "record_declaration"
         | "struct_declaration"
         | "delegate_declaration"
+        | "object_definition"
+        | "trait_definition"
+        | "enum_definition"
         | "method_definition"
         | "abstract_method_signature"
         | "function_definition"
@@ -1730,6 +1749,15 @@ fn fact_for_node(
                 .child_by_field_name("name")
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
+        }
+        "function" | "bind" if request.language == StructuralLanguage::Haskell => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "list_lit" if request.language == StructuralLanguage::Clojure => {
+            clojure_list_fact(node, source)?
         }
         "use_declaration" if request.language == StructuralLanguage::Rust => {
             let module = node
@@ -1805,6 +1833,16 @@ fn fact_for_node(
             let module = kotlin_import_module(node, source)?;
             (FactClass::Import, None, Some(module))
         }
+        "import_declaration" if request.language == StructuralLanguage::Scala => {
+            let module = scala_import_module(node, source)?;
+            (FactClass::Import, None, Some(module))
+        }
+        "import" if request.language == StructuralLanguage::Haskell => {
+            let module = node
+                .child_by_field_name("module")
+                .and_then(|value| text(value, source))?;
+            (FactClass::Import, None, Some(module))
+        }
         "using_directive" if request.language == StructuralLanguage::CSharp => {
             let module = csharp_using_module(node, source)?;
             (FactClass::Import, None, Some(module))
@@ -1819,9 +1857,16 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Export, name, module)
         }
+        "call" if request.language == StructuralLanguage::Elixir => elixir_call_fact(node, source)?,
         "call_expression" | "call" => {
             let function = node.child_by_field_name("function").or_else(|| {
-                (request.language == StructuralLanguage::Kotlin).then(|| node.named_child(0))?
+                if request.language == StructuralLanguage::Elixir {
+                    node.child_by_field_name("target")
+                } else if request.language == StructuralLanguage::Kotlin {
+                    node.named_child(0)
+                } else {
+                    None
+                }
             })?;
             let name = if function.kind() == "identifier" {
                 text(function, source)
@@ -1968,6 +2013,96 @@ fn kotlin_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
     (!module.ends_with(".*") && !module.contains(" as ")).then(|| module.to_owned())
 }
 
+fn scala_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
+    // Preserve the parser-confirmed import path exactly. Selectors, wildcards,
+    // aliases, and Scala 2/3 import semantics are intentionally not resolved.
+    let value = text(node, source)?;
+    let module = value.strip_prefix("import ")?;
+    (!module.contains('*') && !module.contains('{') && !module.contains(" as "))
+        .then(|| module.to_owned())
+}
+
+fn clojure_list_fact(
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<(FactClass, Option<String>, Option<String>)> {
+    // Clojure declarations are special forms represented as lists. Admit only
+    // direct, literal heads and names; syntax-quoted, generated, and macro-
+    // expanded forms remain outside this resolver's authority.
+    let head = node.named_child(0).and_then(|value| text(value, source))?;
+    let name = node.named_child(1).and_then(|value| text(value, source));
+    match head.as_str() {
+        "def" | "defn" | "defn-" | "defmacro" | "defmulti" | "defonce" => {
+            Some((FactClass::Declaration, name, None))
+        }
+        "ns" => Some((FactClass::Declaration, name, None)),
+        _ => Some((FactClass::Call, Some(head), None)),
+    }
+}
+
+fn elixir_call_fact(
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<(FactClass, Option<String>, Option<String>)> {
+    let target = node
+        .child_by_field_name("target")
+        .and_then(|value| text(value, source))?;
+    let first_argument = node
+        .named_children(&mut node.walk())
+        .find(|value| value.kind() == "arguments")
+        .and_then(|arguments| arguments.named_child(0));
+    match target.as_str() {
+        "defmodule" => Some((
+            FactClass::Declaration,
+            first_argument.and_then(|value| text(value, source)),
+            None,
+        )),
+        "def" | "defp" | "defmacro" | "defdelegate" => {
+            let name = first_argument
+                .and_then(|value| {
+                    if value.kind() == "call" {
+                        value.child_by_field_name("target")
+                    } else if value.kind() == "identifier" {
+                        Some(value)
+                    } else {
+                        None
+                    }
+                })
+                .and_then(|value| text(value, source))?;
+            Some((FactClass::Declaration, Some(name), None))
+        }
+        "alias" | "import" | "require" => Some((
+            FactClass::Import,
+            None,
+            first_argument.and_then(|value| text(value, source)),
+        )),
+        _ if node_is_elixir_definition_head(node, source) => None,
+        _ if node
+            .child_by_field_name("target")
+            .is_some_and(|value| value.kind() == "identifier") =>
+        {
+            Some((FactClass::Call, Some(target), None))
+        }
+        _ => None,
+    }
+}
+
+fn node_is_elixir_definition_head(node: Node<'_>, source: &[u8]) -> bool {
+    let Some(arguments) = node.parent().filter(|value| value.kind() == "arguments") else {
+        return false;
+    };
+    let Some(definition) = arguments.parent().filter(|value| value.kind() == "call") else {
+        return false;
+    };
+    matches!(
+        definition
+            .child_by_field_name("target")
+            .and_then(|value| text(value, source))
+            .as_deref(),
+        Some("def" | "defp" | "defmacro" | "defdelegate")
+    )
+}
+
 fn csharp_using_module(node: Node<'_>, source: &[u8]) -> Option<String> {
     let declaration = text(node, source)?;
     let declaration = declaration.trim();
@@ -2088,6 +2223,10 @@ mod tests {
             StructuralLanguage::Java => "tree-sitter-java-0.23.5",
             StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
             StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+            StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
+            StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
+            StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
+            StructuralLanguage::Haskell => "tree-sitter-haskell-0.23.1",
             StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
             StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
             StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -2401,9 +2540,13 @@ merged:
             "copy",
             "merged",
         ] {
-            assert!(output.facts.iter().any(|fact| {
-                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
-            }));
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing YAML declaration {name}; facts: {:#?}",
+                output.facts
+            );
         }
         assert!(
             output
@@ -2516,6 +2659,117 @@ fn execute() {
                 fact.class != FactClass::Reference || fact.name.as_deref() != Some(name)
             }));
         }
+    }
+
+    #[test]
+    fn extracts_bounded_scala_declarations_and_imports() {
+        let source = br"import example.support.Helper
+import example.support.*
+
+object Registry
+trait Runnable
+enum State { case Ready }
+class Service {
+  def run(): Unit = helper()
+}
+def helper(): Unit = ()
+";
+        let output = process_request(&request(source, StructuralLanguage::Scala)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Registry", "Runnable", "State", "Service", "run", "helper"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing Scala declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import
+                && fact.module.as_deref() == Some("example.support.Helper")
+        }));
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Import)
+                .count(),
+            1,
+            "wildcard and selector imports are intentionally outside this admission"
+        );
+    }
+
+    #[test]
+    fn extracts_bounded_clojure_direct_special_form_declarations() {
+        let source = br"(ns example.core)
+(def answer 42)
+(defn run [] (helper))
+(defmacro with-value [value] value)
+";
+        let output = process_request(&request(source, StructuralLanguage::Clojure)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["example.core", "answer", "run", "with-value"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+    }
+
+    #[test]
+    fn extracts_bounded_elixir_modules_definitions_imports_and_calls() {
+        let source = br"defmodule Example.Service do
+  alias Example.Helper
+  import Example.Utilities
+  require Example.Feature
+
+  def run, do: helper()
+  defp helper, do: :ok
+end
+";
+        let output = process_request(&request(source, StructuralLanguage::Elixir)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Example.Service", "run", "helper"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing Elixir declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        for module in ["Example.Helper", "Example.Utilities", "Example.Feature"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Import && fact.module.as_deref() == Some(module)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+    }
+
+    #[test]
+    fn extracts_bounded_haskell_bindings_and_imports() {
+        let source = br"module Example where
+
+import Data.Text
+
+helper :: Int
+helper = 1
+
+run :: Int
+run = helper
+";
+        let output = process_request(&request(source, StructuralLanguage::Haskell)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["helper", "run"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import && fact.module.as_deref() == Some("Data.Text")
+        }));
     }
 
     #[test]

@@ -4091,6 +4091,25 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
             Some(StructuralLanguage::Kotlin)
         }
         Some(extension) if extension.eq_ignore_ascii_case("cs") => Some(StructuralLanguage::CSharp),
+        Some(extension) if extension.eq_ignore_ascii_case("scala") => {
+            Some(StructuralLanguage::Scala)
+        }
+        Some(extension)
+            if extension.eq_ignore_ascii_case("ex") || extension.eq_ignore_ascii_case("exs") =>
+        {
+            Some(StructuralLanguage::Elixir)
+        }
+        Some(extension)
+            if matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "clj" | "cljs" | "cljc"
+            ) =>
+        {
+            Some(StructuralLanguage::Clojure)
+        }
+        Some(extension) if matches!(extension.to_ascii_lowercase().as_str(), "hs" | "lhs") => {
+            Some(StructuralLanguage::Haskell)
+        }
         Some(extension) if extension.eq_ignore_ascii_case("go") => Some(StructuralLanguage::Go),
         Some(extension) if extension.eq_ignore_ascii_case("rs") => Some(StructuralLanguage::Rust),
         Some(extension) if extension.eq_ignore_ascii_case("toml") => Some(StructuralLanguage::Toml),
@@ -4157,6 +4176,10 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+        StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
+        StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
+        StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
+        StructuralLanguage::Haskell => "tree-sitter-haskell-0.23.1",
         StructuralLanguage::Json | StructuralLanguage::Jsonc => "tree-sitter-json-0.24.8",
         StructuralLanguage::Toml => "tree-sitter-toml-ng-0.7.0",
         StructuralLanguage::Yaml => "tree-sitter-yaml-0.7.2",
@@ -4631,6 +4654,56 @@ mod tests {
             grammar_version(StructuralLanguage::CSharp),
             "tree-sitter-c-sharp-0.23.5"
         );
+    }
+
+    #[test]
+    fn structural_language_recognizes_functional_languages() {
+        for (path, language, grammar) in [
+            (
+                "src/Service.scala",
+                StructuralLanguage::Scala,
+                "tree-sitter-scala-0.26.2",
+            ),
+            (
+                "lib/service.ex",
+                StructuralLanguage::Elixir,
+                "tree-sitter-elixir-0.3.5",
+            ),
+            (
+                "test/service.exs",
+                StructuralLanguage::Elixir,
+                "tree-sitter-elixir-0.3.5",
+            ),
+            (
+                "src/service.clj",
+                StructuralLanguage::Clojure,
+                "tree-sitter-clojure-orchard-0.2.8",
+            ),
+            (
+                "src/service.cljs",
+                StructuralLanguage::Clojure,
+                "tree-sitter-clojure-orchard-0.2.8",
+            ),
+            (
+                "src/service.cljc",
+                StructuralLanguage::Clojure,
+                "tree-sitter-clojure-orchard-0.2.8",
+            ),
+            (
+                "src/Service.hs",
+                StructuralLanguage::Haskell,
+                "tree-sitter-haskell-0.23.1",
+            ),
+            (
+                "src/Service.lhs",
+                StructuralLanguage::Haskell,
+                "tree-sitter-haskell-0.23.1",
+            ),
+        ] {
+            assert_eq!(structural_language(path), Some(language));
+            assert_eq!(grammar_version(language), grammar);
+        }
+        assert_eq!(structural_language("data/example.edn"), None);
     }
 
     #[test]
