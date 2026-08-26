@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 # SPDX-License-Identifier: Apache-2.0
 #
-# Real-client, non-mutating Claude Code MCP admission rehearsal. It uses a
+# Real-client Claude Code MCP admission rehearsal. Its normal flow uses a
 # one-run --mcp-config file in a temporary directory and never registers a
-# persistent Claude Code MCP server.
+# persistent Claude Code MCP server. Its preview-first preparation mode writes
+# only an explicitly named disposable directory under /private/tmp.
 
 require "digest"
 require "fileutils"
@@ -28,6 +29,8 @@ options = {
   cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   malformed_config_only: false,
+  prepared_project_root: nil,
+  apply: false,
 }
 
 OptionParser.new do |parser|
@@ -38,10 +41,65 @@ OptionParser.new do |parser|
   parser.on("--malformed-config-only", "Verify strict temporary MCP configuration rejection without a model request") do
     options[:malformed_config_only] = true
   end
+  parser.on("--prepare-project-root PATH", "Preview or prepare a disposable Claude Code source/cache root under /private/tmp") do |value|
+    options[:prepared_project_root] = value
+  end
+  parser.on("--apply", "Apply the explicit disposable-root preparation") { options[:apply] = true }
 end.parse!
 
 [options[:claude], options[:cli], options[:mcp]].each do |path|
   abort("missing executable: #{path}") unless File.file?(path) && File.executable?(path)
+end
+
+def temporary_project_root(path, allow_absent: false)
+  candidate = Pathname.new(path).expand_path
+  temporary_parent = Pathname.new("/private/tmp").realpath
+  resolved = if candidate.exist?
+               candidate.realpath
+             elsif allow_absent
+               candidate.parent.realpath.join(candidate.basename)
+             else
+               abort("prepared project root does not exist: #{candidate}")
+             end
+  abort("prepared project root must be under /private/tmp") unless resolved.to_s.start_with?("#{temporary_parent}/")
+  abort("prepared project root must not be a symbolic link") if candidate.symlink?
+  resolved
+end
+
+def prepared_layout(root)
+  {
+    workspace: root.join("workspace"),
+    cache: root.join("cache"),
+  }
+end
+
+if options[:prepared_project_root]
+  root = temporary_project_root(options[:prepared_project_root], allow_absent: true)
+  layout = prepared_layout(root)
+  if !options[:apply]
+    puts JSON.generate({
+      "status" => "preview_ready",
+      "operation" => "prepare_disposable_claude_code_root",
+      "project_root" => root.to_s,
+      "workspace" => layout.fetch(:workspace).to_s,
+      "cache" => layout.fetch(:cache).to_s,
+      "external_write_performed" => false,
+      "next_step" => "Review the paths, then rerun with --apply. A user may use only the reported paths for the separate local-scope installation and exact removal record.",
+    })
+    exit(0)
+  end
+  abort("prepared project root already exists: #{root}") if root.exist?
+  FileUtils.mkdir_p([layout.fetch(:workspace), layout.fetch(:cache)])
+  puts JSON.generate({
+    "status" => "prepared",
+    "operation" => "prepare_disposable_claude_code_root",
+    "project_root" => root.to_s,
+    "workspace" => layout.fetch(:workspace).to_s,
+    "cache" => layout.fetch(:cache).to_s,
+    "external_write_performed" => true,
+    "next_step" => "Review the reported paths. Any Claude Code local-scope MCP registration and its exact removal remain a user-owned action.",
+  })
+  exit(0)
 end
 
 def source_digest(root)

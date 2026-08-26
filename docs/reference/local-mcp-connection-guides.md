@@ -127,6 +127,21 @@ direct packet equivalence, and does not register a persistent server. Its
 evidence and remaining admission gaps are recorded in the [Phase 1 Claude Code
 kit record](../verification/phase-1-claude-code-connection-kit.md).
 
+For the remaining user-reviewed local-scope record, the rehearsal provides a
+write-free preview of a disposable source/cache pair:
+
+```text
+ruby scripts/rehearse-claude-code.rb \
+  --prepare-project-root /private/tmp/impresari-claude-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+It writes no Claude configuration. The user may then use only the reported
+paths in the local-scope `claude mcp add` command above, inspect the entry with
+`claude mcp get impresari-context`, and remove it with `claude mcp remove
+--scope local impresari-context`. That persistent local registration/removal
+decision is not automated by Impresari Context.
+
 ## Cursor
 
 Cursor documents local stdio entries in a project `.cursor/mcp.json` or user

@@ -33,6 +33,12 @@ not a persistent configuration installer. Client credential access is not
 available inside the restricted test sandbox, so the host execution is the
 authoritative live-client record.
 
+The rehearsal also offers a preview-first `--prepare-project-root` mode. It
+creates only an empty disposable `workspace` and separate `cache` under
+`/private/tmp`; it neither creates nor removes Claude Code configuration. That
+keeps the required local-scope registration and exact removal decision fully
+user-owned.
+
 ## Admission status
 
 Do not promote Claude Code to **First-class** yet. Still required:
