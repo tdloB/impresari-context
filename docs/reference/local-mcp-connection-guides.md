@@ -120,9 +120,10 @@ When validating a JSON configuration file before use, run:
 impresari-context doctor claude-config <workspace-root> <separate-cache> <mcp-json>
 ```
 
-The generic kit has additionally been exercised through Claude Code CLI
-`2.1.241` on macOS aarch64 using an isolated one-run `--mcp-config` and
-`--strict-mcp-config`; the test did not register a persistent server. Its
+The generic kit has been exercised through Claude Code CLI `2.1.241` on macOS
+aarch64 using an isolated one-run `--mcp-config` and `--strict-mcp-config`. The
+host record rejects malformed configuration, completes the core lifecycle with
+direct packet equivalence, and does not register a persistent server. Its
 evidence and remaining admission gaps are recorded in the [Phase 1 Claude Code
 kit record](../verification/phase-1-claude-code-connection-kit.md).
 
@@ -264,9 +265,11 @@ These guides do not yet establish a maintained version range, supported OS
 matrix per client, clean-install behavior, configuration-parser conformance, or
 safe automated removal. Codex has deterministic direct-tool and packet
 evidence; Claude Code has one real-client, model-directed lifecycle record;
-Cursor has authenticated temporary-configuration discovery but no approved
-tool lifecycle. Gemini CLI, GitHub Copilot CLI, and VS Code Copilot have
-read-only preadmission guides and validators only. The [compatibility
+Cursor has authenticated temporary-configuration discovery but no approved tool
+lifecycle. Gemini CLI and VS Code Copilot have read-only preadmission guides
+and validators only. GitHub Copilot CLI additionally has an isolated temporary
+lifecycle and direct-packet-equivalence record, but not a user-reviewed
+project-local admission. The [compatibility
 matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
 local MCP** category.
 

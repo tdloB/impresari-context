@@ -74,12 +74,107 @@ def tool_input(tool, input)
   JSON.generate({ "tool" => tool, "input" => input })
 end
 
+class Rpc
+  def initialize(stdin, stdout)
+    @stdin = stdin
+    @stdout = stdout
+    @next_id = 1
+  end
+
+  def call(method, params)
+    id = @next_id
+    @next_id += 1
+    @stdin.puts(JSON.generate({ "jsonrpc" => "2.0", "id" => id, "method" => method, "params" => params }))
+    @stdin.flush
+    deadline = Process.clock_gettime(Process::CLOCK_MONOTONIC) + 30
+    loop do
+      remaining = deadline - Process.clock_gettime(Process::CLOCK_MONOTONIC)
+      raise "timed out waiting for direct MCP response to #{method}" if remaining <= 0
+      ready = IO.select([@stdout], nil, nil, remaining)
+      raise "direct MCP closed stdout during #{method}" unless ready
+      line = @stdout.gets
+      raise "direct MCP closed stdout during #{method}" if line.nil?
+      value = JSON.parse(line)
+      next unless value["id"] == id
+      raise "direct MCP error for #{method}: #{JSON.generate(value.fetch('error'))}" if value.key?("error")
+      return value.fetch("result")
+    end
+  end
+end
+
+def mcp_tool_payload(result)
+  return result.fetch("structuredContent") if result["structuredContent"].is_a?(Hash)
+  text = result.dig("content", 0, "text")
+  return JSON.parse(text) if text.is_a?(String)
+  raise "direct MCP tool result did not expose a structured payload: #{JSON.generate(result)}"
+end
+
+def direct_mcp_packet(executable, server_args)
+  stdin, stdout, stderr, wait = Open3.popen3(executable, *server_args)
+  stderr_buffer = +""
+  stderr_reader = Thread.new { stderr.each_line { |line| stderr_buffer << line } }
+  begin
+    rpc = Rpc.new(stdin, stdout)
+    rpc.call("initialize", {
+      "protocolVersion" => "2025-11-25",
+      "capabilities" => {},
+      "clientInfo" => { "name" => "impresari-context-claude-conformance", "version" => "1.0" },
+    })
+    stdin.puts(JSON.generate({ "jsonrpc" => "2.0", "method" => "notifications/initialized" }))
+    stdin.flush
+    open = mcp_tool_payload(rpc.call("tools/call", {
+      "name" => "context_session_open", "arguments" => { "session_id" => SESSION },
+    }))
+    raise "direct MCP session open was not acknowledged" unless open["opened"] == true
+    build = mcp_tool_payload(rpc.call("tools/call", {
+      "name" => "context_build",
+      "arguments" => {
+        "request_id" => REQUEST,
+        "event_id" => EVENT,
+        "purpose" => PURPOSE,
+        "occurred_at" => FIXED_TIME,
+        "steps" => [{ "kind" => "literal", "query" => QUERY }],
+        "budget" => conservative_budget,
+        "session_id" => SESSION,
+      },
+    }))
+    packet = build.fetch("packet")
+    close = mcp_tool_payload(rpc.call("tools/call", {
+      "name" => "context_session_close", "arguments" => { "session_id" => SESSION },
+    }))
+    raise "direct MCP session close was not acknowledged" unless close["closed"] == true
+    packet
+  ensure
+    stdin.close unless stdin.closed?
+    stdout.close unless stdout.closed?
+    wait.join(10)
+    stderr_reader.join(10)
+    abort("direct MCP process failed:\n#{stderr_buffer}") if wait.value && !wait.value.success?
+  end
+end
+
+def claude_tool_result_payload(block)
+  content = block.fetch("content")
+  text = if content.is_a?(String)
+           content
+         elsif content.is_a?(Array)
+           content.map { |part| part["text"] if part.is_a?(Hash) }.compact.join
+         elsif content.is_a?(Hash)
+           content["text"]
+         end
+  raise "Claude Code tool result has no JSON text payload: #{JSON.generate(block)}" unless text.is_a?(String)
+  JSON.parse(text)
+rescue JSON::ParserError => error
+  raise "Claude Code tool result was not JSON: #{error.message}: #{JSON.generate(block)}"
+end
+
 Dir.mktmpdir("impresari-claude-code-") do |temporary|
   workspace = File.join(temporary, "workspace")
   cache = File.join(temporary, "cache")
+  direct_mcp_cache = File.join(temporary, "direct-mcp-cache")
   config_path = File.join(temporary, "mcp.json")
   malformed_config_path = File.join(temporary, "malformed-mcp.json")
-  FileUtils.mkdir_p([workspace, cache])
+  FileUtils.mkdir_p([workspace, cache, direct_mcp_cache])
   File.write(
     File.join(workspace, "probe.ts"),
     "export const __impresari_claude_conformance_probe__ = true;\n",
@@ -121,6 +216,13 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     options[:cli], "client", "kit", "validate", "claude", options[:mcp], workspace, cache, config_path,
   )
   abort("managed Claude configuration validation failed:\n#{validate_stderr}\n#{validate_stdout}") unless validate_status.success?
+  direct_packet = direct_mcp_packet(options[:mcp], [
+    "--workspace", workspace,
+    "--cache", direct_mcp_cache,
+    "--consumer-id", "consumer_claude_managed",
+    "--role", "local_user",
+    "--occurred-at", FIXED_TIME,
+  ])
 
   tools = [
     "mcp__#{SERVER}__context_session_open",
@@ -175,6 +277,19 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
   if tool_results.length != tools.length || tool_results.any? { |result| result["is_error"] == true }
     abort("Claude Code received an MCP tool error or incomplete result set:\n#{stdout}")
   end
+  tool_use_names = events.flat_map do |event|
+    Array(event.dig("message", "content")).map do |block|
+      [block["id"], block["name"]] if block["type"] == "tool_use"
+    end.compact
+  end.to_h
+  results_by_name = tool_results.to_h do |result|
+    tool_name = tool_use_names.fetch(result.fetch("tool_use_id"))
+    [tool_name, claude_tool_result_payload(result)]
+  end
+  built_packet = results_by_name.fetch("mcp__#{SERVER}__context_build").fetch("packet")
+  resolved_packet = results_by_name.fetch("mcp__#{SERVER}__context_packet_resolve").fetch("packet")
+  abort("Claude Code resolved packet differs from its delivered packet") unless resolved_packet == built_packet
+  abort("direct MCP packet differs from Claude Code-delivered packet") unless direct_packet == built_packet
   _persistent_stdout, persistent_stderr, persistent_status = Open3.capture3(
     options[:claude], "mcp", "get", SERVER, chdir: workspace,
   )
@@ -195,6 +310,7 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     "persistent_mcp_registration" => false,
     "malformed_configuration_rejected" => true,
     "managed_install_validate_remove" => true,
+    "direct_mcp_packet_equivalence" => true,
     "tool_lifecycle" => observed_tools,
   })
 end

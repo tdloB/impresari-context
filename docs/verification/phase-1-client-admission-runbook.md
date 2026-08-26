@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code lifecycle recorded; Cursor temporary configuration discovery recorded
+- Status: Claude Code live temporary-configuration lifecycle and Cursor temporary configuration discovery recorded
 - Date: 2026-08-23
 - Scope: Claude Code and Cursor only
 
@@ -20,12 +20,14 @@ conformance is recorded in the [Codex connection-kit record](phase-1-codex-conne
 Completed on macOS aarch64 with Claude Code CLI `2.1.241` after user-owned
 installation and authentication. The one-run rehearsal used temporary
 `--mcp-config` and `--strict-mcp-config`, completed the fixed MCP lifecycle,
-preserved the fixture workspace, and confirmed that no persistent MCP server
-named `impresari_context_conformance` was registered.
+proved direct-MCP packet equivalence, preserved the fixture workspace, and
+confirmed that no persistent MCP server named `impresari-context` was
+registered.
 
-The result remains Generic local MCP because model-directed tool selection is
-not deterministic. The detailed evidence and remaining First-class criteria
-are in the [Claude Code kit record](phase-1-claude-code-connection-kit.md).
+The result remains Generic local MCP until the user-reviewed local-scope
+installation and single-entry removal record is completed. The detailed
+evidence and remaining First-class criteria are in the [Claude Code kit
+record](phase-1-claude-code-connection-kit.md).
 
 The eventual user-reviewed registration, verification, and single-entry
 removal commands are in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#claude-code).

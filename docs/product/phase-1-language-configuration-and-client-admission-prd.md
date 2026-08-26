@@ -30,18 +30,18 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   plus packet-equivalence rehearsal. Codex remains Generic local MCP pending
   full client admission.
 - Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
-  read-only JSON configuration validation. Claude Code `2.1.241` has completed
-  one isolated temporary-config real-client lifecycle without persistent
-  registration. Signed-in Cursor Agent CLI `3.17.8` on macOS aarch64 discovered
-  an isolated temporary project configuration without enabling it. Cursor's
-  documented command/args stdio form is accepted without allowing environment
-  forwarding.
+  read-only JSON configuration validation. Claude Code `2.1.241` completed a
+  malformed strict-configuration check and an isolated temporary-config
+  lifecycle with direct packet equivalence, without source mutation or
+  persistent registration. Signed-in Cursor Agent CLI `3.17.8` on macOS
+  aarch64 discovered an isolated temporary project configuration without
+  enabling it. Cursor's documented command/args stdio form is accepted without
+  allowing environment forwarding.
 - Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
   still needs trusted-project clean-install/configuration-parser and exact
   owned-entry-removal evidence; its initial supported scope is the recorded
-  Codex CLI/macOS aarch64 combination. Claude Code needs packet-equivalence,
-  configuration-parser, platform/version, and removal evidence; Cursor still
-  needs a user-approved real-client lifecycle,
+  Codex CLI/macOS aarch64 combination. Claude Code needs a user-reviewed
+  local-scope installation/removal record; Cursor still needs a user-approved real-client lifecycle,
   packet-equivalence, malformed-configuration, platform/version, removal, and
   source-immutability evidence.
 
