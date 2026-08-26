@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 # SPDX-License-Identifier: Apache-2.0
 #
-# Non-mutating Cursor Agent MCP preadmission rehearsal. It exercises Cursor's
-# own project configuration parser without enabling an MCP server or starting a
-# model session.
+# Cursor Agent MCP preadmission rehearsal. Its default flow exercises Cursor's
+# project configuration parser without enabling an MCP server or starting a
+# model session. The optional preview-first preparation mode writes only an
+# explicitly named disposable directory under /private/tmp.
 
 require "digest"
 require "fileutils"
