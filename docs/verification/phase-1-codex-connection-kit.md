@@ -36,9 +36,13 @@ during read-only discovery. That behavior is expected from the documented trust
 gate and confirms that a first-class assertion requires an isolated trusted
 clean-install run rather than an automated configuration mutation.
 
-`scripts/rehearse-codex-app-server.rb --project-config` now makes that boundary
-reproducible. It must pass only after the client owner has explicitly trusted
-the disposable project; the script never attempts to create that trust state.
+`scripts/rehearse-codex-app-server.rb --prepare-project-root <temporary-root>`
+now provides a write-free preview for a disposable trusted-project rehearsal.
+After a separate explicit `--apply`, the client owner trusts only the reported
+temporary workspace, then runs `--project-config --temporary-root
+<temporary-root>`. The rehearsal installs and validates the exact owned entry,
+proves the App Server lifecycle, and removes only that entry; it never writes
+the user's shared Codex configuration or creates a trust state.
 
 A conversational `codex exec` session remains useful usability evidence, but
 is not the release gate: its model may select a different available MCP
@@ -52,10 +56,10 @@ a model request.
 Do not promote Codex to **First-class** yet. Still required:
 
 - malformed configuration behavior as rendered by Codex itself;
-- defined version/OS matrix beyond the exercised macOS aarch64 client; and
-- verified entry-specific removal behavior in a user scope; and
+- a maintained published version/OS scope (the current evidence is limited to
+  Codex CLI `0.149.0-alpha.4.1` on macOS aarch64); and
 - an isolated trusted-project clean-install record for the published
-  `.codex/config.toml` template.
+  `.codex/config.toml` template, including its exact owned-entry removal.
 
 These gaps are the explicit Phase 1 admission work under the
 [Phase 1 PRD](../product/phase-1-language-configuration-and-client-admission-prd.md)
@@ -65,8 +69,10 @@ The deterministic transport decision is recorded separately in
 
 ## Roadmap checkpoint
 
-After this slice, the Master PRD, Phase 1 PRD, ADR-0018, and ADR-0023 were
-reassessed against the completed evidence. The roadmap is unchanged. Codex now
-has deterministic host-transport and packet evidence plus managed project
-configuration setup/removal, but remains Generic local MCP until trusted
-project, user-scope, and broader platform admission criteria are met.
+After this slice, the Master PRD, Phase 1 PRD, ADR-0018, and ADR-0029 were
+reassessed against the completed evidence. The roadmap's Phase 5 status was
+corrected to record the shipped functional-language admissions; CI-1 scope and
+trust boundaries are unchanged. Codex has deterministic host-transport and
+packet evidence plus managed project configuration setup/removal, but remains
+Generic local MCP until trusted-project clean-install and exact owned-entry
+removal evidence are recorded.

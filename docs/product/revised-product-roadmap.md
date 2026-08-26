@@ -18,7 +18,7 @@ silently broaden the authority boundary.
 | 2 | Rust and Go structural evidence; broader agent access | In progress: Rust and Go complete; generic, non-mutating preadmission guides and validators for Gemini CLI, GitHub Copilot CLI, and VS Code Copilot complete. Copilot has one isolated temporary-config session-open record; Gemini normal-client testing is blocked by its current free-tier service; real-client admission remains pending. |
 | 3 | Deterministic context planner | Complete (approved initial scope): profile-bound deterministic plans, coverage/omission reporting, exact plan and packet identities, CLI, and MCP support are implemented. Standalone profiles retain explicit structural, change-set, associated-test, and configuration-to-code omissions rather than inferring evidence. |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Complete: bounded Java, Kotlin, C#, structural-impact, declared change-set, caller-declared associated-test, repository orientation, explicit incremental-update, and convention/exemplar evidence are accepted after full hosted CI. |
-| 5 | Demand-led language expansion | In progress: the evidence-first admission gate is implemented and awaiting hosted acceptance; no language is selected until an attributable demand/evaluation record satisfies it. |
+| 5 | Demand-led language expansion | In progress: Scala, Elixir, Clojure, and Haskell have been admitted with bounded structural evidence. The evidence-first admission gate remains the requirement for future languages. |
 
 ## Parallel Client Integration Depth Track
 
@@ -72,5 +72,7 @@ exemplar evidence.
 
 ## Phase 5 — Demand-led language expansion
 
-Evaluate and admit Swift, PHP, Ruby, C/C++, Scala, Dart, and carefully
-constrained SQL only from adopter demand and evaluation evidence.
+Scala, Elixir, Clojure, and Haskell are admitted with bounded structural
+evidence. Evaluate any further language—including Swift, PHP, Ruby, C/C++,
+Dart, and carefully constrained SQL—only from attributable adopter demand and
+evaluation evidence.

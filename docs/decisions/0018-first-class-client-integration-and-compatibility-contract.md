@@ -139,6 +139,11 @@ verified structural semantics.
 - Each first-class client passes clean-install, project/user-scope, lifecycle,
   tool discovery, packet equivalence, source-immutability, and safe-removal
   tests on its declared supported platforms.
+- Deterministic conformance applies to Impresari Context's rendered
+  configuration, fixed launch contract, policy checks, packet equivalence, and
+  owned-entry lifecycle. A conversational client's model-selected tool calls
+  are recorded as bounded live-smoke evidence; they are not a requirement that
+  the same prompt reproduce the same tool sequence.
 - Connection-kit dry runs report all proposed targets and never mutate them.
 - Doctor succeeds on a controlled fixture and rejects invalid worker identity,
   unsafe root/cache layout, malformed configuration, and incompatible MCP

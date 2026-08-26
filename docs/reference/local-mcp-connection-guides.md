@@ -64,6 +64,30 @@ Then inspect the resolved client entry with `codex mcp get impresari-context
 alternative is the Codex CLI command `codex mcp add <name> -- <command>
 [args...]`; it is intentionally not automated or used by this kit.
 
+For the pending first-class clean-install admission record, the repository
+provides an explicit, disposable rehearsal. Its first invocation is a
+write-free preview. Review its reported `/private/tmp` paths before applying
+the preparation:
+
+```text
+ruby scripts/rehearse-codex-app-server.rb \
+  --prepare-project-root /private/tmp/impresari-codex-l1-admission
+```
+
+Only after review, prepare that disposable root:
+
+```text
+ruby scripts/rehearse-codex-app-server.rb \
+  --prepare-project-root /private/tmp/impresari-codex-l1-admission --apply
+```
+
+Open and trust the reported `workspace` directory in Codex, then run the
+rehearsal with `--project-config --temporary-root
+/private/tmp/impresari-codex-l1-admission`.
+The rehearsal installs and validates only its exact owned entry, proves the
+direct App Server lifecycle and packet equivalence, then removes only that
+entry. It never writes the user's shared Codex configuration.
+
 This pre-admission kit has been locally checked against Codex CLI
 `0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and remaining
 first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).

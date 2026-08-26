@@ -34,11 +34,14 @@ hosted CI test and not a persistent configuration installer.
 
 Do not promote Claude Code to **First-class** yet. Still required:
 
-- deterministic client-control capability or an approved alternative admission
-  criterion;
 - direct-engine versus Claude-delivered packet-equivalence evidence;
 - version/OS matrix beyond the exercised macOS aarch64 client; and
 - verified entry-specific removal behavior in local, project, and user scopes.
+
+Claude Code's model-directed tool selection is recorded as live-client smoke
+evidence, not as a repeatable client-conformance requirement. The deterministic
+gates remain the managed connection contract, fixed authority, validation,
+malformed-input handling, packet evidence where observable, and exact removal.
 
 These requirements remain governed by the [Phase 1 PRD](../product/phase-1-language-configuration-and-client-admission-prd.md)
 and [ADR-0018](../decisions/0018-first-class-client-integration-and-compatibility-contract.md).

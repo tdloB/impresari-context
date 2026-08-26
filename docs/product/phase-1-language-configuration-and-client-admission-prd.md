@@ -37,10 +37,11 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   documented command/args stdio form is accepted without allowing environment
   forwarding.
 - Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
-  still needs trusted-project clean-install/configuration-parser, version/OS,
-  and entry-removal evidence. Claude Code needs deterministic client control,
-  packet-equivalence, configuration-parser, platform/version, and removal
-  evidence; Cursor still needs a user-approved real-client lifecycle,
+  still needs trusted-project clean-install/configuration-parser and exact
+  owned-entry-removal evidence; its initial supported scope is the recorded
+  Codex CLI/macOS aarch64 combination. Claude Code needs packet-equivalence,
+  configuration-parser, platform/version, and removal evidence; Cursor still
+  needs a user-approved real-client lifecycle,
   packet-equivalence, malformed-configuration, platform/version, removal, and
   source-immutability evidence.
 
@@ -60,3 +61,7 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   and entry-specific removal instructions.
 - Clean-install client conformance proves lifecycle, packet equivalence,
   malformed-configuration handling, source immutability, and no new authority.
+- Deterministic conformance is limited to the product-controlled connection
+  contract and any direct client RPC surface. A model-directed client must
+  instead supply a bounded live-client smoke record; repeating a natural
+  language prompt is not an admission test.
