@@ -35,7 +35,10 @@ First-class admission still requires all of the following:
 - maintained version and operating-system coverage.
 
 This evidence is deliberately not substituted with `--approve-mcps` or an
-automatic approval flag, because those change Cursor's local approval state.
+automatic approval flag, because neither substitutes for a user-reviewed
+project installation and removal record. The rehearsal has a preview-first
+`--prepare-project-root` mode that creates only an empty disposable workspace
+and cache under `/private/tmp` for that future user-owned record.
 The [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor)
 contains the user-reviewed setup shape.
 

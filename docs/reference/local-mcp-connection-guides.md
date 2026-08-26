@@ -174,6 +174,23 @@ discovered by Cursor Agent CLI `3.17.8` on macOS aarch64 without enabling the
 server; the evidence and remaining admission gaps are in the [Phase 1 Cursor
 kit record](../verification/phase-1-cursor-connection-kit.md).
 
+For the eventual user-reviewed admission record, first create a disposable
+project outside any repository:
+
+```text
+ruby scripts/rehearse-cursor-preadmission.rb \
+  --prepare-project-root /private/tmp/impresari-cursor-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+The preparation command creates only the reported `workspace` and separate
+`cache` directories under `/private/tmp`; it neither creates `.cursor/mcp.json`
+nor enables an MCP server. After reviewing the generated project entry, the
+user—not Impresari Context—must choose whether to run Cursor's `agent mcp
+enable impresari-context` for that exact disposable workspace. The final
+record must also demonstrate `agent mcp disable impresari-context` and managed
+removal of that one project entry.
+
 ## Gemini CLI
 
 Gemini CLI reads a project `.gemini/settings.json` `mcpServers` object. A user

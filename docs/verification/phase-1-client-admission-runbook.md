@@ -44,6 +44,19 @@ The Cursor CLI treats MCP enablement as a change to local approval state. A
 real tool lifecycle therefore requires an intentional, user-owned approval of
 the exact temporary entry. It must not be replaced by automatic approval.
 
+The rehearsal now has a preview-first disposable-project preparation path:
+
+```text
+ruby scripts/rehearse-cursor-preadmission.rb \
+  --prepare-project-root /private/tmp/impresari-cursor-l1-admission
+# inspect the returned paths, then rerun with --apply
+```
+
+It creates only an empty `workspace` and separate `cache` under `/private/tmp`.
+It does not create or enable a Cursor MCP entry. This gives the user a narrow,
+inspectable location for the later project-entry, enablement, lifecycle, and
+exact-removal record.
+
 The eventual user-reviewed configuration, inspection, and single-entry removal
 guidance is in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor).
 

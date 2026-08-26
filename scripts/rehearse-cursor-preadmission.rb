@@ -21,6 +21,8 @@ options = {
   cursor: DEFAULT_CURSOR,
   cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
+  prepared_project_root: nil,
+  apply: false,
 }
 
 OptionParser.new do |parser|
@@ -28,10 +30,65 @@ OptionParser.new do |parser|
   parser.on("--cursor PATH", "Cursor CLI executable") { |value| options[:cursor] = value }
   parser.on("--cli PATH", "Impresari CLI executable") { |value| options[:cli] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
+  parser.on("--prepare-project-root PATH", "Preview or prepare a disposable Cursor project root under /private/tmp") do |value|
+    options[:prepared_project_root] = value
+  end
+  parser.on("--apply", "Apply the explicit disposable-project preparation") { options[:apply] = true }
 end.parse!
 
 [options[:cursor], options[:cli], options[:mcp]].each do |path|
   abort("missing executable: #{path}") unless File.file?(path) && File.executable?(path)
+end
+
+def temporary_project_root(path, allow_absent: false)
+  candidate = Pathname.new(path).expand_path
+  temporary_parent = Pathname.new("/private/tmp").realpath
+  resolved = if candidate.exist?
+               candidate.realpath
+             elsif allow_absent
+               candidate.parent.realpath.join(candidate.basename)
+             else
+               abort("prepared project root does not exist: #{candidate}")
+             end
+  abort("prepared project root must be under /private/tmp") unless resolved.to_s.start_with?("#{temporary_parent}/")
+  abort("prepared project root must not be a symbolic link") if candidate.symlink?
+  resolved
+end
+
+def prepared_layout(root)
+  {
+    workspace: root.join("workspace"),
+    cache: root.join("cache"),
+  }
+end
+
+if options[:prepared_project_root]
+  root = temporary_project_root(options[:prepared_project_root], allow_absent: true)
+  layout = prepared_layout(root)
+  if !options[:apply]
+    puts JSON.generate({
+      "status" => "preview_ready",
+      "operation" => "prepare_disposable_cursor_project",
+      "project_root" => root.to_s,
+      "workspace" => layout.fetch(:workspace).to_s,
+      "cache" => layout.fetch(:cache).to_s,
+      "external_write_performed" => false,
+      "next_step" => "Review the paths, then rerun with --apply. Install only the rendered .cursor/mcp.json entry in the reported workspace before deciding whether to enable it in Cursor.",
+    })
+    exit(0)
+  end
+  abort("prepared project root already exists: #{root}") if root.exist?
+  FileUtils.mkdir_p([layout.fetch(:workspace), layout.fetch(:cache)])
+  puts JSON.generate({
+    "status" => "prepared",
+    "operation" => "prepare_disposable_cursor_project",
+    "project_root" => root.to_s,
+    "workspace" => layout.fetch(:workspace).to_s,
+    "cache" => layout.fetch(:cache).to_s,
+    "external_write_performed" => true,
+    "next_step" => "Install and inspect only the generated .cursor/mcp.json entry in the reported workspace. A user must explicitly decide whether to run Cursor's mcp enable command for that one temporary entry.",
+  })
+  exit(0)
 end
 
 def tree_digest(root)
