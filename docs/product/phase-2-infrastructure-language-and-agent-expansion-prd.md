@@ -24,14 +24,15 @@ Copilot CLI, and VS Code Copilot.
   validators for Gemini CLI, GitHub Copilot CLI, and VS Code Copilot. Each
   preserves fixed local stdio authority and rejects remote transport,
   environment forwarding, and automatic approval.
-- Pending: installed/authenticated client discovery and lifecycle evidence for
-  Gemini CLI and VS Code Copilot; no broader agent is first-class. GitHub
-  Copilot CLI `1.0.80` on macOS aarch64 has an isolated, model-directed
-  temporary-config lifecycle with direct packet equivalence, malformed-
-  configuration rejection, exact removal, and no persistent client
-  configuration. Its user-reviewed project-local install/trust/removal record
-  remains pending. Gemini CLI `0.56.0` is authenticated but its current
-  free-tier service rejects normal client startup as unsupported.
+- Complete: GitHub Copilot CLI `1.0.80` on macOS aarch64 is First-class for
+  its recorded project scope. It has malformed-configuration rejection,
+  isolated native project `list/get` discovery after exact workspace trust, a
+  bounded prompt-mode lifecycle with direct packet equivalence, source
+  immutability, and exact project-entry/trust removal evidence.
+- Pending: VS Code Copilot's distinct extension-host/Agent Host admission.
+  Gemini CLI `0.56.0` is authenticated but its current free-tier service
+  rejects normal client startup as unsupported, so it remains generic legacy
+  compatibility rather than an active depth target.
 
 ## Non-goals
 

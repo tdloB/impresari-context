@@ -129,7 +129,9 @@ support, and between generic local-MCP compatibility and a first-class client
 integration. At this release, TypeScript/JavaScript, Python, Java, Kotlin,
 C#, Scala, Elixir, Clojure, Haskell, Go, Rust, strict JSON, JSONC, TOML, and
 YAML have bounded structural support; Swift remains lexical-only. Codex,
-Claude Code, Cursor, and GitHub Copilot are not yet first-class integrations.
+Claude Code, Cursor, and GitHub Copilot CLI are first-class only for their
+recorded client/version/OS scopes. Gemini CLI and VS Code Copilot remain
+generic local-MCP integrations.
 
 The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)
 show user-invoked, non-mutating local stdio configurations for those clients.

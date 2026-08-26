@@ -3607,7 +3607,7 @@ mod tests {
         );
         assert_eq!(
             manifest["first_class_clients"],
-            serde_json::json!(["Codex", "Claude Code", "Cursor"])
+            serde_json::json!(["Codex", "Claude Code", "Cursor", "GitHub Copilot CLI"])
         );
         let first_class = manifest["client_support"]
             .as_array()
@@ -3615,7 +3615,7 @@ mod tests {
             .iter()
             .filter(|entry| entry["first_class"] == true)
             .collect::<Vec<_>>();
-        assert_eq!(first_class.len(), 3, "client promotion must be explicit");
+        assert_eq!(first_class.len(), 4, "client promotion must be explicit");
         let first_class_contracts = first_class
             .iter()
             .map(|entry| {
@@ -3643,6 +3643,11 @@ mod tests {
                     "Cursor",
                     "first_class",
                     "managed_project_configuration_and_guarded_agent_mode_packet_equivalence",
+                ),
+                (
+                    "GitHub Copilot CLI",
+                    "first_class",
+                    "managed_trusted_project_configuration_and_bounded_model_directed_packet_equivalence",
                 ),
             ])
         );
