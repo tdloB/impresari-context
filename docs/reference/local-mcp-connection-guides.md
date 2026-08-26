@@ -304,17 +304,13 @@ Remove only the `impresari-context` entry manually.
 
 ## What these guides do not establish
 
-These guides do not yet establish a maintained version range, supported OS
-matrix per client, clean-install behavior, configuration-parser conformance, or
-safe automated removal. Codex has deterministic direct-tool and packet
-evidence; Claude Code has one real-client, model-directed lifecycle record;
-Cursor has authenticated temporary-configuration discovery but no approved tool
-lifecycle. Gemini CLI and VS Code Copilot have read-only preadmission guides
-and validators only. GitHub Copilot CLI additionally has an isolated temporary
-lifecycle and direct-packet-equivalence record, but not a user-reviewed
-project-local admission. The [compatibility
-matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
-local MCP** category.
+These guides alone do not establish a maintained version range, supported OS
+matrix, clean-install behavior, configuration-parser conformance, or safe
+automated removal. The [compatibility matrix](compatibility-matrix.md) is the
+authoritative classification: Codex, Claude Code, Cursor, and GitHub Copilot
+CLI are First-class only for their individually recorded client/version/OS
+scopes. Gemini CLI and VS Code Copilot have read-only preadmission guides and
+validators only and remain **Generic local MCP**.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex
