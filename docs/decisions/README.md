@@ -52,6 +52,10 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0044](0044-owned-managed-connection-update.md) | Compare-and-replace only explicitly declared owned connection contracts | Accepted for implementation |
 | [ADR-0045](0045-owned-native-guidance-artifact-lifecycle.md) | Use exact owned native-guidance artifact lifecycle operations | Accepted |
 | [ADR-0046](0046-explicit-guided-delivery-intent-contract.md) | Use strictly declared client-neutral delivery intent before any lifecycle adapter | Accepted |
+| [ADR-0047](0047-scala-structural-language-admission.md) | Admit bounded Scala syntax evidence without compiler or build authority | Accepted for implementation |
+| [ADR-0048](0048-elixir-structural-language-admission.md) | Admit bounded Elixir syntax evidence without BEAM or Mix authority | Accepted for implementation |
+| [ADR-0049](0049-clojure-structural-language-admission.md) | Admit bounded Clojure syntax evidence without reader or macro authority | Accepted for implementation |
+| [ADR-0050](0050-haskell-structural-language-admission.md) | Admit bounded Haskell syntax evidence without compiler or type-system authority | Accepted for implementation |
 
 ## Change Rules
 

@@ -15,6 +15,10 @@
     "docs/decisions/0030-java-structural-language-admission.md",
     "docs/decisions/0031-kotlin-structural-language-admission.md",
     "docs/decisions/0032-csharp-structural-language-admission.md",
+    "docs/decisions/0047-scala-structural-language-admission.md",
+    "docs/decisions/0048-elixir-structural-language-admission.md",
+    "docs/decisions/0049-clojure-structural-language-admission.md",
+    "docs/decisions/0050-haskell-structural-language-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -71,6 +75,34 @@
     {
       "family": "C#",
       "extensions": [".cs"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Scala",
+      "extensions": [".scala"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Elixir",
+      "extensions": [".ex", ".exs"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Clojure",
+      "extensions": [".clj", ".cljs", ".cljc"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "Haskell",
+      "extensions": [".hs", ".lhs"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
