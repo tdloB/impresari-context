@@ -22,6 +22,7 @@
     "docs/decisions/0051-codex-user-home-managed-connection.md",
     "docs/decisions/0052-claude-disposable-local-scope-admission.md",
     "docs/decisions/0053-cursor-guarded-project-admission.md",
+    "docs/decisions/0055-codex-ephemeral-guided-delivery.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],

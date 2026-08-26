@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "crates/context-cli",
+    "crates/context-codex-app-server",
     "crates/context-adapters",
     "crates/context-conformance",
     "crates/context-core",

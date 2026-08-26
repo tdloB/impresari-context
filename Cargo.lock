@@ -160,6 +160,8 @@ dependencies = [
 name = "context-cli"
 version = "0.1.0"
 dependencies = [
+ "context-adapters",
+ "context-codex-app-server",
  "context-core",
  "context-engine",
  "context-mcp",
@@ -171,6 +173,20 @@ dependencies = [
  "serde_json",
  "sha2",
  "toml",
+]
+
+[[package]]
+name = "context-codex-app-server"
+version = "0.1.0"
+dependencies = [
+ "context-adapters",
+ "context-core",
+ "context-engine",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]

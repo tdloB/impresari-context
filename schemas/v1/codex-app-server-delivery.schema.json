@@ -1,0 +1,117 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/codex-app-server-delivery.schema.json",
+  "title": "Explicit Codex App Server delivery preview and receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
+    "client_version", "protocol_scope", "request_id", "event_id", "client_io_performed",
+    "ephemeral_thread", "read_only_sandbox", "network_access_enabled",
+    "approval_requests_declined", "authority_added"
+  ],
+  "properties": {
+    "schema_name": {"const": "codex-app-server-delivery-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "outcome": {"enum": ["delivered", "no_delivery", "degraded"]},
+    "reason_code": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
+    "client": {"const": "codex"},
+    "scope": {"const": "app_server_ephemeral"},
+    "client_version": {"const": "0.149.0-alpha.4.1"},
+    "protocol_scope": {"const": "v1.initialize+v2.thread_start+v2.turn_start+v2.turn_completed"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "client_io_performed": {"type": "boolean"},
+    "ephemeral_thread": {"type": "boolean"},
+    "read_only_sandbox": {"const": true},
+    "network_access_enabled": {"const": false},
+    "approval_requests_declined": {"type": "integer"},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name", "schema_version", "packet_id", "packet_sha256",
+        "packet_bytes_base64url", "task_query", "input_text"
+      ],
+      "properties": {
+        "schema_name": {"const": "codex-app-server-delivery-envelope"},
+        "schema_version": {"const": "1.0.0"},
+        "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_bytes_base64url": {"type": "string", "minLength": 1, "maxLength": 699052, "pattern": "^[A-Za-z0-9_-]+$"},
+        "task_query": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000]*$"},
+        "input_text": {"type": "string", "minLength": 1, "maxLength": 710000, "pattern": "^[^\\u0000]*$"}
+      }
+    },
+    "preparationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
+        "client_version", "lifecycle_point", "request_id", "event_id", "workspace_identity",
+        "packet_id", "plan_id", "workspace_snapshot", "policy_decision",
+        "client_io_performed", "authority_added"
+      ],
+      "properties": {
+        "schema_name": {"const": "guided-delivery-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "outcome": {"const": "prepared"},
+        "reason_code": {"const": "codex_app_server_packet_prepared"},
+        "client": {"const": "codex"},
+        "scope": {"const": "app_server_ephemeral"},
+        "client_version": {"const": "0.149.0-alpha.4.1"},
+        "lifecycle_point": {"const": "turn_start"},
+        "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+        "client_io_performed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name", "schema_version", "client", "scope", "client_version",
+        "protocol_scope", "prepared", "preparation_receipt", "delivery_envelope"
+      ],
+      "properties": {
+        "schema_name": {"const": "codex-app-server-delivery-preview"},
+        "schema_version": {"const": "1.0.0"},
+        "client": {"const": "codex"},
+        "scope": {"const": "app_server_ephemeral"},
+        "client_version": {"const": "0.149.0-alpha.4.1"},
+        "protocol_scope": {"const": "v1.initialize+v2.thread_start+v2.turn_start+v2.turn_completed"},
+        "prepared": {"$ref": "guided-delivery.schema.json#/$defs/prepared"},
+        "preparation_receipt": {"$ref": "#/$defs/preparationReceipt"},
+        "delivery_envelope": {"$ref": "#/$defs/envelope"}
+      }
+    },
+    "preparation": {
+      "oneOf": [
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "value"],
+          "properties": {"state": {"const": "prepared"}, "value": {"$ref": "#/$defs/preview"}}
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["state", "value"],
+          "properties": {"state": {"const": "no_delivery"}, "value": {"$ref": "#"}}
+        }
+      ]
+    }
+  }
+}

@@ -14,6 +14,11 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+use context_adapters::{AdapterError, GuidedDeliveryIntent};
+use context_codex_app_server::{
+    CodexDeliveryError, CodexDeliveryPreparation, StdioCodexAppServerTransport,
+    deliver_codex_preview, prepare_codex_delivery, rehydrate_codex_delivery_preview,
+};
 use context_core::{
     Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PolicySubject, PublicErrorCode,
     RecoveryAction, ResourceBudget, error_envelope,
@@ -61,6 +66,8 @@ Usage:\n\
   impresari-context [global-options] client kit install <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit update <codex|claude|cursor|copilot|vscode> <old-mcp-binary> <old-workspace> <old-cache-root> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
+  impresari-context [global-options] client delivery codex preview <workspace> <cache-root> <delivery-intent-json>\n\
+  impresari-context [global-options] client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <expected-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -79,7 +86,7 @@ Global options:\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
   --cutoff <UTC>          Explicit audit retention cutoff.\n\
   --id-seed <8-64 chars>  Deterministic request/event identifier seed.\n\
-  --apply                 Permit the explicit client-kit install, update, or remove write.\n\
+  --apply                 Permit an explicit client-kit write or separately previewed Codex delivery.\n\
   --help                  Show this help.\n";
 
 #[derive(Debug)]
@@ -254,6 +261,17 @@ struct GuidanceTemplate {
     relative_target: &'static str,
     contents: &'static str,
     legacy_contents: &'static [&'static str],
+}
+
+#[derive(Serialize)]
+struct CodexDeliveryApplyPreview {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    state: &'static str,
+    expected_packet_id: String,
+    client_io_performed: bool,
+    apply_required: bool,
+    preview: context_codex_app_server::CodexDeliveryPreview,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -542,6 +560,72 @@ fn dispatch(
                 filename,
             )?;
             Output::new("handoff export", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "codex",
+            "preview",
+            root,
+            cache,
+            intent_path,
+        ] => {
+            let intent: GuidedDeliveryIntent =
+                read_json(Path::new(intent_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result =
+                prepare_codex_delivery(&mut engine, intent).map_err(codex_delivery_error)?;
+            Output::new("client delivery codex preview", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "codex",
+            "apply",
+            preview_path,
+            runtime_parent,
+            codex_binary,
+            expected_packet_id,
+        ] => {
+            let result: CodexDeliveryPreparation =
+                read_json(Path::new(preview_path), Capability::ContextBuild)?;
+            let CodexDeliveryPreparation::Prepared(preview) = result else {
+                return Output::new("client delivery codex apply", &result);
+            };
+            let preview =
+                rehydrate_codex_delivery_preview(*preview).map_err(codex_delivery_error)?;
+            if !options.apply {
+                return Output::new(
+                    "client delivery codex apply preview",
+                    &CodexDeliveryApplyPreview {
+                        schema_name: "codex-app-server-delivery-apply-preview",
+                        schema_version: "1.0.0",
+                        state: "apply_required",
+                        expected_packet_id: expected_packet_id.to_string(),
+                        client_io_performed: false,
+                        apply_required: true,
+                        preview,
+                    },
+                );
+            }
+            let runtime_parent = fs::canonicalize(runtime_parent).map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "Codex delivery cache root is unavailable",
+                )
+            })?;
+            let transport =
+                StdioCodexAppServerTransport::new(PathBuf::from(codex_binary), runtime_parent)
+                    .map_err(|_| {
+                        synthetic_error(
+                            Capability::ContextBuild,
+                            PublicErrorCode::InvalidInput,
+                            "invalid Codex App Server configuration",
+                        )
+                    })?;
+            let receipt = deliver_codex_preview(&preview, expected_packet_id, &transport);
+            Output::new("client delivery codex apply", &receipt)
         }
         ["client", "kit", "render", client, binary, root, cache] => {
             let kit = managed_connection_kit(
@@ -2798,6 +2882,25 @@ fn synthetic_error(capability: Capability, code: PublicErrorCode, message: &str)
     engine_error(envelope)
 }
 
+fn codex_delivery_error(error: CodexDeliveryError) -> EngineError {
+    match error {
+        CodexDeliveryError::Adapter(AdapterError::Engine(error)) => error,
+        CodexDeliveryError::Adapter(AdapterError::IncompatibleContract)
+        | CodexDeliveryError::InvalidConfiguration
+        | CodexDeliveryError::InvalidPreview => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid Codex delivery configuration",
+        ),
+        CodexDeliveryError::Adapter(AdapterError::Serialization)
+        | CodexDeliveryError::Serialization => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InternalFailure,
+            "Codex delivery packet serialization failed",
+        ),
+    }
+}
+
 fn engine_error(envelope: ErrorEnvelope) -> EngineError {
     // The engine intentionally owns construction. Round-trip through a tiny
     // local operation is avoided by exposing this crate-private adapter below.
@@ -2992,6 +3095,96 @@ mod tests {
         let (code, value) = invoke(&invalid, "managedkit");
         assert_eq!(code, 1);
         assert_eq!(value["code"], "invalid_input");
+    }
+
+    #[test]
+    fn codex_delivery_preview_and_apply_preview_never_start_a_client_process() {
+        let root = TestRoot::new("codex-delivery-workspace");
+        let cache = TestRoot::new("codex-delivery-cache");
+        let input = TestRoot::new("codex-delivery-input");
+        let source = root.0.join("authentication.rs");
+        fs::write(&source, b"pub fn authenticate() {}\n").expect("source fixture");
+        let source_before = fs::read(&source).expect("source before");
+        let root_arg = root.0.display().to_string();
+        let cache_arg = cache.0.display().to_string();
+        let (code, snapshot) = invoke(
+            &[
+                "snapshot".into(),
+                "build".into(),
+                root_arg.clone(),
+                cache_arg.clone(),
+            ],
+            "codexsnapshot",
+        );
+        assert_eq!(code, 0);
+        let intent_path = input.0.join("intent.json");
+        let intent = serde_json::json!({
+            "adapter_contract_version": context_adapters::GUIDED_DELIVERY_CONTRACT_VERSION,
+            "client": context_adapters::CODEX_APP_SERVER_CLIENT,
+            "scope": context_adapters::CODEX_APP_SERVER_SCOPE,
+            "client_version": context_adapters::CODEX_APP_SERVER_VERSION,
+            "lifecycle_point": context_adapters::CODEX_APP_SERVER_LIFECYCLE_POINT,
+            "consent": true,
+            "request_id": "req_codexdelivery01",
+            "event_id": "evt_codexdelivery01",
+            "consumer_id": "consumer_codexdelivery",
+            "role": "local_user",
+            "purpose": "implementation",
+            "occurred_at": "2026-08-21T12:00:00Z",
+            "workspace_identity": snapshot["workspace_identity"],
+            "workspace_snapshot": snapshot["snapshot_id"],
+            "task_profile": "implementation",
+            "query": "authenticate",
+            "budget": ResourceBudget::conservative(8192, 16, 128, 1024, 64, 8, 30_000, 8_388_608).expect("budget")
+        });
+        fs::write(
+            &intent_path,
+            serde_json::to_vec(&intent).expect("intent JSON"),
+        )
+        .expect("intent fixture");
+        let intent_arg = intent_path.display().to_string();
+        let (code, preview) = invoke(
+            &[
+                "client".into(),
+                "delivery".into(),
+                "codex".into(),
+                "preview".into(),
+                root_arg.clone(),
+                cache_arg.clone(),
+                intent_arg.clone(),
+            ],
+            "codexpreview",
+        );
+        assert_eq!(code, 0, "{preview}");
+        assert_eq!(preview["state"], "prepared");
+        let expected_packet_id = preview["value"]["delivery_envelope"]["packet_id"]
+            .as_str()
+            .expect("packet identity")
+            .to_owned();
+        let preview_path = input.0.join("delivery-preview.json");
+        fs::write(
+            &preview_path,
+            serde_json::to_vec(&preview).expect("delivery preview JSON"),
+        )
+        .expect("delivery preview fixture");
+        let nonexistent_binary = input.0.join("not-a-codex-binary");
+        let (code, apply_preview) = invoke(
+            &[
+                "client".into(),
+                "delivery".into(),
+                "codex".into(),
+                "apply".into(),
+                preview_path.display().to_string(),
+                input.0.display().to_string(),
+                nonexistent_binary.display().to_string(),
+                expected_packet_id,
+            ],
+            "codexapply",
+        );
+        assert_eq!(code, 0, "{apply_preview}");
+        assert_eq!(apply_preview["state"], "apply_required");
+        assert_eq!(apply_preview["client_io_performed"], false);
+        assert_eq!(fs::read(&source).expect("source after"), source_before);
     }
 
     #[test]

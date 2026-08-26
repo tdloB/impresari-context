@@ -18,6 +18,15 @@ pub const ADAPTER_CONTRACT_VERSION: &str = "1.0.0";
 /// Client-neutral contract version for one explicitly prepared delivery packet.
 pub const GUIDED_DELIVERY_CONTRACT_VERSION: &str = "1.0.0";
 
+/// Exact Codex App Server client identity admitted for the CI-3b adapter.
+pub const CODEX_APP_SERVER_CLIENT: &str = "codex";
+/// Process-local, ephemeral App Server scope; this is not a desktop-thread attachment.
+pub const CODEX_APP_SERVER_SCOPE: &str = "app_server_ephemeral";
+/// Codex App Server version admitted by this release.
+pub const CODEX_APP_SERVER_VERSION: &str = "0.149.0-alpha.4.1";
+/// The explicit App Server lifecycle point used for one packet handoff.
+pub const CODEX_APP_SERVER_LIFECYCLE_POINT: &str = "turn_start";
+
 /// Consumer policy for acquiring repository context.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -167,13 +176,13 @@ pub struct OsContextResponse {
 pub struct GuidedDeliveryIntent {
     /// Version expected by the caller.
     pub adapter_contract_version: String,
-    /// Fixed client identity; the initial implementation supports `reference` only.
+    /// Fixed client identity from the narrow guided-delivery allowlist.
     pub client: String,
-    /// Fixed scope; the initial implementation supports `process_local` only.
+    /// Fixed client scope from the narrow guided-delivery allowlist.
     pub scope: String,
     /// Client adapter version.
     pub client_version: String,
-    /// Documented lifecycle point; the initial implementation supports `prepare` only.
+    /// Documented lifecycle point from the narrow guided-delivery allowlist.
     pub lifecycle_point: String,
     /// Explicit one-delivery consent. False means no packet is prepared.
     pub consent: bool,
@@ -277,11 +286,7 @@ pub fn prepare_guided_delivery(
     if !intent.consent {
         return Ok(no_delivery(&intent, "explicit_consent_required"));
     }
-    if intent.client != "reference"
-        || intent.scope != "process_local"
-        || intent.client_version != GUIDED_DELIVERY_CONTRACT_VERSION
-        || intent.lifecycle_point != "prepare"
-    {
+    if !guided_delivery_identity_is_supported(&intent) {
         return Ok(no_delivery(&intent, "unsupported_client_lifecycle"));
     }
     if !delivery_intent_text_is_valid(&intent) {
@@ -320,6 +325,11 @@ pub fn prepare_guided_delivery(
     if snapshot.state != "current" || snapshot.freshness != "current" {
         return Ok(no_delivery(&intent, "snapshot_stale"));
     }
+    let prepared_reason_code = prepared_reason_code(&intent);
+    let client = intent.client.clone();
+    let scope = intent.scope.clone();
+    let client_version = intent.client_version.clone();
+    let lifecycle_point = intent.lifecycle_point.clone();
     let prepared = engine
         .build_profiled_context(&context, intent.task_profile, &intent.query, intent.budget)
         .map_err(AdapterError::Engine)?;
@@ -329,11 +339,11 @@ pub fn prepare_guided_delivery(
         schema_name: "guided-delivery-receipt".into(),
         schema_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
         outcome: "prepared".into(),
-        reason_code: "reference_packet_prepared".into(),
-        client: "reference".into(),
-        scope: "process_local".into(),
-        client_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
-        lifecycle_point: "prepare".into(),
+        reason_code: prepared_reason_code.into(),
+        client,
+        scope,
+        client_version,
+        lifecycle_point,
         request_id: context.request_id,
         event_id: context.event_id,
         workspace_identity: Some(snapshot.workspace_identity),
@@ -349,6 +359,25 @@ pub fn prepare_guided_delivery(
         packet_bytes: Some(packet_bytes),
         receipt,
     })
+}
+
+fn guided_delivery_identity_is_supported(intent: &GuidedDeliveryIntent) -> bool {
+    (intent.client == "reference"
+        && intent.scope == "process_local"
+        && intent.client_version == GUIDED_DELIVERY_CONTRACT_VERSION
+        && intent.lifecycle_point == "prepare")
+        || (intent.client == CODEX_APP_SERVER_CLIENT
+            && intent.scope == CODEX_APP_SERVER_SCOPE
+            && intent.client_version == CODEX_APP_SERVER_VERSION
+            && intent.lifecycle_point == CODEX_APP_SERVER_LIFECYCLE_POINT)
+}
+
+fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
+    if intent.client == CODEX_APP_SERVER_CLIENT {
+        "codex_app_server_packet_prepared"
+    } else {
+        "reference_packet_prepared"
+    }
 }
 
 fn delivery_intent_text_is_valid(intent: &GuidedDeliveryIntent) -> bool {

@@ -141,6 +141,14 @@ the [Codex L2 record](docs/verification/phase-2-codex-native-guidance.md), the
 the [Cursor L2 record](docs/verification/phase-2-cursor-native-guidance.md),
 and the [Copilot CLI L2 record](docs/verification/phase-2-copilot-cli-native-guidance.md).
 
+Codex also has an **experimental CI-3b guided-delivery preview/apply path** for
+its exact recorded App Server version. It is disabled by default, requires an
+explicit consented intent, a separately inspected packet preview, the displayed
+packet ID, and `--apply`. It starts only an ephemeral read-only/no-network
+session and denies authority requests. The first isolated live record timed out
+safely, so this is not an L3 or deterministic-delivery claim; see the
+[CI-3b verification record](docs/verification/ci-3b-codex-guided-delivery.md).
+
 The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)
 show user-invoked, non-mutating local stdio configurations for those clients.
 
