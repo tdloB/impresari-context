@@ -39,6 +39,7 @@ options = {
   temporary_root: nil,
   apply: false,
   model_smoke: false,
+  native_guidance_smoke: false,
 }
 
 OptionParser.new do |parser|
@@ -54,7 +55,12 @@ OptionParser.new do |parser|
   end
   parser.on("--apply", "Apply the explicit disposable-root preparation") { options[:apply] = true }
   parser.on("--model-smoke", "Run a bounded read-only model-directed MCP lifecycle smoke check") { options[:model_smoke] = true }
+  parser.on("--native-guidance-smoke", "Install the owned Cursor project rule and run the bounded model-directed MCP lifecycle smoke") do
+    options[:native_guidance_smoke] = true
+  end
 end.parse!
+
+options[:model_smoke] = true if options[:native_guidance_smoke]
 
 [options[:cursor], options[:cli], options[:mcp]].each do |path|
   abort("missing executable: #{path}") unless File.file?(path) && File.executable?(path)
@@ -271,11 +277,13 @@ if File.file?(fixture) && File.binread(fixture) == FIXTURE_CONTENT && Dir.childr
 end
 abort("disposable Cursor workspace must be empty before registration") unless Dir.children(workspace).empty?
 cursor_directory = File.join(workspace, ".cursor")
+rules_directory = File.join(cursor_directory, "rules")
 config_path = File.join(workspace, ".cursor", "mcp.json")
 permissions_path = File.join(workspace, ".cursor", "cli.json")
 File.write(fixture, FIXTURE_CONTENT)
 before = source_digest(workspace)
 installed = false
+guidance_installed = false
 enabled = false
 created_cursor_directory = false
 model_smoke_passed = false
@@ -288,6 +296,7 @@ permissions_content = JSON.generate({
 
 begin
   FileUtils.mkdir_p(cursor_directory)
+  FileUtils.mkdir_p(rules_directory) if options[:native_guidance_smoke]
   FileUtils.mkdir_p(server_cache)
   created_cursor_directory = true
   File.write(permissions_path, permissions_content)
@@ -298,6 +307,20 @@ begin
   install = JSON.parse(install_stdout)
   abort("managed Cursor configuration did not report an explicit write") unless install["external_write_performed"] == true
   installed = true
+
+  if options[:native_guidance_smoke]
+    guidance_stdout, = run_command(
+      options[:cli], "client", "guidance", "install", "cursor", workspace, "--apply",
+      chdir: workspace,
+    )
+    guidance = JSON.parse(guidance_stdout)
+    abort("Cursor native guidance did not report an explicit write") unless guidance["external_write_performed"] == true
+    guidance_installed = true
+    run_command(
+      options[:cli], "client", "guidance", "validate", "cursor", workspace,
+      chdir: workspace,
+    )
+  end
 
   run_command(
     options[:cli], "client", "kit", "validate", "cursor", options[:mcp], workspace, server_cache, config_path,
@@ -321,8 +344,13 @@ begin
       "--role", "local_user",
       "--occurred-at", FIXED_TIME,
     ])
+    native_guidance_request = if options[:native_guidance_smoke]
+                                "Apply the owned Impresari Context project rule for this request. "
+                              else
+                                ""
+                              end
     prompt = <<~PROMPT
-      Perform this exact read-only Impresari Context MCP lifecycle. Do not use
+      #{native_guidance_request}Perform this exact read-only Impresari Context MCP lifecycle. Do not use
       any shell, file, web, codebase, or non-MCP tool, and do not change files.
       Call these MCP tools in this order: context_session_open with session_id
       #{SESSION}; context_build with request_id #{REQUEST}, event_id #{EVENT},
@@ -364,6 +392,19 @@ ensure
     )
     abort("Cursor native approval removal failed:\n#{disable_stderr}\n#{disable_stdout}") unless disable_status.success?
   end
+  if guidance_installed
+    guidance_stdout, guidance_stderr, guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "remove", "cursor", workspace, "--apply",
+      chdir: workspace,
+    )
+    abort("Cursor native guidance removal failed:\n#{guidance_stderr}\n#{guidance_stdout}") unless guidance_status.success?
+    guidance = JSON.parse(guidance_stdout)
+    abort("Cursor native guidance removal did not report an explicit write") unless guidance["external_write_performed"] == true
+  end
+  if options[:native_guidance_smoke] && File.directory?(rules_directory)
+    abort("Cursor native guidance rules directory contains unexpected files") unless Dir.children(rules_directory).empty?
+    Dir.rmdir(rules_directory)
+  end
   if installed
     remove_stdout, remove_stderr, remove_status = Open3.capture3(
       options[:cli], "client", "kit", "remove", "cursor", options[:mcp], workspace, server_cache, config_path, "--apply",
@@ -395,4 +436,5 @@ puts JSON.generate({
   "source_immutable" => true,
   "expected_tools" => EXPECTED_TOOLS,
   "model_directed_smoke" => model_smoke_passed,
+  "native_guidance_smoke" => options[:native_guidance_smoke],
 })

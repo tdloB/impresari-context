@@ -133,12 +133,13 @@ Claude Code, Cursor, and GitHub Copilot CLI are first-class only for their
 recorded client/version/OS scopes. Gemini CLI and VS Code Copilot remain
 generic local-MCP integrations.
 
-Codex and Claude Code also have recorded-scope L2 native guidance. That
-guidance is opt-in and does not make conversational tool selection
-deterministic. Cursor and GitHub Copilot L2 guidance admissions remain separate
-roadmap work. See the [compatibility matrix](docs/reference/compatibility-matrix.md),
-the [Codex L2 record](docs/verification/phase-2-codex-native-guidance.md), and
-the [Claude Code L2 record](docs/verification/phase-2-claude-code-native-guidance.md).
+Codex, Claude Code, and Cursor also have recorded-scope L2 native guidance.
+That guidance is opt-in and does not make conversational tool selection
+deterministic. GitHub Copilot L2 guidance admission remains separate roadmap
+work. See the [compatibility matrix](docs/reference/compatibility-matrix.md),
+the [Codex L2 record](docs/verification/phase-2-codex-native-guidance.md), the
+[Claude Code L2 record](docs/verification/phase-2-claude-code-native-guidance.md),
+and the [Cursor L2 record](docs/verification/phase-2-cursor-native-guidance.md).
 
 The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)
 show user-invoked, non-mutating local stdio configurations for those clients.
