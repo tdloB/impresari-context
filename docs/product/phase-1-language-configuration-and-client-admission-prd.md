@@ -25,10 +25,11 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
 
 - Complete: Python, narrow strict-JSON, bounded JSONC, bounded TOML, and
   deliberately bounded YAML configuration evidence.
-- Complete: Codex's non-mutating project-scoped pre-admission kit, read-only
-  configuration validator, and deterministic App Server direct-tool lifecycle
-  plus packet-equivalence rehearsal. Codex remains Generic local MCP pending
-  full client admission.
+- Complete: Codex's explicit user-level configuration kit, read-only
+  configuration validator, malformed-configuration rejection, isolated
+  install/client-recognition/exact-removal record, and deterministic App
+  Server direct-tool lifecycle plus packet-equivalence rehearsal. Codex is
+  First-class only for the recorded Codex CLI/macOS aarch64 scope.
 - Complete: Claude Code and Cursor's non-mutating generic local-MCP guides and
   read-only JSON configuration validation. Claude Code `2.1.241` completed a
   malformed strict-configuration check and an isolated temporary-config
@@ -38,13 +39,10 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   enabling it; its malformed temporary project configuration was not loaded
   and left the fixture source unchanged. Cursor's documented command/args
   stdio form is accepted without allowing environment forwarding.
-- Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
-  still needs trusted-project clean-install/configuration-parser and exact
-  owned-entry-removal evidence; its initial supported scope is the recorded
-  Codex CLI/macOS aarch64 combination. Claude Code needs a user-reviewed
-  local-scope installation/removal record; Cursor still needs a user-approved
-  real-client lifecycle, packet-equivalence, platform/version, and
-  user-owned project-entry removal evidence.
+- Pending: first-class admission for Claude Code and Cursor. Claude Code
+  needs a user-reviewed local-scope installation/removal record; Cursor still
+  needs a user-approved real-client lifecycle, packet-equivalence,
+  platform/version, and user-owned project-entry removal evidence.
 
 ## Non-goals
 

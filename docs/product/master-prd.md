@@ -49,8 +49,9 @@ implementation sequence and phase scope:
    integrations.
 4. Add the deterministic context planner.
 5. Add Java, Kotlin, C#, impact evidence, and explicit incremental updates.
-6. Add demand-led language support, beginning with Swift, PHP, Ruby, C/C++,
-   Scala, Dart, and carefully constrained SQL.
+6. Add demand-led language support. Scala, Elixir, Clojure, and Haskell are
+   admitted first; further candidates include Swift, PHP, Ruby, C/C++, Dart,
+   and carefully constrained SQL only when evaluation evidence supports them.
 
 The roadmap document is authoritative for the detailed requirements, status,
 dependencies, and admission criteria of each phase. Future work must not

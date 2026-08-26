@@ -1,11 +1,13 @@
 # Local MCP Connection Guides
 
-- Version: 1.3
-- Published: 2026-08-23
-- Classification: Generic local MCP guides, not first-class integrations
+- Version: 1.4
+- Published: 2026-08-26
+- Classification: Local MCP guidance; the compatibility matrix is authoritative
 - Supported transport: local stdio only
 
 These guides render the fixed-launch contract for six common coding clients.
+Codex is first-class only for its recorded client/version/OS scope; the other
+named client guides remain generic unless their matrix row says otherwise.
 They do **not** run any command, modify a client configuration, install a hook,
 or edit a repository. A person must review and invoke any shown command or file
 change themselves.
@@ -28,69 +30,49 @@ flag for deterministic tests and rehearsals.
 
 ## Codex
 
-Codex supports local stdio MCP servers and shares one configuration across the
-ChatGPT desktop app, Codex CLI, and Codex IDE extension. The maintained
-pre-admission kit uses a **trusted project** configuration at
-`.codex/config.toml`; it never writes that file. A user must intentionally
-create or edit the project file and review the exact absolute paths:
+Codex supports local stdio MCP servers through its active **user-level Codex
+home** configuration (`$CODEX_HOME/config.toml`, or the default Codex home).
+On the recorded Codex CLI/App Server version, a `.codex/config.toml` file is
+not a runtime MCP configuration source—even after the containing folder is
+trusted. Do not put an Impresari MCP entry in a repository file expecting
+Codex to load it.
 
-```toml
-[mcp_servers."impresari-context"]
-command = "/absolute/path/to/impresari-context-mcp"
-args = [
-  "--workspace", "/absolute/path/to/source-workspace",
-  "--cache", "/absolute/path/to/separate-cache",
-  "--consumer-id", "consumer_codex_local",
-  "--role", "local_user"
-]
-enabled = true
-default_tools_approval_mode = "prompt"
+Use Codex's supported command to make a reviewed user-level registration:
+
+```text
+codex mcp add impresari-context -- \
+  /absolute/path/to/impresari-context-mcp \
+  --workspace /absolute/path/to/source-workspace \
+  --cache /absolute/path/to/separate-cache \
+  --consumer-id consumer_codex_local \
+  --role local_user
 ```
 
-The project must be trusted before Codex loads `.codex/config.toml`. Validate
-the exact entry without launching Codex or editing any configuration:
+Verify only that named entry with `codex mcp get impresari-context`. Remove
+only that same entry with `codex mcp remove impresari-context`; do not delete
+the complete user configuration or unrelated servers.
+
+The versioned Impresari kit can render, inspect, validate, preview, install,
+update, or remove an **explicitly named** user-level TOML target. It never
+discovers a default client home, changes project trust, signs in, or grants
+MCP approval. Validate a reviewed target without launching Codex:
 
 ```text
 impresari-context doctor codex-config \
   /absolute/path/to/source-workspace \
   /absolute/path/to/separate-cache \
-  .codex/config.toml
+  /absolute/path/to/CODEX_HOME/config.toml
 ```
 
-Then inspect the resolved client entry with `codex mcp get impresari-context
---json`. To remove this project-scoped entry, manually delete only the
-`[mcp_servers."impresari-context"]` table; do not delete the entire
-`.codex/config.toml` file or unrelated server entries. The user-level
-alternative is the Codex CLI command `codex mcp add <name> -- <command>
-[args...]`; it is intentionally not automated or used by this kit.
+The maintained disposable admission rehearsal uses an empty, explicit
+`CODEX_HOME` under `/private/tmp`; it applies and removes the kit's exact
+entry there, then proves the direct App Server lifecycle and packet
+equivalence. It never writes the user's actual Codex configuration or creates
+project trust.
 
-For the pending first-class clean-install admission record, the repository
-provides an explicit, disposable rehearsal. Its first invocation is a
-write-free preview. Review its reported `/private/tmp` paths before applying
-the preparation:
-
-```text
-ruby scripts/rehearse-codex-app-server.rb \
-  --prepare-project-root /private/tmp/impresari-codex-l1-admission
-```
-
-Only after review, prepare that disposable root:
-
-```text
-ruby scripts/rehearse-codex-app-server.rb \
-  --prepare-project-root /private/tmp/impresari-codex-l1-admission --apply
-```
-
-Open and trust the reported `workspace` directory in Codex, then run the
-rehearsal with `--project-config --temporary-root
-/private/tmp/impresari-codex-l1-admission`.
-The rehearsal installs and validates only its exact owned entry, proves the
-direct App Server lifecycle and packet equivalence, then removes only that
-entry. It never writes the user's shared Codex configuration.
-
-This pre-admission kit has been locally checked against Codex CLI
-`0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and remaining
-first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
+This managed user-configuration surface has been locally checked against
+Codex CLI `0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and
+remaining first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
 
 ## Claude Code
 
