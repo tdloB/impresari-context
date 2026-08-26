@@ -60,6 +60,7 @@ returns `74`; success returns `0`.
 | `doctor codex-config <root> <cache-root> <config-toml>` | Existing workspace/cache and a Codex user-home TOML config | `doctor-report` with a source-free fixed-stdio user-configuration check |
 | `doctor cursor-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Cursor-format config | `doctor-report` with a source-free fixed-stdio configuration check |
 | `doctor claude-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Claude-format config | `doctor-report` with a source-free fixed-stdio configuration check |
+| `doctor vscode-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a VS Code portable Agent Host config | `doctor-report` with a source-free fixed-stdio configuration check |
 
 The structural worker is never downloaded or discovered. The caller supplies
 its executable and SHA-256 identity. Numeric work is constrained by the
@@ -129,6 +130,13 @@ type are accepted. Both validators reject environment forwarding and unrelated
 entry fields. They do not display, normalize, or rewrite the configuration;
 launch either client; verify the referenced binary; or claim the client is
 first-class.
+
+`doctor vscode-config` parses a bounded JSON portable workspace `.mcp.json`
+file. It requires an exact `servers.impresari-context` entry with `type` set to
+`stdio`, an absolute command, fixed workspace/cache/consumer/role arguments,
+and no environment, input-variable, remote, or sandbox configuration. It does
+not launch VS Code, trust or enable a server, inspect a user profile, or claim
+the client is first-class.
 
 ## Local MCP process
 
