@@ -56,6 +56,6 @@ until it independently meets the L1 evidence contract.
 
 The Master PRD, Phase 2 PRD, ADR-0018, ADR-0035, and client-integration
 roadmap were reassessed. Copilot CLI completes its independent CI-1 L1 target;
-the approved language roadmap does not change. The next client admission is
-the distinct VS Code Copilot surface, followed by opt-in L2 guidance only where
-each recorded client supports it.
+the approved language roadmap does not change. Its distinct CI-2 result is
+recorded in the [Copilot CLI L2 native-guidance record](phase-2-copilot-cli-native-guidance.md).
+The VS Code Copilot extension remains a separate L1 client surface.

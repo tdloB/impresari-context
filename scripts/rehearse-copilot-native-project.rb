@@ -33,6 +33,7 @@ options = {
   prepared_root: nil,
   temporary_root: nil,
   apply: false,
+  native_guidance_smoke: false,
 }
 
 OptionParser.new do |parser|
@@ -47,6 +48,9 @@ OptionParser.new do |parser|
     options[:temporary_root] = value
   end
   parser.on("--apply", "Apply the explicit disposable-root preparation") { options[:apply] = true }
+  parser.on("--native-guidance-smoke", "Install the owned Copilot repository instruction and run the bounded MCP lifecycle smoke") do
+    options[:native_guidance_smoke] = true
+  end
 end.parse!
 
 [options[:cli], options[:mcp]].each do |path|
@@ -90,7 +94,9 @@ def source_digest(workspace)
     Dir.glob(File.join(workspace, "**", "*"), File::FNM_DOTMATCH)
        .select do |path|
          relative = path.delete_prefix("#{workspace}/")
-         File.file?(path) && relative != ".mcp.json" && !relative.start_with?(".git/")
+         File.file?(path) && relative != ".mcp.json" &&
+           relative != ".github/instructions/impresari-context.instructions.md" &&
+           !relative.start_with?(".git/")
        end
        .sort
        .map { |path| "#{path.delete_prefix(workspace)}\t#{Digest::SHA256.file(path).hexdigest}\n" }
@@ -253,10 +259,13 @@ cache = paths.fetch(:cache).to_s
 server_cache = File.join(cache, "copilot-mcp-#{Process.pid}")
 direct_cache = File.join(cache, "direct-mcp-#{Process.pid}")
 config_path = File.join(workspace, ".mcp.json")
+github_directory = File.join(workspace, ".github")
+instructions_directory = File.join(github_directory, "instructions")
 trust_config_path = File.join(home, "config.json")
 fixture = File.join(workspace, FIXTURE_NAME)
 environment = { "COPILOT_HOME" => home }
 installed = false
+guidance_installed = false
 trusted = false
 
 begin
@@ -275,6 +284,20 @@ begin
   installed = true
   install = JSON.parse(install_stdout)
   abort("managed Copilot project configuration did not report an explicit write") unless install["external_write_performed"] == true
+  if options[:native_guidance_smoke]
+    FileUtils.mkdir_p(instructions_directory)
+    guidance_stdout, guidance_stderr, guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "install", "copilot", workspace, "--apply",
+    )
+    abort("Copilot native guidance install failed:\n#{guidance_stderr}\n#{guidance_stdout}") unless guidance_status.success?
+    guidance = JSON.parse(guidance_stdout)
+    abort("Copilot native guidance did not report an explicit write") unless guidance["external_write_performed"] == true
+    guidance_installed = true
+    validate_guidance_stdout, validate_guidance_stderr, validate_guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "validate", "copilot", workspace,
+    )
+    abort("Copilot native guidance validation failed:\n#{validate_guidance_stderr}\n#{validate_guidance_stdout}") unless validate_guidance_status.success?
+  end
   validate_stdout, validate_stderr, validate_status = Open3.capture3(
     options[:cli], "client", "kit", "validate", "copilot", options[:mcp], workspace, server_cache, config_path,
   )
@@ -314,19 +337,28 @@ begin
     "--role", "local_user",
     "--occurred-at", FIXED_TIME,
   ])
+  native_guidance_request = if options[:native_guidance_smoke]
+                              "The task concerns #{FIXTURE_NAME}; apply the owned Impresari Context project instruction. "
+                            else
+                              ""
+                            end
   prompt = <<~PROMPT
-    Perform this exact Impresari Context MCP lifecycle. Use no other tools.
+    #{native_guidance_request}Perform this exact Impresari Context MCP lifecycle. Use no other tools.
     1. Call context_session_open with {"session_id":"#{SESSION}"}.
     2. Call context_build with {"request_id":"#{REQUEST}","event_id":"#{EVENT}","purpose":"#{PURPOSE}","occurred_at":"#{FIXED_TIME}","steps":[{"kind":"literal","query":"#{QUERY}"}],"budget":#{JSON.generate(conservative_budget)},"session_id":"#{SESSION}"}.
     3. Call context_packet_resolve with the same session_id and the packet_id returned by context_build.
     4. Call context_session_close with {"session_id":"#{SESSION}"}.
     Reply only after all four calls complete.
   PROMPT
-  copilot_stdout, copilot_stderr, copilot_status = Open3.capture3(
-    environment, options[:copilot],
-    "--disable-builtin-mcps", "--no-remote", "--no-auto-update", "--no-custom-instructions",
+  copilot_arguments = [
+    "--disable-builtin-mcps", "--no-remote", "--no-auto-update",
     "--log-dir", root.to_s, "--available-tools", COPILOT_TOOLS.join(","),
     "--allow-all-tools", "--allow-all-paths", "--output-format", "json", "--prompt", prompt,
+  ]
+  copilot_arguments << "--no-custom-instructions" unless options[:native_guidance_smoke]
+  copilot_stdout, copilot_stderr, copilot_status = Open3.capture3(
+    environment, options[:copilot],
+    *copilot_arguments,
     chdir: workspace,
   )
   abort("Copilot project MCP lifecycle failed:\n#{copilot_stderr}\n#{copilot_stdout}") unless copilot_status.success?
@@ -351,6 +383,14 @@ begin
   abort("direct MCP packet differs from Copilot-delivered packet") unless direct_packet == built_packet
   abort("source workspace changed during Copilot project lifecycle") unless before == source_digest(workspace)
 ensure
+  if guidance_installed
+    guidance_stdout, guidance_stderr, guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "remove", "copilot", workspace, "--apply",
+    )
+    abort("Copilot native guidance removal failed:\n#{guidance_stderr}\n#{guidance_stdout}") unless guidance_status.success?
+    guidance = JSON.parse(guidance_stdout)
+    abort("Copilot native guidance removal did not report an explicit write") unless guidance["external_write_performed"] == true
+  end
   if installed
     remove_stdout, remove_stderr, remove_status = Open3.capture3(
       options[:cli], "client", "kit", "remove", "copilot", options[:mcp], workspace, server_cache, config_path, "--apply",
@@ -364,6 +404,12 @@ ensure
     abort("refusing to remove an unexpected disposable Copilot trusted-folder entry") unless configuration["trustedFolders"] == [workspace]
     configuration.delete("trustedFolders")
     write_copilot_config(trust_config_path, configuration)
+  end
+  if options[:native_guidance_smoke] && File.directory?(instructions_directory)
+    abort("Copilot native guidance directory contains unexpected files") unless Dir.children(instructions_directory).empty?
+    Dir.rmdir(instructions_directory)
+    abort("Copilot GitHub directory contains unexpected files") unless Dir.children(github_directory).empty?
+    Dir.rmdir(github_directory)
   end
 end
 
@@ -385,4 +431,5 @@ puts JSON.generate({
   "source_immutable" => true,
   "direct_mcp_packet_equivalence" => true,
   "tool_lifecycle" => CORE_TOOLS,
+  "native_guidance_smoke" => options[:native_guidance_smoke],
 })
