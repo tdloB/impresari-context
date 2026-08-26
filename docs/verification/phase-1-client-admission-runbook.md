@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code live temporary-configuration lifecycle and Cursor temporary configuration discovery recorded
+- Status: Claude Code live temporary-configuration lifecycle and Cursor temporary configuration discovery/fail-closed malformed handling recorded
 - Date: 2026-08-23
 - Scope: Claude Code and Cursor only
 
@@ -39,6 +39,11 @@ aarch64. A development-only rehearsal made an isolated temporary workspace,
 separate cache, and `.cursor/mcp.json`; `cursor agent mcp list` discovered the
 fixed local-stdio server. It did not invoke `enable`, did not call an AI model,
 and preserved the temporary workspace after the configuration was written.
+
+The same isolated rehearsal supplied malformed `.cursor/mcp.json`. Cursor CLI
+`3.17.8` exited without loading any MCP server, did not expose fixture source
+in its diagnostic, and did not alter the fixture. This is a fail-closed
+configuration behavior rather than a parse-error exit and is recorded as such.
 
 The Cursor CLI treats MCP enablement as a change to local approval state. A
 real tool lifecycle therefore requires an intentional, user-owned approval of

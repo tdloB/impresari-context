@@ -35,15 +35,16 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   lifecycle with direct packet equivalence, without source mutation or
   persistent registration. Signed-in Cursor Agent CLI `3.17.8` on macOS
   aarch64 discovered an isolated temporary project configuration without
-  enabling it. Cursor's documented command/args stdio form is accepted without
-  allowing environment forwarding.
+  enabling it; its malformed temporary project configuration was not loaded
+  and left the fixture source unchanged. Cursor's documented command/args
+  stdio form is accepted without allowing environment forwarding.
 - Pending: first-class admission for Codex, Claude Code, and Cursor. Codex
   still needs trusted-project clean-install/configuration-parser and exact
   owned-entry-removal evidence; its initial supported scope is the recorded
   Codex CLI/macOS aarch64 combination. Claude Code needs a user-reviewed
-  local-scope installation/removal record; Cursor still needs a user-approved real-client lifecycle,
-  packet-equivalence, malformed-configuration, platform/version, removal, and
-  source-immutability evidence.
+  local-scope installation/removal record; Cursor still needs a user-approved
+  real-client lifecycle, packet-equivalence, platform/version, and
+  user-owned project-entry removal evidence.
 
 ## Non-goals
 

@@ -24,6 +24,7 @@ options = {
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   prepared_project_root: nil,
   apply: false,
+  malformed_config_only: false,
 }
 
 OptionParser.new do |parser|
@@ -35,6 +36,9 @@ OptionParser.new do |parser|
     options[:prepared_project_root] = value
   end
   parser.on("--apply", "Apply the explicit disposable-project preparation") { options[:apply] = true }
+  parser.on("--malformed-config-only", "Verify Cursor does not load malformed temporary MCP configuration without starting a model") do
+    options[:malformed_config_only] = true
+  end
 end.parse!
 
 [options[:cursor], options[:cli], options[:mcp]].each do |path|
@@ -105,12 +109,44 @@ end
 Dir.mktmpdir("impresari-cursor-preadmission-") do |temporary|
   workspace = File.join(temporary, "workspace")
   cache = File.join(temporary, "cache")
+  malformed_workspace = File.join(temporary, "malformed-workspace")
   cursor_directory = File.join(workspace, ".cursor")
-  FileUtils.mkdir_p([cache, cursor_directory])
+  malformed_cursor_directory = File.join(malformed_workspace, ".cursor")
+  FileUtils.mkdir_p([cache, cursor_directory, malformed_cursor_directory])
   File.write(
     File.join(workspace, "probe.ts"),
     "export const __impresari_cursor_preadmission_probe__ = true;\n",
   )
+  File.write(
+    File.join(malformed_workspace, "probe.ts"),
+    "export const __impresari_cursor_malformed_probe__ = true;\n",
+  )
+  malformed_config_path = File.join(malformed_cursor_directory, "mcp.json")
+  File.write(malformed_config_path, "{\"mcpServers\":")
+  malformed_before = tree_digest(malformed_workspace)
+  malformed_stdout, malformed_stderr, _malformed_status = Open3.capture3(
+    options[:cursor], "agent", "mcp", "list", chdir: malformed_workspace,
+  )
+  malformed_output = "#{malformed_stdout}\n#{malformed_stderr}"
+  if malformed_output.include?(SERVER)
+    abort("Cursor Agent loaded a server from malformed temporary MCP configuration:\n#{malformed_output}")
+  end
+  if malformed_output.include?("__impresari_cursor_malformed_probe__")
+    abort("Cursor malformed configuration diagnostic exposed fixture source")
+  end
+  unless malformed_before == tree_digest(malformed_workspace)
+    abort("Cursor Agent altered the malformed temporary workspace")
+  end
+  if options[:malformed_config_only]
+    puts JSON.generate({
+      "status" => "passed",
+      "cursor" => options[:cursor],
+      "malformed_configuration_fails_closed" => true,
+      "source_immutable" => true,
+      "mcp_approval_granted" => false,
+    })
+    next
+  end
   before = tree_digest(workspace)
   config_path = File.join(cursor_directory, "mcp.json")
   install_stdout, install_stderr, install_status = Open3.capture3(
@@ -140,6 +176,7 @@ Dir.mktmpdir("impresari-cursor-preadmission-") do |temporary|
     "server" => SERVER,
     "workspace_immutable_after_configuration" => true,
     "managed_install_validate_remove" => true,
+    "malformed_configuration_fails_closed" => true,
     "mcp_approval_granted" => false,
   })
 end
