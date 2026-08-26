@@ -1,7 +1,7 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code live temporary-configuration lifecycle and Cursor temporary configuration discovery/fail-closed malformed handling recorded
-- Date: 2026-08-23
+- Status: Claude Code L1 admitted for recorded scope; Cursor temporary configuration discovery/fail-closed malformed handling recorded
+- Date: 2026-08-26
 - Scope: Claude Code and Cursor only
 
 ## Why this requires a person
@@ -24,13 +24,13 @@ proved direct-MCP packet equivalence, preserved the fixture workspace, and
 confirmed that no persistent MCP server named `impresari-context` was
 registered.
 
-The result remains Generic local MCP until the user-reviewed local-scope
-installation and single-entry removal record is completed. The detailed
-evidence and remaining First-class criteria are in the [Claude Code kit
-record](phase-1-claude-code-connection-kit.md).
-
-The eventual user-reviewed registration, verification, and single-entry
-removal commands are in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#claude-code).
+A second native rehearsal started with an explicit empty Claude `HOME` under
+`/private/tmp`, used `claude mcp add/get/remove --scope local`, verified the
+fixed connected stdio entry, removed exactly that entry, and confirmed its
+absence. It did not inspect or change the user's actual Claude home. Together
+these records admit Claude Code as **First-class** only for CLI `2.1.241` on
+macOS aarch64. The detailed evidence and recorded-scope limits are in the
+[Claude Code kit record](phase-1-claude-code-connection-kit.md).
 
 ## Cursor preadmission record
 
@@ -76,5 +76,6 @@ For each client, the admission record will capture:
 - malformed configuration behavior; and
 - safe removal of only the Impresari Context entry.
 
-No client is promoted to **First-class** until the public matrix and its
-machine-readable manifest contain this evidence.
+The public matrix and its machine-readable manifest promote only clients whose
+individual evidence record is complete. Claude Code and Codex are admitted for
+their explicitly recorded scopes; Cursor remains pending.

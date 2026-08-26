@@ -6,8 +6,9 @@
 - Supported transport: local stdio only
 
 These guides render the fixed-launch contract for six common coding clients.
-Codex is first-class only for its recorded client/version/OS scope; the other
-named client guides remain generic unless their matrix row says otherwise.
+Codex and Claude Code are first-class only for their recorded client/version/OS
+scopes; the other named client guides remain generic unless their matrix row
+says otherwise.
 They do **not** run any command, modify a client configuration, install a hook,
 or edit a repository. A person must review and invoke any shown command or file
 change themselves.
@@ -72,7 +73,7 @@ project trust.
 
 This managed user-configuration surface has been locally checked against
 Codex CLI `0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and
-remaining first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
+recorded-scope limits are in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
 
 ## Claude Code
 
@@ -81,7 +82,7 @@ current CLI defaults to local scope when no `--scope` is supplied; the
 following is therefore a user-invoked local-scope example:
 
 ```text
-claude mcp add --transport stdio impresari-context -- \
+claude mcp add --scope local --transport stdio impresari-context -- \
   /absolute/path/to/impresari-context-mcp \
   --workspace /absolute/path/to/source-workspace \
   --cache /absolute/path/to/separate-cache \
@@ -102,27 +103,28 @@ When validating a JSON configuration file before use, run:
 impresari-context doctor claude-config <workspace-root> <separate-cache> <mcp-json>
 ```
 
-The generic kit has been exercised through Claude Code CLI `2.1.241` on macOS
-aarch64 using an isolated one-run `--mcp-config` and `--strict-mcp-config`. The
-host record rejects malformed configuration, completes the core lifecycle with
-direct packet equivalence, and does not register a persistent server. Its
-evidence and remaining admission gaps are recorded in the [Phase 1 Claude Code
-kit record](../verification/phase-1-claude-code-connection-kit.md).
+The managed connection has been exercised through Claude Code CLI `2.1.241` on
+macOS aarch64 in two separate disposable paths: a strict one-run
+`--mcp-config` lifecycle with direct packet equivalence and a native
+`claude mcp add/get/remove --scope local` lifecycle rooted in an explicit empty
+`/private/tmp` Claude home. The latter checks only the exact named entry and
+removes it again; neither path reads or changes the user's actual Claude
+configuration. Its evidence and recorded-scope limits are in the [Phase 1
+Claude Code kit record](../verification/phase-1-claude-code-connection-kit.md).
 
-For the remaining user-reviewed local-scope record, the rehearsal provides a
-write-free preview of a disposable source/cache pair:
+For an independently reviewed local-scope rehearsal, first preview a
+disposable Claude home, workspace, and cache:
 
 ```text
-ruby scripts/rehearse-claude-code.rb \
-  --prepare-project-root /private/tmp/impresari-claude-l1-admission
-# inspect the preview, then rerun the same command with --apply
+ruby scripts/rehearse-claude-native-local-scope.rb \
+  --prepare-root /private/tmp/impresari-claude-l1-admission
+# inspect the preview, then rerun the same command with --apply;
+# finally run it with --temporary-root using that exact root
 ```
 
-It writes no Claude configuration. The user may then use only the reported
-paths in the local-scope `claude mcp add` command above, inspect the entry with
-`claude mcp get impresari-context`, and remove it with `claude mcp remove
---scope local impresari-context`. That persistent local registration/removal
-decision is not automated by Impresari Context.
+The normal product path remains the explicit user-invoked command above. The
+rehearsal never targets a default home or turns a project-shared `.mcp.json`
+into an implicit configuration target.
 
 ## Cursor
 

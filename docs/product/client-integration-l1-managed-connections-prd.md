@@ -83,3 +83,16 @@ discover or automatically write a real user home. The isolated admission
 rehearsal may use an explicit empty `/private/tmp` `CODEX_HOME`, where it
 proves malformed-configuration rejection, exact install/recognition/removal,
 deterministic lifecycle, packet equivalence, and source immutability.
+
+## Claude Code scope admission
+
+Claude Code CLI `2.1.241` on macOS aarch64 exposes a native `local` MCP scope
+through `claude mcp add/get/remove --scope local`. The Claude L1 record uses an
+explicit empty disposable `HOME` under `/private/tmp`, rather than a default
+user home, to prove the fixed entry is accepted, connected, and exactly
+removed. Its independent strict temporary-configuration rehearsal records the
+model-directed session/packet lifecycle and direct-packet equivalence.
+
+The model-directed step is live smoke evidence only; native add/get/remove,
+fixed configuration validation, malformed-input rejection, source
+immutability, and entry-specific removal remain deterministic admission gates.

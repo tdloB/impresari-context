@@ -3607,7 +3607,7 @@ mod tests {
         );
         assert_eq!(
             manifest["first_class_clients"],
-            serde_json::json!(["Codex"])
+            serde_json::json!(["Codex", "Claude Code"])
         );
         let first_class = manifest["client_support"]
             .as_array()
@@ -3615,12 +3615,31 @@ mod tests {
             .iter()
             .filter(|entry| entry["first_class"] == true)
             .collect::<Vec<_>>();
-        assert_eq!(first_class.len(), 1, "client promotion must be explicit");
-        assert_eq!(first_class[0]["client"], "Codex");
-        assert_eq!(first_class[0]["classification"], "first_class");
+        assert_eq!(first_class.len(), 2, "client promotion must be explicit");
+        let first_class_contracts = first_class
+            .iter()
+            .map(|entry| {
+                (
+                    entry["client"].as_str().expect("first-class client"),
+                    entry["classification"].as_str().expect("classification"),
+                    entry["conformance"].as_str().expect("conformance"),
+                )
+            })
+            .collect::<std::collections::BTreeSet<_>>();
         assert_eq!(
-            first_class[0]["conformance"],
-            "managed_user_home_configuration_and_app_server_direct_tool_conformance"
+            first_class_contracts,
+            std::collections::BTreeSet::from([
+                (
+                    "Claude Code",
+                    "first_class",
+                    "managed_local_scope_configuration_and_bounded_model_directed_lifecycle",
+                ),
+                (
+                    "Codex",
+                    "first_class",
+                    "managed_user_home_configuration_and_app_server_direct_tool_conformance",
+                ),
+            ])
         );
     }
 
