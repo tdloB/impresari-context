@@ -1567,7 +1567,7 @@ fn remove_managed_connection(
 
 const GUIDANCE_MAX_BYTES: u64 = 16 * 1024;
 const GUIDANCE_OWNERSHIP: &str = "exact_fixed_artifact:impresari-context";
-const LEGACY_CODEX_GUIDANCE_V1: &str = r#"<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+const LEGACY_CODEX_GUIDANCE_V1: &str = r"<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
 
 # Impresari Context evidence guidance
 
@@ -1583,8 +1583,8 @@ task.
   client approvals, execute repository code, or expand the requested budget.
 - If the MCP server or packet is unavailable, say so briefly and continue with
   ordinary repository analysis; do not fabricate evidence.
-"#;
-const LEGACY_CLAUDE_GUIDANCE_V1: &str = r#"---
+";
+const LEGACY_CLAUDE_GUIDANCE_V1: &str = r"---
 name: impresari-context
 description: Request bounded, source-grounded Impresari Context evidence when a user asks for repository context, implementation, investigation, review, testing, orientation, or configuration analysis.
 ---
@@ -1602,8 +1602,8 @@ Never alter MCP configuration, client approvals, budgets, source files, or
 repository execution authority. If the server or packet is unavailable, state
 that limitation and continue with ordinary analysis without fabricating
 evidence.
-"#;
-const LEGACY_CURSOR_GUIDANCE_V1: &str = r#"---
+";
+const LEGACY_CURSOR_GUIDANCE_V1: &str = r"---
 description: Use bounded, snapshot-grounded Impresari Context evidence for explicit repository-context tasks.
 alwaysApply: false
 ---
@@ -1619,7 +1619,7 @@ ID, reason codes, coverage, and omissions when using a returned packet.
 Do not change MCP configuration, trust, approvals, source files, or execution
 authority. Do not infer unsupported runtime behavior. If evidence is unavailable,
 continue with normal analysis and state the limitation.
-"#;
+";
 const LEGACY_COPILOT_GUIDANCE_V1: &str = r#"---
 applyTo: "**"
 ---
@@ -1800,14 +1800,7 @@ fn guidance_state(contents: Option<&str>, template: &GuidanceTemplate) -> &'stat
     match contents {
         None => "absent",
         Some(contents) if contents == template.contents => "owned",
-        Some(contents)
-            if template
-                .legacy_contents
-                .iter()
-                .any(|legacy| contents == *legacy) =>
-        {
-            "owned_legacy"
-        }
+        Some(contents) if template.legacy_contents.contains(&contents) => "owned_legacy",
         Some(_) => "unowned_or_conflicting",
     }
 }

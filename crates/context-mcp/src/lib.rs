@@ -914,7 +914,7 @@ mod tests {
             "max_evidence_items":20, "max_files":100,
             "max_excerpt_bytes_per_item":256, "max_matches":100,
             "max_traversal_depth":8, "max_elapsed_ms":30000,
-            "max_memory_bytes":1048576, "policy_profile":POLICY_PROFILE
+            "max_memory_bytes":1_048_576, "policy_profile":POLICY_PROFILE
         });
         let request = json!({
             "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
