@@ -23,12 +23,18 @@ REQUEST = "req_claude_conformance01"
 EVENT = "evt_claude_conformance01"
 PURPOSE = "claude_code_conformance"
 QUERY = "__impresari_claude_conformance_probe__"
+L2_SESSION = "session_claudel2guidance01"
+L2_REQUEST = "req_claudel2guidance01"
+L2_EVENT = "evt_claudel2guidance01"
+L2_PURPOSE = "claude_code_l2_guidance"
+L2_QUERY = "probe"
 
 options = {
   claude: DEFAULT_CLAUDE,
   cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   malformed_config_only: false,
+  native_guidance_smoke: false,
   prepared_project_root: nil,
   apply: false,
 }
@@ -40,6 +46,9 @@ OptionParser.new do |parser|
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
   parser.on("--malformed-config-only", "Verify strict temporary MCP configuration rejection without a model request") do
     options[:malformed_config_only] = true
+  end
+  parser.on("--native-guidance-smoke", "Verify the installed project skill is discovered and guides one model-directed packet lifecycle") do
+    options[:native_guidance_smoke] = true
   end
   parser.on("--prepare-project-root PATH", "Preview or prepare a disposable Claude Code source/cache root under /private/tmp") do |value|
     options[:prepared_project_root] = value
@@ -274,13 +283,31 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     options[:cli], "client", "kit", "validate", "claude", options[:mcp], workspace, cache, config_path,
   )
   abort("managed Claude configuration validation failed:\n#{validate_stderr}\n#{validate_stdout}") unless validate_status.success?
-  direct_packet = direct_mcp_packet(options[:mcp], [
-    "--workspace", workspace,
-    "--cache", direct_mcp_cache,
-    "--consumer-id", "consumer_claude_managed",
-    "--role", "local_user",
-    "--occurred-at", FIXED_TIME,
-  ])
+  guidance_installed = false
+  if options[:native_guidance_smoke]
+    guidance_parent = File.join(workspace, ".claude", "skills", SERVER)
+    FileUtils.mkdir_p(guidance_parent)
+    guidance_stdout, guidance_stderr, guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "install", "claude", workspace, "--apply",
+    )
+    abort("Claude Code native guidance install failed:\n#{guidance_stderr}\n#{guidance_stdout}") unless guidance_status.success?
+    guidance = JSON.parse(guidance_stdout)
+    abort("Claude Code native guidance did not report an explicit write") unless guidance["external_write_performed"] == true
+    guidance_installed = true
+    check_stdout, check_stderr, check_status = Open3.capture3(
+      options[:cli], "client", "guidance", "validate", "claude", workspace,
+    )
+    abort("Claude Code native guidance validation failed:\n#{check_stderr}\n#{check_stdout}") unless check_status.success?
+  end
+  direct_packet = unless options[:native_guidance_smoke]
+                    direct_mcp_packet(options[:mcp], [
+                      "--workspace", workspace,
+                      "--cache", direct_mcp_cache,
+                      "--consumer-id", "consumer_claude_managed",
+                      "--role", "local_user",
+                      "--occurred-at", FIXED_TIME,
+                    ])
+                  end
 
   tools = [
     "mcp__#{SERVER}__context_session_open",
@@ -288,24 +315,37 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     "mcp__#{SERVER}__context_packet_resolve",
     "mcp__#{SERVER}__context_session_close",
   ]
-  prompt = <<~PROMPT
-    Perform this exact MCP conformance lifecycle and do not describe a plan.
-    Use only the available MCP tools, in this order.
-    1. Call #{tool_input("context_session_open", { "session_id" => SESSION })}.
-    2. Call #{tool_input("context_build", {
-      "request_id" => REQUEST,
-      "event_id" => EVENT,
-      "purpose" => PURPOSE,
-      "occurred_at" => FIXED_TIME,
-      "steps" => [{ "kind" => "literal", "query" => QUERY }],
-      "budget" => conservative_budget,
-      "session_id" => SESSION,
-    })}.
-    3. From the build result, call context_packet_resolve with the same session_id
-       and its returned packet_id.
-    4. Call #{tool_input("context_session_close", { "session_id" => SESSION })}.
-    Reply only after all four calls complete.
-  PROMPT
+  prompt = if options[:native_guidance_smoke]
+             <<~PROMPT
+               Invoke the project skill /#{SERVER} for this explicit supported task.
+               Use profile orientation and query #{L2_QUERY.inspect}. For context_build use
+               request_id #{L2_REQUEST.inspect}, event_id #{L2_EVENT.inspect}, purpose
+               #{L2_PURPOSE.inspect}, occurred_at #{FIXED_TIME.inspect}, and a hard budget
+               conforming to the server tool schema. Use only the Impresari Context MCP tools
+               required by the skill. Do not read, write, or run anything else. After the packet
+               is resolved and the session is closed, report packet identity, coverage, and
+               omissions.
+             PROMPT
+           else
+             <<~PROMPT
+               Perform this exact MCP conformance lifecycle and do not describe a plan.
+               Use only the available MCP tools, in this order.
+               1. Call #{tool_input("context_session_open", { "session_id" => SESSION })}.
+               2. Call #{tool_input("context_build", {
+                 "request_id" => REQUEST,
+                 "event_id" => EVENT,
+                 "purpose" => PURPOSE,
+                 "occurred_at" => FIXED_TIME,
+                 "steps" => [{ "kind" => "literal", "query" => QUERY }],
+                 "budget" => conservative_budget,
+                 "session_id" => SESSION,
+               })}.
+               3. From the build result, call context_packet_resolve with the same session_id
+                  and its returned packet_id.
+               4. Call #{tool_input("context_session_close", { "session_id" => SESSION })}.
+               Reply only after all four calls complete.
+             PROMPT
+           end
   command = [
     options[:claude], "-p", prompt,
     "--mcp-config", config_path,
@@ -335,6 +375,12 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
   if tool_results.length != tools.length || tool_results.any? { |result| result["is_error"] == true }
     abort("Claude Code received an MCP tool error or incomplete result set:\n#{stdout}")
   end
+  if options[:native_guidance_smoke]
+    initialized = events.find { |event| event["type"] == "system" && event["subtype"] == "init" }
+    skills = Array(initialized&.fetch("skills", nil))
+    commands = Array(initialized&.fetch("slash_commands", nil))
+    abort("Claude Code did not discover the owned project skill:\n#{stdout}") unless skills.include?(SERVER) && commands.include?(SERVER)
+  end
   tool_use_names = events.flat_map do |event|
     Array(event.dig("message", "content")).map do |block|
       [block["id"], block["name"]] if block["type"] == "tool_use"
@@ -347,12 +393,18 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
   built_packet = results_by_name.fetch("mcp__#{SERVER}__context_build").fetch("packet")
   resolved_packet = results_by_name.fetch("mcp__#{SERVER}__context_packet_resolve").fetch("packet")
   abort("Claude Code resolved packet differs from its delivered packet") unless resolved_packet == built_packet
-  abort("direct MCP packet differs from Claude Code-delivered packet") unless direct_packet == built_packet
+  abort("direct MCP packet differs from Claude Code-delivered packet") unless options[:native_guidance_smoke] || direct_packet == built_packet
   _persistent_stdout, persistent_stderr, persistent_status = Open3.capture3(
     options[:claude], "mcp", "get", SERVER, chdir: workspace,
   )
   if persistent_status.success?
     abort("Claude Code persistent configuration unexpectedly contains #{SERVER}:\n#{persistent_stderr}")
+  end
+  if guidance_installed
+    guidance_stdout, guidance_stderr, guidance_status = Open3.capture3(
+      options[:cli], "client", "guidance", "remove", "claude", workspace, "--apply",
+    )
+    abort("Claude Code native guidance removal failed:\n#{guidance_stderr}\n#{guidance_stdout}") unless guidance_status.success?
   end
   remove_stdout, remove_stderr, remove_status = Open3.capture3(
     options[:cli], "client", "kit", "remove", "claude", options[:mcp], workspace, cache, config_path, "--apply",
@@ -368,7 +420,9 @@ Dir.mktmpdir("impresari-claude-code-") do |temporary|
     "persistent_mcp_registration" => false,
     "malformed_configuration_rejected" => true,
     "managed_install_validate_remove" => true,
-    "direct_mcp_packet_equivalence" => true,
+    "direct_mcp_packet_equivalence" => !options[:native_guidance_smoke],
+    "native_guidance_discovered" => options[:native_guidance_smoke],
+    "native_guidance_model_smoke" => options[:native_guidance_smoke],
     "tool_lifecycle" => observed_tools,
   })
 end
