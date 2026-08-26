@@ -2,12 +2,15 @@
 #![forbid(unsafe_code)]
 #![doc = "Thin consumer translation and governed native-read fallback policy."]
 
+use std::fmt::Write as _;
+
 use context_core::{ContextPacket, PolicySubject, PublicErrorCode, ResourceBudget};
 use context_engine::{
     ContextPlan, ContextPlanStep, EngineError, LocalEngine, ProfiledContextPacket, RequestContext,
     TaskProfile,
 };
 use serde::{Deserialize, Serialize};
+use sha2::{Digest as _, Sha256};
 
 /// Adapter contract major supported by this release.
 pub const ADAPTER_CONTRACT_VERSION: &str = "1.0.0";
@@ -186,6 +189,10 @@ pub struct GuidedDeliveryIntent {
     pub purpose: String,
     /// Normalized UTC operation time.
     pub occurred_at: String,
+    /// Caller-declared immutable workspace identity.
+    pub workspace_identity: String,
+    /// Caller-declared immutable workspace snapshot identity.
+    pub workspace_snapshot: String,
     /// Explicit deterministic planning profile.
     pub task_profile: TaskProfile,
     /// Bounded user-declared query.
@@ -208,15 +215,30 @@ pub struct GuidedDeliveryReceipt {
     pub reason_code: String,
     /// Declared client identity.
     pub client: String,
+    /// Declared client scope.
+    pub scope: String,
+    /// Declared client adapter version.
+    pub client_version: String,
     /// Declared lifecycle point.
     pub lifecycle_point: String,
+    /// Opaque request identity bound to the result.
+    pub request_id: String,
+    /// Opaque event identity bound to the result.
+    pub event_id: String,
+    /// Workspace identity when it was verified.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub workspace_identity: Option<String>,
     /// Packet identity when prepared.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub packet_id: Option<String>,
     /// Planner identity when prepared.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub plan_id: Option<String>,
     /// Snapshot identity when prepared.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub workspace_snapshot: Option<String>,
     /// Policy decision identity when prepared.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub policy_decision: Option<String>,
     /// Always false: this reference adapter does not contact a client.
     pub client_io_performed: bool,
@@ -229,7 +251,11 @@ pub struct GuidedDeliveryReceipt {
 #[serde(deny_unknown_fields)]
 pub struct GuidedDeliveryResult {
     /// Immutable planner output when preparation succeeds.
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub prepared: Option<ProfiledContextPacket>,
+    /// Exact canonical bytes of the shared planner packet when preparation succeeds.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub packet_bytes: Option<Vec<u8>>,
     /// Visible prepared/no-delivery receipt.
     pub receipt: GuidedDeliveryReceipt,
 }
@@ -245,59 +271,72 @@ pub fn prepare_guided_delivery(
     engine: &mut LocalEngine,
     intent: GuidedDeliveryIntent,
 ) -> Result<GuidedDeliveryResult, AdapterError> {
-    let no_delivery = |reason_code: &str| GuidedDeliveryResult {
-        prepared: None,
-        receipt: GuidedDeliveryReceipt {
-            schema_name: "guided-delivery-receipt".into(),
-            schema_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
-            outcome: "no_delivery".into(),
-            reason_code: reason_code.into(),
-            client: intent.client.clone(),
-            lifecycle_point: intent.lifecycle_point.clone(),
-            packet_id: None,
-            plan_id: None,
-            workspace_snapshot: None,
-            policy_decision: None,
-            client_io_performed: false,
-            authority_added: false,
-        },
-    };
     if intent.adapter_contract_version != GUIDED_DELIVERY_CONTRACT_VERSION {
-        return Ok(no_delivery("incompatible_contract"));
+        return Ok(no_delivery(&intent, "incompatible_contract"));
     }
     if !intent.consent {
-        return Ok(no_delivery("explicit_consent_required"));
+        return Ok(no_delivery(&intent, "explicit_consent_required"));
     }
     if intent.client != "reference"
         || intent.scope != "process_local"
         || intent.client_version != GUIDED_DELIVERY_CONTRACT_VERSION
         || intent.lifecycle_point != "prepare"
     {
-        return Ok(no_delivery("unsupported_client_lifecycle"));
+        return Ok(no_delivery(&intent, "unsupported_client_lifecycle"));
     }
     if !delivery_intent_text_is_valid(&intent) {
-        return Ok(no_delivery("invalid_declared_intent"));
+        return Ok(no_delivery(&intent, "invalid_declared_intent"));
     }
     let context = RequestContext {
-        request_id: intent.request_id,
-        event_id: intent.event_id,
+        request_id: intent.request_id.clone(),
+        event_id: intent.event_id.clone(),
         subject: PolicySubject {
-            caller_id: intent.consumer_id,
-            role: intent.role,
-            purpose: intent.purpose,
+            caller_id: intent.consumer_id.clone(),
+            role: intent.role.clone(),
+            purpose: intent.purpose.clone(),
         },
-        occurred_at: intent.occurred_at,
+        occurred_at: intent.occurred_at.clone(),
     };
+    let snapshot_context = derived_snapshot_status_context(&context);
+    let snapshot = match engine.snapshot_status_against(
+        &snapshot_context,
+        intent.budget.clone(),
+        Some(&intent.workspace_snapshot),
+    ) {
+        Ok(value) => value,
+        Err(error)
+            if matches!(
+                error.envelope().code,
+                PublicErrorCode::StaleState | PublicErrorCode::EvidenceUnavailable
+            ) =>
+        {
+            return Ok(no_delivery(&intent, "snapshot_unavailable"));
+        }
+        Err(error) => return Err(AdapterError::Engine(error)),
+    };
+    if snapshot.workspace_identity != intent.workspace_identity {
+        return Ok(no_delivery(&intent, "workspace_identity_mismatch"));
+    }
+    if snapshot.state != "current" || snapshot.freshness != "current" {
+        return Ok(no_delivery(&intent, "snapshot_stale"));
+    }
     let prepared = engine
         .build_profiled_context(&context, intent.task_profile, &intent.query, intent.budget)
         .map_err(AdapterError::Engine)?;
+    let packet_bytes =
+        context_core::packet_bytes(&prepared.packet).map_err(|_| AdapterError::Serialization)?;
     let receipt = GuidedDeliveryReceipt {
         schema_name: "guided-delivery-receipt".into(),
         schema_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
         outcome: "prepared".into(),
         reason_code: "reference_packet_prepared".into(),
         client: "reference".into(),
+        scope: "process_local".into(),
+        client_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
         lifecycle_point: "prepare".into(),
+        request_id: context.request_id,
+        event_id: context.event_id,
+        workspace_identity: Some(snapshot.workspace_identity),
         packet_id: Some(prepared.packet.packet_id.clone()),
         plan_id: Some(prepared.plan.plan_id.clone()),
         workspace_snapshot: Some(prepared.packet.workspace_snapshot.clone()),
@@ -307,24 +346,132 @@ pub fn prepare_guided_delivery(
     };
     Ok(GuidedDeliveryResult {
         prepared: Some(prepared),
+        packet_bytes: Some(packet_bytes),
         receipt,
     })
 }
 
 fn delivery_intent_text_is_valid(intent: &GuidedDeliveryIntent) -> bool {
-    [
-        &intent.request_id,
-        &intent.event_id,
-        &intent.consumer_id,
-        &intent.role,
-        &intent.purpose,
-    ]
-    .iter()
-    .all(|value| !value.is_empty() && value.len() <= 256 && !value.contains('\0'))
+    [&intent.request_id, &intent.event_id, &intent.consumer_id]
+        .iter()
+        .all(|value| identifier_is_valid(value))
+        && role_is_valid(&intent.role)
+        && !intent.purpose.is_empty()
+        && intent.purpose.len() <= 256
+        && !intent.purpose.contains('\0')
         && !intent.query.is_empty()
         && intent.query.len() <= 4096
         && !intent.query.contains('\0')
         && context_core::validate_utc_timestamp(&intent.occurred_at).is_ok()
+        && sha256_identity_is_valid(&intent.workspace_identity)
+        && sha256_identity_is_valid(&intent.workspace_snapshot)
+        && budget_is_valid(&intent.budget)
+}
+
+fn no_delivery(intent: &GuidedDeliveryIntent, reason_code: &str) -> GuidedDeliveryResult {
+    GuidedDeliveryResult {
+        prepared: None,
+        packet_bytes: None,
+        receipt: GuidedDeliveryReceipt {
+            schema_name: "guided-delivery-receipt".into(),
+            schema_version: GUIDED_DELIVERY_CONTRACT_VERSION.into(),
+            outcome: "no_delivery".into(),
+            reason_code: reason_code.into(),
+            client: intent.client.clone(),
+            scope: intent.scope.clone(),
+            client_version: intent.client_version.clone(),
+            lifecycle_point: intent.lifecycle_point.clone(),
+            request_id: intent.request_id.clone(),
+            event_id: intent.event_id.clone(),
+            workspace_identity: None,
+            packet_id: None,
+            plan_id: None,
+            workspace_snapshot: None,
+            policy_decision: None,
+            client_io_performed: false,
+            authority_added: false,
+        },
+    }
+}
+
+fn identifier_is_valid(value: &str) -> bool {
+    let Some((prefix, suffix)) = value.split_once('_') else {
+        return false;
+    };
+    !prefix.is_empty()
+        && prefix.len() <= 32
+        && prefix.as_bytes()[0].is_ascii_lowercase()
+        && prefix.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+        })
+        && (8..=128).contains(&suffix.len())
+        && suffix
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+}
+
+fn role_is_valid(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 64
+        && value.as_bytes()[0].is_ascii_lowercase()
+        && value.bytes().enumerate().all(|(index, byte)| {
+            byte.is_ascii_lowercase()
+                || (index > 0 && (byte.is_ascii_digit() || byte == b'_' || byte == b'-'))
+        })
+}
+
+fn sha256_identity_is_valid(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn budget_is_valid(budget: &ResourceBudget) -> bool {
+    let values = [
+        &budget.requested,
+        &budget.max_evidence_items,
+        &budget.max_files,
+        &budget.max_excerpt_bytes_per_item,
+        &budget.max_matches,
+        &budget.max_traversal_depth,
+        &budget.max_elapsed_ms,
+        &budget.max_memory_bytes,
+    ];
+    let mut parsed = [0_u64; 8];
+    for (index, value) in values.into_iter().enumerate() {
+        let Ok(number) = value.parse::<u64>() else {
+            return false;
+        };
+        if number.to_string() != *value {
+            return false;
+        }
+        parsed[index] = number;
+    }
+    budget.unit_kind == "utf8_bytes"
+        && budget.hard
+        && budget.policy_profile == context_core::POLICY_PROFILE
+        && ResourceBudget::conservative(
+            parsed[0], parsed[1], parsed[2], parsed[3], parsed[4], parsed[5], parsed[6], parsed[7],
+        )
+        .is_ok()
+}
+
+fn derived_snapshot_status_context(context: &RequestContext) -> RequestContext {
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0guided-delivery-snapshot-status-event\0");
+    hasher.update(context.event_id.as_bytes());
+    let mut event_id = String::from("evt_");
+    for byte in hasher.finalize() {
+        write!(event_id, "{byte:02x}").expect("string write");
+    }
+    RequestContext {
+        request_id: context.request_id.clone(),
+        event_id,
+        subject: context.subject.clone(),
+        occurred_at: context.occurred_at.clone(),
+    }
 }
 
 /// Builds context through the same public engine method used by non-OS consumers.
@@ -372,6 +519,8 @@ pub enum AdapterError {
     IncompatibleContract,
     /// The public engine operation failed.
     Engine(EngineError),
+    /// Canonical packet serialization failed before any client delivery.
+    Serialization,
 }
 
 impl std::fmt::Display for AdapterError {
@@ -379,6 +528,7 @@ impl std::fmt::Display for AdapterError {
         formatter.write_str(match self {
             Self::IncompatibleContract => "incompatible adapter contract",
             Self::Engine(_) => "context engine request failed",
+            Self::Serialization => "context packet serialization failed",
         })
     }
 }

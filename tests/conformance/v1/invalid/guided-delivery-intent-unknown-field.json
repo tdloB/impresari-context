@@ -1,0 +1,32 @@
+{
+  "adapter_contract_version": "1.0.0",
+  "client": "reference",
+  "scope": "process_local",
+  "client_version": "1.0.0",
+  "lifecycle_point": "prepare",
+  "consent": true,
+  "request_id": "req_12345678",
+  "event_id": "evt_12345678",
+  "consumer_id": "consumer_12345678",
+  "role": "local_user",
+  "purpose": "implementation",
+  "occurred_at": "2026-08-22T00:00:00Z",
+  "workspace_identity": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "task_profile": "implementation",
+  "query": "authenticate",
+  "budget": {
+    "unit_kind": "utf8_bytes",
+    "requested": "8192",
+    "hard": true,
+    "max_evidence_items": "20",
+    "max_files": "100",
+    "max_excerpt_bytes_per_item": "128",
+    "max_matches": "100",
+    "max_traversal_depth": "16",
+    "max_elapsed_ms": "30000",
+    "max_memory_bytes": "67108864",
+    "policy_profile": "sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+  },
+  "unrecognized_field": true
+}

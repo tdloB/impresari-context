@@ -42,7 +42,7 @@ shell access, an MCP configuration writer, or a free-form prompt.
 
 ## Delivery-intent contract
 
-An intent must contain exactly these authenticated, caller-declared values:
+An intent must contain exactly these validated, caller-declared values:
 
 - client, scope, adapter version, and documented lifecycle point;
 - supported task profile and query;

@@ -1,0 +1,14 @@
+{
+  "schema_name": "guided-delivery-receipt",
+  "schema_version": "1.0.0",
+  "outcome": "no_delivery",
+  "reason_code": "explicit_consent_required",
+  "client": "reference",
+  "scope": "process_local",
+  "client_version": "1.0.0",
+  "lifecycle_point": "prepare",
+  "request_id": "req_12345678",
+  "event_id": "evt_12345678",
+  "client_io_performed": false,
+  "authority_added": false
+}
