@@ -3,6 +3,8 @@ description: Use bounded, snapshot-grounded Impresari Context evidence for expli
 alwaysApply: false
 ---
 
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
 # Impresari Context evidence guidance
 
 Use an already configured local `impresari-context` MCP server only for an
