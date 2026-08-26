@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code lifecycle recorded; Cursor temporary configuration discovery recorded
+- Status: Claude Code live temporary-configuration lifecycle and Cursor temporary configuration discovery/fail-closed malformed handling recorded
 - Date: 2026-08-23
 - Scope: Claude Code and Cursor only
 
@@ -20,12 +20,14 @@ conformance is recorded in the [Codex connection-kit record](phase-1-codex-conne
 Completed on macOS aarch64 with Claude Code CLI `2.1.241` after user-owned
 installation and authentication. The one-run rehearsal used temporary
 `--mcp-config` and `--strict-mcp-config`, completed the fixed MCP lifecycle,
-preserved the fixture workspace, and confirmed that no persistent MCP server
-named `impresari_context_conformance` was registered.
+proved direct-MCP packet equivalence, preserved the fixture workspace, and
+confirmed that no persistent MCP server named `impresari-context` was
+registered.
 
-The result remains Generic local MCP because model-directed tool selection is
-not deterministic. The detailed evidence and remaining First-class criteria
-are in the [Claude Code kit record](phase-1-claude-code-connection-kit.md).
+The result remains Generic local MCP until the user-reviewed local-scope
+installation and single-entry removal record is completed. The detailed
+evidence and remaining First-class criteria are in the [Claude Code kit
+record](phase-1-claude-code-connection-kit.md).
 
 The eventual user-reviewed registration, verification, and single-entry
 removal commands are in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#claude-code).
@@ -38,9 +40,27 @@ separate cache, and `.cursor/mcp.json`; `cursor agent mcp list` discovered the
 fixed local-stdio server. It did not invoke `enable`, did not call an AI model,
 and preserved the temporary workspace after the configuration was written.
 
+The same isolated rehearsal supplied malformed `.cursor/mcp.json`. Cursor CLI
+`3.17.8` exited without loading any MCP server, did not expose fixture source
+in its diagnostic, and did not alter the fixture. This is a fail-closed
+configuration behavior rather than a parse-error exit and is recorded as such.
+
 The Cursor CLI treats MCP enablement as a change to local approval state. A
 real tool lifecycle therefore requires an intentional, user-owned approval of
 the exact temporary entry. It must not be replaced by automatic approval.
+
+The rehearsal now has a preview-first disposable-project preparation path:
+
+```text
+ruby scripts/rehearse-cursor-preadmission.rb \
+  --prepare-project-root /private/tmp/impresari-cursor-l1-admission
+# inspect the returned paths, then rerun with --apply
+```
+
+It creates only an empty `workspace` and separate `cache` under `/private/tmp`.
+It does not create or enable a Cursor MCP entry. This gives the user a narrow,
+inspectable location for the later project-entry, enablement, lifecycle, and
+exact-removal record.
 
 The eventual user-reviewed configuration, inspection, and single-entry removal
 guidance is in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor).

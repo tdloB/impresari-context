@@ -30,6 +30,9 @@ options = {
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   cli: ROOT.join("target/debug/impresari-context").to_s,
   project_config: false,
+  prepared_project_root: nil,
+  temporary_root: nil,
+  apply: false,
 }
 
 OptionParser.new do |parser|
@@ -40,6 +43,13 @@ OptionParser.new do |parser|
   parser.on("--project-config", "Load the temporary project's .codex/config.toml instead of one-use overrides") do
     options[:project_config] = true
   end
+  parser.on("--prepare-project-root PATH", "Preview or prepare a disposable trusted-project root under /private/tmp") do |value|
+    options[:prepared_project_root] = value
+  end
+  parser.on("--temporary-root PATH", "Use a prepared disposable trusted-project root under /private/tmp") do |value|
+    options[:temporary_root] = value
+  end
+  parser.on("--apply", "Apply the explicit disposable-project preparation") { options[:apply] = true }
 end.parse!
 
 [options[:codex], options[:mcp], options[:cli]].each do |path|
@@ -49,6 +59,65 @@ end
 def abort_with(message, stderr = nil)
   detail = stderr&.strip
   abort(detail.nil? || detail.empty? ? message : "#{message}\n#{detail}")
+end
+
+def temporary_project_root(path, allow_absent: false)
+  candidate = Pathname.new(path).expand_path
+  temporary_parent = Pathname.new("/private/tmp").realpath
+  resolved = if candidate.exist?
+               candidate.realpath
+             elsif allow_absent
+               candidate.parent.realpath.join(candidate.basename)
+             else
+               abort("prepared project root does not exist: #{candidate}")
+             end
+  abort("prepared project root must be under /private/tmp") unless resolved.to_s.start_with?("#{temporary_parent}/")
+  abort("prepared project root must not be a symbolic link") if candidate.symlink?
+  resolved
+end
+
+def prepared_layout(root)
+  {
+    workspace: root.join("workspace"),
+    cache: root.join("cache"),
+  }
+end
+
+if options[:prepared_project_root] && options[:temporary_root]
+  abort("choose either --prepare-project-root or --temporary-root, not both")
+end
+
+if options[:prepared_project_root]
+  root = temporary_project_root(options[:prepared_project_root], allow_absent: true)
+  layout = prepared_layout(root)
+  if !options[:apply]
+    puts JSON.generate({
+      "status" => "preview_ready",
+      "operation" => "prepare_disposable_trusted_project",
+      "project_root" => root.to_s,
+      "trusted_workspace" => layout.fetch(:workspace).to_s,
+      "cache" => layout.fetch(:cache).to_s,
+      "external_write_performed" => false,
+      "next_step" => "Review the paths, then rerun with --apply. After preparation, trust only the reported workspace in Codex before running --project-config --temporary-root.",
+    })
+    exit(0)
+  end
+  abort("prepared project root already exists: #{root}") if root.exist?
+  FileUtils.mkdir_p([layout.fetch(:workspace), layout.fetch(:cache)])
+  puts JSON.generate({
+    "status" => "prepared",
+    "operation" => "prepare_disposable_trusted_project",
+    "project_root" => root.to_s,
+    "trusted_workspace" => layout.fetch(:workspace).to_s,
+    "cache" => layout.fetch(:cache).to_s,
+    "external_write_performed" => true,
+    "next_step" => "Open and trust only the reported workspace in Codex. Then run this rehearsal with --project-config --temporary-root #{root}.",
+  })
+  exit(0)
+end
+
+if options[:temporary_root] && !options[:project_config]
+  abort("--temporary-root requires --project-config")
 end
 
 def source_digest(root)
@@ -164,10 +233,28 @@ def direct_mcp_packet(executable, server_args)
   end
 end
 
-Dir.mktmpdir("impresari-codex-app-server-") do |temporary|
+def with_rehearsal_root(options)
+  if options[:temporary_root]
+    root = temporary_project_root(options[:temporary_root])
+    layout = prepared_layout(root)
+    [root, layout.fetch(:workspace), layout.fetch(:cache)].each do |path|
+      abort("prepared project layout is missing: #{path}") unless path.directory?
+    end
+    abort("prepared trusted workspace must be empty before the clean-install rehearsal") unless Dir.children(layout.fetch(:workspace)).empty?
+    yield(root.to_s)
+  else
+    Dir.mktmpdir("impresari-codex-app-server-") { |temporary| yield(temporary) }
+  end
+end
+
+with_rehearsal_root(options) do |temporary|
   workspace = File.join(temporary, "workspace")
   direct_mcp_cache = File.join(temporary, "direct-mcp-cache")
-  codex_mcp_cache = File.join(temporary, "codex-mcp-cache")
+  codex_mcp_cache = if options[:temporary_root]
+                      File.join(temporary, "cache")
+                    else
+                      File.join(temporary, "codex-mcp-cache")
+                    end
   cli_cache = File.join(temporary, "cli-cache")
   FileUtils.mkdir_p([workspace, direct_mcp_cache, codex_mcp_cache, cli_cache])
   fixture = File.join(workspace, "probe.ts")

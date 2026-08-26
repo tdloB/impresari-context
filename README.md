@@ -108,10 +108,12 @@ cargo run -p context-mcp -- \
   --role <policy-role>
 ```
 
-The client must complete MCP initialization before using the four tools:
-`context_session_open`, `context_build`, `context_packet_resolve`, and
-`context_session_close`. The process is intentionally single-client and
-process-local. It is not a remote service or an agent runtime.
+The client must complete MCP initialization before using the six published
+tools: `context_session_open`, `context_build`,
+`context_convention_exemplar_build`, `structure_incremental_update`,
+`context_packet_resolve`, and `context_session_close`. The process is
+intentionally single-client and process-local. It is not a remote service or
+an agent runtime.
 
 The process records a local UTC startup time by default. Deterministic test or
 rehearsal callers may append `--occurred-at <UTC-timestamp>`; persistent client
@@ -124,10 +126,10 @@ versioning, limits, and security boundaries.
 See the [compatibility matrix](docs/reference/compatibility-matrix.md) for the
 exact difference between discovery, lexical evidence, and structural language
 support, and between generic local-MCP compatibility and a first-class client
-integration. At this release, the TypeScript/JavaScript family, Python, Go,
-Rust, and recognized strict-JSON configuration manifests have structural
-support; Codex, Claude Code, and Cursor are not yet first-class
-integrations.
+integration. At this release, TypeScript/JavaScript, Python, Java, Kotlin,
+C#, Scala, Elixir, Clojure, Haskell, Go, Rust, strict JSON, JSONC, TOML, and
+YAML have bounded structural support; Swift remains lexical-only. Codex,
+Claude Code, Cursor, and GitHub Copilot are not yet first-class integrations.
 
 The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)
 show user-invoked, non-mutating local stdio configurations for those clients.

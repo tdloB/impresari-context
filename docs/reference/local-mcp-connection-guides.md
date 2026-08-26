@@ -64,6 +64,30 @@ Then inspect the resolved client entry with `codex mcp get impresari-context
 alternative is the Codex CLI command `codex mcp add <name> -- <command>
 [args...]`; it is intentionally not automated or used by this kit.
 
+For the pending first-class clean-install admission record, the repository
+provides an explicit, disposable rehearsal. Its first invocation is a
+write-free preview. Review its reported `/private/tmp` paths before applying
+the preparation:
+
+```text
+ruby scripts/rehearse-codex-app-server.rb \
+  --prepare-project-root /private/tmp/impresari-codex-l1-admission
+```
+
+Only after review, prepare that disposable root:
+
+```text
+ruby scripts/rehearse-codex-app-server.rb \
+  --prepare-project-root /private/tmp/impresari-codex-l1-admission --apply
+```
+
+Open and trust the reported `workspace` directory in Codex, then run the
+rehearsal with `--project-config --temporary-root
+/private/tmp/impresari-codex-l1-admission`.
+The rehearsal installs and validates only its exact owned entry, proves the
+direct App Server lifecycle and packet equivalence, then removes only that
+entry. It never writes the user's shared Codex configuration.
+
 This pre-admission kit has been locally checked against Codex CLI
 `0.149.0-alpha.4.1` on macOS aarch64. Its exact evidence and remaining
 first-class gaps are recorded in the [Phase 1 Codex kit record](../verification/phase-1-codex-connection-kit.md).
@@ -96,11 +120,27 @@ When validating a JSON configuration file before use, run:
 impresari-context doctor claude-config <workspace-root> <separate-cache> <mcp-json>
 ```
 
-The generic kit has additionally been exercised through Claude Code CLI
-`2.1.241` on macOS aarch64 using an isolated one-run `--mcp-config` and
-`--strict-mcp-config`; the test did not register a persistent server. Its
+The generic kit has been exercised through Claude Code CLI `2.1.241` on macOS
+aarch64 using an isolated one-run `--mcp-config` and `--strict-mcp-config`. The
+host record rejects malformed configuration, completes the core lifecycle with
+direct packet equivalence, and does not register a persistent server. Its
 evidence and remaining admission gaps are recorded in the [Phase 1 Claude Code
 kit record](../verification/phase-1-claude-code-connection-kit.md).
+
+For the remaining user-reviewed local-scope record, the rehearsal provides a
+write-free preview of a disposable source/cache pair:
+
+```text
+ruby scripts/rehearse-claude-code.rb \
+  --prepare-project-root /private/tmp/impresari-claude-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+It writes no Claude configuration. The user may then use only the reported
+paths in the local-scope `claude mcp add` command above, inspect the entry with
+`claude mcp get impresari-context`, and remove it with `claude mcp remove
+--scope local impresari-context`. That persistent local registration/removal
+decision is not automated by Impresari Context.
 
 ## Cursor
 
@@ -148,6 +188,23 @@ Cursor's local approval state. An isolated project configuration has been
 discovered by Cursor Agent CLI `3.17.8` on macOS aarch64 without enabling the
 server; the evidence and remaining admission gaps are in the [Phase 1 Cursor
 kit record](../verification/phase-1-cursor-connection-kit.md).
+
+For the eventual user-reviewed admission record, first create a disposable
+project outside any repository:
+
+```text
+ruby scripts/rehearse-cursor-preadmission.rb \
+  --prepare-project-root /private/tmp/impresari-cursor-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+The preparation command creates only the reported `workspace` and separate
+`cache` directories under `/private/tmp`; it neither creates `.cursor/mcp.json`
+nor enables an MCP server. After reviewing the generated project entry, the
+user—not Impresari Context—must choose whether to run Cursor's `agent mcp
+enable impresari-context` for that exact disposable workspace. The final
+record must also demonstrate `agent mcp disable impresari-context` and managed
+removal of that one project entry.
 
 ## Gemini CLI
 
@@ -208,6 +265,21 @@ impresari-context doctor copilot-config <workspace-root> <separate-cache> .mcp.j
 `copilot mcp list --json` is a read-only inspection step after user
 installation, authentication, and folder trust. Remove only this project entry.
 
+For the eventual user-reviewed project admission record, first create a
+disposable project outside any repository:
+
+```text
+ruby scripts/rehearse-gemini-copilot-preadmission.rb \
+  --prepare-copilot-project-root /private/tmp/impresari-copilot-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+The preparation creates only the reported `workspace` and separate `cache`
+under `/private/tmp`; it does not write `.mcp.json`, grant folder trust, or
+change the user's Copilot configuration. A user may review and install only
+the fixed project entry in that workspace, intentionally grant folder trust,
+inspect with `copilot mcp list --json`, then remove just that entry.
+
 ## VS Code Copilot
 
 VS Code uses a workspace `.vscode/mcp.json` with a top-level `servers` object.
@@ -240,9 +312,11 @@ These guides do not yet establish a maintained version range, supported OS
 matrix per client, clean-install behavior, configuration-parser conformance, or
 safe automated removal. Codex has deterministic direct-tool and packet
 evidence; Claude Code has one real-client, model-directed lifecycle record;
-Cursor has authenticated temporary-configuration discovery but no approved
-tool lifecycle. Gemini CLI, GitHub Copilot CLI, and VS Code Copilot have
-read-only preadmission guides and validators only. The [compatibility
+Cursor has authenticated temporary-configuration discovery but no approved tool
+lifecycle. Gemini CLI and VS Code Copilot have read-only preadmission guides
+and validators only. GitHub Copilot CLI additionally has an isolated temporary
+lifecycle and direct-packet-equivalence record, but not a user-reviewed
+project-local admission. The [compatibility
 matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
 local MCP** category.
 

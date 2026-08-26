@@ -26,6 +26,13 @@ A live conversational tool-use test is valuable evidence that a client can use
 an integration, but is not deterministic proof that a model will choose it on
 every run.
 
+For L1 admission, deterministic conformance therefore applies to the
+versioned kit, fixed local-stdio contract, policy and malformed-input behavior,
+packet recovery where the client exposes it, source immutability, and exact
+owned-entry removal. A conversational live-client smoke is required when that
+is the client's exposed surface, but it is capability evidence rather than a
+prompt-repeatability assertion.
+
 ## Mandatory Controls
 
 - External client configuration/artifact changes require explicit user action,

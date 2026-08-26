@@ -15,6 +15,12 @@ The target file is absent after the removal and the fixture workspace digest is
 unchanged. Cursor Agent discovered `impresari-context` on CLI `3.17.8`
 (`2026.08.11-e8db854`), macOS aarch64.
 
+The rehearsal also supplied a malformed temporary `.cursor/mcp.json`. Cursor
+exited without loading any MCP server, did not expose the fixture source in its
+output, and left the malformed fixture unchanged. Cursor therefore fails
+closed for this malformed configuration on the recorded client version; the
+client does not currently surface that handling as a nonzero parse-error exit.
+
 The rehearsal did not invoke `cursor agent mcp enable`, `disable`, or an AI
 model. No MCP approval was granted and no user or project configuration was
 persisted. The connection shape remains bounded: an executable absolute MCP
@@ -31,11 +37,14 @@ First-class admission still requires all of the following:
 
 - intentional user approval of an exact, isolated MCP entry and a real-client
   tool lifecycle;
-- packet identity/equivalence and source-immutability evidence; and
+- packet identity/equivalence and live-session source-immutability evidence; and
 - maintained version and operating-system coverage.
 
 This evidence is deliberately not substituted with `--approve-mcps` or an
-automatic approval flag, because those change Cursor's local approval state.
+automatic approval flag, because neither substitutes for a user-reviewed
+project installation and removal record. The rehearsal has a preview-first
+`--prepare-project-root` mode that creates only an empty disposable workspace
+and cache under `/private/tmp` for that future user-owned record.
 The [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor)
 contains the user-reviewed setup shape.
 

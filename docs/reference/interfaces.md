@@ -81,7 +81,7 @@ later Phase 0 increments.
 `doctor mcp` adds a bounded in-process JSON-RPC exchange against the shipped
 MCP implementation. It opens and snapshots the explicitly selected workspace
 into the explicit cache, completes `initialize` and `notifications/initialized`,
-validates discovery of the four published tools, and compares a bounded packet
+validates discovery of the six published tools, and compares a bounded packet
 from the direct engine with the corresponding MCP packet. It does not mutate
 the source workspace, launch an arbitrary external binary, parse a third-party
 client configuration, or prove an end-to-end client integration. It therefore
