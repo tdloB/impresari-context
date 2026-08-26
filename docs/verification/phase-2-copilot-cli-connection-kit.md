@@ -37,6 +37,11 @@ source immutability on Copilot CLI `1.0.80` macOS aarch64. First-class
 admission still needs a user-reviewed project-local `.mcp.json` install/trust/
 single-entry-removal record for that declared scope.
 
+The rehearsal provides a preview-first `--prepare-copilot-project-root` mode
+for that record. It creates only an empty disposable `workspace` and separate
+`cache` under `/private/tmp`; project-entry installation, folder trust, and
+single-entry removal remain user-owned actions.
+
 ## Gemini CLI note
 
 Gemini CLI `0.56.0` authenticated successfully, but its current free-tier

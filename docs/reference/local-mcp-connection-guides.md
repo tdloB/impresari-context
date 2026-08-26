@@ -265,6 +265,21 @@ impresari-context doctor copilot-config <workspace-root> <separate-cache> .mcp.j
 `copilot mcp list --json` is a read-only inspection step after user
 installation, authentication, and folder trust. Remove only this project entry.
 
+For the eventual user-reviewed project admission record, first create a
+disposable project outside any repository:
+
+```text
+ruby scripts/rehearse-gemini-copilot-preadmission.rb \
+  --prepare-copilot-project-root /private/tmp/impresari-copilot-l1-admission
+# inspect the preview, then rerun the same command with --apply
+```
+
+The preparation creates only the reported `workspace` and separate `cache`
+under `/private/tmp`; it does not write `.mcp.json`, grant folder trust, or
+change the user's Copilot configuration. A user may review and install only
+the fixed project entry in that workspace, intentionally grant folder trust,
+inspect with `copilot mcp list --json`, then remove just that entry.
+
 ## VS Code Copilot
 
 VS Code uses a workspace `.vscode/mcp.json` with a top-level `servers` object.

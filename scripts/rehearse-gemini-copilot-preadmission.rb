@@ -1,9 +1,10 @@
 #!/usr/bin/env ruby
 # SPDX-License-Identifier: Apache-2.0
 #
-# Isolated, non-mutating Gemini CLI and GitHub Copilot CLI MCP discovery.
-# This never starts a model session, grants tool permissions, or writes either
-# client's persistent configuration.
+# Isolated Gemini CLI and GitHub Copilot CLI MCP rehearsal. Its normal flow
+# never writes either client's persistent configuration. The preview-first
+# Copilot preparation mode writes only an explicitly named disposable project
+# directory under /private/tmp.
 
 require "digest"
 require "fileutils"
@@ -30,6 +31,8 @@ options = {
   cli: ROOT.join("target/debug/impresari-context").to_s,
   mcp: ROOT.join("target/debug/impresari-context-mcp").to_s,
   malformed_copilot_config_only: false,
+  prepared_copilot_project_root: nil,
+  apply: false,
 }
 
 OptionParser.new do |parser|
@@ -42,10 +45,65 @@ OptionParser.new do |parser|
   parser.on("--malformed-copilot-config-only", "Verify Copilot rejects malformed temporary MCP configuration") do
     options[:malformed_copilot_config_only] = true
   end
+  parser.on("--prepare-copilot-project-root PATH", "Preview or prepare a disposable Copilot project root under /private/tmp") do |value|
+    options[:prepared_copilot_project_root] = value
+  end
+  parser.on("--apply", "Apply the explicit disposable-project preparation") { options[:apply] = true }
 end.parse!
 
 abort("missing executable: #{options[:mcp]}") unless File.file?(options[:mcp]) && File.executable?(options[:mcp])
 abort("missing executable: #{options[:cli]}") unless File.file?(options[:cli]) && File.executable?(options[:cli])
+
+def temporary_project_root(path, allow_absent: false)
+  candidate = Pathname.new(path).expand_path
+  temporary_parent = Pathname.new("/private/tmp").realpath
+  resolved = if candidate.exist?
+               candidate.realpath
+             elsif allow_absent
+               candidate.parent.realpath.join(candidate.basename)
+             else
+               abort("prepared project root does not exist: #{candidate}")
+             end
+  abort("prepared project root must be under /private/tmp") unless resolved.to_s.start_with?("#{temporary_parent}/")
+  abort("prepared project root must not be a symbolic link") if candidate.symlink?
+  resolved
+end
+
+def prepared_layout(root)
+  {
+    workspace: root.join("workspace"),
+    cache: root.join("cache"),
+  }
+end
+
+if options[:prepared_copilot_project_root]
+  root = temporary_project_root(options[:prepared_copilot_project_root], allow_absent: true)
+  layout = prepared_layout(root)
+  if !options[:apply]
+    puts JSON.generate({
+      "status" => "preview_ready",
+      "operation" => "prepare_disposable_copilot_project",
+      "project_root" => root.to_s,
+      "workspace" => layout.fetch(:workspace).to_s,
+      "cache" => layout.fetch(:cache).to_s,
+      "external_write_performed" => false,
+      "next_step" => "Review the paths, then rerun with --apply. A user may install only the rendered project .mcp.json entry in the reported workspace before deciding whether to trust that folder in Copilot.",
+    })
+    exit(0)
+  end
+  abort("prepared project root already exists: #{root}") if root.exist?
+  FileUtils.mkdir_p([layout.fetch(:workspace), layout.fetch(:cache)])
+  puts JSON.generate({
+    "status" => "prepared",
+    "operation" => "prepare_disposable_copilot_project",
+    "project_root" => root.to_s,
+    "workspace" => layout.fetch(:workspace).to_s,
+    "cache" => layout.fetch(:cache).to_s,
+    "external_write_performed" => true,
+    "next_step" => "Review the reported paths. Any Copilot folder-trust decision and exact project-entry removal remain user-owned actions.",
+  })
+  exit(0)
+end
 
 def tree_digest(root)
   Digest::SHA256.hexdigest(
