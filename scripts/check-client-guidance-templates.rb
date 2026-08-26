@@ -21,6 +21,9 @@ templates.each do |relative, required|
   abort("missing client guidance template: #{relative}") unless File.file?(path)
   text = File.read(path, encoding: "UTF-8")
   abort("oversized client guidance template: #{relative}") if text.bytesize > 16_384
+  unless text.include?("ownership=exact_fixed_artifact:impresari-context")
+    abort("client guidance template lacks exact ownership marker: #{relative}")
+  end
   required.each do |needle|
     abort("client guidance template lacks #{needle.inspect}: #{relative}") unless text.include?(needle)
   end

@@ -1,3 +1,5 @@
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
 # Impresari Context evidence guidance
 
 Use an already configured local `impresari-context` MCP server only when the

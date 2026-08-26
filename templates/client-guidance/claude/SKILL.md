@@ -3,6 +3,8 @@ name: impresari-context
 description: Request bounded, source-grounded Impresari Context evidence when a user asks for repository context, implementation, investigation, review, testing, orientation, or configuration analysis.
 ---
 
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
 # Impresari Context evidence guidance
 
 Use the already configured local `impresari-context` MCP server only for an
