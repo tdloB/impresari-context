@@ -188,6 +188,26 @@ def tool_payload(result)
   raise "Codex App Server tool result did not expose a structured payload: #{JSON.generate(result)}"
 end
 
+def mcp_server_status_summary(status, server)
+  matches = Array(status["data"]).select { |entry| entry.is_a?(Hash) && entry["name"] == server }
+  {
+    "server" => server,
+    "matching_server_count" => matches.length,
+    "matches" => matches.map do |entry|
+      server_info = entry["serverInfo"]
+      {
+        "name" => entry["name"],
+        "server_info" => server_info.is_a?(Hash) ? {
+          "name" => server_info["name"],
+          "version" => server_info["version"],
+        } : nil,
+        "tool_names" => entry.fetch("tools", {}).keys.sort,
+        "auth_status" => entry["authStatus"],
+      }
+    end,
+  }
+end
+
 def direct_mcp_packet(executable, server_args)
   stdin, stdout, stderr, wait = Open3.popen3(executable, *server_args)
   stderr_buffer = +""
@@ -313,20 +333,25 @@ with_rehearsal_root(options) do |temporary|
     })
     thread_id = thread.fetch("thread").fetch("id")
     status = rpc.call("mcpServerStatus/list", { "threadId" => thread_id, "detail" => "toolsAndAuthOnly" })
-    status_json = JSON.generate(status)
-    unless status_json.include?(SERVER)
+    status_summary = mcp_server_status_summary(status, SERVER)
+    status_json = JSON.generate(status_summary)
+    if status_summary.fetch("matching_server_count").zero?
       detail = options[:project_config] ?
         "Codex did not load the temporary project configuration; trust the project through Codex before claiming project-scope admission" :
         "Codex did not expose the dedicated MCP server"
       raise detail
     end
 
-    open = tool_payload(rpc.call("mcpServer/tool/call", {
-      "server" => SERVER,
-      "threadId" => thread_id,
-      "tool" => "context_session_open",
-      "arguments" => { "session_id" => SESSION },
-    }))
+    begin
+      open = tool_payload(rpc.call("mcpServer/tool/call", {
+        "server" => SERVER,
+        "threadId" => thread_id,
+        "tool" => "context_session_open",
+        "arguments" => { "session_id" => SESSION },
+      }))
+    rescue RuntimeError => error
+      raise "Codex registered the temporary server but did not make it callable: #{error.message}; observed MCP status: #{status_json}"
+    end
     raise "session open was not acknowledged" unless open["opened"] == true
 
     build = tool_payload(rpc.call("mcpServer/tool/call", {
@@ -385,6 +410,7 @@ with_rehearsal_root(options) do |temporary|
       "codex" => options[:codex],
       "configuration_source" => options[:project_config] ? "temporary_project" : "one_use_override",
       "server" => SERVER,
+      "mcp_server_status" => status_summary,
       "packet_id" => packet_id,
       "source_immutable" => true,
       "direct_engine_mcp_equivalence" => true,
