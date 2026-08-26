@@ -12,10 +12,12 @@ secrets, or deliver packets automatically.
 | Cursor | project rule | `.cursor/rules/impresari-context.mdc` |
 | GitHub Copilot | path-specific repository instruction | `.github/instructions/impresari-context.instructions.md` |
 
-Every template is deliberately small. It asks the agent to use only an already
-configured local Impresari MCP server, select an explicit task profile and hard
-budget, surface packet identity/reasons/omissions, and continue normally when
-the server is unavailable. It grants no additional authority.
+Every template is deliberately small. Current **v2** guidance asks the agent to
+use only an already configured local Impresari MCP server, select an explicit
+task profile and hard budget, follow the session open/build/resolve/close
+lifecycle when a session-scoped packet is needed, surface packet
+identity/reasons/omissions, and continue normally when the server is
+unavailable. It grants no additional authority.
 
 The client-specific locations are based on the documented project surfaces for
 [Claude Code skills](https://code.claude.com/docs/en/slash-commands),
@@ -40,3 +42,9 @@ impresari-context --apply client guidance remove claude <project-root>
 Substitute `codex`, `cursor`, or `copilot` for the client after creating that
 client's documented target parent directory. A client still requires its own
 version/OS native-surface evidence before it is promoted to L2.
+
+`validate` accepts only the current template version. To prevent a template
+revision from stranding a safe cleanup path, `inspect` recognizes an exact
+owned v1 artifact as `owned_legacy` and `remove` can remove it; it is not
+considered current guidance. Preview removal before applying it, then install
+the current template deliberately if wanted.

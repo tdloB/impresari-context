@@ -42,6 +42,10 @@ cannot configure, enable, approve, invoke, serialize, or deliver one.
 6. Mutable protocol constraints such as request/event identifier grammar and
    the fixed resource-policy fingerprint are supplied by the live MCP tool
    schema, not duplicated in a versioned exact-owned artifact.
+7. Current-template validation is exact. A specifically enumerated exact
+   prior-template byte sequence may be reported as `owned_legacy` and removed,
+   but cannot be validated as current or updated in place. All other legacy or
+   modified content fails closed.
 
 ## Verification requirements
 

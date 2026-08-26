@@ -24,7 +24,9 @@ delivery.
   how to cite packet identity and reason codes, and how to handle an omission
   or unavailable MCP server.
 - Preview, validate, explicit install, inspect, and exact owned-artifact
-  removal, preserving unrelated instruction content.
+  removal, preserving unrelated instruction content. An exact owned artifact
+  from a prior released template version may be recognized solely for removal;
+  it must not validate as the current template.
 - Fixed artifact version, target scope, platform/client-version record, source
   immutability proof, malformed-artifact behavior, and opt-in round-trip test.
 
@@ -65,6 +67,10 @@ instructions, or direct a client to write source files.
   owned-artifact removal on correction.
 - A round trip proves install, inspect, validate, and owned-only removal,
   source-workspace immutability, and no authority expansion.
+- A template revision preserves an explicit migration boundary: current
+  validation accepts only the current bytes, while removal accepts only the
+  current bytes or a specifically enumerated prior owned version. Unknown or
+  modified prior files fail closed.
 - Each client is promoted to L2 only after its own supported client/version/OS
   evidence and one opt-in native-surface smoke record. L2 never promotes a
   client to L1 by itself.

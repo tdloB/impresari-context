@@ -28,6 +28,8 @@ pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
 pub const MAX_REQUESTS: usize = 10_000;
 /// Public v1 request and event identifier grammar.
 const IDENTIFIER_PATTERN: &str = "^[a-z][a-z0-9_-]{0,31}_[A-Za-z0-9_-]{8,128}$";
+/// Public v1 canonical decimal grammar for resource-budget fields.
+const DECIMAL_PATTERN: &str = "^(?:0|[1-9][0-9]*)$";
 
 /// Trusted launch configuration. The client cannot change these values via MCP.
 pub struct ServerConfig {
@@ -270,7 +272,10 @@ impl McpServer {
         Ok(json!({"reference": reference, "packet": packet, "authority_added": false}))
     }
 
-    fn context_convention_exemplar_build(&mut self, value: Value) -> Result<Value, &'static str> {
+    fn context_convention_exemplar_build(
+        &mut self,
+        mut value: Value,
+    ) -> Result<Value, &'static str> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Args {
@@ -282,6 +287,7 @@ impl McpServer {
             declaration: DeclaredConventionExemplars,
             budget: ResourceBudget,
         }
+        normalize_wire_budget(&mut value)?;
         let args: Args =
             serde_json::from_value(value).map_err(|_| "invalid convention exemplar input")?;
         let context = RequestContext {
@@ -306,7 +312,7 @@ impl McpServer {
         Ok(json!({"packet": profiled.packet, "plan": profiled.plan, "authority_added": false}))
     }
 
-    fn structure_incremental_update(&mut self, value: Value) -> Result<Value, &'static str> {
+    fn structure_incremental_update(&mut self, mut value: Value) -> Result<Value, &'static str> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Args {
@@ -317,6 +323,7 @@ impl McpServer {
             update: IncrementalStructuralUpdate,
             budget: ResourceBudget,
         }
+        normalize_wire_budget(&mut value)?;
         let args: Args =
             serde_json::from_value(value).map_err(|_| "invalid incremental update input")?;
         let context = RequestContext {
@@ -337,7 +344,7 @@ impl McpServer {
     }
 
     #[allow(clippy::too_many_lines)] // One request grammar is kept co-located with its exclusive dispatch.
-    fn context_build(&mut self, value: Value) -> Result<Value, &'static str> {
+    fn context_build(&mut self, mut value: Value) -> Result<Value, &'static str> {
         #[derive(Deserialize)]
         #[serde(deny_unknown_fields)]
         struct Args {
@@ -358,6 +365,7 @@ impl McpServer {
             budget: ResourceBudget,
             session_id: Option<String>,
         }
+        normalize_wire_budget(&mut value)?;
         let args: Args = serde_json::from_value(value).map_err(|_| "invalid context input")?;
         let context = RequestContext {
             request_id: args.request_id,
@@ -508,6 +516,37 @@ impl McpServer {
     }
 }
 
+/// Normalize MCP's JSON-integer transport aliases to the canonical decimal
+/// strings owned by `ResourceBudget`. The core remains the sole policy
+/// validator; fractions, signed values, and all other JSON types fail closed.
+fn normalize_wire_budget(value: &mut Value) -> Result<(), &'static str> {
+    const FIELDS: [&str; 8] = [
+        "requested",
+        "max_evidence_items",
+        "max_files",
+        "max_excerpt_bytes_per_item",
+        "max_matches",
+        "max_traversal_depth",
+        "max_elapsed_ms",
+        "max_memory_bytes",
+    ];
+    let Some(budget) = value.get_mut("budget") else {
+        return Ok(());
+    };
+    let object = budget.as_object_mut().ok_or("invalid budget input")?;
+    for field in FIELDS {
+        let Some(value) = object.get_mut(field) else {
+            continue;
+        };
+        if let Some(number) = value.as_u64() {
+            *value = Value::String(number.to_string());
+        } else if !value.is_string() {
+            return Err("invalid budget input");
+        }
+    }
+    Ok(())
+}
+
 struct BoundedLine {
     bytes: Vec<u8>,
     overflowed: bool,
@@ -605,11 +644,11 @@ fn tool_definitions() -> Value {
     let budget = json!({
         "type":"object", "additionalProperties":false,
         "properties":{
-            "unit_kind":{"const":"utf8_bytes"}, "requested":{"type":"string"},
-            "hard":{"const":true}, "max_evidence_items":{"type":"string"},
-            "max_files":{"type":"string"}, "max_excerpt_bytes_per_item":{"type":"string"},
-            "max_matches":{"type":"string"}, "max_traversal_depth":{"type":"string"},
-            "max_elapsed_ms":{"type":"string"}, "max_memory_bytes":{"type":"string"},
+            "unit_kind":{"const":"utf8_bytes"}, "requested":decimal_schema(),
+            "hard":{"const":true}, "max_evidence_items":decimal_schema(),
+            "max_files":decimal_schema(), "max_excerpt_bytes_per_item":decimal_schema(),
+            "max_matches":decimal_schema(), "max_traversal_depth":decimal_schema(),
+            "max_elapsed_ms":decimal_schema(), "max_memory_bytes":decimal_schema(),
             "policy_profile":{"const":POLICY_PROFILE}
         },
         "required":["unit_kind","requested","hard","max_evidence_items","max_files","max_excerpt_bytes_per_item","max_matches","max_traversal_depth","max_elapsed_ms","max_memory_bytes","policy_profile"]
@@ -622,6 +661,15 @@ fn tool_definitions() -> Value {
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
+}
+
+fn decimal_schema() -> Value {
+    json!({
+        "oneOf":[
+            {"type":"string","pattern":DECIMAL_PATTERN},
+            {"type":"integer","minimum":0}
+        ]
+    })
 }
 
 #[cfg(test)]
@@ -810,6 +858,14 @@ mod tests {
             build["inputSchema"]["properties"]["event_id"]["pattern"],
             IDENTIFIER_PATTERN
         );
+        assert_eq!(
+            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["oneOf"][0]["pattern"],
+            DECIMAL_PATTERN
+        );
+        assert_eq!(
+            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["oneOf"][1]["type"],
+            "integer"
+        );
     }
 
     #[test]
@@ -847,6 +903,44 @@ mod tests {
         assert_eq!(
             values[1]["result"]["structuredContent"]["plan"]["task_profile"],
             "orientation"
+        );
+    }
+
+    #[test]
+    fn profiled_context_build_normalizes_integer_budget_transport_values() {
+        let (mut server, _source, _cache) = server();
+        let budget = json!({
+            "unit_kind":"utf8_bytes", "requested":4096, "hard":true,
+            "max_evidence_items":20, "max_files":100,
+            "max_excerpt_bytes_per_item":256, "max_matches":100,
+            "max_traversal_depth":8, "max_elapsed_ms":30000,
+            "max_memory_bytes":1048576, "policy_profile":POLICY_PROFILE
+        });
+        let request = json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
+                "name":"context_build", "arguments": {
+                    "request_id":"req_mcpintegerbudget01", "event_id":"evt_mcpintegerbudget01",
+                    "purpose":"orientation", "occurred_at":"2026-08-22T00:00:00Z",
+                    "profile":"orientation", "query":"auth", "budget":budget
+                }
+            }
+        });
+        let input = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"test\",\"version\":\"1\"}}}}}}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{request}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(values[1]["result"]["isError"], false, "{values:?}");
+        assert_eq!(
+            values[1]["result"]["structuredContent"]["packet"]["budget"]["requested"],
+            "4096"
         );
     }
 

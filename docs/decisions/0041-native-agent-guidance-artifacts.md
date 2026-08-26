@@ -33,6 +33,10 @@ model governance, or opaque client behavior.
   resource-policy fingerprint, remain authoritative MCP tool-schema values.
   They are not copied into an exact-owned guidance artifact, so a protocol
   correction does not strand an already installed artifact from safe removal.
+- Guidance revisions use a bounded migration rule: validation accepts only the
+  current exact artifact, while removal may recognize only enumerated exact
+  prior owned bytes. A prior artifact is reported as `owned_legacy`, never
+  silently treated as current or rewritten in place.
 - CI-1 L1 classification and CI-2 L2 classification are independent: no L2
   artifact can conceal missing managed-connection evidence.
 
