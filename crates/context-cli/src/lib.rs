@@ -1358,7 +1358,7 @@ fn managed_connection_kit(
         ),
         "vscode" => (
             "vscode",
-            "workspace_portable_agent_host",
+            "workspace_extension_host",
             json!({"format": "json", "entry": {"servers": {"impresari-context": {
                 "type": "stdio", "command": binary, "args": arguments
             }}}}),
@@ -3107,7 +3107,7 @@ mod tests {
                         .is_some_and(|entry| entry.contains("required = true"))
                 );
             } else if client == "vscode" {
-                assert_eq!(value["target_scope"], "workspace_portable_agent_host");
+                assert_eq!(value["target_scope"], "workspace_extension_host");
                 assert_eq!(
                     value["configuration"]["entry"]["servers"]["impresari-context"]["type"],
                     "stdio"

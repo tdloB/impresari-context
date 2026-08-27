@@ -1,10 +1,11 @@
 #!/usr/bin/env ruby
 # SPDX-License-Identifier: Apache-2.0
 #
-# Disposable VS Code Copilot L1 admission rehearsal. It prepares only a named
-# workspace below /private/tmp. A signed-in operator performs the VS Code trust,
-# discovery, and tool-invocation checks; this script never launches VS Code,
-# changes a user profile, or claims admission from an unchecked prompt.
+# Disposable VS Code Copilot extension-host L1 admission rehearsal. It prepares
+# only a named workspace below /private/tmp. A signed-in operator performs the
+# VS Code trust, discovery, and tool-invocation checks; this script never
+# launches VS Code, changes a user profile, or claims admission from an
+# unchecked prompt.
 
 require "digest"
 require "fileutils"
@@ -14,8 +15,8 @@ require "optparse"
 require "pathname"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
-FIXTURE_NAME = "__impresari_vscode_agent_host_probe__.ts"
-FIXTURE_CONTENT = "export const __impresari_vscode_agent_host_probe__ = true;\n"
+FIXTURE_NAME = "__impresari_vscode_extension_host_probe__.ts"
+FIXTURE_CONTENT = "export const __impresari_vscode_extension_host_probe__ = true;\n"
 RECORDED_VSCODE_VERSION = "1.134.0"
 
 options = {
@@ -30,7 +31,7 @@ options = {
 }
 
 OptionParser.new do |parser|
-  parser.banner = "Usage: scripts/rehearse-vscode-copilot-portable-agent-host.rb [options]"
+  parser.banner = "Usage: scripts/rehearse-vscode-copilot-extension-host.rb [options]"
   parser.on("--cli PATH", "Impresari CLI executable") { |value| options[:cli] = value }
   parser.on("--mcp PATH", "Impresari MCP executable") { |value| options[:mcp] = value }
   parser.on("--prepare-root PATH", "Preview or create an empty disposable root below /private/tmp") do |value|
@@ -77,12 +78,16 @@ def layout(root)
   { workspace: root.join("workspace"), cache: root.join("cache") }
 end
 
+def extension_host_config(workspace)
+  workspace.join(".vscode", "mcp.json")
+end
+
 def source_digest(workspace)
   Digest::SHA256.hexdigest(
     Dir.glob(File.join(workspace, "**", "*"), File::FNM_DOTMATCH)
        .select do |path|
          relative = path.delete_prefix("#{workspace}/")
-         File.file?(path) && relative != ".mcp.json" && !relative.start_with?(".git/")
+         File.file?(path) && relative != ".vscode/mcp.json" && !relative.start_with?(".git/")
        end
        .sort
        .map { |path| "#{path.delete_prefix(workspace.to_s)}\t#{Digest::SHA256.file(path).hexdigest}\n" }
@@ -99,15 +104,16 @@ end
 if options[:prepare_root]
   root = disposable_root(options[:prepare_root], allow_absent: true)
   paths = layout(root)
-  config = paths.fetch(:workspace).join(".mcp.json")
+  config = extension_host_config(paths.fetch(:workspace))
   unless options[:apply]
     puts JSON.generate({
       "status" => "preview_ready",
-      "operation" => "prepare_disposable_vscode_copilot_agent_host",
+      "operation" => "prepare_disposable_vscode_copilot_extension_host",
       "root" => root.to_s,
       "workspace" => paths.fetch(:workspace).to_s,
       "cache" => paths.fetch(:cache).to_s,
       "configuration" => config.to_s,
+      "configuration_surface" => "workspace_extension_host",
       "external_write_performed" => false,
       "next_step" => "Review the disposable paths, then rerun with --apply. No VS Code profile, real source workspace, trust state, or server process is selected.",
     })
@@ -115,6 +121,7 @@ if options[:prepare_root]
   end
   abort("prepared root already exists: #{root}") if root.exist?
   FileUtils.mkdir_p(paths.values)
+  FileUtils.mkdir_p(config.dirname)
   File.write(paths.fetch(:workspace).join(FIXTURE_NAME), FIXTURE_CONTENT)
   before = source_digest(paths.fetch(:workspace))
   installed = run_json(
@@ -126,20 +133,21 @@ if options[:prepare_root]
     options[:cli], "doctor", "vscode-config", paths.fetch(:workspace).to_s,
     paths.fetch(:cache).to_s, config.to_s,
   )
-  abort("portable VS Code configuration was rejected by doctor") unless doctor.dig("checks", 4, "status") == "passed"
-  abort("source changed during portable configuration preparation") unless source_digest(paths.fetch(:workspace)) == before
+  abort("extension-host VS Code configuration was rejected by doctor") unless doctor.dig("checks", 4, "status") == "passed"
+  abort("source changed during extension-host configuration preparation") unless source_digest(paths.fetch(:workspace)) == before
   puts JSON.generate({
     "status" => "prepared_for_manual_client_evidence",
-    "operation" => "prepare_disposable_vscode_copilot_agent_host",
+    "operation" => "prepare_disposable_vscode_copilot_extension_host",
     "root" => root.to_s,
     "workspace" => paths.fetch(:workspace).to_s,
     "cache" => paths.fetch(:cache).to_s,
     "configuration" => config.to_s,
+    "configuration_surface" => "workspace_extension_host",
     "source_digest" => before,
     "external_write_performed" => true,
     "required_manual_steps" => [
       "Open the named workspace in a new VS Code window using the signed-in default VS Code profile.",
-      "Review the exact .mcp.json entry and make VS Code's own trust/enable decision; do not enable MCP sandboxing or change automatic approvals.",
+      "Review the exact .vscode/mcp.json entry and make VS Code's own trust/enable decision; do not enable MCP sandboxing or change automatic approvals.",
       "Use MCP: List Servers and verify the server named impresari-context and its fixed local command are visible.",
       "In Agent Chat, enable only the Impresari tools, ask for the probe's context, and record whether one named Impresari MCP tool was invoked. Model tool choice is not required to be repeatable.",
       "Close the temporary workspace/server, then run this script with --temporary-root, both confirmation flags, the exact observed VS Code version, and --apply to validate and remove only the owned entry.",
@@ -152,8 +160,8 @@ end
 root = disposable_root(options[:temporary_root])
 paths = layout(root)
 paths.each_value { |path| abort("prepared layout is missing: #{path}") unless path.directory? }
-config = paths.fetch(:workspace).join(".mcp.json")
-abort("portable workspace configuration is missing") unless config.file? && !config.symlink?
+config = extension_host_config(paths.fetch(:workspace))
+abort("extension-host workspace configuration is missing") unless config.file? && !config.symlink?
 abort("--confirmed-discovery is required to record the manual VS Code observation") unless options[:confirmed_discovery]
 abort("--confirmed-tool-invocation is required to record the manual VS Code observation") unless options[:confirmed_tool_invocation]
 abort("--vscode-version must equal #{RECORDED_VSCODE_VERSION}") unless options[:vscode_version] == RECORDED_VSCODE_VERSION
@@ -164,17 +172,18 @@ doctor = run_json(
   options[:cli], "doctor", "vscode-config", paths.fetch(:workspace).to_s,
   paths.fetch(:cache).to_s, config.to_s,
 )
-abort("portable VS Code configuration became invalid before removal") unless doctor.dig("checks", 4, "status") == "passed"
+abort("extension-host VS Code configuration became invalid before removal") unless doctor.dig("checks", 4, "status") == "passed"
 removed = run_json(
   options[:cli], "client", "kit", "remove", "vscode", options[:mcp],
   paths.fetch(:workspace).to_s, paths.fetch(:cache).to_s, config.to_s, "--apply",
 )
 abort("managed VS Code entry was not explicitly removed") unless removed["external_write_performed"] == true
-abort("portable workspace configuration still exists after exact owned removal") if config.exist?
+abort("extension-host workspace configuration still exists after exact owned removal") if config.exist?
 abort("source changed during VS Code client evidence capture") unless source_digest(paths.fetch(:workspace)) == before
 puts JSON.generate({
   "status" => "manual_client_evidence_recorded",
-  "operation" => "verify_disposable_vscode_copilot_agent_host",
+  "operation" => "verify_disposable_vscode_copilot_extension_host",
+  "configuration_surface" => "workspace_extension_host",
   "vscode_version" => options[:vscode_version],
   "confirmed_server_discovery" => true,
   "confirmed_impresari_tool_invocation" => true,
@@ -182,5 +191,5 @@ puts JSON.generate({
   "owned_configuration_removed" => true,
   "external_write_performed" => true,
   "first_class_admission_claim" => false,
-  "next_step" => "Review the retained source-free record and separately decide whether the manually observed client evidence is sufficient for the public L1 admission claim.",
+  "next_step" => "Review the retained source-free record and separately decide whether the manually observed extension-host evidence is sufficient for the public L1 admission claim.",
 })

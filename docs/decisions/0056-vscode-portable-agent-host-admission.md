@@ -1,6 +1,6 @@
 # ADR-0056: VS Code portable Agent Host admission
 
-- Status: Accepted for candidate implementation; L1 admission pending
+- Status: Superseded by ADR-0057 for the VS Code extension-host L1 candidate; retained for the separate Agent Host surface
 - Date: 2026-08-26
 - Scope: VS Code Copilot workspace MCP configuration
 
@@ -42,3 +42,11 @@ server-tool auto-approval would conflict with this L1 boundary.
 - [VS Code Agent Host architecture](https://code.visualstudio.com/docs/agents/concepts/agent-host)
 - [CI-1 VS Code Copilot admission PRD](../product/ci-1-vscode-copilot-admission-prd.md)
 - [ADR-0035](0035-l1-managed-client-connection-kits.md)
+
+## Supersession
+
+The initial candidate did not appear in the observed `MCP: List Servers` UI:
+that UI loads workspace `.vscode/mcp.json`, while this ADR's workspace-root
+`.mcp.json` is for the separate Agent Host surface. ADR-0057 records the
+extension-host correction. This ADR remains historical context and does not
+admit the Agent Host surface.
