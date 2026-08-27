@@ -1,10 +1,11 @@
 # Phase 1 Codex connection-kit record
 
-- Date: 2026-08-25
+- Date: 2026-08-26
 - Client surface: Codex CLI `0.149.0-alpha.4.1`
 - OS/architecture scope exercised: macOS aarch64
-- Classification effect: **Generic local MCP** remains the published claim.
-- Scope: project-scoped `.codex/config.toml` template, the read-only
+- Classification effect: **First-class** for the recorded client/version/OS
+  scope, subject to the repository's hosted release gate.
+- Scope: explicit user-level `$CODEX_HOME/config.toml` target, the read-only
   `doctor codex-config` validator, and deterministic App Server transport
   conformance.
 
@@ -12,37 +13,32 @@
 
 | Requirement | Result | Evidence |
 | --- | --- | --- |
-| Current host contract | Passed | Official Codex documentation specifies local stdio MCP, shared host configuration, `.codex/config.toml` trusted-project scope, `codex mcp get`, and a per-server `default_tools_approval_mode`. |
+| Current host contract | Passed | The installed CLI exposes `mcp add`, `mcp get`, and `mcp remove`. Its App Server loads the active Codex home configuration; an observed trusted `.codex/config.toml` file was not a runtime MCP configuration source on this client version. |
 | Template rendering | Passed | The managed TOML entry fixes workspace, cache, consumer ID, and role at process launch; requires the server; enables it; and uses `prompt` approval mode. |
 | Configuration validation | Passed | `doctor codex-config` parses bounded TOML; requires the exact local-stdio entry, an existing executable absolute binary path, canonical workspace/cache matches, prompt approval, enabled/required values when present, and no environment forwarding or remote fields. |
 | Negative cases | Passed | Unit coverage rejects environment forwarding and malformed TOML. |
 | Source immutability | Passed | Unit coverage preserves the source-file bytes and emits a source-free doctor report. |
-| CLI discovery surface | Passed | The installed client exposes `mcp list`, `mcp get`, `mcp add`, and `mcp remove`; the kit uses only the read-only `mcp get --json` verification command. |
-| Live local lifecycle | Passed, limited scope | Codex CLI `0.149.0-alpha.4.1` on macOS aarch64 launched the existing fixed-stdio entry and completed `context_session_open` and `context_build` against an isolated empty workspace. The delivered packet ID was `sha256:919b7bc7cec5466a48e3a6fbd701573f2783768dc6fec03171b472b7cfd77818`; workspace bytes remained unchanged. |
+| CLI discovery surface | Passed | An isolated active `CODEX_HOME` accepted the exact rendered entry (`codex mcp get impresari-context`) and, after kit removal, did not retain that entry. |
+| Live managed lifecycle | Passed | Codex CLI `0.149.0-alpha.4.1` on macOS aarch64 loaded the exact kit entry from an empty disposable `CODEX_HOME`, completed the full four-tool lifecycle against an isolated empty workspace, and removed only the named entry. The delivered packet ID was `sha256:9df0338a3689afdd90f362b11d028f1b928deea32bf04a2341c6fd084ffe1fde`; workspace bytes remained unchanged. |
 | Read-only execution behavior | Passed, negative case | `codex exec --sandbox read-only` discovers the MCP server but blocks its tool call because that execution mode sets MCP approval to `never`. This is expected client policy behavior, not a server failure. The successful lifecycle check used Codex's explicit automatic approval mode while the MCP server itself retained the fixed read-only authority contract. |
-| Deterministic App Server tool lifecycle | Passed | `scripts/rehearse-codex-app-server.rb` starts a local Codex App Server with a one-use `-c` MCP definition, creates an ephemeral read-only thread, lists the dedicated server, and directly invokes `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close`. It never asks a model to select a tool or changes a Codex configuration file. |
+| Deterministic App Server tool lifecycle | Passed | `scripts/rehearse-codex-app-server.rb` creates an ephemeral read-only thread, lists the dedicated server, and directly invokes `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close`. The baseline uses a one-use `-c` definition; managed admission uses a disposable `CODEX_HOME`. Neither path asks a model to select a tool. |
 | Packet equivalence through Codex | Passed | The rehearsal creates a temporary TypeScript fixture and fixed startup/request time, proves direct-engine/in-process-MCP equivalence with `doctor mcp`, then requires byte-for-byte equality between a raw MCP child-process packet and the packet delivered through Codex App Server. The resolved session packet must equal the delivered packet; the fixture digest is unchanged. Packet identity intentionally differs between runs because the temporary fixture has a unique workspace identity. |
-| Temporary managed project-configuration trust gate | Passed, negative boundary | The same rehearsal's `--project-config` mode explicitly uses the managed install and validation commands for a disposable `.codex/config.toml`, then removes the exact owned entry. On Codex CLI `0.149.0-alpha.4.1` macOS aarch64, the untrusted project does not expose the server for tool calls. This confirms the client does not silently load an untrusted project configuration. |
+| Malformed client configuration | Passed | An intentionally malformed `config.toml` in an otherwise empty disposable `CODEX_HOME` was rejected by `codex mcp list` before the valid managed entry was installed. |
+| Exact owned-entry removal | Passed | The rehearsal applies the versioned kit, validates it, runs the live lifecycle, removes the exact ownership-marked table, and confirms `codex mcp get impresari-context` no longer succeeds in that isolated home. |
 
 ## Deliberate limits
 
 The kit writes a named target only after an explicit `--apply` install or
-remove. It does not discover default targets, trust a project, invoke `codex
-mcp add`, or change an unowned entry. The core has no Codex dependency and the
-kit adds no model, prompt, network, memory, or orchestration authority.
+remove. It does not discover a default target, trust a project, change an
+unowned entry, or write the user's Codex home during the rehearsal. The core
+has no Codex dependency and the kit adds no model, prompt, network, memory, or
+orchestration authority.
 
-The current client CLI did not load a synthetic untrusted project configuration
-during read-only discovery. That behavior is expected from the documented trust
-gate and confirms that a first-class assertion requires an isolated trusted
-clean-install run rather than an automated configuration mutation.
-
-`scripts/rehearse-codex-app-server.rb --prepare-project-root <temporary-root>`
-now provides a write-free preview for a disposable trusted-project rehearsal.
-After a separate explicit `--apply`, the client owner trusts only the reported
-temporary workspace, then runs `--project-config --temporary-root
-<temporary-root>`. The rehearsal installs and validates the exact owned entry,
-proves the App Server lifecycle, and removes only that entry; it never writes
-the user's shared Codex configuration or creates a trust state.
+The tested temporary home may receive Codex's own local runtime metadata while
+the App Server runs. That home is an explicit disposable `/private/tmp` target;
+the admission evidence requires removal of Impresari's exact configuration
+entry, not deletion of client-owned runtime state. No user home is read or
+changed by the rehearsal.
 
 A conversational `codex exec` session remains useful usability evidence, but
 is not the release gate: its model may select a different available MCP
@@ -53,26 +49,16 @@ a model request.
 
 ## Admission status
 
-Do not promote Codex to **First-class** yet. Still required:
-
-- malformed configuration behavior as rendered by Codex itself;
-- a maintained published version/OS scope (the current evidence is limited to
-  Codex CLI `0.149.0-alpha.4.1` on macOS aarch64); and
-- an isolated trusted-project clean-install record for the published
-  `.codex/config.toml` template, including its exact owned-entry removal.
-
-These gaps are the explicit Phase 1 admission work under the
-[Phase 1 PRD](../product/phase-1-language-configuration-and-client-admission-prd.md)
-and [ADR-0018](../decisions/0018-first-class-client-integration-and-compatibility-contract.md).
-The deterministic transport decision is recorded separately in
-[ADR-0028](../decisions/0028-codex-deterministic-mcp-tool-conformance.md).
+The local L1 evidence is complete for Codex CLI `0.149.0-alpha.4.1` on macOS
+aarch64: versioned kit, user-level configuration validation, malformed-client
+failure, isolated install/client recognition/removal, deterministic tool
+lifecycle, packet equivalence, and source immutability. Public promotion is
+released only with the hosted gate for this change; the claimed scope remains
+that exact client/version/OS combination.
 
 ## Roadmap checkpoint
 
-After this slice, the Master PRD, Phase 1 PRD, ADR-0018, and ADR-0029 were
-reassessed against the completed evidence. The roadmap's Phase 5 status was
-corrected to record the shipped functional-language admissions; CI-1 scope and
-trust boundaries are unchanged. Codex has deterministic host-transport and
-packet evidence plus managed project configuration setup/removal, but remains
-Generic local MCP until trusted-project clean-install and exact owned-entry
-removal evidence are recorded.
+After this slice, the Master PRD, Phase 1 PRD, ADR-0018, ADR-0028, and CI-1
+roadmap were reassessed. Codex's managed configuration scope is corrected from
+an unsupported project file to the observed user-level home. The next CI-1
+admission target is Claude Code; no language roadmap change is needed.

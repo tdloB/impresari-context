@@ -72,3 +72,14 @@ duplicate, conflicting, or unowned Impresari entry fails closed.
 contract. It proves that the named target contains the former before it renders
 or atomically replaces it with the latter. It never performs a name-based or
 automatic overwrite.
+
+## Codex scope correction
+
+Codex CLI/App Server `0.149.0-alpha.4.1` on macOS aarch64 loads the active
+user-level Codex-home configuration rather than a repository
+`.codex/config.toml` MCP entry. Therefore the Codex L1 target scope is `user`:
+the caller must name the target `CODEX_HOME/config.toml`, and the kit must not
+discover or automatically write a real user home. The isolated admission
+rehearsal may use an explicit empty `/private/tmp` `CODEX_HOME`, where it
+proves malformed-configuration rejection, exact install/recognition/removal,
+deterministic lifecycle, packet equivalence, and source immutability.

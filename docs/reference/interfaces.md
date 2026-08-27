@@ -55,7 +55,7 @@ returns `74`; success returns `0`.
 | `handoff export <root> <cache-root> <packet-json> <export-root> <filename>` | Packet and authorized destination | `handoff-export`; no overwrite |
 | `doctor inspect <root> <cache-root>` | Existing workspace and cache directories | `doctor-report` with metadata-only prerequisite checks |
 | `doctor mcp <root> <cache-root>` | Existing workspace and separate cache directories | `doctor-report` with an in-process MCP initialization and tool-discovery check |
-| `doctor codex-config <root> <cache-root> <config-toml>` | Existing workspace/cache and a Codex-format TOML config | `doctor-report` with a source-free fixed-stdio project-configuration check |
+| `doctor codex-config <root> <cache-root> <config-toml>` | Existing workspace/cache and a Codex user-home TOML config | `doctor-report` with a source-free fixed-stdio user-configuration check |
 | `doctor cursor-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Cursor-format config | `doctor-report` with a source-free fixed-stdio configuration check |
 | `doctor claude-config <root> <cache-root> <mcp-json>` | Existing workspace/cache and a Claude-format config | `doctor-report` with a source-free fixed-stdio configuration check |
 

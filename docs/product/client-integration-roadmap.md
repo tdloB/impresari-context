@@ -40,7 +40,7 @@ deterministic client behavior.
 
 | Track | Current evidence-backed status | Next gate |
 | --- | --- | --- |
-| CI-1 managed connections | Shared render/inspect/validate/install/remove capability and deterministic fixture coverage exist. An explicit owned-update implementation is locally release-gated and awaiting hosted acceptance. All named clients remain L0 until their independent real-client/version/OS admission records are complete. | Merge the owned-update decision and implementation after hosted CI; complete only user-consented, disposable client lifecycle evidence where required. |
+| CI-1 managed connections | Shared render/inspect/validate/install/remove capability and deterministic fixture coverage exist. Codex L1 local evidence is complete for its recorded macOS/client-version scope; Claude Code, Cursor, and Copilot remain L0 until their independent admission records are complete. | Maintain Codex after every upstream change; complete only user-consented, disposable client lifecycle evidence where required for the remaining clients. |
 | CI-2 native guidance | PRD/ADR accepted. Versioned Codex, Claude Code, Cursor, and Copilot templates plus a static authority-boundary checker are implemented locally and awaiting hosted acceptance. | Merge template implementation; then admit managed install/remove and client/version/OS smoke evidence separately per client. |
 | CI-3 guided delivery | PRD/ADR/ARD define an explicit consented delivery intent, deterministic packet equivalence, and no-delivery degradation. No client adapter is implemented or claimed. | Admit a client-neutral intent/receipt contract, then evaluate only stable official lifecycle surfaces one client at a time. |
 | CI-4 lifecycle maintenance | PRD/ADR/ARD define source-free on-demand compatibility checks. No health adapter is implemented or claimed. | Admit a source-free manifest/receipt contract only after one client has a stable L1/L2/L3 surface. |
@@ -92,7 +92,7 @@ background activity.
 
 | Client | Current level | Planned target | Notes |
 | --- | --- | --- | --- |
-| Codex | L0 | L1, then L2/L3 where native surfaces permit | Direct lifecycle evidence exists; full L1 admission is incomplete. |
+| Codex | L1 | L2/L3 where native surfaces permit | L1 is admitted only for Codex CLI `0.149.0-alpha.4.1` on macOS aarch64: explicit user-home kit, malformed-client rejection, deterministic lifecycle, packet equivalence, and exact removal are recorded. |
 | Claude Code | L0 | L1, then L2/L3 through native skills/lifecycle surfaces | Deep behavior is later consented delivery, not silent prompt injection. |
 | Cursor | L0 | L1, then L2/L3 through rules and supported configuration | User-owned IDE enablement remains explicit. |
 | GitHub Copilot | L0 | L1, then L2/L3 across CLI and VS Code separately | CLI and VS Code need distinct evidence. |

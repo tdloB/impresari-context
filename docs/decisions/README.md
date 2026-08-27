@@ -56,6 +56,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0048](0048-elixir-structural-language-admission.md) | Admit bounded Elixir syntax evidence without BEAM or Mix authority | Accepted for implementation |
 | [ADR-0049](0049-clojure-structural-language-admission.md) | Admit bounded Clojure syntax evidence without reader or macro authority | Accepted for implementation |
 | [ADR-0050](0050-haskell-structural-language-admission.md) | Admit bounded Haskell syntax evidence without compiler or type-system authority | Accepted for implementation |
+| [ADR-0051](0051-codex-user-home-managed-connection.md) | Use the active user-level Codex home for managed MCP configuration and isolated admission evidence | Accepted for implementation |
 
 ## Change Rules
 

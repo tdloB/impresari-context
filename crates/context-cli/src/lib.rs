@@ -1032,7 +1032,7 @@ fn doctor_codex_config(
     report.checks.push(DoctorCheck {
         id: "codex_mcp_configuration",
         status: if passed { "passed" } else { "failed" },
-        remediation: "use the documented project-scoped fixed local-stdio TOML entry with prompt approvals and no environment forwarding",
+        remediation: "use the documented user-scoped fixed local-stdio TOML entry with prompt approvals and no environment forwarding",
     });
     if !passed {
         report.status = "failed";
@@ -1252,7 +1252,7 @@ fn managed_connection_kit(
     let (client, target_scope, configuration) = match client {
         "codex" => (
             "codex",
-            "project",
+            "user",
             json!({
                 "format": "toml",
                 "entry": managed_toml_block(&binary, &arguments),
@@ -2845,6 +2845,7 @@ mod tests {
             assert!(value["configuration"].to_string().contains("--cache"));
             assert!(!value["configuration"].to_string().contains("env"));
             if client == "codex" {
+                assert_eq!(value["target_scope"], "user");
                 assert!(
                     value["configuration"]["entry"]
                         .as_str()
@@ -3604,13 +3605,22 @@ mod tests {
             ]),
             "the public manifest must match the shipped structural worker inventory"
         );
-        assert_eq!(manifest["first_class_clients"], serde_json::json!([]));
-        assert!(
-            manifest["client_support"]
-                .as_array()
-                .expect("client support array")
-                .iter()
-                .all(|entry| entry["first_class"] == false)
+        assert_eq!(
+            manifest["first_class_clients"],
+            serde_json::json!(["Codex"])
+        );
+        let first_class = manifest["client_support"]
+            .as_array()
+            .expect("client support array")
+            .iter()
+            .filter(|entry| entry["first_class"] == true)
+            .collect::<Vec<_>>();
+        assert_eq!(first_class.len(), 1, "client promotion must be explicit");
+        assert_eq!(first_class[0]["client"], "Codex");
+        assert_eq!(first_class[0]["classification"], "first_class");
+        assert_eq!(
+            first_class[0]["conformance"],
+            "managed_user_home_configuration_and_app_server_direct_tool_conformance"
         );
     }
 
@@ -3757,7 +3767,7 @@ mod tests {
     }
 
     #[test]
-    fn doctor_codex_config_validates_a_project_scoped_fixed_stdio_entry() {
+    fn doctor_codex_config_validates_a_user_scoped_fixed_stdio_entry() {
         let source = TestRoot::new("codex-source");
         let cache = TestRoot::new("codex-cache");
         let config = TestRoot::new("codex-config");
