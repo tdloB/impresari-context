@@ -3,10 +3,10 @@
 
 root = File.expand_path("..", __dir__)
 templates = {
-  "templates/client-guidance/codex/AGENTS.md" => ["Impresari Context", "packet ID"],
-  "templates/client-guidance/claude/SKILL.md" => ["description:", "packet ID"],
-  "templates/client-guidance/cursor/impresari-context.mdc" => ["description:", "alwaysApply: false", "packet ID"],
-  "templates/client-guidance/copilot/impresari-context.instructions.md" => ["applyTo:", "packet ID"],
+  "templates/client-guidance/codex/AGENTS.md" => ["Impresari Context", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
+  "templates/client-guidance/claude/SKILL.md" => ["description:", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
+  "templates/client-guidance/cursor/impresari-context.mdc" => ["description:", "alwaysApply: false", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
+  "templates/client-guidance/copilot/impresari-context.instructions.md" => ["applyTo:", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
 }
 forbidden = [
   /https?:\/\//i,

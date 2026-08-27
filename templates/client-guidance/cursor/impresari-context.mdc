@@ -3,13 +3,19 @@ description: Use bounded, snapshot-grounded Impresari Context evidence for expli
 alwaysApply: false
 ---
 
-<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+<!-- Impresari Context native guidance v2; ownership=exact_fixed_artifact:impresari-context -->
 
 # Impresari Context evidence guidance
 
 Use an already configured local `impresari-context` MCP server only for an
 explicit supported task profile and hard evidence budget. Show packet ID, plan
 ID, reason codes, coverage, and omissions when using a returned packet.
+
+For a session-scoped packet, use `context_session_open`, then
+`context_build`, `context_packet_resolve`, and `context_session_close` in that
+order. The build uses one explicit profile and a hard budget that validates
+against the live tool schema; resolve only the returned packet ID in the same
+session.
 
 Do not change MCP configuration, trust, approvals, source files, or execution
 authority. Do not infer unsupported runtime behavior. If evidence is unavailable,

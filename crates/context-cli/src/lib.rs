@@ -253,6 +253,7 @@ struct GuidanceTemplate {
     client: &'static str,
     relative_target: &'static str,
     contents: &'static str,
+    legacy_contents: &'static [&'static str],
 }
 
 #[allow(clippy::too_many_lines)]
@@ -1566,6 +1567,76 @@ fn remove_managed_connection(
 
 const GUIDANCE_MAX_BYTES: u64 = 16 * 1024;
 const GUIDANCE_OWNERSHIP: &str = "exact_fixed_artifact:impresari-context";
+const LEGACY_CODEX_GUIDANCE_V1: &str = r"<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
+# Impresari Context evidence guidance
+
+Use an already configured local `impresari-context` MCP server only when the
+user requests repository context or an evidence-backed implementation,
+investigation, review, test-selection, orientation, or configuration-change
+task.
+
+- Ask for or state one explicit supported profile and a bounded evidence budget.
+- Treat every packet as snapshot-bound evidence. Show its packet ID, plan ID,
+  reason codes, coverage, and omissions when relying on it.
+- Do not infer unsupported runtime behavior, alter MCP configuration, bypass
+  client approvals, execute repository code, or expand the requested budget.
+- If the MCP server or packet is unavailable, say so briefly and continue with
+  ordinary repository analysis; do not fabricate evidence.
+";
+const LEGACY_CLAUDE_GUIDANCE_V1: &str = r"---
+name: impresari-context
+description: Request bounded, source-grounded Impresari Context evidence when a user asks for repository context, implementation, investigation, review, testing, orientation, or configuration analysis.
+---
+
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
+# Impresari Context evidence guidance
+
+Use the already configured local `impresari-context` MCP server only for an
+explicit supported task profile and bounded evidence budget. Treat returned
+packets as snapshot-bound evidence: surface packet ID, plan ID, reason codes,
+coverage, and omissions before relying on them.
+
+Never alter MCP configuration, client approvals, budgets, source files, or
+repository execution authority. If the server or packet is unavailable, state
+that limitation and continue with ordinary analysis without fabricating
+evidence.
+";
+const LEGACY_CURSOR_GUIDANCE_V1: &str = r"---
+description: Use bounded, snapshot-grounded Impresari Context evidence for explicit repository-context tasks.
+alwaysApply: false
+---
+
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
+# Impresari Context evidence guidance
+
+Use an already configured local `impresari-context` MCP server only for an
+explicit supported task profile and hard evidence budget. Show packet ID, plan
+ID, reason codes, coverage, and omissions when using a returned packet.
+
+Do not change MCP configuration, trust, approvals, source files, or execution
+authority. Do not infer unsupported runtime behavior. If evidence is unavailable,
+continue with normal analysis and state the limitation.
+";
+const LEGACY_COPILOT_GUIDANCE_V1: &str = r#"---
+applyTo: "**"
+---
+
+<!-- Impresari Context native guidance v1; ownership=exact_fixed_artifact:impresari-context -->
+
+# Impresari Context evidence guidance
+
+Use an already configured local `impresari-context` MCP server only when a task
+explicitly calls for bounded repository evidence. Select a supported task
+profile and hard budget; when a packet is returned, surface packet ID, plan ID,
+reason codes, coverage, and omissions.
+
+Do not alter MCP configuration, trust, approvals, source files, or execution
+authority. If the server or packet is unavailable, state that and continue with
+ordinary analysis without claiming unsupported evidence.
+"#;
 
 fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
     let template = match client {
@@ -1573,11 +1644,13 @@ fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
             client: "codex",
             relative_target: "AGENTS.md",
             contents: include_str!("../../../templates/client-guidance/codex/AGENTS.md"),
+            legacy_contents: &[LEGACY_CODEX_GUIDANCE_V1],
         },
         "claude" => GuidanceTemplate {
             client: "claude",
             relative_target: ".claude/skills/impresari-context/SKILL.md",
             contents: include_str!("../../../templates/client-guidance/claude/SKILL.md"),
+            legacy_contents: &[LEGACY_CLAUDE_GUIDANCE_V1],
         },
         "cursor" => GuidanceTemplate {
             client: "cursor",
@@ -1585,6 +1658,7 @@ fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
             contents: include_str!(
                 "../../../templates/client-guidance/cursor/impresari-context.mdc"
             ),
+            legacy_contents: &[LEGACY_CURSOR_GUIDANCE_V1],
         },
         "copilot" => GuidanceTemplate {
             client: "copilot",
@@ -1592,6 +1666,7 @@ fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
             contents: include_str!(
                 "../../../templates/client-guidance/copilot/impresari-context.instructions.md"
             ),
+            legacy_contents: &[LEGACY_COPILOT_GUIDANCE_V1],
         },
         _ => return Err(guidance_error("unsupported native guidance client")),
     };
@@ -1618,6 +1693,7 @@ fn guidance_digest(contents: &str) -> String {
 
 fn guidance_operation(
     template: &GuidanceTemplate,
+    contents: &'static str,
     operation: &'static str,
     target: &Path,
     external_write_performed: bool,
@@ -1633,8 +1709,8 @@ fn guidance_operation(
         relative_target: template.relative_target,
         target_file: target.display().to_string(),
         ownership: GUIDANCE_OWNERSHIP,
-        content_sha256: guidance_digest(template.contents),
-        artifact: template.contents,
+        content_sha256: guidance_digest(contents),
+        artifact: contents,
         planned_effect: match operation {
             "install" => "create_exact_owned_artifact",
             "remove" => "remove_exact_owned_artifact",
@@ -1705,10 +1781,26 @@ fn read_guidance_target(path: &Path) -> Result<Option<String>, EngineError> {
         .map_err(|_| guidance_error("native guidance target is not valid UTF-8"))
 }
 
+fn recognized_guidance_contents(
+    contents: Option<&str>,
+    template: &GuidanceTemplate,
+) -> Option<&'static str> {
+    match contents {
+        Some(contents) if contents == template.contents => Some(template.contents),
+        Some(contents) => template
+            .legacy_contents
+            .iter()
+            .copied()
+            .find(|legacy| contents == *legacy),
+        None => None,
+    }
+}
+
 fn guidance_state(contents: Option<&str>, template: &GuidanceTemplate) -> &'static str {
     match contents {
         None => "absent",
         Some(contents) if contents == template.contents => "owned",
+        Some(contents) if template.legacy_contents.contains(&contents) => "owned_legacy",
         Some(_) => "unowned_or_conflicting",
     }
 }
@@ -1717,6 +1809,7 @@ fn guidance_render(client: &str) -> Result<GuidanceOperation, EngineError> {
     let template = guidance_template(client)?;
     Ok(guidance_operation(
         &template,
+        template.contents,
         "render",
         Path::new(template.relative_target),
         false,
@@ -1727,9 +1820,15 @@ fn guidance_render(client: &str) -> Result<GuidanceOperation, EngineError> {
 fn inspect_guidance(client: &str, root: &Path) -> Result<GuidanceOperation, EngineError> {
     let template = guidance_template(client)?;
     let target = guidance_target(root, &template)?;
-    let state = guidance_state(read_guidance_target(&target)?.as_deref(), &template);
+    let contents = read_guidance_target(&target)?;
+    let state = guidance_state(contents.as_deref(), &template);
     Ok(guidance_operation(
-        &template, "inspect", &target, false, state,
+        &template,
+        recognized_guidance_contents(contents.as_deref(), &template).unwrap_or(template.contents),
+        "inspect",
+        &target,
+        false,
+        state,
     ))
 }
 
@@ -1742,7 +1841,12 @@ fn validate_guidance(client: &str, root: &Path) -> Result<GuidanceOperation, Eng
         ));
     }
     Ok(guidance_operation(
-        &template, "validate", &target, false, "owned",
+        &template,
+        template.contents,
+        "validate",
+        &target,
+        false,
+        "owned",
     ))
 }
 
@@ -1761,6 +1865,7 @@ fn install_guidance(
     if !apply {
         return Ok(guidance_operation(
             &template,
+            template.contents,
             "install",
             &target,
             false,
@@ -1769,7 +1874,12 @@ fn install_guidance(
     }
     atomic_write_guidance_target(&target, template.contents.as_bytes())?;
     Ok(guidance_operation(
-        &template, "install", &target, true, "owned",
+        &template,
+        template.contents,
+        "install",
+        &target,
+        true,
+        "owned",
     ))
 }
 
@@ -1780,14 +1890,17 @@ fn remove_guidance(
 ) -> Result<GuidanceOperation, EngineError> {
     let template = guidance_template(client)?;
     let target = guidance_target(root, &template)?;
-    if guidance_state(read_guidance_target(&target)?.as_deref(), &template) != "owned" {
+    let contents = read_guidance_target(&target)?;
+    let Some(recognized_contents) = recognized_guidance_contents(contents.as_deref(), &template)
+    else {
         return Err(guidance_error(
             "native guidance removal requires the exact owned artifact",
         ));
-    }
+    };
     if !apply {
         return Ok(guidance_operation(
             &template,
+            recognized_contents,
             "remove",
             &target,
             false,
@@ -1796,7 +1909,12 @@ fn remove_guidance(
     }
     remove_guidance_target(&target)?;
     Ok(guidance_operation(
-        &template, "remove", &target, true, "removed",
+        &template,
+        recognized_contents,
+        "remove",
+        &target,
+        true,
+        "removed",
     ))
 }
 
@@ -3092,6 +3210,53 @@ mod tests {
                 fs::read(&source).expect("source after remove"),
                 source_before
             );
+        }
+    }
+
+    #[test]
+    fn native_guidance_exactly_removes_a_recognized_v1_artifact() {
+        for client in ["codex", "claude", "cursor", "copilot"] {
+            let root = TestRoot::new(&format!("guidance-legacy-{client}"));
+            let template = guidance_template(client).expect("template");
+            let target = root.0.join(template.relative_target);
+            fs::create_dir_all(target.parent().expect("target parent")).expect("target parent");
+            fs::write(
+                &target,
+                template.legacy_contents.first().expect("v1 artifact"),
+            )
+            .expect("legacy artifact");
+
+            let inspect = vec![
+                "client".into(),
+                "guidance".into(),
+                "inspect".into(),
+                client.into(),
+                root.0.display().to_string(),
+            ];
+            let (code, inspected) = invoke(&inspect, "guidancelegacy");
+            assert_eq!(code, 0, "{client} inspect");
+            assert_eq!(inspected["state"], "owned_legacy");
+            assert_eq!(
+                inspected["content_sha256"],
+                guidance_digest(template.legacy_contents[0])
+            );
+
+            let remove = vec![
+                "client".into(),
+                "guidance".into(),
+                "remove".into(),
+                client.into(),
+                root.0.display().to_string(),
+                "--apply".into(),
+            ];
+            let (code, removed) = invoke(&remove, "guidancelegacy");
+            assert_eq!(code, 0, "{client} removal");
+            assert_eq!(removed["state"], "removed");
+            assert_eq!(
+                removed["content_sha256"],
+                guidance_digest(template.legacy_contents[0])
+            );
+            assert!(!target.exists(), "{client} legacy artifact remains");
         }
     }
 
