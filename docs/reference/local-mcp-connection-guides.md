@@ -1,14 +1,14 @@
 # Local MCP Connection Guides
 
-- Version: 1.4
+- Version: 1.5
 - Published: 2026-08-26
 - Classification: Local MCP guidance; the compatibility matrix is authoritative
 - Supported transport: local stdio only
 
 These guides render the fixed-launch contract for six common coding clients.
-Codex, Claude Code, and Cursor are first-class only for their recorded
-client/version/OS scopes; the other named client guides remain generic unless
-their matrix row says otherwise.
+Codex, Claude Code, Cursor, and GitHub Copilot CLI are first-class only for
+their recorded client/version/OS scopes; the other named client guides remain
+generic unless their matrix row says otherwise.
 They do **not** run any command, modify a client configuration, install a hook,
 or edit a repository. A person must review and invoke any shown command or file
 change themselves.
@@ -252,20 +252,29 @@ impresari-context doctor copilot-config <workspace-root> <separate-cache> .mcp.j
 `copilot mcp list --json` is a read-only inspection step after user
 installation, authentication, and folder trust. Remove only this project entry.
 
-For the eventual user-reviewed project admission record, first create a
-disposable project outside any repository:
+The managed project connection has been checked against GitHub Copilot CLI
+`1.0.80` on macOS aarch64: malformed configuration fails closed; the native
+project entry is discovered through `copilot mcp list/get`; a bounded four-tool
+prompt lifecycle returns a packet identical to a direct MCP control packet; and
+only the owned project entry plus a temporary workspace-trust value are removed.
+The recorded-scope limits are in the [Phase 2 Copilot CLI kit
+record](../verification/phase-2-copilot-cli-connection-kit.md).
+
+For an independently reviewed isolated rehearsal, first preview a disposable
+Copilot home, project, and cache:
 
 ```text
-ruby scripts/rehearse-gemini-copilot-preadmission.rb \
-  --prepare-copilot-project-root /private/tmp/impresari-copilot-l1-admission
-# inspect the preview, then rerun the same command with --apply
+ruby scripts/rehearse-copilot-native-project.rb \
+  --prepare-root /private/tmp/impresari-copilot-l1-admission
+# inspect the preview, then rerun the same command with --apply;
+# finally run it with --temporary-root using that exact root
 ```
 
-The preparation creates only the reported `workspace` and separate `cache`
-under `/private/tmp`; it does not write `.mcp.json`, grant folder trust, or
-change the user's Copilot configuration. A user may review and install only
-the fixed project entry in that workspace, intentionally grant folder trust,
-inspect with `copilot mcp list --json`, then remove just that entry.
+The rehearsal uses an isolated `COPILOT_HOME` and creates a temporary trust
+entry only for its named empty workspace. It uses no additional MCP
+configuration, removes only its owned project entry and that exact trust value,
+and never reads or writes a user's Copilot home. The normal product path
+remains the reviewed project entry above; user folder trust remains explicit.
 
 ## VS Code Copilot
 
@@ -295,17 +304,13 @@ Remove only the `impresari-context` entry manually.
 
 ## What these guides do not establish
 
-These guides do not yet establish a maintained version range, supported OS
-matrix per client, clean-install behavior, configuration-parser conformance, or
-safe automated removal. Codex has deterministic direct-tool and packet
-evidence; Claude Code has one real-client, model-directed lifecycle record;
-Cursor has authenticated temporary-configuration discovery but no approved tool
-lifecycle. Gemini CLI and VS Code Copilot have read-only preadmission guides
-and validators only. GitHub Copilot CLI additionally has an isolated temporary
-lifecycle and direct-packet-equivalence record, but not a user-reviewed
-project-local admission. The [compatibility
-matrix](compatibility-matrix.md) therefore keeps all three in the **Generic
-local MCP** category.
+These guides alone do not establish a maintained version range, supported OS
+matrix, clean-install behavior, configuration-parser conformance, or safe
+automated removal. The [compatibility matrix](compatibility-matrix.md) is the
+authoritative classification: Codex, Claude Code, Cursor, and GitHub Copilot
+CLI are First-class only for their individually recorded client/version/OS
+scopes. Gemini CLI and VS Code Copilot have read-only preadmission guides and
+validators only and remain **Generic local MCP**.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex

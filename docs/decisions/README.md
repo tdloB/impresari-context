@@ -59,6 +59,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0051](0051-codex-user-home-managed-connection.md) | Use the active user-level Codex home for managed MCP configuration and isolated admission evidence | Accepted for implementation |
 | [ADR-0052](0052-claude-disposable-local-scope-admission.md) | Admit Claude Code L1 through a disposable native local scope and bounded lifecycle smoke | Accepted for implementation |
 | [ADR-0053](0053-cursor-guarded-project-admission.md) | Admit Cursor L1 through a guarded disposable project and bounded Agent-mode lifecycle | Accepted for implementation |
+| [ADR-0054](0054-copilot-cli-trusted-project-admission.md) | Admit GitHub Copilot CLI L1 through an isolated trusted project and bounded prompt-mode lifecycle | Accepted for implementation |
 
 ## Change Rules
 

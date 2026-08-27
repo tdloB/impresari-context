@@ -111,3 +111,25 @@ that allows only the four named Impresari MCP tools and denies shell, source
 read/write, and web actions. The file is verified and removed before the
 rehearsal ends. This is an admission guardrail, not a product installer or a
 recommended persistent user permission policy.
+
+## GitHub Copilot CLI scope admission
+
+GitHub Copilot CLI `1.0.80` on macOS aarch64 uses the project `.mcp.json`
+surface, but prompt mode intentionally skips project MCP servers until the
+workspace is trusted. The Copilot L1 record therefore uses an empty
+caller-named root under `/private/tmp` with an isolated `COPILOT_HOME`,
+workspace, and cache. It applies the owned project entry and confirms native
+`copilot mcp list/get` discovery without using `--additional-mcp-config`.
+
+The only workspace trust used by the rehearsal is its exact disposable
+workspace value in the isolated home's `trustedFolders` configuration. Cleanup
+re-parses the client configuration and removes only that exact value, preserving
+any client-generated metadata. The bounded prompt-mode smoke disables built-in
+MCP, remote control, automatic update, and custom instructions; exposes only
+the four Impresari MCP tools; and requires delivered/resolved packet equivalence
+with an independent direct MCP control packet.
+
+The temporary automatic-approval and path-approval flags apply only after the
+available tool surface is reduced to those four known MCP tools. They are an
+admission guardrail for an empty disposable fixture, not a recommended
+persistent user configuration.

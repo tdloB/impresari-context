@@ -1,8 +1,8 @@
-# Phase 1 real-client admission runbook
+# Phase 1/2 real-client admission runbook
 
-- Status: Codex, Claude Code, and Cursor L1 admitted for recorded scopes
+- Status: Codex, Claude Code, Cursor, and GitHub Copilot CLI L1 admitted for recorded scopes
 - Date: 2026-08-26
-- Scope: Claude Code and Cursor only
+- Scope: Codex, Claude Code, Cursor, and GitHub Copilot CLI
 
 ## Why this requires a person
 
@@ -65,6 +65,24 @@ It creates only an empty `workspace` and separate `cache` under `/private/tmp`.
 The native runner is separately preview-first and uses those exact bounded
 paths for entry, approval, packet, and removal evidence.
 
+## GitHub Copilot CLI admission record
+
+Completed after user-owned installation and sign-in with GitHub Copilot CLI
+`1.0.80` on macOS aarch64. The isolated native rehearsal starts from an
+explicit empty `/private/tmp` root with a separate `COPILOT_HOME`, workspace,
+and cache. It applies and validates only the owned project `.mcp.json` entry,
+then requires native `copilot mcp list/get` recognition.
+
+Prompt mode intentionally skips an untrusted project server. The rehearsal
+therefore writes only its named empty workspace to the isolated home's
+`trustedFolders` list, then removes only that exact list item afterwards while
+preserving Copilot-generated metadata. Its actual prompt receives no
+additional MCP configuration, disables built-in MCP, remote control, automatic
+update, and custom instructions, and exposes only the four named Impresari MCP
+tools. The live lifecycle is checked against an independent direct MCP packet
+and preserves fixture source bytes. The detailed evidence and recorded-scope
+limits are in the [Copilot CLI kit record](phase-2-copilot-cli-connection-kit.md).
+
 ## Evidence still required for first-class admission
 
 For each client, the admission record will capture:
@@ -77,5 +95,6 @@ For each client, the admission record will capture:
 - safe removal of only the Impresari Context entry.
 
 The public matrix and its machine-readable manifest promote only clients whose
-individual evidence record is complete. Codex, Claude Code, and Cursor are
-admitted for their explicitly recorded scopes; GitHub Copilot remains pending.
+individual evidence record is complete. Codex, Claude Code, Cursor, and GitHub
+Copilot CLI are admitted for their explicitly recorded scopes. VS Code Copilot
+remains a separate pending client surface.
