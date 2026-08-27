@@ -25,6 +25,18 @@ The Codex template is intentionally a stand-alone project-instruction template;
 it is not installed automatically and must never replace existing project
 instructions.
 
-Do not append a template to unrelated instructions. A later managed-artifact
-installer may write only these exact owned files after explicit preview and
-`--apply`; until then, installation remains user-reviewed.
+Do not append a template to unrelated instructions. The local CLI can render,
+inspect, validate, preview, explicitly install, and exactly remove only these
+owned files. It never creates missing parent directories or overwrites an
+existing instruction:
+
+```text
+impresari-context client guidance install claude <project-root>
+impresari-context --apply client guidance install claude <project-root>
+impresari-context client guidance validate claude <project-root>
+impresari-context --apply client guidance remove claude <project-root>
+```
+
+Substitute `codex`, `cursor`, or `copilot` for the client after creating that
+client's documented target parent directory. A client still requires its own
+version/OS native-surface evidence before it is promoted to L2.

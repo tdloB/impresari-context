@@ -7,7 +7,7 @@ use std::{
     io::{BufRead, Write},
 };
 
-use context_core::{PolicySubject, ResourceBudget};
+use context_core::{POLICY_PROFILE, PolicySubject, ResourceBudget};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine,
@@ -26,6 +26,8 @@ pub const MCP_COMPATIBLE_PROTOCOL_VERSION: &str = "2025-06-18";
 pub const MAX_MESSAGE_BYTES: usize = 1_048_576;
 /// Maximum request identifiers retained for replay rejection in one process.
 pub const MAX_REQUESTS: usize = 10_000;
+/// Public v1 request and event identifier grammar.
+const IDENTIFIER_PATTERN: &str = "^[a-z][a-z0-9_-]{0,31}_[A-Za-z0-9_-]{8,128}$";
 
 /// Trusted launch configuration. The client cannot change these values via MCP.
 pub struct ServerConfig {
@@ -577,7 +579,7 @@ fn context_build_definition(budget: &Value) -> Value {
             "type":"object",
             "additionalProperties":false,
             "properties":{
-                "request_id":{"type":"string"}, "event_id":{"type":"string"},
+                "request_id":{"type":"string","pattern":IDENTIFIER_PATTERN}, "event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},
                 "purpose":{"type":"string"}, "occurred_at":{"type":"string"},
                 "steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},
                 "profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},
@@ -608,7 +610,7 @@ fn tool_definitions() -> Value {
             "max_files":{"type":"string"}, "max_excerpt_bytes_per_item":{"type":"string"},
             "max_matches":{"type":"string"}, "max_traversal_depth":{"type":"string"},
             "max_elapsed_ms":{"type":"string"}, "max_memory_bytes":{"type":"string"},
-            "policy_profile":{"type":"string"}
+            "policy_profile":{"const":POLICY_PROFILE}
         },
         "required":["unit_kind","requested","hard","max_evidence_items","max_files","max_excerpt_bytes_per_item","max_matches","max_traversal_depth","max_elapsed_ms","max_memory_bytes","policy_profile"]
     });
@@ -785,6 +787,67 @@ mod tests {
             .collect::<Vec<_>>();
         assert_eq!(values[1]["result"]["isError"], false);
         assert_eq!(values[1]["result"]["structuredContent"]["opened"], true);
+    }
+
+    #[test]
+    fn context_build_schema_exposes_the_fixed_policy_profile() {
+        let tools = tool_definitions();
+        let build = tools
+            .as_array()
+            .expect("tool definitions are an array")
+            .iter()
+            .find(|tool| tool["name"] == "context_build")
+            .expect("context_build definition");
+        assert_eq!(
+            build["inputSchema"]["properties"]["budget"]["properties"]["policy_profile"]["const"],
+            POLICY_PROFILE
+        );
+        assert_eq!(
+            build["inputSchema"]["properties"]["request_id"]["pattern"],
+            IDENTIFIER_PATTERN
+        );
+        assert_eq!(
+            build["inputSchema"]["properties"]["event_id"]["pattern"],
+            IDENTIFIER_PATTERN
+        );
+    }
+
+    #[test]
+    fn profiled_context_build_accepts_a_fixed_policy_budget() {
+        let (mut server, _source, _cache) = server();
+        let budget = json!({
+            "unit_kind":"utf8_bytes", "requested":"4096", "hard":true,
+            "max_evidence_items":"20", "max_files":"100",
+            "max_excerpt_bytes_per_item":"256", "max_matches":"100",
+            "max_traversal_depth":"8", "max_elapsed_ms":"30000",
+            "max_memory_bytes":"1048576", "policy_profile":POLICY_PROFILE
+        });
+        let request = json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
+                "name":"context_build", "arguments": {
+                    "request_id":"req_mcpprofilebudget01", "event_id":"evt_mcpprofilebudget01",
+                    "purpose":"orientation", "occurred_at":"2026-08-22T00:00:00Z",
+                    "profile":"orientation", "query":"auth", "budget":budget
+                }
+            }
+        });
+        let input = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"test\",\"version\":\"1\"}}}}}}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{request}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        assert_eq!(values[1]["result"]["isError"], false, "{values:?}");
+        assert_eq!(
+            values[1]["result"]["structuredContent"]["plan"]["task_profile"],
+            "orientation"
+        );
     }
 
     #[test]

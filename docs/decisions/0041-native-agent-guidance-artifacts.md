@@ -29,6 +29,10 @@ model governance, or opaque client behavior.
 - Unknown client/version/scope behavior fails closed and remains at L0/L1.
 - A model-directed tool call is smoke evidence only; the artifact contract,
   renderer, validator, and removal lifecycle must be deterministic.
+- Dynamic request constraints, including identifier grammar and the fixed
+  resource-policy fingerprint, remain authoritative MCP tool-schema values.
+  They are not copied into an exact-owned guidance artifact, so a protocol
+  correction does not strand an already installed artifact from safe removal.
 - CI-1 L1 classification and CI-2 L2 classification are independent: no L2
   artifact can conceal missing managed-connection evidence.
 

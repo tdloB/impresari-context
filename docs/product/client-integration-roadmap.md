@@ -41,7 +41,7 @@ deterministic client behavior.
 | Track | Current evidence-backed status | Next gate |
 | --- | --- | --- |
 | CI-1 managed connections | Shared render/inspect/validate/install/remove capability and deterministic fixture coverage exist. Codex, Claude Code, Cursor, and GitHub Copilot CLI L1 local evidence are complete for their recorded macOS/client-version scopes. Copilot's CLI and VS Code surfaces remain separate claims. | Maintain the four admitted clients after upstream changes; complete only user-consented, disposable lifecycle evidence for the distinct VS Code Copilot surface. |
-| CI-2 native guidance | PRD/ADR accepted. Versioned Codex, Claude Code, Cursor, and Copilot templates plus a static authority-boundary checker are implemented locally and awaiting hosted acceptance. | Merge template implementation; then admit managed install/remove and client/version/OS smoke evidence separately per client. |
+| CI-2 native guidance | Versioned Codex, Claude Code, Cursor, and Copilot templates; deterministic render/inspect/validate/install/remove lifecycle; and static authority-boundary checks are implemented. Claude Code L2 is admitted for recorded CLI `2.1.241` / macOS aarch64 scope through an isolated project-skill smoke. | Admit Codex, Cursor, and GitHub Copilot L2 separately with their own client/version/OS native-surface evidence. |
 | CI-3 guided delivery | PRD/ADR/ARD define an explicit consented delivery intent, deterministic packet equivalence, and no-delivery degradation. No client adapter is implemented or claimed. | Admit a client-neutral intent/receipt contract, then evaluate only stable official lifecycle surfaces one client at a time. |
 | CI-4 lifecycle maintenance | PRD/ADR/ARD define source-free on-demand compatibility checks. No health adapter is implemented or claimed. | Admit a source-free manifest/receipt contract only after one client has a stable L1/L2/L3 surface. |
 
@@ -66,7 +66,8 @@ instructions/agent configuration where official client surfaces support them.
 Artifacts are original, minimal, versioned, previewable, and removable by their
 ownership marker. They describe evidence use, never authority expansion.
 
-Exit: L2 requires an opt-in install/validate/remove round-trip test.
+Exit: L2 requires an opt-in install/validate/remove round trip plus a
+client-specific client/version/OS native-surface smoke record.
 
 ### CI-3 — Planner-Backed Guided Delivery
 
@@ -93,7 +94,7 @@ background activity.
 | Client | Current level | Planned target | Notes |
 | --- | --- | --- | --- |
 | Codex | L1 | L2/L3 where native surfaces permit | L1 is admitted only for Codex CLI `0.149.0-alpha.4.1` on macOS aarch64: explicit user-home kit, malformed-client rejection, deterministic lifecycle, packet equivalence, and exact removal are recorded. |
-| Claude Code | L1 | L2/L3 through native skills/lifecycle surfaces | L1 is admitted only for Claude Code CLI `2.1.241` on macOS aarch64: explicit local scope, malformed-client rejection, native add/get/removal, bounded model-directed lifecycle, packet equivalence, and source immutability are recorded. Deep behavior remains later consented delivery, not silent prompt injection. |
+| Claude Code | L1/L2 | L3 through native skills/lifecycle surfaces | L1 is admitted only for Claude Code CLI `2.1.241` on macOS aarch64: explicit local scope, malformed-client rejection, native add/get/removal, bounded model-directed lifecycle, packet equivalence, and source immutability are recorded. L2 is separately admitted for the project skill at `.claude/skills/impresari-context/SKILL.md`; its model-directed smoke is not a repeatability guarantee. Deep behavior remains later consented delivery, not silent prompt injection. |
 | Cursor | L1 | L2/L3 through rules and supported configuration | L1 is admitted only for Cursor Agent CLI `3.17.8` (`2026.08.11-e8db854`) on macOS aarch64: explicit project scope, malformed-client rejection, native enable/list-tools/disable, bounded guarded Agent-mode lifecycle, packet equivalence, and source immutability are recorded. User-owned IDE enablement remains explicit. |
 | GitHub Copilot CLI | L1 | L2/L3 where native surfaces permit | L1 is admitted only for Copilot CLI `1.0.80` on macOS aarch64: explicit project scope, malformed-client rejection, isolated native `list/get` discovery after exact workspace trust, bounded prompt-mode packet equivalence, and exact owned-entry/trust removal are recorded. |
 | VS Code Copilot | L0 | L1, then L2/L3 where native surfaces permit | It is distinct from the Copilot CLI and needs its own extension-host/Agent Host, approval, lifecycle, packet, removal, platform, and version evidence. |

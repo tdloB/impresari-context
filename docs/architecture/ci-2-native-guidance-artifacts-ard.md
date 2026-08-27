@@ -39,6 +39,9 @@ cannot configure, enable, approve, invoke, serialize, or deliver one.
 5. Any future installer must preview, validate, explicitly apply, inspect, and
    remove only the exact owned artifact; it must reject pre-existing unowned
    content and symlink/ambiguous paths.
+6. Mutable protocol constraints such as request/event identifier grammar and
+   the fixed resource-policy fingerprint are supplied by the live MCP tool
+   schema, not duplicated in a versioned exact-owned artifact.
 
 ## Verification requirements
 
@@ -53,7 +56,6 @@ cannot configure, enable, approve, invoke, serialize, or deliver one.
 
 ## Deliberate deferral
 
-Client-specific live guidance smoke evidence and managed artifact installation
-remain separate per-client admissions. CI-2 does not elevate any client’s L1
-classification, and CI-3 delivery adapters cannot use an artifact as implicit
-consent.
+Client-specific live guidance smoke evidence remains separate per-client
+admission. CI-2 does not elevate any client’s L1 classification, and CI-3
+delivery adapters cannot use an artifact as implicit consent.

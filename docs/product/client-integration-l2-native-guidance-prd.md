@@ -59,6 +59,10 @@ instructions, or direct a client to write source files.
   ownership markers, malformed content, unsupported scope, and oversized
   targets; it preserves unrelated content byte-for-byte where the host format
   permits exact preservation.
+- The live MCP tool schema exposes the fixed resource-policy fingerprint and
+  request/event identifier grammar required for a valid packet request; an
+  artifact must not copy mutable protocol values that would compromise exact
+  owned-artifact removal on correction.
 - A round trip proves install, inspect, validate, and owned-only removal,
   source-workspace immutability, and no authority expansion.
 - Each client is promoted to L2 only after its own supported client/version/OS
