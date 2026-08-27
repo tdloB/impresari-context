@@ -20,6 +20,7 @@
     "docs/decisions/0049-clojure-structural-language-admission.md",
     "docs/decisions/0050-haskell-structural-language-admission.md",
     "docs/decisions/0051-codex-user-home-managed-connection.md",
+    "docs/decisions/0052-claude-disposable-local-scope-admission.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -172,10 +173,10 @@
     },
     {
       "client": "Claude Code",
-      "classification": "generic_local_mcp",
+      "classification": "first_class",
       "transport": "local_stdio",
-      "first_class": false,
-      "conformance": "local_stdio_config_validation_and_temporary_config_real_lifecycle",
+      "first_class": true,
+      "conformance": "managed_local_scope_configuration_and_bounded_model_directed_lifecycle",
       "conformance_evidence": "docs/verification/phase-1-claude-code-connection-kit.md"
     },
     {
@@ -217,7 +218,7 @@
       "first_class": false
     }
   ],
-  "first_class_clients": ["Codex"],
+  "first_class_clients": ["Codex", "Claude Code"],
   "constraints": {
     "transport": "local_stdio_only",
     "mcp_protocol_revisions": ["2025-11-25", "2025-06-18"],
