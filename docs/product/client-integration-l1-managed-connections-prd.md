@@ -96,3 +96,18 @@ model-directed session/packet lifecycle and direct-packet equivalence.
 The model-directed step is live smoke evidence only; native add/get/remove,
 fixed configuration validation, malformed-input rejection, source
 immutability, and entry-specific removal remain deterministic admission gates.
+
+## Cursor scope admission
+
+Cursor Agent CLI `3.17.8` (`2026.08.11-e8db854`) on macOS aarch64 uses an
+explicit project `.cursor/mcp.json` entry and a local approved-list transition
+through `cursor agent mcp enable/list-tools/disable`. The Cursor L1 record uses
+an empty caller-named project root under `/private/tmp`; it applies and removes
+only the owned project entry and enables/disables only `impresari-context`.
+
+Cursor Ask mode blocks dynamic MCP calls, including this fixed read-only
+server. Its bounded Agent-mode smoke creates a test-only project `cli.json`
+that allows only the four named Impresari MCP tools and denies shell, source
+read/write, and web actions. The file is verified and removed before the
+rehearsal ends. This is an admission guardrail, not a product installer or a
+recommended persistent user permission policy.

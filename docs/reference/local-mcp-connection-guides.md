@@ -6,9 +6,9 @@
 - Supported transport: local stdio only
 
 These guides render the fixed-launch contract for six common coding clients.
-Codex and Claude Code are first-class only for their recorded client/version/OS
-scopes; the other named client guides remain generic unless their matrix row
-says otherwise.
+Codex, Claude Code, and Cursor are first-class only for their recorded
+client/version/OS scopes; the other named client guides remain generic unless
+their matrix row says otherwise.
 They do **not** run any command, modify a client configuration, install a hook,
 or edit a repository. A person must review and invoke any shown command or file
 change themselves.
@@ -139,8 +139,8 @@ chosen the project scope may review an entry such as:
     "impresari-context": {
       "command": "/absolute/path/to/impresari-context-mcp",
       "args": [
-        "--workspace", "${workspaceFolder}",
-        "--cache", "${env:IMPRESARI_CONTEXT_CACHE}",
+        "--workspace", "/absolute/path/to/source-workspace",
+        "--cache", "/absolute/path/to/separate-cache",
         "--consumer-id", "consumer_cursor_local",
         "--role", "local_user"
       ]
@@ -149,9 +149,8 @@ chosen the project scope may review an entry such as:
 }
 ```
 
-`IMPRESARI_CONTEXT_CACHE` must resolve to an existing directory outside the
-workspace. Never set it to `${workspaceFolder}/.cache` or any other workspace
-child. The documented Cursor stdio form infers its local transport from
+The cache must be an existing directory outside the workspace; never use a
+workspace child such as `.cache`. The documented Cursor stdio form infers its local transport from
 `command` and `args`; the Impresari doctor accepts that form and also accepts
 an explicit `"type": "stdio"`. It rejects `env`, remote-transport, and other
 unrelated fields so the server cannot receive forwarded ambient environment.
@@ -166,14 +165,19 @@ impresari-context doctor cursor-config <workspace-root> <separate-cache> .cursor
 
 On a signed-in Cursor Agent CLI, `agent mcp list` reports the configured
 server's source and transport, and `agent mcp list-tools <identifier>` lists
-its available tools. Those are read-only inspection steps. Do not use
-`agent mcp enable` or `agent mcp disable` as part of this kit: they change
-Cursor's local approval state. An isolated project configuration has been
-discovered by Cursor Agent CLI `3.17.8` on macOS aarch64 without enabling the
-server; the evidence and remaining admission gaps are in the [Phase 1 Cursor
-kit record](../verification/phase-1-cursor-connection-kit.md).
+its available tools. Enable only the reviewed named entry with
+`cursor agent mcp enable impresari-context`; disable only that same entry with
+`cursor agent mcp disable impresari-context` before removing it. These commands
+change Cursor's local approval state and must be explicit user actions.
 
-For the eventual user-reviewed admission record, first create a disposable
+The managed project connection has been checked against Cursor Agent CLI
+`3.17.8` (`2026.08.11-e8db854`) on macOS aarch64: malformed configuration
+fails closed; native enable/list-tools/disable works; the bounded four-tool
+Agent-mode lifecycle returns a packet identical to a direct MCP control packet;
+and the owned project configuration is removed exactly. The recorded-scope
+limits are in the [Phase 1 Cursor kit record](../verification/phase-1-cursor-connection-kit.md).
+
+For an independently reviewed isolated rehearsal, first create a disposable
 project outside any repository:
 
 ```text
@@ -184,11 +188,10 @@ ruby scripts/rehearse-cursor-preadmission.rb \
 
 The preparation command creates only the reported `workspace` and separate
 `cache` directories under `/private/tmp`; it neither creates `.cursor/mcp.json`
-nor enables an MCP server. After reviewing the generated project entry, the
-user—not Impresari Context—must choose whether to run Cursor's `agent mcp
-enable impresari-context` for that exact disposable workspace. The final
-record must also demonstrate `agent mcp disable impresari-context` and managed
-removal of that one project entry.
+nor enables an MCP server. The native rehearsal is separately preview-first
+and performs exact enable/list-tools/disable/removal only in its named
+disposable project; it never targets a default Cursor configuration or a user
+source project.
 
 ## Gemini CLI
 

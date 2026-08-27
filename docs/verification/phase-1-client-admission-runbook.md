@@ -1,6 +1,6 @@
 # Phase 1 real-client admission runbook
 
-- Status: Claude Code L1 admitted for recorded scope; Cursor temporary configuration discovery/fail-closed malformed handling recorded
+- Status: Codex, Claude Code, and Cursor L1 admitted for recorded scopes
 - Date: 2026-08-26
 - Scope: Claude Code and Cursor only
 
@@ -32,24 +32,28 @@ these records admit Claude Code as **First-class** only for CLI `2.1.241` on
 macOS aarch64. The detailed evidence and recorded-scope limits are in the
 [Claude Code kit record](phase-1-claude-code-connection-kit.md).
 
-## Cursor preadmission record
+## Cursor admission record
 
-Completed after the user signed into Cursor Agent CLI `3.17.8` on macOS
-aarch64. A development-only rehearsal made an isolated temporary workspace,
-separate cache, and `.cursor/mcp.json`; `cursor agent mcp list` discovered the
-fixed local-stdio server. It did not invoke `enable`, did not call an AI model,
-and preserved the temporary workspace after the configuration was written.
+Completed after the user signed into Cursor Agent CLI `3.17.8`
+(`2026.08.11-e8db854`) on macOS aarch64. A development-only rehearsal made an
+isolated temporary workspace, separate cache, and `.cursor/mcp.json`; `cursor
+agent mcp list` discovered the fixed local-stdio server.
 
 The same isolated rehearsal supplied malformed `.cursor/mcp.json`. Cursor CLI
 `3.17.8` exited without loading any MCP server, did not expose fixture source
 in its diagnostic, and did not alter the fixture. This is a fail-closed
 configuration behavior rather than a parse-error exit and is recorded as such.
 
-The Cursor CLI treats MCP enablement as a change to local approval state. A
-real tool lifecycle therefore requires an intentional, user-owned approval of
-the exact temporary entry. It must not be replaced by automatic approval.
+The native lifecycle started from an explicit empty disposable project,
+performed `cursor agent mcp enable/list-tools/disable` only for
+`impresari-context`, and removed the owned entry. The bounded Agent-mode
+lifecycle allowed only the four named Impresari MCP tools through a test-only
+project permission file; shell, source read/write, and web calls were denied.
+It returned a packet identical to the direct MCP control packet and preserved
+the fixture source. Cursor Ask mode was recorded as blocking dynamic MCP
+execution, so it is not the exercised lifecycle surface.
 
-The rehearsal now has a preview-first disposable-project preparation path:
+The rehearsal has a preview-first disposable-project preparation path:
 
 ```text
 ruby scripts/rehearse-cursor-preadmission.rb \
@@ -58,12 +62,8 @@ ruby scripts/rehearse-cursor-preadmission.rb \
 ```
 
 It creates only an empty `workspace` and separate `cache` under `/private/tmp`.
-It does not create or enable a Cursor MCP entry. This gives the user a narrow,
-inspectable location for the later project-entry, enablement, lifecycle, and
-exact-removal record.
-
-The eventual user-reviewed configuration, inspection, and single-entry removal
-guidance is in the [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor).
+The native runner is separately preview-first and uses those exact bounded
+paths for entry, approval, packet, and removal evidence.
 
 ## Evidence still required for first-class admission
 
@@ -77,5 +77,5 @@ For each client, the admission record will capture:
 - safe removal of only the Impresari Context entry.
 
 The public matrix and its machine-readable manifest promote only clients whose
-individual evidence record is complete. Claude Code and Codex are admitted for
-their explicitly recorded scopes; Cursor remains pending.
+individual evidence record is complete. Codex, Claude Code, and Cursor are
+admitted for their explicitly recorded scopes; GitHub Copilot remains pending.

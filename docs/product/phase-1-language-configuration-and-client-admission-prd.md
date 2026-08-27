@@ -35,15 +35,14 @@ and run, with first-class local integrations for Codex, Claude Code, and Cursor.
   `claude mcp add/get/remove --scope local` lifecycle, and bounded temporary
   model-directed lifecycle with direct packet equivalence. Claude Code is
   First-class only for the recorded CLI `2.1.241` macOS aarch64 scope.
-- Complete: Cursor's non-mutating generic local-MCP guide and read-only JSON
-  configuration validation. Signed-in Cursor Agent CLI `3.17.8` on macOS
-  aarch64 discovered an isolated temporary project configuration without
-  enabling it; its malformed temporary project configuration was not loaded
-  and left the fixture source unchanged. Cursor's documented command/args
-  stdio form is accepted without allowing environment forwarding.
-- Pending: first-class admission for Cursor. It still needs a user-approved
-  real-client lifecycle, packet-equivalence, platform/version, and user-owned
-  project-entry removal evidence.
+- Complete: Cursor's explicit project configuration kit, read-only JSON
+  validation, malformed-configuration rejection, native isolated
+  enable/list-tools/disable/removal, and guarded Agent-mode four-tool lifecycle
+  with direct packet equivalence. Cursor is First-class only for the recorded
+  Agent CLI `3.17.8` (`2026.08.11-e8db854`) macOS aarch64 scope.
+- Complete: Phase 1's named language/configuration evidence and first-class
+  Codex, Claude Code, and Cursor recorded-scope integrations. Ongoing client
+  maintenance and deeper L2–L4 integrations remain separate roadmap work.
 
 ## Non-goals
 

@@ -58,6 +58,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0050](0050-haskell-structural-language-admission.md) | Admit bounded Haskell syntax evidence without compiler or type-system authority | Accepted for implementation |
 | [ADR-0051](0051-codex-user-home-managed-connection.md) | Use the active user-level Codex home for managed MCP configuration and isolated admission evidence | Accepted for implementation |
 | [ADR-0052](0052-claude-disposable-local-scope-admission.md) | Admit Claude Code L1 through a disposable native local scope and bounded lifecycle smoke | Accepted for implementation |
+| [ADR-0053](0053-cursor-guarded-project-admission.md) | Admit Cursor L1 through a guarded disposable project and bounded Agent-mode lifecycle | Accepted for implementation |
 
 ## Change Rules
 

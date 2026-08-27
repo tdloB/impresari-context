@@ -1,56 +1,53 @@
 # Phase 1 Cursor connection-kit record
 
-- Status: Generic local MCP; temporary configuration discovery recorded
-- Date: 2026-08-25
+- Status: First-class for the recorded client/version/OS scope, subject to the
+  repository's hosted release gate
+- Date: 2026-08-26
 - Client: Cursor Agent CLI `3.17.8` (`2026.08.11-e8db854`), macOS aarch64
+- Scope: explicit project `.cursor/mcp.json`, exact local approval lifecycle,
+  and bounded Agent-mode packet lifecycle
 
-## Evidence recorded
+## Evidence completed
 
-The user authenticated Cursor Agent CLI through its normal interactive flow.
-`scripts/rehearse-cursor-preadmission.rb` then created an isolated temporary
-workspace and separate cache. It invokes the versioned managed-kit CLI to
-explicitly install the exact owned `.cursor/mcp.json` entry, validates that
-entry, asks `cursor agent mcp list` to discover it, then explicitly removes it.
-The target file is absent after the removal and the fixture workspace digest is
-unchanged. Cursor Agent discovered `impresari-context` on CLI `3.17.8`
-(`2026.08.11-e8db854`), macOS aarch64.
+| Requirement | Result | Evidence |
+| --- | --- | --- |
+| Fixed project configuration | Passed | The versioned managed kit renders and validates a fixed absolute local-stdio executable, workspace, separate cache, consumer ID, and role. It rejects environment forwarding and remote fields. |
+| Discovery and malformed configuration | Passed | `scripts/rehearse-cursor-preadmission.rb` discovered the isolated entry through `cursor agent mcp list`; malformed temporary `.cursor/mcp.json` loaded no server, did not expose the fixture source, and left it unchanged. |
+| Native enable/list-tools/disable | Passed | `scripts/rehearse-cursor-native-approval.rb` starts from an empty explicit `/private/tmp` project, applies the owned entry, calls `cursor agent mcp enable impresari-context`, requires the four fixed tools from `list-tools`, calls `disable` for that exact identifier, and removes only the owned project entry. |
+| Bounded Agent-mode lifecycle | Passed | Cursor Agent completed `context_session_open`, `context_build`, `context_packet_resolve`, and `context_session_close` in exactly that order against the disposable project. A test-only project permission file allowed only those four `Mcp(impresari-context:tool)` tokens while denying shell, file read/write, and web actions. |
+| Packet equivalence | Passed | The live `context_build` packet exactly matched an independent raw-MCP control packet constructed with the same fixed request, event, purpose, timestamp, literal query, budget, workspace, and launch contract. The resolved packet exactly matched the delivered packet. |
+| Source/configuration containment | Passed | The fixture source digest remained unchanged. The test disabled only its named approved server, removed only its owned `.cursor/mcp.json`, removed its test-only `.cursor/cli.json`, and refused to erase unexpected client-owned state. |
 
-The rehearsal also supplied a malformed temporary `.cursor/mcp.json`. Cursor
-exited without loading any MCP server, did not expose the fixture source in its
-output, and left the malformed fixture unchanged. Cursor therefore fails
-closed for this malformed configuration on the recorded client version; the
-client does not currently surface that handling as a nonzero parse-error exit.
+## Deliberate limits
 
-The rehearsal did not invoke `cursor agent mcp enable`, `disable`, or an AI
-model. No MCP approval was granted and no user or project configuration was
-persisted. The connection shape remains bounded: an executable absolute MCP
-binary, fixed workspace, separate cache, consumer identity, and local-user
-role, with environment forwarding rejected by the Impresari Context validator.
+Cursor's model chooses tools conversationally, so this is bounded live-client
+smoke evidence—not prompt-repeatability or deterministic client conformance.
+The deterministic gates are the fixed configuration contract, validation,
+malformed-input handling, exact approval/configuration removal, source
+immutability, and direct packet comparison.
 
-## Classification and remaining gaps
+Cursor Agent **Ask** mode blocked dynamic MCP execution even for the fixed
+read-only server. The recorded lifecycle therefore uses Agent mode only inside
+the disposable project, with an explicit test-only permission file that allows
+only the four named Impresari MCP tools and denies shell, source read/write,
+and web operations. It is removed before the rehearsal ends. The normal
+product path preserves Cursor's ordinary approval UI; Impresari never installs
+that permission file in a user project.
 
-Cursor remains **Generic local MCP**. Configuration discovery does not prove
-that Cursor will launch the server, expose the intended tools, or preserve the
-evidence packet during a model-directed session.
+The exact native approval record is not replaced merely by `--approve-mcps`:
+the rehearsal also performs the native `enable` and exact `disable` commands.
+It never targets a user-level Cursor configuration or a real source project.
 
-First-class admission still requires all of the following:
+## Admission status
 
-- intentional user approval of an exact, isolated MCP entry and a real-client
-  tool lifecycle;
-- packet identity/equivalence and live-session source-immutability evidence; and
-- maintained version and operating-system coverage.
-
-This evidence is deliberately not substituted with `--approve-mcps` or an
-automatic approval flag, because neither substitutes for a user-reviewed
-project installation and removal record. The rehearsal has a preview-first
-`--prepare-project-root` mode that creates only an empty disposable workspace
-and cache under `/private/tmp` for that future user-owned record.
-The [local MCP connection guide](../reference/local-mcp-connection-guides.md#cursor)
-contains the user-reviewed setup shape.
+The local L1 evidence is complete for Cursor Agent CLI `3.17.8`
+(`2026.08.11-e8db854`) on macOS aarch64. The published claim is restricted to
+that scope and requires revalidation after a Cursor configuration, approval,
+stream, or execution-mode change.
 
 ## Roadmap checkpoint
 
-No product-roadmap or trust-boundary change is warranted. The addition
-confirms that the existing generic-MCP configuration contract is compatible
-with the authenticated Cursor CLI, but it does not satisfy a first-class
-client conformance criterion.
+The Master PRD, Phase 1 PRD, ADR-0018, ADR-0035, and client-integration
+roadmap were reassessed. Cursor completes the Phase 1 named-client L1 target;
+the language roadmap does not change. The next independent L1 target is
+GitHub Copilot CLI, followed separately by the VS Code Copilot surface.
