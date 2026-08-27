@@ -278,11 +278,9 @@ remains the reviewed project entry above; user folder trust remains explicit.
 
 ## VS Code Copilot
 
-For portable Agent Host and VS Code Copilot use, configure the workspace-root
-`.mcp.json` file with a top-level `servers` object. VS Code's
-`.vscode/mcp.json` remains an extension-host configuration surface, but it is
-not read directly by the Agent Host. The user must review the file and VS
-Code's local-server prompt before start:
+For the visible VS Code Copilot extension-host MCP UI, configure the workspace
+`.vscode/mcp.json` file with a top-level `servers` object. The user must review
+the file and VS Code's local-server prompt before start:
 
 ```json
 {
@@ -302,11 +300,13 @@ for this connection: VS Code currently auto-approves sandboxed-server tools.
 Validate without launching VS Code:
 
 ```text
-impresari-context doctor vscode-config <workspace-root> <separate-cache> .mcp.json
+impresari-context doctor vscode-config <workspace-root> <separate-cache> .vscode/mcp.json
 ```
 
 The MCP view provides inspection after the user opens the trusted workspace.
-Remove only the `impresari-context` entry manually.
+Remove only the `impresari-context` entry manually. Workspace-root `.mcp.json`
+is a distinct portable Agent Host configuration surface; it is not currently
+admitted or maintained as the VS Code extension-host connection.
 
 ## What these guides do not establish
 

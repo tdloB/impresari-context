@@ -207,11 +207,11 @@
     },
     {
       "client": "VS Code Copilot",
-      "classification": "generic_local_mcp",
+      "classification": "first_class",
       "transport": "local_stdio",
-      "first_class": false,
-      "conformance": "workspace_config_preadmission_validation",
-      "conformance_evidence": "docs/reference/local-mcp-connection-guides.md"
+      "first_class": true,
+      "conformance": "managed_extension_host_workspace_configuration_and_bounded_session_tool_lifecycle",
+      "conformance_evidence": "docs/verification/ci-1-vscode-copilot-admission.md"
     },
     {
       "client": "Remote or HTTP MCP consumer",
@@ -220,7 +220,7 @@
       "first_class": false
     }
   ],
-  "first_class_clients": ["Codex", "Claude Code", "Cursor", "GitHub Copilot CLI"],
+  "first_class_clients": ["Codex", "Claude Code", "Cursor", "GitHub Copilot CLI", "VS Code Copilot"],
   "constraints": {
     "transport": "local_stdio_only",
     "mcp_protocol_revisions": ["2025-11-25", "2025-06-18"],
