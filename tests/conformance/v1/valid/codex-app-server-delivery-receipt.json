@@ -1,0 +1,21 @@
+{
+  "schema_name": "codex-app-server-delivery-receipt",
+  "schema_version": "1.0.0",
+  "outcome": "degraded",
+  "reason_code": "codex_turn_timeout",
+  "client": "codex",
+  "scope": "app_server_ephemeral",
+  "client_version": "0.149.0-alpha.4.1",
+  "protocol_scope": "v1.initialize+v2.thread_start+v2.turn_start+v2.turn_completed",
+  "request_id": "req_12345678",
+  "event_id": "evt_12345678",
+  "packet_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "plan_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "workspace_snapshot": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "client_io_performed": true,
+  "ephemeral_thread": true,
+  "read_only_sandbox": true,
+  "network_access_enabled": false,
+  "approval_requests_declined": 0,
+  "authority_added": false
+}

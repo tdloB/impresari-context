@@ -12,13 +12,17 @@ if grep -n -E 'std::net::|TcpStream|UdpSocket|reqwest|ureq|hyper::|tonic::|enabl
 fi
 
 # ADR-0010 permits one fixed argv-based launch site for the pinned structural
-# worker. No other production module may acquire child-process authority.
+# worker. ADR-0055 adds one separate fixed argv-based Codex App Server launch
+# site for an explicit, ephemeral, authority-denying delivery attempt. No other
+# production module may acquire child-process authority.
 process_sites=$(grep -n -E 'std::process::Command|Command::new' $production_sources || true)
-expected_site='crates/context-structural/src/lib.rs:'
-if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ] ||
-   ! printf '%s\n' "$process_sites" | grep -q "^$expected_site"; then
+expected_structural_site='crates/context-structural/src/lib.rs:'
+expected_codex_site='crates/context-codex-app-server/src/lib.rs:'
+if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 2 ] ||
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_structural_site" ||
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_codex_site"; then
     printf '%s\n' "$process_sites" >&2
-    printf 'unexpected production child-process authority outside the single ADR-0010 launcher\n' >&2
+    printf 'unexpected production child-process authority outside ADR-0010 and ADR-0055 launch sites\n' >&2
     exit 1
 fi
 

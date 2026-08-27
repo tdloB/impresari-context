@@ -53,6 +53,8 @@ returns `74`; success returns `0`.
 | `evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>` | Evidence record and unsigned byte bounds | Expanded evidence |
 | `packet validate <root> <cache-root> <packet-json>` | Context packet file | `packet-validation` |
 | `handoff export <root> <cache-root> <packet-json> <export-root> <filename>` | Packet and authorized destination | `handoff-export`; no overwrite |
+| `client delivery codex preview <root> <cache-root> <delivery-intent-json>` | Explicit CI-3a Codex intent | `codex-app-server-delivery` preparation; no client I/O |
+| `client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <expected-packet-id>` | Exact reviewed preview, caller-owned runtime parent, exact binary, and packet ID | Apply preview unless `--apply`; then one bounded Codex receipt |
 | `doctor inspect <root> <cache-root>` | Existing workspace and cache directories | `doctor-report` with metadata-only prerequisite checks |
 | `doctor mcp <root> <cache-root>` | Existing workspace and separate cache directories | `doctor-report` with an in-process MCP initialization and tool-discovery check |
 | `doctor codex-config <root> <cache-root> <config-toml>` | Existing workspace/cache and a Codex user-home TOML config | `doctor-report` with a source-free fixed-stdio user-configuration check |
@@ -62,6 +64,30 @@ returns `74`; success returns `0`.
 The structural worker is never downloaded or discovered. The caller supplies
 its executable and SHA-256 identity. Numeric work is constrained by the
 engine's conservative default resource budget.
+
+### Experimental Codex App Server guided delivery
+
+This is a narrow CI-3b capability, not a generic hook or automatic context
+injector. The `preview` command accepts only the exact Codex client identity
+recorded in its delivery schema, validates CI-3a consent and snapshot bindings,
+and emits a complete visible preview. It never starts Codex.
+
+An operator may save that JSON output, inspect its planner packet, omissions,
+receipt, envelope, and packet identity, then invoke `apply` with the saved
+artifact. `apply` re-derives canonical bytes and validates every binding before
+doing anything else. Without global `--apply`, it returns an apply-required
+preview and does not validate or start the supplied Codex binary. With
+`--apply`, it requires an absolute binary and existing runtime parent, creates
+one private child directory, clears the child environment, runs one ephemeral
+read-only/no-network App Server thread, denies every authority request, and
+removes the child directory on exit.
+
+The delivery envelope is capped at 524,288 canonical packet bytes. A timeout,
+version mismatch, unsupported protocol response, or client failure returns a
+visible `no_delivery` or `degraded` receipt; it never retries, falls back to a
+hook, changes Codex configuration, retains model output, or grants authority.
+See [the CI-3b verification record](../verification/ci-3b-codex-guided-delivery.md)
+for the exact current admission status.
 
 ### Doctor (Phase 0 baseline)
 
