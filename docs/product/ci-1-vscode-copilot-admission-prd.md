@@ -1,19 +1,19 @@
 # CI-1 VS Code Copilot admission PRD
 
-- Status: Approved implementation increment; public L1 admission pending
+- Status: Approved and completed for recorded L1 managed-connection scope
 - Date: 2026-08-26
 - Roadmap: [Phase 2](phase-2-infrastructure-language-and-agent-expansion-prd.md) and the [Client Integration Depth Roadmap](client-integration-roadmap.md)
 
 ## Objective
 
-Replace the VS Code Copilot generic preadmission guide with a candidate
-first-class managed-connection path only when the visible VS Code extension
+Replace the VS Code Copilot generic preadmission guide with a recorded-scope
+first-class L1 managed-connection path when the visible VS Code extension
 host has demonstrated its documented workspace configuration, explicit trust,
 server discovery, bounded tool use, source immutability, and exact removal.
 
 ## Scope
 
-- Pin the candidate scope to VS Code `1.134.0` on macOS arm64.
+- Pin the recorded scope to VS Code `1.134.0` on macOS arm64.
 - Render and validate only workspace `.vscode/mcp.json`, the configuration
   that the VS Code extension host reads for its MCP management UI.
 - Keep workspace-root `.mcp.json` as a separate Agent Host compatibility
@@ -48,9 +48,9 @@ server discovery, bounded tool use, source immutability, and exact removal.
 
 ## Admission boundary
 
-The code and rehearsal are preparation, not promotion. The compatibility
-matrix stays generic until the manual live-client record is reviewed with its
-recorded version/OS scope and the full acceptance criteria above.
+The L1 promotion is limited to the reviewed manual live-client record, its
+recorded version/OS scope, and the full acceptance criteria above. It does not
+apply to VS Code's separate Agent Host surface or imply packet equivalence.
 
 ## Post-step reassessment — 2026-08-27
 

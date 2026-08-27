@@ -1,8 +1,8 @@
 # CI-1 VS Code Copilot admission ARD
 
-- Status: Candidate implementation design
+- Status: Accepted implementation design; recorded L1 scope
 - Date: 2026-08-26
-- Related: [CI-1 VS Code Copilot admission PRD](../product/ci-1-vscode-copilot-admission-prd.md), [ADR-0035](../decisions/0035-l1-managed-client-connection-kits.md), and [ADR-0056](../decisions/0056-vscode-portable-agent-host-admission.md)
+- Related: [CI-1 VS Code Copilot admission PRD](../product/ci-1-vscode-copilot-admission-prd.md), [ADR-0035](../decisions/0035-l1-managed-client-connection-kits.md), and [ADR-0057](../decisions/0057-vscode-extension-host-admission.md)
 
 ## Decision
 

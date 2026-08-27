@@ -1,6 +1,6 @@
 # CI-1 VS Code Copilot extension-host admission verification
 
-- Status: local live-client record captured; hosted CI and public L1 promotion pending
+- Status: passed for recorded L1 managed-connection scope
 - Candidate scope: VS Code `1.134.0`, macOS arm64
 - Governing records: [CI-1 PRD](../product/ci-1-vscode-copilot-admission-prd.md), [CI-1 ARD](../architecture/ci-1-vscode-copilot-admission-ard.md), and [ADR-0057](../decisions/0057-vscode-extension-host-admission.md)
 
@@ -47,8 +47,8 @@ On 2026-08-27, the complete local `./scripts/check.sh` gate passed after the
 extension-host correction and local live-client record. This includes formatting, zero-warning Clippy,
 unit and integration tests, security-boundary and tracked-source-immutability
 checks, schema/fixture contracts, SBOM policy checks, evaluation checks, and
-Ruby syntax checks for the rehearsal script. Hosted CI remains a required
-promotion condition.
+Ruby syntax checks for the rehearsal script. Hosted CI passed across security,
+fuzzing, analysis, and macOS/Linux/Windows quality jobs before promotion.
 
 ## Operator procedure
 
@@ -70,9 +70,8 @@ project configuration.
 
 ## Promotion condition
 
-This document is not an L1 admission record. The local evidence is now
-recorded, but hosted CI must pass on the reviewable change before the public
-matrix can change classification. A later VS Code L2 guidance increment must
+This is an L1 admission record only for the stated VS Code extension-host
+configuration/lifecycle scope. A later VS Code L2 guidance increment must
 address the observed `context_build` request ergonomics separately; it cannot
 retroactively turn this L1 live smoke into packet-equivalence or deterministic
 conversational behavior.

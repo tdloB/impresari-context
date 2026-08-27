@@ -1,6 +1,6 @@
 # ADR-0057: VS Code extension-host admission surface
 
-- Status: Accepted for candidate implementation; L1 admission pending
+- Status: Accepted and recorded as L1 for the stated extension-host scope
 - Date: 2026-08-27
 - Scope: VS Code Copilot extension-host workspace MCP configuration
 - Supersedes: ADR-0056 for the extension-host L1 candidate only
@@ -30,9 +30,9 @@ surface remains generic and cannot inherit extension-host L1 evidence.
 
 - A disposable extension-host rehearsal can now test the configuration
   surface the signed-in VS Code MCP UI actually loads.
-- The public matrix remains generic until the renewed real-client evidence,
+- The public matrix records L1 only after the renewed real-client evidence,
   exact owned removal, source-immutability evidence, full local gate, and
-  hosted CI all pass.
+  hosted CI passed on 2026-08-27.
 - No user profile, shared repository, Agent Host `.mcp.json`, sandbox,
   automatic approval, background process, or network service is introduced.
 
