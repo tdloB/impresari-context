@@ -1181,6 +1181,9 @@ fn configured_directory_matches(configured: &str, expected: &Path) -> bool {
 }
 
 fn client_config_is_safe(config: &serde_json::Value, client: &str) -> bool {
+    if client == "vscode" && (config.get("inputs").is_some() || config.get("sandbox").is_some()) {
+        return false;
+    }
     let top_level_servers = if client == "vscode" {
         "servers"
     } else {
@@ -1195,10 +1198,9 @@ fn client_config_is_safe(config: &serde_json::Value, client: &str) -> bool {
         return false;
     };
     let allowed_keys = match client {
-        "cursor" | "claude" => &["type", "command", "args"][..],
+        "cursor" | "claude" | "vscode" => &["type", "command", "args"][..],
         "gemini" => &["command", "args", "trust", "includeTools"][..],
         "copilot" => &["type", "command", "args", "tools"][..],
-        "vscode" => &["command", "args"][..],
         _ => return false,
     };
     if !entry.keys().all(|key| allowed_keys.contains(&key.as_str()))
@@ -1234,7 +1236,7 @@ fn client_config_is_safe(config: &serde_json::Value, client: &str) -> bool {
                 Some("local" | "stdio")
             ) && exact_mcp_tool_allowlist(entry.get("tools"))
         }
-        "vscode" => true,
+        "vscode" => entry.get("type").and_then(serde_json::Value::as_str) == Some("stdio"),
         _ => false,
     };
     fixed_stdio_args_are_safe(&args) && client_options_are_safe
@@ -1356,9 +1358,9 @@ fn managed_connection_kit(
         ),
         "vscode" => (
             "vscode",
-            "workspace_or_user",
+            "workspace_portable_agent_host",
             json!({"format": "json", "entry": {"servers": {"impresari-context": {
-                "command": binary, "args": arguments
+                "type": "stdio", "command": binary, "args": arguments
             }}}}),
         ),
         _ => {
@@ -1406,10 +1408,10 @@ fn managed_connection_contract(
         "--role".to_owned(),
         "local_user".to_owned(),
     ];
-    let format = if kit.client == "codex" {
-        "toml"
-    } else {
-        "json"
+    let format = match kit.client {
+        "codex" => "toml",
+        "vscode" => "vscode-json",
+        _ => "json",
     };
     Ok((kit.client, binary, arguments, format))
 }
@@ -1449,8 +1451,9 @@ fn managed_operation(
 fn managed_entry_preview(format: &str, binary: &Path, arguments: &[String]) -> serde_json::Value {
     match format {
         "toml" => json!({"format": "toml", "entry": managed_toml_block(binary, arguments)}),
-        "json" => {
-            json!({"format": "json", "entry": {"mcpServers": {"impresari-context": json_managed_entry(binary, arguments)}}})
+        "json" | "vscode-json" => {
+            let container = json_server_container(format);
+            json!({"format": "json", "entry": {container: {"impresari-context": json_managed_entry(format, binary, arguments)}}})
         }
         _ => json!({"format": "unsupported"}),
     }
@@ -2028,10 +2031,10 @@ fn guidance_error(message: &str) -> EngineError {
 fn managed_document_is_empty(format: &str, contents: &str) -> Result<bool, EngineError> {
     match format {
         "toml" => Ok(contents.trim().is_empty()),
-        "json" => {
+        "json" | "vscode-json" => {
             let value: serde_json::Value = serde_json::from_str(contents)
                 .map_err(|_| managed_config_error("managed JSON removal output is malformed"))?;
-            Ok(value == json!({"mcpServers": {}}))
+            Ok(value == json!({json_server_container(format): {}}))
         }
         _ => Err(managed_config_error(
             "unsupported managed configuration format",
@@ -2054,7 +2057,7 @@ fn managed_entry_state(
 ) -> Result<ManagedEntryState, EngineError> {
     match format {
         "toml" => toml_managed_entry_state(text, binary, arguments),
-        "json" => json_managed_entry_state(text, binary, arguments),
+        "json" | "vscode-json" => json_managed_entry_state(format, text, binary, arguments),
         _ => Err(managed_config_error(
             "unsupported managed configuration format",
         )),
@@ -2069,7 +2072,7 @@ fn install_managed_entry(
 ) -> Result<String, EngineError> {
     match format {
         "toml" => install_toml_managed_entry(current, binary, arguments),
-        "json" => install_json_managed_entry(current, binary, arguments),
+        "json" | "vscode-json" => install_json_managed_entry(format, current, binary, arguments),
         _ => Err(managed_config_error(
             "unsupported managed configuration format",
         )),
@@ -2084,7 +2087,7 @@ fn remove_managed_entry(
 ) -> Result<String, EngineError> {
     match format {
         "toml" => remove_toml_managed_entry(current, binary, arguments),
-        "json" => remove_json_managed_entry(current, binary, arguments),
+        "json" | "vscode-json" => remove_json_managed_entry(format, current, binary, arguments),
         _ => Err(managed_config_error(
             "unsupported managed configuration format",
         )),
@@ -2349,21 +2352,36 @@ struct JsonObject {
     members: Vec<JsonMember>,
 }
 
-fn json_managed_entry(binary: &Path, arguments: &[String]) -> serde_json::Value {
-    json!({"command": binary, "args": arguments})
+fn json_server_container(format: &str) -> &'static str {
+    match format {
+        "json" => "mcpServers",
+        "vscode-json" => "servers",
+        _ => unreachable!("only JSON managed-connection formats use a server container"),
+    }
+}
+
+fn json_managed_entry(format: &str, binary: &Path, arguments: &[String]) -> serde_json::Value {
+    if format == "vscode-json" {
+        json!({"type": "stdio", "command": binary, "args": arguments})
+    } else {
+        json!({"command": binary, "args": arguments})
+    }
 }
 
 fn json_managed_entry_state(
+    format: &str,
     text: &str,
     binary: &Path,
     arguments: &[String],
 ) -> Result<ManagedEntryState, EngineError> {
+    let container = json_server_container(format);
     let root = json_root_object(text)?;
-    let Some(servers) = root
-        .members
-        .iter()
-        .find(|member| member.key == "mcpServers")
-    else {
+    if format == "vscode-json" && vscode_json_has_disallowed_globals(&root) {
+        return Err(managed_config_error(
+            "managed VS Code configuration has disallowed global input or sandbox settings",
+        ));
+    }
+    let Some(servers) = root.members.iter().find(|member| member.key == container) else {
         return Ok(ManagedEntryState::Absent);
     };
     let server_object = json_object_at(text, servers.value_start)?;
@@ -2383,7 +2401,7 @@ fn json_managed_entry_state(
     let actual: serde_json::Value =
         serde_json::from_str(&text[entries[0].value_start..entries[0].value_end])
             .map_err(|_| managed_config_error("managed JSON Impresari entry is malformed"))?;
-    Ok(if actual == json_managed_entry(binary, arguments) {
+    Ok(if actual == json_managed_entry(format, binary, arguments) {
         ManagedEntryState::Owned
     } else {
         ManagedEntryState::Conflicting
@@ -2391,23 +2409,26 @@ fn json_managed_entry_state(
 }
 
 fn install_json_managed_entry(
+    format: &str,
     current: Option<&str>,
     binary: &Path,
     arguments: &[String],
 ) -> Result<String, EngineError> {
-    let entry = serde_json::to_string(&json_managed_entry(binary, arguments))
+    let container = json_server_container(format);
+    let entry = serde_json::to_string(&json_managed_entry(format, binary, arguments))
         .map_err(|_| managed_config_error("managed JSON template could not be serialized"))?;
     let Some(text) = current else {
         return Ok(format!(
-            "{{\n  \"mcpServers\": {{\n    \"impresari-context\": {entry}\n  }}\n}}\n"
+            "{{\n  \"{container}\": {{\n    \"impresari-context\": {entry}\n  }}\n}}\n"
         ));
     };
     let root = json_root_object(text)?;
-    if let Some(servers) = root
-        .members
-        .iter()
-        .find(|member| member.key == "mcpServers")
-    {
+    if format == "vscode-json" && vscode_json_has_disallowed_globals(&root) {
+        return Err(managed_config_error(
+            "managed VS Code configuration has disallowed global input or sandbox settings",
+        ));
+    }
+    if let Some(servers) = root.members.iter().find(|member| member.key == container) {
         let server_object = json_object_at(text, servers.value_start)?;
         if server_object
             .members
@@ -2426,25 +2447,33 @@ fn install_json_managed_entry(
         ))
     } else {
         let value = format!("{{\n    \"impresari-context\": {entry}\n  }}");
-        Ok(insert_json_member(text, &root, "mcpServers", &value))
+        Ok(insert_json_member(text, &root, container, &value))
     }
 }
 
+fn vscode_json_has_disallowed_globals(root: &JsonObject) -> bool {
+    root.members
+        .iter()
+        .any(|member| matches!(member.key.as_str(), "inputs" | "sandbox"))
+}
+
 fn remove_json_managed_entry(
+    format: &str,
     current: &str,
     binary: &Path,
     arguments: &[String],
 ) -> Result<String, EngineError> {
-    if json_managed_entry_state(current, binary, arguments)? != ManagedEntryState::Owned {
+    if json_managed_entry_state(format, current, binary, arguments)? != ManagedEntryState::Owned {
         return Err(managed_config_error(
             "managed JSON configuration does not contain the exact owned entry",
         ));
     }
+    let container = json_server_container(format);
     let root = json_root_object(current)?;
     let servers = root
         .members
         .iter()
-        .find(|member| member.key == "mcpServers")
+        .find(|member| member.key == container)
         .ok_or_else(|| managed_config_error("managed JSON server container is absent"))?;
     let server_object = json_object_at(current, servers.value_start)?;
     let index = server_object
@@ -3077,6 +3106,12 @@ mod tests {
                         .as_str()
                         .is_some_and(|entry| entry.contains("required = true"))
                 );
+            } else if client == "vscode" {
+                assert_eq!(value["target_scope"], "workspace_portable_agent_host");
+                assert_eq!(
+                    value["configuration"]["entry"]["servers"]["impresari-context"]["type"],
+                    "stdio"
+                );
             }
         }
         assert_eq!(
@@ -3205,7 +3240,10 @@ mod tests {
             let original = if client == "codex" {
                 "[other]\nname = \"stable\"\n".to_owned()
             } else {
-                "{\n  \"mcpServers\": {\"other\": {\"command\": \"other\"}},\n  \"unrelated\": true\n}\n".to_owned()
+                let container = managed_json_container_for_test(client);
+                format!(
+                    "{{\n  \"{container}\": {{\"other\": {{\"command\": \"other\"}}}},\n  \"unrelated\": true\n}}\n"
+                )
             };
             fs::write(&target, &original).expect("configuration fixture");
             let base = vec![
@@ -3277,7 +3315,8 @@ mod tests {
                 let after: serde_json::Value =
                     serde_json::from_str(&after).expect("valid JSON after removal");
                 assert_eq!(after["unrelated"], true);
-                assert_eq!(after["mcpServers"]["other"]["command"], "other");
+                let container = managed_json_container_for_test(client);
+                assert_eq!(after[container]["other"]["command"], "other");
             }
         }
         assert_eq!(
@@ -3295,7 +3334,7 @@ mod tests {
         let binary_path = binary.0.join("impresari-context-mcp");
         fs::write(&binary_path, b"fixture binary").expect("binary fixture");
         mark_executable(&binary_path);
-        for client in ["codex", "claude"] {
+        for client in ["codex", "claude", "vscode"] {
             let target = config_root.0.join(format!("{client}.config"));
             let mut command = vec![
                 "client".into(),
@@ -3535,7 +3574,10 @@ mod tests {
             let unrelated = if client == "codex" {
                 "[other]\nname = \"stable\"\n".to_owned()
             } else {
-                "{\n  \"mcpServers\": {\"other\": {\"command\": \"other\"}},\n  \"unrelated\": true\n}\n".to_owned()
+                let container = managed_json_container_for_test(client);
+                format!(
+                    "{{\n  \"{container}\": {{\"other\": {{\"command\": \"other\"}}}},\n  \"unrelated\": true\n}}\n"
+                )
             };
             fs::write(&target, unrelated).expect("configuration fixture");
             let install = vec![
@@ -3652,6 +3694,26 @@ mod tests {
                 .expect("conflicting preserved")
                 .contains("unexpected")
         );
+
+        let vscode_target = config_root.0.join("vscode.json");
+        let vscode_command = vec![
+            "client".into(),
+            "kit".into(),
+            "install".into(),
+            "vscode".into(),
+            binary_path.display().to_string(),
+            root.0.display().to_string(),
+            cache.0.display().to_string(),
+            vscode_target.display().to_string(),
+            "--apply".into(),
+        ];
+        let unsafe_vscode_config = "{\"sandbox\": {}, \"servers\": {}}";
+        fs::write(&vscode_target, unsafe_vscode_config).expect("unsafe VS Code config");
+        assert_eq!(invoke(&vscode_command, "managedreject").0, 1);
+        assert_eq!(
+            fs::read_to_string(&vscode_target).expect("unsafe VS Code config preserved"),
+            unsafe_vscode_config
+        );
     }
 
     fn toml_basic_string(value: &str) -> String {
@@ -3668,6 +3730,14 @@ mod tests {
         }
         encoded.push('"');
         encoded
+    }
+
+    fn managed_json_container_for_test(client: &str) -> &'static str {
+        if client == "vscode" {
+            "servers"
+        } else {
+            "mcpServers"
+        }
     }
 
     #[test]
@@ -4146,11 +4216,45 @@ mod tests {
 
         let vscode_safe_shape = serde_json::json!({
             "servers": { "impresari-context": {
-                "command": binary.as_str(),
+                "type": "stdio", "command": binary.as_str(),
                 "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
             }}
         });
         assert!(client_config_is_safe(&vscode_safe_shape, "vscode"));
+
+        let vscode_missing_type = serde_json::json!({
+            "servers": { "impresari-context": {
+                "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
+            }}
+        });
+        assert!(!client_config_is_safe(&vscode_missing_type, "vscode"));
+
+        let vscode_wrong_type = serde_json::json!({
+            "servers": { "impresari-context": {
+                "type": "http", "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
+            }}
+        });
+        assert!(!client_config_is_safe(&vscode_wrong_type, "vscode"));
+
+        let vscode_sandboxed = serde_json::json!({
+            "servers": { "impresari-context": {
+                "type": "stdio", "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"],
+                "sandboxEnabled": true
+            }}
+        });
+        assert!(!client_config_is_safe(&vscode_sandboxed, "vscode"));
+
+        let vscode_global_sandbox = serde_json::json!({
+            "servers": { "impresari-context": {
+                "type": "stdio", "command": binary.as_str(),
+                "args": ["--workspace", "${workspaceFolder}", "--cache", "${env:IMPRESARI_CONTEXT_CACHE}", "--consumer-id", "consumer_vscode_local", "--role", "local_user"]
+            }},
+            "sandbox": {"network": {"allowedDomains": ["example.invalid"]}}
+        });
+        assert!(!client_config_is_safe(&vscode_global_sandbox, "vscode"));
     }
 
     #[test]

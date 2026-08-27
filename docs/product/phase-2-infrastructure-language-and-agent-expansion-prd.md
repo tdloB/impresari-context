@@ -29,7 +29,11 @@ Copilot CLI, and VS Code Copilot.
   isolated native project `list/get` discovery after exact workspace trust, a
   bounded prompt-mode lifecycle with direct packet equivalence, source
   immutability, and exact project-entry/trust removal evidence.
-- Pending: VS Code Copilot's distinct extension-host/Agent Host admission.
+- In implementation: VS Code Copilot's distinct extension-host/Agent Host
+  admission now has a portable `.mcp.json` strict-stdio contract and a
+  disposable operator-evidence runner. It remains generic until a signed-in
+  real-client record establishes trust, discovery, tool use, immutability, and
+  exact removal for the recorded version/OS scope.
   Gemini CLI `0.56.0` is authenticated but its current free-tier service
   rejects normal client startup as unsupported, so it remains generic legacy
   compatibility rather than an active depth target.
