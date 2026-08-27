@@ -1,0 +1,103 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/guided-delivery.schema.json",
+  "title": "Explicit guided-delivery intent and receipt contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "adapter_contract_version", "client", "scope", "client_version", "lifecycle_point",
+    "consent", "request_id", "event_id", "consumer_id", "role", "purpose", "occurred_at",
+    "workspace_identity", "workspace_snapshot", "task_profile", "query", "budget"
+  ],
+  "properties": {
+    "adapter_contract_version": {"const": "1.0.0"},
+    "client": {"const": "reference"},
+    "scope": {"const": "process_local"},
+    "client_version": {"const": "1.0.0"},
+    "lifecycle_point": {"const": "prepare"},
+    "consent": {"const": true},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "consumer_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "role": {"type": "string", "minLength": 1, "maxLength": 64, "pattern": "^[a-z][a-z0-9_-]*$"},
+    "purpose": {"type": "string", "minLength": 1, "maxLength": 256, "pattern": "^[^\\u0000]*$"},
+    "occurred_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "task_profile": {"enum": ["orientation", "implementation", "bug_investigation", "change_review", "security_review", "test_selection", "configuration_change"]},
+    "query": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000]*$"},
+    "budget": {"$ref": "resource-budget.schema.json"}
+  },
+  "$defs": {
+    "receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
+        "client_version", "lifecycle_point", "request_id", "event_id", "client_io_performed",
+        "authority_added"
+      ],
+      "properties": {
+        "schema_name": {"const": "guided-delivery-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "outcome": {"enum": ["prepared", "no_delivery"]},
+        "reason_code": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
+        "client": {"const": "reference"},
+        "scope": {"const": "process_local"},
+        "client_version": {"const": "1.0.0"},
+        "lifecycle_point": {"const": "prepare"},
+        "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+        "client_io_performed": {"const": false},
+        "authority_added": {"const": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"outcome": {"const": "prepared"}}},
+          "then": {"required": ["workspace_identity", "packet_id", "plan_id", "workspace_snapshot", "policy_decision"]}
+        }
+      ]
+    },
+    "prepared": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "plan", "packet", "omitted_candidates"],
+      "properties": {
+        "schema_name": {"const": "profiled-context-packet"},
+        "schema_version": {"const": "1.0.0"},
+        "plan": {"$ref": "deterministic-context-plan.schema.json"},
+        "packet": {"$ref": "context-packet.schema.json"},
+        "omitted_candidates": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/omission"}}
+      }
+    },
+    "omission": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate", "reason_code", "count"],
+      "properties": {
+        "candidate": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
+        "reason_code": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
+        "count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    },
+    "result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["receipt"],
+      "properties": {
+        "prepared": {"$ref": "#/$defs/prepared"},
+        "packet_bytes": {"type": "array", "maxItems": 4194304, "items": {"type": "integer"}},
+        "receipt": {"$ref": "#/$defs/receipt"}
+      },
+      "dependentRequired": {
+        "prepared": ["packet_bytes"],
+        "packet_bytes": ["prepared"]
+      }
+    }
+  }
+}

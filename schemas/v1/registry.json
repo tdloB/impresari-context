@@ -23,6 +23,7 @@
     {"name": "policy-decision", "path": "policy-decision.schema.json", "identity_object_kind": "policy-decision"},
     {"name": "context-packet", "path": "context-packet.schema.json", "identity_object_kind": "context-packet"},
     {"name": "packet-validation", "path": "packet-validation.schema.json", "identity_object_kind": null},
+    {"name": "guided-delivery", "path": "guided-delivery.schema.json", "identity_object_kind": null},
     {"name": "handoff-export", "path": "handoff-export.schema.json", "identity_object_kind": null},
     {"name": "error-envelope", "path": "error-envelope.schema.json", "identity_object_kind": null},
     {"name": "audit-event", "path": "audit-event.schema.json", "identity_object_kind": null}

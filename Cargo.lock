@@ -153,6 +153,7 @@ dependencies = [
  "context-workspace",
  "serde",
  "serde_json",
+ "sha2",
 ]
 
 [[package]]

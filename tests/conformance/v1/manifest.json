@@ -7,6 +7,8 @@
     {"fixture": "valid/search-request.json", "schema": "search.schema.json#/$defs/request", "valid": true},
     {"fixture": "valid/session-packet-reference.json", "schema": "session-packet-reference.schema.json", "valid": true},
     {"fixture": "valid/consumer-context-request.json", "schema": "consumer-context-acquisition.schema.json", "valid": true},
+    {"fixture": "valid/guided-delivery-intent.json", "schema": "guided-delivery.schema.json", "valid": true},
+    {"fixture": "valid/guided-delivery-receipt.json", "schema": "guided-delivery.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/native-read-fallback.json", "schema": "consumer-context-acquisition.schema.json#/$defs/fallbackDecision", "valid": true},
     {"fixture": "valid/extension-manifest.json", "schema": "extension-contract.schema.json", "valid": true},
     {"fixture": "valid/extension-quarantine.json", "schema": "extension-contract.schema.json#/$defs/quarantine", "valid": true},
@@ -20,6 +22,8 @@
     {"fixture": "invalid/native-read-fallback-authority.json", "schema": "consumer-context-acquisition.schema.json#/$defs/fallbackDecision", "valid": false},
     {"fixture": "invalid/extension-decision-authority.json", "schema": "extension-contract.schema.json#/$defs/decision", "valid": false},
     {"fixture": "invalid/repository-map-guessed-package.json", "schema": "repository-map.schema.json", "valid": false},
-    {"fixture": "invalid/structural-query-unknown-field.json", "schema": "structural-query.schema.json", "valid": false}
+    {"fixture": "invalid/structural-query-unknown-field.json", "schema": "structural-query.schema.json", "valid": false},
+    {"fixture": "invalid/guided-delivery-intent-unknown-field.json", "schema": "guided-delivery.schema.json", "valid": false},
+    {"fixture": "invalid/guided-delivery-result-authority.json", "schema": "guided-delivery.schema.json#/$defs/result", "valid": false}
   ]
 }

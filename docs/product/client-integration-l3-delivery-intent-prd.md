@@ -1,6 +1,6 @@
 # Impresari Context — CI-3a: Explicit Delivery-Intent Contract PRD
 
-- Status: Approved for implementation
+- Status: Implemented; release verification pending
 - Date: 2026-08-25
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -18,10 +18,12 @@ not a client hook, installer, or delivery mechanism.
 
 - Strictly deserialized intent: adapter contract version, client/scope/version/
   lifecycle identity, explicit consent, request/event identifiers, consumer
-  identity, UTC time, supported profile, query, exact planner steps, and hard
-  resource budget.
+  identity, UTC time, authorized workspace/snapshot identity, supported
+  profile, query, and hard resource budget. Profile and query select the
+  canonical planner plan; a client cannot supply or alter its individual steps.
 - Validation of fixed supported identity, explicit one-delivery consent,
-  bounded identifiers/query/steps, and contract version before engine use.
+  bounded identifiers/query, canonical hard budget, workspace/snapshot
+  identity, and contract version before packet construction.
 - A reference delivery result whose serialized packet bytes are exactly the
   shared planner result and whose receipt exposes packet/plan/snapshot/policy
   identity, delivery outcome, and no added authority.
@@ -36,8 +38,9 @@ not a client hook, installer, or delivery mechanism.
 
 ## Acceptance criteria
 
-- Equivalent declared planner steps, request identity, and budget yield packet
-  bytes identical to the direct public planner call.
+- Equivalent declared profile/query, workspace snapshot, request identity, and
+  budget yield canonical packet bytes identical to the direct public planner
+  call.
 - Unknown fields, incompatible contract, absent consent, unsupported identity,
   invalid profile/query, and malformed budget fail closed without engine work.
 - Tests prove byte equivalence, visible identity/receipt data, disabled and
