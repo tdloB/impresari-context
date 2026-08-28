@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/client-lifecycle-maintenance.schema.json",
+  "title": "Client lifecycle maintenance contracts",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "manifest": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "manifest_id", "client", "surface", "supported_versions", "supported_os", "supported_arch", "artifact", "evidence", "lifecycle", "safe_next_steps"],
+      "properties": {
+        "schema_name": {"const": "client-lifecycle-compatibility-manifest"},
+        "schema_version": {"const": "1.0.0"},
+        "manifest_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "client": {"type": "string", "minLength": 1, "maxLength": 80},
+        "surface": {"type": "string", "minLength": 1, "maxLength": 80},
+        "supported_versions": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 80}},
+        "supported_os": {"type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "enum": ["macos", "linux", "windows"]}},
+        "supported_arch": {"type": "array", "minItems": 1, "maxItems": 10, "uniqueItems": true, "items": {"type": "string", "enum": ["aarch64", "x86_64"]}},
+        "artifact": {
+          "type": "object",
+          "required": ["kind", "owned_relative_path", "ownership_marker", "sha256"],
+          "properties": {
+            "kind": {"type": "string", "enum": ["native_guidance", "managed_connection"]},
+            "owned_relative_path": {"type": "string", "pattern": "^[^/].+"},
+            "ownership_marker": {"type": "string", "minLength": 1, "maxLength": 160},
+            "sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        "evidence": {
+          "type": "object",
+          "required": ["record", "sha256", "observed_at", "fresh_through"],
+          "properties": {
+            "record": {"type": "string", "pattern": "^docs/verification/.+\\.md$"},
+            "sha256": {"$ref": "#/$defs/sha256"},
+            "observed_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+            "fresh_through": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+          },
+          "additionalProperties": false
+        },
+        "lifecycle": {
+          "type": "object",
+          "required": ["health_check", "automatic_repair", "background_monitoring", "exact_removal"],
+          "properties": {
+            "health_check": {"const": "explicit_read_only"},
+            "automatic_repair": {"const": "denied"},
+            "background_monitoring": {"const": "denied"},
+            "exact_removal": {"const": "explicit_owned_artifact_only"}
+          },
+          "additionalProperties": false
+        },
+        "safe_next_steps": {
+          "type": "object",
+          "required": ["compatible", "degraded", "stale_evidence", "unknown", "unsupported"],
+          "properties": {
+            "compatible": {"type": "string", "minLength": 1, "maxLength": 300},
+            "degraded": {"type": "string", "minLength": 1, "maxLength": 300},
+            "stale_evidence": {"type": "string", "minLength": 1, "maxLength": 300},
+            "unknown": {"type": "string", "minLength": 1, "maxLength": 300},
+            "unsupported": {"type": "string", "minLength": 1, "maxLength": 300}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "status", "reason_code", "manifest_id", "client", "surface", "observed", "manifest_identity", "evidence_identity", "checks", "safe_next_step", "authority"],
+      "properties": {
+        "schema_name": {"const": "client-lifecycle-health-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "status": {"type": "string", "enum": ["compatible", "degraded", "stale_evidence", "unknown", "unsupported"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "manifest_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "client": {"type": "string", "minLength": 1, "maxLength": 80},
+        "surface": {"type": "string", "minLength": 1, "maxLength": 80},
+        "observed": {
+          "type": "object",
+          "required": ["client_version", "client_available", "os", "arch", "as_of", "target_supplied"],
+          "properties": {
+            "client_version": {"type": "string", "minLength": 1, "maxLength": 80},
+            "client_available": {"type": "boolean"},
+            "os": {"type": "string", "minLength": 1, "maxLength": 40},
+            "arch": {"type": "string", "minLength": 1, "maxLength": 40},
+            "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+            "target_supplied": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "manifest_identity": {"$ref": "#/$defs/sha256"},
+        "evidence_identity": {"$ref": "#/$defs/sha256"},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "authority": {
+          "type": "object",
+          "required": ["source_read", "source_write", "client_mutation", "process_execution", "network", "background_monitoring"],
+          "properties": {
+            "source_read": {"const": "denied"},
+            "source_write": {"const": "denied"},
+            "client_mutation": {"const": "denied"},
+            "process_execution": {"const": "denied"},
+            "network": {"const": "denied"},
+            "background_monitoring": {"const": "denied"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

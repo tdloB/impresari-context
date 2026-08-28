@@ -1,0 +1,35 @@
+{
+  "schema_name": "client-lifecycle-compatibility-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "copilot-cli-native-guidance-v1",
+  "client": "GitHub Copilot CLI",
+  "surface": "native_guidance_v3",
+  "supported_versions": ["1.0.80"],
+  "supported_os": ["macos"],
+  "supported_arch": ["aarch64"],
+  "artifact": {
+    "kind": "native_guidance",
+    "owned_relative_path": ".github/instructions/impresari-context.instructions.md",
+    "ownership_marker": "ownership=exact_fixed_artifact:impresari-context",
+    "sha256": "30c9e78ea01c56a5b60024a961a2fb2d3f06bad5afedd97e8dc25d2c8e5950b5"
+  },
+  "evidence": {
+    "record": "docs/verification/phase-2-copilot-cli-native-guidance.md",
+    "sha256": "074c75d8bbfbe30eb4fd40cbda950d02fea6c6d488af6fa84b509c9d7fc18400",
+    "observed_at": "2026-08-27",
+    "fresh_through": "2026-11-25"
+  },
+  "lifecycle": {
+    "health_check": "explicit_read_only",
+    "automatic_repair": "denied",
+    "background_monitoring": "denied",
+    "exact_removal": "explicit_owned_artifact_only"
+  },
+  "safe_next_steps": {
+    "compatible": "Retain the current owned artifact; recheck after a Copilot CLI, instruction-format, trust, MCP, or platform change.",
+    "degraded": "Use manual MCP operation or explicitly remove only the exact owned artifact after reviewing its path and identity.",
+    "stale_evidence": "Treat L2 guidance as unverified and run a new isolated native-guidance rehearsal before restoring the claim.",
+    "unknown": "Use generic manual MCP operation; do not retain a first-class lifecycle claim for this unrecorded scope.",
+    "unsupported": "No CI-4 assertion is available; use the documented generic local MCP path where applicable."
+  }
+}

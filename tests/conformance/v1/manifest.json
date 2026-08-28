@@ -10,6 +10,8 @@
     {"fixture": "valid/guided-delivery-intent.json", "schema": "guided-delivery.schema.json", "valid": true},
     {"fixture": "valid/guided-delivery-receipt.json", "schema": "guided-delivery.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/codex-app-server-delivery-receipt.json", "schema": "codex-app-server-delivery.schema.json", "valid": true},
+    {"fixture": "valid/client-lifecycle-manifest.json", "schema": "client-lifecycle-maintenance.schema.json#/$defs/manifest", "valid": true},
+    {"fixture": "valid/client-lifecycle-receipt.json", "schema": "client-lifecycle-maintenance.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/native-read-fallback.json", "schema": "consumer-context-acquisition.schema.json#/$defs/fallbackDecision", "valid": true},
     {"fixture": "valid/extension-manifest.json", "schema": "extension-contract.schema.json", "valid": true},
     {"fixture": "valid/extension-quarantine.json", "schema": "extension-contract.schema.json#/$defs/quarantine", "valid": true},
@@ -26,6 +28,7 @@
     {"fixture": "invalid/structural-query-unknown-field.json", "schema": "structural-query.schema.json", "valid": false},
     {"fixture": "invalid/guided-delivery-intent-unknown-field.json", "schema": "guided-delivery.schema.json", "valid": false},
     {"fixture": "invalid/guided-delivery-result-authority.json", "schema": "guided-delivery.schema.json#/$defs/result", "valid": false},
-    {"fixture": "invalid/codex-app-server-delivery-network.json", "schema": "codex-app-server-delivery.schema.json", "valid": false}
+    {"fixture": "invalid/codex-app-server-delivery-network.json", "schema": "codex-app-server-delivery.schema.json", "valid": false},
+    {"fixture": "invalid/client-lifecycle-receipt-authority.json", "schema": "client-lifecycle-maintenance.schema.json#/$defs/receipt", "valid": false}
   ]
 }

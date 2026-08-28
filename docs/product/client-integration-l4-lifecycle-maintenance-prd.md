@@ -1,6 +1,6 @@
 # Impresari Context — CI-4: Deep Lifecycle Maintenance PRD
 
-- Status: Approved for implementation
+- Status: Initial GitHub Copilot CLI scope implemented
 - Date: 2026-08-25
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -66,3 +66,13 @@ observe, not control, the client.
 Reassess the compatibility manifest after every supported client release,
 observed regression, or security boundary change. This is an on-demand
 maintenance process, not an automated monitoring service.
+
+## Initial admitted scope
+
+The first CI-4 implementation covers only the exact GitHub Copilot CLI v3
+native-guidance artifact recorded for CLI `1.0.80` on macOS aarch64. The
+versioned manifest, receipt contract, and one-shot checker are source-free and
+read-only. Client availability, version, OS, architecture, date, manifest, and
+owned target are caller-supplied; the checker performs no discovery and starts
+no client process. All other clients and Copilot surfaces remain outside this
+CI-4 assertion until independently admitted.
