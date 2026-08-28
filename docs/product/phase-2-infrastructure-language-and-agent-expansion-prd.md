@@ -29,12 +29,13 @@ Copilot CLI, and VS Code Copilot.
   isolated native project `list/get` discovery after exact workspace trust, a
   bounded prompt-mode lifecycle with direct packet equivalence, source
   immutability, and exact project-entry/trust removal evidence.
-- In implementation: VS Code Copilot's distinct extension-host admission now
-  has a `.vscode/mcp.json` strict-stdio contract and a disposable
-  operator-evidence runner. The separate portable Agent Host `.mcp.json`
-  surface remains unadmitted. VS Code remains generic until a signed-in
-  real-client record establishes trust, discovery, tool use, immutability, and
-  exact removal for the recorded version/OS scope.
+- Complete: VS Code Copilot's distinct extension-host admission has a
+  `.vscode/mcp.json` strict-stdio contract, disposable operator-evidence
+  runner, signed-in real-client trust/start and discovery observation, bounded
+  session-tool use, source immutability, and exact owned removal for VS Code
+  `1.134.0` on macOS arm64. The separate portable Agent Host `.mcp.json`
+  surface remains unadmitted. VS Code L2 native guidance is a later,
+  separately-recorded client-integration-depth gate.
   Gemini CLI `0.56.0` is authenticated but its current free-tier service
   rejects normal client startup as unsupported, so it remains generic legacy
   compatibility rather than an active depth target.

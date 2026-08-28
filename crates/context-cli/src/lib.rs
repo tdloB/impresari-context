@@ -1724,6 +1724,29 @@ Do not alter MCP configuration, trust, approvals, source files, or execution
 authority. If the server or packet is unavailable, state that and continue with
 ordinary analysis without claiming unsupported evidence.
 "#;
+const LEGACY_COPILOT_GUIDANCE_V2: &str = r#"---
+applyTo: "**"
+---
+
+<!-- Impresari Context native guidance v2; ownership=exact_fixed_artifact:impresari-context -->
+
+# Impresari Context evidence guidance
+
+Use an already configured local `impresari-context` MCP server only when a task
+explicitly calls for bounded repository evidence. Select a supported task
+profile and hard budget; when a packet is returned, surface packet ID, plan ID,
+reason codes, coverage, and omissions.
+
+For a session-scoped packet, use `context_session_open`, then
+`context_build`, `context_packet_resolve`, and `context_session_close` in that
+order. The build uses one explicit profile and a hard budget that validates
+against the live tool schema; resolve only the returned packet ID in the same
+session.
+
+Do not alter MCP configuration, trust, approvals, source files, or execution
+authority. If the server or packet is unavailable, state that and continue with
+ordinary analysis without claiming unsupported evidence.
+"#;
 
 fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
     let template = match client {
@@ -1753,7 +1776,7 @@ fn guidance_template(client: &str) -> Result<GuidanceTemplate, EngineError> {
             contents: include_str!(
                 "../../../templates/client-guidance/copilot/impresari-context.instructions.md"
             ),
-            legacy_contents: &[LEGACY_COPILOT_GUIDANCE_V1],
+            legacy_contents: &[LEGACY_COPILOT_GUIDANCE_V1, LEGACY_COPILOT_GUIDANCE_V2],
         },
         _ => return Err(guidance_error("unsupported native guidance client")),
     };
@@ -3490,6 +3513,52 @@ mod tests {
             );
             assert!(!target.exists(), "{client} legacy artifact remains");
         }
+    }
+
+    #[test]
+    fn copilot_v2_guidance_is_removal_only_after_the_v3_upgrade() {
+        let root = TestRoot::new("guidance-copilot-v2");
+        let template = guidance_template("copilot").expect("copilot template");
+        let target = root.0.join(template.relative_target);
+        fs::create_dir_all(target.parent().expect("target parent")).expect("target parent");
+        fs::write(&target, LEGACY_COPILOT_GUIDANCE_V2).expect("v2 artifact");
+
+        let inspect = vec![
+            "client".into(),
+            "guidance".into(),
+            "inspect".into(),
+            "copilot".into(),
+            root.0.display().to_string(),
+        ];
+        let (code, inspected) = invoke(&inspect, "guidancecopilotv2");
+        assert_eq!(code, 0, "inspect v2 guidance");
+        assert_eq!(inspected["state"], "owned_legacy");
+        assert_eq!(
+            inspected["content_sha256"],
+            guidance_digest(LEGACY_COPILOT_GUIDANCE_V2)
+        );
+
+        let validate = vec![
+            "client".into(),
+            "guidance".into(),
+            "validate".into(),
+            "copilot".into(),
+            root.0.display().to_string(),
+        ];
+        assert_ne!(invoke(&validate, "guidancecopilotv2").0, 0);
+
+        let remove = vec![
+            "client".into(),
+            "guidance".into(),
+            "remove".into(),
+            "copilot".into(),
+            root.0.display().to_string(),
+            "--apply".into(),
+        ];
+        let (code, removed) = invoke(&remove, "guidancecopilotv2");
+        assert_eq!(code, 0, "remove v2 guidance");
+        assert_eq!(removed["state"], "removed");
+        assert!(!target.exists(), "v2 artifact remains");
     }
 
     #[test]

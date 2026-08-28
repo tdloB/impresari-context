@@ -1,0 +1,88 @@
+# CI-2 VS Code Copilot native-guidance verification
+
+- Status: passed for recorded scope; L2 admitted
+- Candidate scope: VS Code `1.134.0`, macOS arm64
+- Governing records: [CI-2 PRD](../product/ci-2-vscode-copilot-native-guidance-prd.md), [CI-2 ARD](../architecture/ci-2-vscode-copilot-native-guidance-ard.md), and [ADR-0058](../decisions/0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md)
+
+## Why this is a separate gate
+
+The recorded VS Code L1 extension-host session safely discovered, started, and
+used bounded session tools, but its conversational `context_build` request did
+not match the strict schema. No Impresari packet was returned; the client then
+read the local probe file. That is not packet evidence and is not an L2 pass.
+
+The current owned Copilot v3 instruction now makes the two legal build forms
+explicit and directs the client to use the live MCP schema for dynamic values.
+The MCP tool schema supplies a canonical direct-evidence example with the
+complete hard-budget shape. Neither artifact adds a default budget, automatic
+approval, source authority, or delivery behavior.
+
+The first v3 live attempt safely failed before packet construction and did not
+read the source fixture. The VS Code Copilot log recorded the exact cause:
+`object has unsupported top-level schema keyword 'oneOf'`. A second attempt
+using an exact caller-supplied request produced the same definition-level
+rejection, then closed its session without source access. The candidate schema
+now avoids `oneOf`, `anyOf`, `allOf`, and `not` throughout `context_build`;
+regression tests preserve the client-supported subset while runtime tests keep
+strict request-form validation authoritative.
+
+## Recorded VS Code live result
+
+On 2026-08-27, VS Code `1.134.0` on macOS arm64 applied the owned v3
+instruction and completed the required Impresari-only lifecycle without a
+direct workspace read:
+
+- `context_session_open` opened `sess_vscodeguide_20260828024500`.
+- `context_build` returned complete packet
+  `sha256:ac280839d2f537e60428394bd26b3ea6623be4a94fe9400b04fb7cf7967f558d`
+  with one confirmed exact-source item for
+  `__impresari_vscode_native_guidance_probe__.ts`, zero omitted items, and
+  2,204 delivered bytes.
+- The delivered evidence was
+  `export const __impresari_vscode_native_guidance_probe__ = true;`.
+- `context_packet_resolve` resolved that packet in the same session.
+- `context_session_close` closed the same session.
+
+The exact-owned cleanup runner then revalidated the configuration and guidance,
+removed only `.vscode/mcp.json` and the owned Copilot instruction, and reported
+`source_unchanged: true`, `owned_configuration_removed: true`, and
+`owned_guidance_removed: true`.
+
+## Required manual evidence
+
+The disposable runner prepares only an explicit root below `/private/tmp`. It
+installs the exact workspace `.vscode/mcp.json` entry and exact-owned v3
+instruction, validates both, and preserves the generated probe source.
+
+```text
+ruby scripts/rehearse-vscode-copilot-native-guidance.rb \
+  --prepare-root /private/tmp/impresari-vscode-l2-guidance
+# inspect the source-free preview, then rerun the same command with --apply
+# Open only the reported workspace in VS Code, make the user-owned trust and
+# tool-approval decisions, and retain the chat tool-result record.
+ruby scripts/rehearse-vscode-copilot-native-guidance.rb \
+  --temporary-root /private/tmp/impresari-vscode-l2-guidance \
+  --vscode-version 1.134.0 \
+  --confirmed-discovery --confirmed-guidance-reference \
+  --confirmed-session-lifecycle --confirmed-packet-build \
+  --confirmed-packet-resolve --apply
+```
+
+The operator must confirm all of the following from the live VS Code client:
+
+1. The workspace `.vscode/mcp.json` entry is visible and explicitly started.
+2. The owned v3 instruction is shown in chat references or diagnostics for the
+   probe request.
+3. `context_session_open`, a successful `context_build`, a successful
+   same-session `context_packet_resolve`, and `context_session_close` are
+   visible. A direct-file fallback is a failed smoke, not a substitute.
+4. The cleanup receipt shows that only the owned configuration and guidance
+   files were removed and that the source fixture was unchanged.
+
+## Promotion condition
+
+The manual VS Code packet build/resolve record, exact-owned cleanup, separate
+GitHub Copilot CLI v3 native-guidance smoke, complete local gate, and hosted CI
+all pass. L2 is admitted only for VS Code `1.134.0` on macOS arm64. This
+conversational result is live smoke evidence only; it does not claim that
+repeating a prompt repeats the same tool calls.

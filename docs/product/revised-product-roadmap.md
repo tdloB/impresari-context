@@ -15,7 +15,7 @@ silently broaden the authority boundary.
 | --- | --- | --- |
 | 0 | Correct public language/client contract and read-only doctor | Complete |
 | 1 | Python and configuration evidence; first-class Codex, Claude Code, and Cursor kits | Complete for recorded client/version/OS scopes: Python, narrow strict-JSON, bounded JSONC, bounded TOML, deliberately bounded YAML, and the three named integrations. Codex is first-class for Codex CLI `0.149.0-alpha.4.1` on macOS aarch64 after isolated user-home installation, malformed-configuration rejection, deterministic App Server lifecycle/packet equivalence, and exact removal evidence. Claude Code is first-class for CLI `2.1.241` on macOS aarch64 after malformed strict-configuration rejection, native isolated local-scope add/get/removal, and bounded temporary-config packet-equivalence evidence. Cursor is first-class for Agent CLI `3.17.8` (`2026.08.11-e8db854`) on macOS aarch64 after isolated project enable/list-tools/disable/removal and guarded Agent-mode packet-equivalence evidence. |
-| 2 | Rust and Go structural evidence; broader agent access | In progress: Rust and Go are complete. GitHub Copilot CLI is first-class for CLI `1.0.80` on macOS aarch64 after isolated native project/trust discovery, malformed-configuration rejection, bounded prompt-mode packet equivalence, and exact owned-entry/trust removal. Gemini remains generic because normal-client testing is blocked by its current free-tier service. VS Code Copilot remains generic pending its distinct client admission. |
+| 2 | Rust and Go structural evidence; broader agent access | Complete for recorded scopes: Rust and Go are complete. GitHub Copilot CLI is first-class for CLI `1.0.80` on macOS aarch64 after isolated native project/trust discovery, malformed-configuration rejection, bounded prompt-mode packet equivalence, and exact owned-entry/trust removal. VS Code Copilot extension host is independently first-class L1 for VS Code `1.134.0` on macOS arm64 after workspace configuration, explicit trust/start, discovery, bounded session-tool use, and exact removal. Gemini remains generic because normal-client testing is blocked by its current free-tier service. |
 | 3 | Deterministic context planner | Complete (approved initial scope): profile-bound deterministic plans, coverage/omission reporting, exact plan and packet identities, CLI, and MCP support are implemented. Standalone profiles retain explicit structural, change-set, associated-test, and configuration-to-code omissions rather than inferring evidence. |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Complete: bounded Java, Kotlin, C#, structural-impact, declared change-set, caller-declared associated-test, repository orientation, explicit incremental-update, and convention/exemplar evidence are accepted after full hosted CI. |
 | 5 | Demand-led language expansion | In progress: Scala, Elixir, Clojure, and Haskell have been admitted with bounded structural evidence. The evidence-first admission gate remains the requirement for future languages. |
@@ -52,9 +52,10 @@ kits for Codex, Claude Code, and Cursor.
 
 Deliver Rust and Go structural evidence and tested local connection kits for
 Gemini CLI, GitHub Copilot CLI, and VS Code Copilot. The language slices and
-GitHub Copilot CLI recorded-scope L1 admission are complete; Gemini remains
-legacy generic compatibility and the distinct VS Code Copilot surface remains
-pending.
+GitHub Copilot CLI and the distinct VS Code Copilot extension-host L1
+admissions are complete for their recorded scopes; Gemini remains legacy
+generic compatibility. Deeper Copilot guidance is governed by the parallel
+client-integration roadmap.
 
 ## Phase 3 — Deterministic Context Planner
 

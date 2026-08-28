@@ -1,7 +1,7 @@
 # Local MCP Connection Guides
 
-- Version: 1.5
-- Published: 2026-08-26
+- Version: 1.6
+- Published: 2026-08-27
 - Classification: Local MCP guidance; the compatibility matrix is authoritative
 - Supported transport: local stdio only
 
@@ -313,10 +313,11 @@ admitted or maintained as the VS Code extension-host connection.
 These guides alone do not establish a maintained version range, supported OS
 matrix, clean-install behavior, configuration-parser conformance, or safe
 automated removal. The [compatibility matrix](compatibility-matrix.md) is the
-authoritative classification: Codex, Claude Code, Cursor, and GitHub Copilot
-CLI are First-class only for their individually recorded client/version/OS
-scopes. Gemini CLI and VS Code Copilot have read-only preadmission guides and
-validators only and remain **Generic local MCP**.
+authoritative classification: Codex, Claude Code, Cursor, GitHub Copilot CLI,
+and VS Code Copilot extension host are First-class only for their individually
+recorded client/version/OS scopes. Gemini CLI remains **Generic local MCP**.
+The VS Code record includes separate L1 managed-connection and recorded-scope
+L2 native-guidance packet-build/resolve evidence.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex
