@@ -24,8 +24,9 @@ pub(super) fn execute(
         "content": user_content(request),
     })];
     let mut usage = Usage::default();
-    for _ in 0..request.turn_limit {
-        let body = request_body(request, &messages);
+    for turn in 0..request.turn_limit {
+        let allow_tools = turn + 1 < request.turn_limit;
+        let body = request_body(request, &messages, allow_tools);
         let response = client
             .post(ENDPOINT)
             .header("x-api-key", key)
@@ -72,15 +73,76 @@ pub(super) fn execute(
     Err("Anthropic adapter exhausted the fixed turn limit".to_owned())
 }
 
-fn request_body(request: &AdapterRequest, messages: &[Value]) -> Value {
+fn request_body(request: &AdapterRequest, messages: &[Value], allow_tools: bool) -> Value {
+    let tool_choice = if allow_tools {
+        json!({"type": "auto", "disable_parallel_tool_use": true})
+    } else {
+        json!({"type": "none"})
+    };
     json!({
         "model": request.model_identifier,
         "system": system_instructions(),
         "messages": messages,
         "max_tokens": MAX_OUTPUT_TOKENS,
-        "output_config": {"effort": "high"},
-        "tools": tool_definitions(),
-        "tool_choice": {"type": "auto", "disable_parallel_tool_use": true},
+        "output_config": {
+            "effort": "high",
+            "format": evaluation_output_format(),
+        },
+        "tools": anthropic_tools(),
+        "tool_choice": tool_choice,
+    })
+}
+
+fn anthropic_tools() -> Value {
+    let mut tools = tool_definitions();
+    for tool in tools
+        .as_array_mut()
+        .expect("shared tool definitions are an array")
+    {
+        tool.as_object_mut()
+            .expect("shared tool definitions contain objects")
+            .insert("strict".to_owned(), Value::Bool(true));
+    }
+    let properties = tools[1]["input_schema"]["properties"]
+        .as_object_mut()
+        .expect("read tool properties are an object");
+    for field in ["line_start", "line_end"] {
+        let schema = properties[field]
+            .as_object_mut()
+            .expect("line range schemas are objects");
+        schema.remove("minimum");
+        schema.insert(
+            "description".to_owned(),
+            Value::String("An integer greater than or equal to 1.".to_owned()),
+        );
+    }
+    tools
+}
+
+fn evaluation_output_format() -> Value {
+    json!({
+        "type": "json_schema",
+        "schema": {
+            "type": "object",
+            "properties": {
+                "answer": {"type": "string"},
+                "evidence": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "path": {"type": "string"},
+                            "line_start": {"type": "integer"},
+                            "line_end": {"type": "integer"},
+                        },
+                        "required": ["path", "line_start", "line_end"],
+                        "additionalProperties": false,
+                    },
+                },
+            },
+            "required": ["answer", "evidence"],
+            "additionalProperties": false,
+        },
     })
 }
 
@@ -209,11 +271,40 @@ mod tests {
 
     #[test]
     fn request_is_high_effort_without_cache_or_conversation_state() {
-        let body = request_body(&request(), &[json!({"role":"user","content":"question"})]);
+        let body = request_body(
+            &request(),
+            &[json!({"role":"user","content":"question"})],
+            true,
+        );
         assert_eq!(body["output_config"]["effort"], "high");
+        assert_eq!(body["output_config"]["format"]["type"], "json_schema");
+        assert_eq!(
+            body["output_config"]["format"]["schema"]["required"],
+            json!(["answer", "evidence"])
+        );
+        assert_eq!(
+            body["output_config"]["format"]["schema"]["additionalProperties"],
+            false
+        );
         assert_eq!(body["tool_choice"]["disable_parallel_tool_use"], true);
+        assert_eq!(body["tools"][0]["strict"], true);
+        assert!(
+            body["tools"][1]["input_schema"]["properties"]["line_start"]
+                .get("minimum")
+                .is_none()
+        );
         assert!(body.get("cache_control").is_none());
         assert!(body.get("conversation").is_none());
+    }
+
+    #[test]
+    fn final_bounded_turn_disables_tools() {
+        let body = request_body(
+            &request(),
+            &[json!({"role":"user","content":"question"})],
+            false,
+        );
+        assert_eq!(body["tool_choice"], json!({"type": "none"}));
     }
 
     #[test]

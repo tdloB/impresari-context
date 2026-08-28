@@ -24,8 +24,9 @@ pub(super) fn execute(
         json!({"role": "user", "content": user_content(request)}),
     ];
     let mut usage = Usage::default();
-    for _ in 0..request.turn_limit {
-        let body = request_body(request, &input);
+    for turn in 0..request.turn_limit {
+        let allow_tools = turn + 1 < request.turn_limit;
+        let body = request_body(request, &input, allow_tools);
         let response = client
             .post(ENDPOINT)
             .bearer_auth(key)
@@ -64,7 +65,7 @@ pub(super) fn execute(
     Err("OpenAI adapter exhausted the fixed turn limit".to_owned())
 }
 
-fn request_body(request: &AdapterRequest, input: &[Value]) -> Value {
+fn request_body(request: &AdapterRequest, input: &[Value], allow_tools: bool) -> Value {
     json!({
         "model": request.model_identifier,
         "store": false,
@@ -75,7 +76,7 @@ fn request_body(request: &AdapterRequest, input: &[Value]) -> Value {
         "parallel_tool_calls": false,
         "max_output_tokens": MAX_OUTPUT_TOKENS,
         "tools": openai_tools(),
-        "tool_choice": "auto",
+        "tool_choice": if allow_tools { "auto" } else { "none" },
         "input": input,
     })
 }
@@ -234,7 +235,7 @@ mod tests {
 
     #[test]
     fn request_is_stateless_high_effort_and_cache_disabled() {
-        let body = request_body(&request(), &[json!({"role":"user","content":"x"})]);
+        let body = request_body(&request(), &[json!({"role":"user","content":"x"})], true);
         assert_eq!(body["store"], false);
         assert_eq!(body["service_tier"], "default");
         assert_eq!(body["reasoning"]["effort"], "high");
@@ -243,6 +244,12 @@ mod tests {
         assert_eq!(body["parallel_tool_calls"], false);
         assert!(body.get("previous_response_id").is_none());
         assert!(body.get("conversation").is_none());
+    }
+
+    #[test]
+    fn final_bounded_turn_disables_tools() {
+        let body = request_body(&request(), &[json!({"role":"user","content":"x"})], false);
+        assert_eq!(body["tool_choice"], "none");
     }
 
     #[test]
