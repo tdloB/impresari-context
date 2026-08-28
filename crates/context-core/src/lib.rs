@@ -780,9 +780,6 @@ pub fn build_packet(mut draft: PacketDraft) -> Result<ContextPacket, CoreError> 
     }
     let requested = draft.budget.requested_u64()?;
     let max_items = decimal(&draft.budget.max_evidence_items)?;
-    draft
-        .evidence
-        .sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
     for evidence in &draft.evidence {
         validate_evidence(evidence, &draft.workspace_snapshot)?;
     }
@@ -1321,7 +1318,7 @@ mod tests {
     }
 
     #[test]
-    fn packet_never_exceeds_budget_and_removal_is_deterministic() {
+    fn packet_never_exceeds_budget_and_preserves_caller_priority() {
         let packet = build_packet(draft(
             4096,
             vec![
@@ -1335,9 +1332,19 @@ mod tests {
         assert!(packet_bytes(&packet).expect("bytes").len() <= 4096);
         assert_eq!(
             packet.observed_evidence.first().expect("one").evidence_id,
-            format!("sha256:{}", "a".repeat(64))
+            format!("sha256:{}", "b".repeat(64))
         );
         assert!(!packet.observed_evidence.is_empty());
+        let repeated = build_packet(draft(
+            4096,
+            vec![
+                evidence('b', 1200),
+                evidence('a', 1200),
+                evidence('c', 1200),
+            ],
+        ))
+        .expect("repeated packet");
+        assert_eq!(packet, repeated);
     }
 
     #[test]

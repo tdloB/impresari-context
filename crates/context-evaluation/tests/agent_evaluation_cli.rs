@@ -39,7 +39,7 @@ fn assert_rendered_context_records(records: &[fs::DirEntry]) {
     for entry in records {
         let record: Value = serde_json::from_slice(&fs::read(entry.path()).expect("read record"))
             .expect("parse record");
-        assert_eq!(record["schema_version"], "1.1");
+        assert_eq!(record["schema_version"], "1.2");
         assert_eq!(
             record["model_context_renderer_identifier"],
             "deterministic-fixture-model-context"
@@ -232,7 +232,7 @@ fn specification_rejects_shell_command_strings() {
     fs::create_dir_all(&source).expect("create source");
     fs::write(source.join("one.rs"), "const ONE: u8 = 1;\n").expect("write source");
     let spec = serde_json::json!({
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "study_id": "reject-shell",
         "repository": "source",
         "source_files": ["one.rs"],
@@ -248,17 +248,22 @@ fn specification_rejects_shell_command_strings() {
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,
+            "provider_effort": "high",
+            "provider_max_output_tokens": 1024,
+            "provider_request_timeout_seconds": 1,
+            "packet_resource_policy": {"requested_bytes":1024,"max_evidence_items":1,"max_files":1,"max_excerpt_bytes_per_item":256,"max_matches":1,"max_traversal_depth":1,"max_elapsed_ms":1000,"max_memory_bytes":1_048_576},
             "pricing_basis": "test"
         },
         "repetitions": 1,
         "agent_command": ["/bin/sh", "-c", "echo unsafe"],
         "packet_command": ["/bin/false"],
         "environment": {},
-        "command_timeout_seconds": 1,
+        "command_timeout_seconds": 10,
         "max_stdout_bytes": 1024,
         "max_stderr_bytes": 1024,
         "tasks": [{
             "id": "one",
+            "uniqueness_rationale": "One declaration exists in the fixture.",
             "prompt": "one",
             "expected_answer_fragments": ["one"],
             "required_evidence": [{"path":"one.rs","line_start":1,"line_end":1}]
@@ -314,7 +319,7 @@ fn adapter_failures_timeouts_and_output_limits_fail_closed() {
         let mut spec = original.clone();
         spec["agent_command"] = serde_json::json!([adapter, mode]);
         spec["packet_command"] = serde_json::json!([adapter, "packet"]);
-        spec["command_timeout_seconds"] = serde_json::json!(1);
+        spec["command_timeout_seconds"] = serde_json::json!(7);
         if mode == "oversize" {
             spec["max_stdout_bytes"] = serde_json::json!(1024);
         }
@@ -344,6 +349,21 @@ fn adapter_failures_timeouts_and_output_limits_fail_closed() {
             "mode {mode}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
+        let failure_path = directory
+            .0
+            .join(format!("output-{mode}"))
+            .join("failure-00001.json");
+        assert!(
+            failure_path.is_file(),
+            "mode {mode} omitted its failure record"
+        );
+        let failure: Value = serde_json::from_slice(&fs::read(failure_path).expect("failure file"))
+            .expect("failure JSON");
+        assert_eq!(failure["schema_name"], "agent-evaluation-failure");
+        if mode == "sleep" {
+            assert_eq!(failure["reason_code"], "adapter_deadline_exceeded");
+            assert_eq!(failure["progress"][0]["stage"], "provider_request_started");
+        }
     }
 }
 
@@ -354,7 +374,7 @@ fn specification_rejects_repository_and_source_root_escape() {
     fs::create_dir_all(&source).expect("create source");
     fs::write(source.join("one.rs"), "const ONE: u8 = 1;\n").expect("write source");
     let base = serde_json::json!({
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "study_id": "reject-escape",
         "repository": "source",
         "source_files": ["one.rs"],
@@ -370,17 +390,22 @@ fn specification_rejects_repository_and_source_root_escape() {
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,
+            "provider_effort": "high",
+            "provider_max_output_tokens": 1024,
+            "provider_request_timeout_seconds": 1,
+            "packet_resource_policy": {"requested_bytes":1024,"max_evidence_items":1,"max_files":1,"max_excerpt_bytes_per_item":256,"max_matches":1,"max_traversal_depth":1,"max_elapsed_ms":1000,"max_memory_bytes":1_048_576},
             "pricing_basis": "test"
         },
         "repetitions": 1,
         "agent_command": ["/bin/false"],
         "packet_command": ["/bin/false"],
         "environment": {},
-        "command_timeout_seconds": 1,
+        "command_timeout_seconds": 10,
         "max_stdout_bytes": 1024,
         "max_stderr_bytes": 1024,
         "tasks": [{
             "id": "one",
+            "uniqueness_rationale": "One declaration exists in the fixture.",
             "prompt": "one",
             "expected_answer_fragments": ["one"],
             "required_evidence": [{"path":"one.rs","line_start":1,"line_end":1}]
@@ -421,7 +446,7 @@ fn specification_rejects_symlinked_source_files() {
     fs::write(source.join("real.rs"), "const ONE: u8 = 1;\n").expect("write source");
     symlink("real.rs", source.join("linked.rs")).expect("create source symlink");
     let spec = serde_json::json!({
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "study_id": "reject-symlink",
         "repository": "source",
         "source_files": ["linked.rs"],
@@ -437,17 +462,22 @@ fn specification_rejects_symlinked_source_files() {
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,
+            "provider_effort": "high",
+            "provider_max_output_tokens": 1024,
+            "provider_request_timeout_seconds": 1,
+            "packet_resource_policy": {"requested_bytes":1024,"max_evidence_items":1,"max_files":1,"max_excerpt_bytes_per_item":256,"max_matches":1,"max_traversal_depth":1,"max_elapsed_ms":1000,"max_memory_bytes":1_048_576},
             "pricing_basis": "test"
         },
         "repetitions": 1,
         "agent_command": ["/bin/false"],
         "packet_command": ["/bin/false"],
         "environment": {},
-        "command_timeout_seconds": 1,
+        "command_timeout_seconds": 10,
         "max_stdout_bytes": 1024,
         "max_stderr_bytes": 1024,
         "tasks": [{
             "id": "one",
+            "uniqueness_rationale": "One declaration exists in the fixture.",
             "prompt": "one",
             "expected_answer_fragments": ["one"],
             "required_evidence": [{"path":"linked.rs","line_start":1,"line_end":1}]

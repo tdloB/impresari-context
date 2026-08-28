@@ -70,7 +70,7 @@ fn run() -> Result<(), String> {
                 "packet_snapshot",
                 &request.operation_timestamp,
             ),
-            resource_budget(),
+            resource_budget(&request)?,
         )
         .map_err(|error| format!("build context snapshot: {error}"))?;
     let packet = engine
@@ -82,9 +82,9 @@ fn run() -> Result<(), String> {
                 &request.operation_timestamp,
             ),
             &ContextPlan {
-                steps: request.context_plan,
+                steps: request.context_plan.clone(),
             },
-            resource_budget(),
+            resource_budget(&request)?,
         )
         .map_err(|error| format!("build context packet: {error}"))?;
     let response = PacketResponse {
@@ -110,9 +110,8 @@ fn engine_config(cache: &Path) -> Result<EngineConfig, String> {
     })
 }
 
-fn resource_budget() -> ResourceBudget {
-    ResourceBudget::conservative(65_536, 100, 10_000, 4096, 1000, 32, 30_000, 536_870_912)
-        .expect("fixed packet budget is valid")
+fn resource_budget(request: &AdapterRequest) -> Result<ResourceBudget, String> {
+    request.packet_resource_policy.to_resource_budget()
 }
 
 fn request_context(

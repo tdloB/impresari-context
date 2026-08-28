@@ -5,8 +5,8 @@
 //! Command-line interface for bounded agent-context A/B/A studies.
 
 use context_evaluation::agent_eval::{
-    default_summary_paths, load_records, load_spec, run_study, summarize, validate_records,
-    write_json, write_markdown,
+    analyze_budgets, default_summary_paths, load_records, load_spec, run_study, summarize,
+    token_preflight, validate_records, write_json, write_markdown,
 };
 use std::env;
 use std::path::PathBuf;
@@ -51,6 +51,34 @@ fn run() -> Result<(), String> {
                 records.len(),
                 output_dir.display()
             );
+        }
+        "analyze-budgets" => {
+            let spec_path = required_path(&args, 1, "study specification")?;
+            let output_path = required_path(&args, 2, "output JSON")?;
+            let explicit_consent = args
+                .get(3)
+                .is_some_and(|value| value == "--allow-adapter-execution");
+            if args.len() != 4 || !explicit_consent {
+                return Err("analyze-budgets requires exactly: <study.json> <output.json> --allow-adapter-execution".to_owned());
+            }
+            let spec = load_spec(&spec_path)?;
+            let points = analyze_budgets(&spec, explicit_consent)?;
+            write_json(&output_path, &points)?;
+            println!("wrote {} budget points", points.len());
+        }
+        "preflight" => {
+            let spec_path = required_path(&args, 1, "study specification")?;
+            let output_path = required_path(&args, 2, "output JSON")?;
+            let explicit_consent = args
+                .get(3)
+                .is_some_and(|value| value == "--allow-adapter-execution");
+            if args.len() != 4 || !explicit_consent {
+                return Err("preflight requires exactly: <study.json> <output.json> --allow-adapter-execution".to_owned());
+            }
+            let spec = load_spec(&spec_path)?;
+            let records = token_preflight(&spec, explicit_consent)?;
+            write_json(&output_path, &records)?;
+            println!("wrote {} token preflight records", records.len());
         }
         "validate-runs" => {
             require_arg_count(&args, 3, "validate-runs <study.json> <run-dir>")?;
@@ -105,6 +133,8 @@ fn print_help() {
         "impresari-context-agent-eval\n\n\
          Commands:\n  \
          validate-spec <study.json>\n  \
+         analyze-budgets <study.json> <output.json> --allow-adapter-execution\n  \
+         preflight <study.json> <output.json> --allow-adapter-execution\n  \
          run <study.json> <output-dir> --allow-adapter-execution\n  \
          validate-runs <study.json> <run-dir>\n  \
          summarize <study.json> <run-dir> [output-dir]"

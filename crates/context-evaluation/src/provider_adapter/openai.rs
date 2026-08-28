@@ -1,16 +1,17 @@
 #![forbid(unsafe_code)]
 
 use super::{
-    ProviderOutcome, add_usage, decode_response, dispatch_tool, parse_answer, system_instructions,
-    tool_definitions,
+    Provider, ProviderOutcome, add_usage, decode_response, dispatch_tool, emit_progress,
+    parse_answer, request_timeout, system_instructions, tool_definitions,
 };
-use crate::agent_eval::{AdapterRequest, Usage};
+use crate::agent_eval::{AdapterRequest, ProgressStage, Usage};
 use crate::production_adapter::RepositoryToolBoundary;
 use reqwest::blocking::Client;
 use serde_json::{Map, Value, json};
+use std::time::Instant;
 
 const ENDPOINT: &str = "https://api.openai.com/v1/responses";
-const MAX_OUTPUT_TOKENS: u64 = 16_384;
+const TOKEN_COUNT_ENDPOINT: &str = "https://api.openai.com/v1/responses/input_tokens";
 const STANDARD_RATE_MAX_INPUT_TOKENS: u64 = 272_000;
 
 pub(super) fn execute(
@@ -19,17 +20,31 @@ pub(super) fn execute(
     request: &AdapterRequest,
     prepared_user_content: &str,
     tools: &mut RepositoryToolBoundary,
+    started: Instant,
 ) -> Result<ProviderOutcome, String> {
     let mut input = initial_input(prepared_user_content);
     let mut usage = Usage::default();
     for turn in 0..request.turn_limit {
         let allow_tools = turn + 1 < request.turn_limit;
         let body = request_body(request, &input, allow_tools);
+        emit_progress(
+            Provider::OpenAi,
+            request,
+            started,
+            ProgressStage::ProviderRequestStarted,
+            turn + 1,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
         let response = client
             .post(ENDPOINT)
             .bearer_auth(key)
             .header("content-type", "application/json")
             .json(&body)
+            .timeout(request_timeout(request, started)?)
             .send()
             .map_err(|_| "send OpenAI Responses API request".to_owned())?;
         let value = decode_response(response)?;
@@ -43,11 +58,28 @@ pub(super) fn execute(
             .and_then(Value::as_array)
             .ok_or_else(|| "OpenAI response omitted output".to_owned())?;
         let calls = function_calls(output)?;
+        emit_progress(
+            Provider::OpenAi,
+            request,
+            started,
+            ProgressStage::ProviderResponseCompleted,
+            turn + 1,
+            None,
+            None,
+            Some(request_usage),
+            Some(if calls.is_empty() {
+                "completed"
+            } else {
+                "tool_use"
+            }),
+            Some(u64::try_from(calls.len()).unwrap_or(u64::MAX)),
+        )?;
         if calls.is_empty() {
             let text = output_text(output)?;
             return Ok(ProviderOutcome {
                 answer: parse_answer(&text)?,
                 usage,
+                completed_turns: turn + 1,
             });
         }
         input.extend(output.iter().cloned());
@@ -59,8 +91,63 @@ pub(super) fn execute(
                 "output": result,
             }));
         }
+        emit_progress(
+            Provider::OpenAi,
+            request,
+            started,
+            ProgressStage::ToolsDispatched,
+            turn + 1,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )?;
     }
     Err("OpenAI adapter exhausted the fixed turn limit".to_owned())
+}
+
+pub(super) fn count_tokens(
+    client: &Client,
+    key: &str,
+    request: &AdapterRequest,
+    prepared_user_content: &str,
+    started: Instant,
+) -> Result<u64, String> {
+    let body = token_count_body(request, prepared_user_content)?;
+    let response = client
+        .post(TOKEN_COUNT_ENDPOINT)
+        .bearer_auth(key)
+        .header("content-type", "application/json")
+        .json(&body)
+        .timeout(request_timeout(request, started)?)
+        .send()
+        .map_err(|_| "send OpenAI input-token count request".to_owned())?;
+    decode_response(response)?
+        .get("input_tokens")
+        .and_then(Value::as_u64)
+        .filter(|value| *value > 0)
+        .ok_or_else(|| "OpenAI token count omitted input_tokens".to_owned())
+}
+
+fn token_count_body(
+    request: &AdapterRequest,
+    prepared_user_content: &str,
+) -> Result<Value, String> {
+    let mut body = request_body(request, &initial_input(prepared_user_content), true);
+    let body = body
+        .as_object_mut()
+        .ok_or_else(|| "OpenAI token-count request was invalid".to_owned())?;
+    for field in [
+        "store",
+        "service_tier",
+        "include",
+        "prompt_cache_options",
+        "max_output_tokens",
+    ] {
+        body.remove(field);
+    }
+    Ok(Value::Object(body.clone()))
 }
 
 pub(super) fn initial_input(prepared_user_content: &str) -> Vec<Value> {
@@ -76,10 +163,10 @@ fn request_body(request: &AdapterRequest, input: &[Value], allow_tools: bool) ->
         "store": false,
         "service_tier": "default",
         "include": ["reasoning.encrypted_content"],
-        "reasoning": {"effort": "high", "context": "current_turn"},
+        "reasoning": {"effort": request.provider_effort, "context": "current_turn"},
         "prompt_cache_options": {"mode": "explicit"},
         "parallel_tool_calls": false,
-        "max_output_tokens": MAX_OUTPUT_TOKENS,
+        "max_output_tokens": request.provider_max_output_tokens,
         "tools": openai_tools(),
         "tool_choice": if allow_tools { "auto" } else { "none" },
         "input": input,
@@ -218,7 +305,7 @@ fn optional_u64(value: Option<&Map<String, Value>>, key: &str) -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::agent_eval::{Arm, PricingSchedule};
+    use crate::agent_eval::{Arm, PacketResourceSpec, PricingSchedule};
 
     fn request() -> AdapterRequest {
         AdapterRequest {
@@ -237,6 +324,20 @@ mod tests {
             container_image: "test".into(),
             operation_timestamp: "1970-01-01T00:00:00Z".into(),
             turn_limit: 3,
+            provider_effort: "high".into(),
+            provider_max_output_tokens: 16_384,
+            provider_request_timeout_seconds: 120,
+            command_timeout_seconds: 600,
+            packet_resource_policy: PacketResourceSpec {
+                requested_bytes: 65_536,
+                max_evidence_items: 100,
+                max_files: 10_000,
+                max_excerpt_bytes_per_item: 4096,
+                max_matches: 1000,
+                max_traversal_depth: 32,
+                max_elapsed_ms: 30_000,
+                max_memory_bytes: 536_870_912,
+            },
             packet: None,
         }
     }
@@ -252,6 +353,24 @@ mod tests {
         assert_eq!(body["parallel_tool_calls"], false);
         assert!(body.get("previous_response_id").is_none());
         assert!(body.get("conversation").is_none());
+    }
+
+    #[test]
+    fn token_count_uses_exact_input_tools_and_reasoning_without_generation_fields() {
+        let body = token_count_body(&request(), "prepared user content").expect("count body");
+        assert_eq!(body["model"], "gpt-5.6-sol");
+        assert_eq!(body["reasoning"]["effort"], "high");
+        assert_eq!(body["input"][1]["content"], "prepared user content");
+        assert_eq!(body["tools"].as_array().map(Vec::len), Some(2));
+        for absent in [
+            "store",
+            "service_tier",
+            "include",
+            "prompt_cache_options",
+            "max_output_tokens",
+        ] {
+            assert!(body.get(absent).is_none(), "unexpected field {absent}");
+        }
     }
 
     #[test]

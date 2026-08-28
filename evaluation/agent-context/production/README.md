@@ -11,8 +11,8 @@ The approved adapter targets are:
 - Anthropic Messages API: `claude-opus-5`, effort `high`; and
 - the same local Impresari Context packet adapter in both provider strata.
 
-Both provider templates use evaluation schema `1.1`, production adapter
-version `1.1.0`, and the shared
+Both provider templates use evaluation schema `1.2`, explicit provider and
+packet limits, an offline budget curve, and the shared
 `impresari-evaluation-model-context` renderer version `1.0.0`. The renderer
 validates and source-binds the canonical packet, then supplies decoded strict
 UTF-8 evidence as deterministic untrusted JSON. Raw Base64URL packet excerpts
@@ -35,6 +35,9 @@ treatment receives the packet.
 6. Record the runtime/container identity, normalized UTC operation timestamp,
    and smoke repetition count.
 7. Run `validate-spec`; an untouched template must fail validation.
+8. Run `analyze-budgets` and require exact expected-range coverage before a
+   provider call.
+9. Run `preflight` to count exact initial requests before generation.
 
 ## Credentials and execution
 

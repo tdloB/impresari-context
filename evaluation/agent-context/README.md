@@ -3,7 +3,8 @@
 This directory contains the developer-only agent-context study described by
 the [focused PRD](../../docs/product/agent-context-evaluation-harness-prd.md),
 [ADR-0059](../../docs/decisions/0059-developer-agent-evaluation-adapter-boundary.md),
-and [ADR-0061](../../docs/decisions/0061-human-readable-evaluation-model-context.md).
+and [ADR-0061](../../docs/decisions/0061-human-readable-evaluation-model-context.md),
+plus [ADR-0062](../../docs/decisions/0062-observable-deadlines-and-relevance-preserving-evaluation-context.md).
 It does not add process execution to the engine, MCP server, or extension
 contract.
 
@@ -20,18 +21,21 @@ From the repository root:
 ```console
 cargo build -p context-evaluation --bins --locked
 target/debug/impresari-context-agent-eval validate-spec evaluation/agent-context/v1/study.json
+target/debug/impresari-context-agent-eval analyze-budgets evaluation/agent-context/v1/study.json /absolute/budget-curve.json --allow-adapter-execution
 target/debug/impresari-context-agent-eval run evaluation/agent-context/v1/study.json /absolute/output/directory --allow-adapter-execution
 target/debug/impresari-context-agent-eval validate-runs evaluation/agent-context/v1/study.json /absolute/output/directory
 target/debug/impresari-context-agent-eval summarize evaluation/agent-context/v1/study.json /absolute/output/directory
 ```
 
-The output directory must be outside the evaluated source directory. `run` is
-the only executing operation and requires the consent flag every time.
-`validate-spec`, `validate-runs`, and `summarize` never execute adapters.
+The output directory must be outside the evaluated source directory. `run`,
+`analyze-budgets`, and provider `preflight` execute bounded adapters and require
+the consent flag every time. `validate-spec`, `validate-runs`, and `summarize`
+never execute adapters. Budget analysis never starts an agent or reads a
+provider credential; preflight counts tokens but never authorizes generation.
 
 ## Authoring a real study
 
-- Use evaluation schema `1.1` and freeze
+- Use evaluation schema `1.2` and freeze
   `model_context_renderer_identifier`, `model_context_renderer_version`, and
   `max_rendered_context_bytes`. Corrected production adapters require
   `impresari-evaluation-model-context` version `1.0.0`.
@@ -40,6 +44,8 @@ the only executing operation and requires the consent flag every time.
 - Use direct argv arrays. Shells and `-c`/`--command` command strings are
   rejected.
 - Pin meaningful adapter, model, runtime, revision, and pricing-basis labels.
+- Freeze provider effort, output ceiling, request timeout, complete packet
+  resource policy, and an offline budget curve.
 - Choose finite timeout and stdout/stderr limits at or below the library caps.
 - Keep adapter-specific variables under the `IMPRESARI_EVAL_` prefix and avoid
   secrets. The child environment is otherwise cleared.
@@ -58,12 +64,14 @@ For a production treatment, the adapter validates the canonical packet, binds
 every evidence excerpt back to the frozen allow-listed source, decodes strict
 UTF-8, and sends one deterministic JSON data rendering to either provider. It
 does not send the packet's Base64URL wire excerpts, and it does not rank,
-deduplicate, resize, summarize, or omit packet evidence. Renderer identity,
+resize, summarize, or omit packet evidence. The engine preserves declared plan
+priority and suppresses already-covered matches before packaging. Renderer identity,
 rendered bytes, SHA-256, and evidence count are persisted without source text.
 
 ## Data handling
 
-Run records contain measurements, identifiers, digests, and verified evidence
+Run and failure records contain measurements, identifiers, digests, bounded
+source-free progress events, and verified evidence
 coordinates. They deliberately omit prompts, answers, packet bodies, source
 excerpts, raw stdout/stderr, environment values, and secrets. Do not modify the
 format to retain those payloads without a new privacy and architecture review.

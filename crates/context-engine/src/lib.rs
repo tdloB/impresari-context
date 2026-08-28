@@ -1932,7 +1932,7 @@ impl LocalEngine {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     fn build_profiled_context_internal(
         &mut self,
         context: &RequestContext,
@@ -2096,7 +2096,7 @@ impl LocalEngine {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     fn build_planned_context_with_supplemental_internal(
         &mut self,
         context: &RequestContext,
@@ -2121,10 +2121,14 @@ impl LocalEngine {
                 Some(RecoveryAction::ReduceScope),
             ))
         } else {
-            let mut evidence = supplemental_evidence
-                .into_iter()
-                .map(|item| (item.evidence_id.clone(), item))
-                .collect::<std::collections::BTreeMap<_, _>>();
+            let mut evidence = Vec::new();
+            let mut seen_evidence = std::collections::BTreeSet::new();
+            let mut overlap_limited = false;
+            for item in supplemental_evidence {
+                if seen_evidence.insert(item.evidence_id.clone()) {
+                    evidence.push(item);
+                }
+            }
             let mut unknowns = supplemental_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
@@ -2172,7 +2176,18 @@ impl LocalEngine {
                 }
                 unknowns.extend(search.unknowns);
                 for item in search.matches {
-                    evidence.entry(item.evidence_id.clone()).or_insert(item);
+                    if seen_evidence.contains(&item.evidence_id) {
+                        continue;
+                    }
+                    if evidence
+                        .iter()
+                        .any(|retained| Self::excerpt_covers_match(retained, &item))
+                    {
+                        overlap_limited = true;
+                        continue;
+                    }
+                    seen_evidence.insert(item.evidence_id.clone());
+                    evidence.push(item);
                 }
             }
             let snapshot_id = snapshot_id.ok_or_else(|| {
@@ -2186,6 +2201,9 @@ impl LocalEngine {
                     Some(RecoveryAction::ReduceScope),
                 )
             })?;
+            if overlap_limited {
+                unknowns.push("overlap_covered".into());
+            }
             unknowns.sort();
             unknowns.dedup();
             build_packet(PacketDraft {
@@ -2196,7 +2214,7 @@ impl LocalEngine {
                 created_at: context.occurred_at.clone(),
                 policy_decision: policy_decision.to_owned(),
                 budget,
-                evidence: evidence.into_values().collect(),
+                evidence,
                 assumptions: Vec::new(),
                 conflicts: Vec::new(),
                 unknowns,
@@ -2206,6 +2224,44 @@ impl LocalEngine {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })
         }
+    }
+
+    fn excerpt_covers_match(retained: &EvidenceRecord, candidate: &EvidenceRecord) -> bool {
+        if retained.artifact.path.display_path != candidate.artifact.path.display_path {
+            return false;
+        }
+        let interval = |evidence: &EvidenceRecord| {
+            let match_absolute_start = evidence.span.start_byte.parse::<u64>().ok()?;
+            let match_absolute_end = evidence.span.end_byte.parse::<u64>().ok()?;
+            let match_excerpt_start = evidence.excerpt.match_start_byte.parse::<u64>().ok()?;
+            let excerpt_start = match_absolute_start.checked_sub(match_excerpt_start)?;
+            let excerpt_length = u64::try_from(
+                URL_SAFE_NO_PAD
+                    .decode(&evidence.excerpt.bytes_base64url)
+                    .ok()?
+                    .len(),
+            )
+            .ok()?;
+            let excerpt_end = excerpt_start.checked_add(excerpt_length)?;
+            Some((
+                excerpt_start,
+                excerpt_end,
+                match_absolute_start,
+                match_absolute_end,
+            ))
+        };
+        let Some((retained_start, retained_end, _, _)) = interval(retained) else {
+            return false;
+        };
+        let Some((candidate_start, candidate_end, candidate_match_start, candidate_match_end)) =
+            interval(candidate)
+        else {
+            return false;
+        };
+        retained_start <= candidate_start
+            && retained_end >= candidate_end
+            && retained_start <= candidate_match_start
+            && retained_end >= candidate_match_end
     }
 
     fn structural_evidence(
@@ -5000,7 +5056,7 @@ mod tests {
     fn planned_context_deduplicates_evidence_and_reports_empty_steps() {
         let source = TestRoot::new("planned-source");
         let cache = TestRoot::new("planned-cache");
-        fs::write(source.0.join("sample.rs"), b"pub fn alpha() {}\n").expect("source");
+        fs::write(source.0.join("sample.rs"), b"pub fn alpha() { beta(); }\n").expect("source");
         let config = EngineConfig {
             cache_root: cache.0.clone(),
             discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
@@ -5024,6 +5080,10 @@ mod tests {
                 },
                 ContextPlanStep {
                     kind: QueryKind::Literal,
+                    query: "beta".into(),
+                },
+                ContextPlanStep {
+                    kind: QueryKind::Literal,
                     query: "missing_symbol".into(),
                 },
             ],
@@ -5033,7 +5093,9 @@ mod tests {
             .expect("planned packet");
         validate_packet(&packet).expect("valid planned packet");
         assert_eq!(packet.observed_evidence.len(), 1, "deduplicated evidence");
-        assert!(packet.unknowns.contains(&"plan_step_2_no_evidence".into()));
+        assert_eq!(packet.observed_evidence[0].span.start_byte, "7");
+        assert!(packet.unknowns.contains(&"overlap_covered".into()));
+        assert!(packet.unknowns.contains(&"plan_step_3_no_evidence".into()));
     }
 
     #[test]

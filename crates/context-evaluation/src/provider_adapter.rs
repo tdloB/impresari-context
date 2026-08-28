@@ -5,7 +5,10 @@
 mod anthropic;
 mod openai;
 
-use crate::agent_eval::{AdapterRequest, AgentResponse, Arm, Usage, estimated_cost};
+use crate::agent_eval::{
+    AdapterProgressEvent, AdapterRequest, AgentResponse, Arm, ProgressStage,
+    TokenPreflightResponse, Usage, estimated_cost,
+};
 use crate::model_context::{
     MAX_RENDERED_CONTEXT_BYTES, RENDERER_IDENTIFIER, RENDERER_VERSION, render_model_context,
 };
@@ -15,12 +18,13 @@ use serde::Deserialize;
 use serde_json::{Value, json};
 use std::io::{Read as _, Write as _};
 use std::path::Path;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const MAX_REQUEST_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_PROVIDER_RESPONSE_BYTES: u64 = 2 * 1024 * 1024;
 const MAX_ANSWER_BYTES: usize = 65_536;
-const PROVIDER_TIMEOUT: Duration = Duration::from_secs(300);
+const SHUTDOWN_RESERVE: Duration = Duration::from_secs(5);
+const PROGRESS_PREFIX: &str = "IMPRESARI_EVAL_PROGRESS ";
 
 /// Supported production provider translation.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -45,6 +49,13 @@ impl Provider {
             Self::Anthropic => "ANTHROPIC_API_KEY",
         }
     }
+
+    const fn name(self) -> &'static str {
+        match self {
+            Self::OpenAi => "openai",
+            Self::Anthropic => "anthropic",
+        }
+    }
 }
 
 /// Runs one cold production adapter process over stdin/stdout.
@@ -55,6 +66,7 @@ impl Provider {
 /// missing credentials, provider failures, invalid tool activity, cache use,
 /// or malformed final answers.
 pub fn run_stdio(provider: Provider) -> Result<(), String> {
+    let started = Instant::now();
     let request = read_request()?;
     validate_request(provider, &request)?;
     let root = Path::new(&request.workspace_root);
@@ -68,6 +80,20 @@ pub fn run_stdio(provider: Provider) -> Result<(), String> {
     } else {
         None
     };
+    emit_progress(
+        provider,
+        &request,
+        started,
+        ProgressStage::Rendered,
+        0,
+        rendered_context.as_ref().map(|value| value.metadata.bytes),
+        rendered_context
+            .as_ref()
+            .map(|value| value.metadata.sha256.as_str()),
+        None,
+        None,
+        None,
+    )?;
     let prepared_user_content = user_content(
         &request.prompt,
         rendered_context
@@ -80,17 +106,27 @@ pub fn run_stdio(provider: Provider) -> Result<(), String> {
         return Err(format!("{} is invalid", provider.secret_name()));
     }
     let client = Client::builder()
-        .timeout(PROVIDER_TIMEOUT)
         .build()
         .map_err(|_| "build provider HTTP client".to_owned())?;
     let outcome = match provider {
-        Provider::OpenAi => {
-            openai::execute(&client, &key, &request, &prepared_user_content, &mut tools)?
-        }
-        Provider::Anthropic => {
-            anthropic::execute(&client, &key, &request, &prepared_user_content, &mut tools)?
-        }
+        Provider::OpenAi => openai::execute(
+            &client,
+            &key,
+            &request,
+            &prepared_user_content,
+            &mut tools,
+            started,
+        )?,
+        Provider::Anthropic => anthropic::execute(
+            &client,
+            &key,
+            &request,
+            &prepared_user_content,
+            &mut tools,
+            started,
+        )?,
     };
+    let completed_turns = outcome.completed_turns;
     if outcome.usage.cached_input_tokens != 0 || outcome.usage.cache_write_input_tokens != 0 {
         return Err("cold provider run reported prompt-cache activity".to_owned());
     }
@@ -105,15 +141,146 @@ pub fn run_stdio(provider: Provider) -> Result<(), String> {
     }
     let response = AgentResponse {
         answer: outcome.answer.answer,
-        usage,
+        usage: usage.clone(),
         source_fingerprint_sha256: fingerprint,
         evidence,
         rendered_context: rendered_context.map(|rendered| rendered.metadata),
     };
+    emit_progress(
+        provider,
+        &request,
+        started,
+        ProgressStage::Completed,
+        completed_turns,
+        None,
+        None,
+        Some(usage.clone()),
+        Some("completed"),
+        Some(usage.tool_calls),
+    )?;
     let bytes = serde_json::to_vec(&response).map_err(|_| "serialize agent response".to_owned())?;
     std::io::stdout()
         .write_all(&bytes)
         .map_err(|_| "write agent response".to_owned())
+}
+
+/// Count the exact initial provider request without generating a response.
+///
+/// # Errors
+///
+/// Returns a source-free error for invalid requests, unsupported providers,
+/// missing credentials, source changes, or token-count API failures.
+pub fn run_token_preflight_stdio(provider: Provider) -> Result<(), String> {
+    let started = Instant::now();
+    let request = read_request()?;
+    validate_request(provider, &request)?;
+    let root = Path::new(&request.workspace_root);
+    let fingerprint = source_fingerprint(root, &request.source_files)?;
+    if fingerprint != request.source_fingerprint_sha256 {
+        return Err("source fingerprint changed before token preflight".to_owned());
+    }
+    let rendered_context = if request.arm == Arm::Treatment {
+        Some(render_model_context(&request, root)?)
+    } else {
+        None
+    };
+    let prepared_user_content = user_content(
+        &request.prompt,
+        rendered_context
+            .as_ref()
+            .map(|value| value.content.as_str()),
+    );
+    let key = std::env::var(provider.secret_name())
+        .map_err(|_| format!("{} is required", provider.secret_name()))?;
+    if key.is_empty() || key.len() > 512 || key.contains(['\r', '\n', '\0']) {
+        return Err(format!("{} is invalid", provider.secret_name()));
+    }
+    let client = Client::builder()
+        .build()
+        .map_err(|_| "build provider HTTP client".to_owned())?;
+    let input_tokens = match provider {
+        Provider::Anthropic => {
+            anthropic::count_tokens(&client, &key, &request, &prepared_user_content, started)?
+        }
+        Provider::OpenAi => {
+            openai::count_tokens(&client, &key, &request, &prepared_user_content, started)?
+        }
+    };
+    emit_progress(
+        provider,
+        &request,
+        started,
+        ProgressStage::TokenCounted,
+        0,
+        rendered_context.as_ref().map(|value| value.metadata.bytes),
+        rendered_context
+            .as_ref()
+            .map(|value| value.metadata.sha256.as_str()),
+        None,
+        Some("counted"),
+        None,
+    )?;
+    let response = TokenPreflightResponse {
+        input_tokens,
+        source_fingerprint_sha256: fingerprint,
+        rendered_context: rendered_context.map(|value| value.metadata),
+    };
+    let bytes =
+        serde_json::to_vec(&response).map_err(|_| "serialize token preflight".to_owned())?;
+    std::io::stdout()
+        .write_all(&bytes)
+        .map_err(|_| "write token preflight".to_owned())
+}
+
+pub(super) fn request_timeout(
+    request: &AdapterRequest,
+    started: Instant,
+) -> Result<Duration, String> {
+    let arm_limit = Duration::from_secs(request.command_timeout_seconds);
+    let elapsed = started.elapsed();
+    let remaining = arm_limit
+        .checked_sub(elapsed.saturating_add(SHUTDOWN_RESERVE))
+        .ok_or_else(|| "arm_deadline_exhausted".to_owned())?;
+    if remaining.is_zero() {
+        return Err("arm_deadline_exhausted".to_owned());
+    }
+    Ok(remaining.min(Duration::from_secs(
+        request.provider_request_timeout_seconds,
+    )))
+}
+
+#[allow(clippy::too_many_arguments)]
+pub(super) fn emit_progress(
+    provider: Provider,
+    request: &AdapterRequest,
+    started: Instant,
+    stage: ProgressStage,
+    turn: u32,
+    rendered_context_bytes: Option<u64>,
+    rendered_context_sha256: Option<&str>,
+    usage: Option<Usage>,
+    stop_reason: Option<&str>,
+    tool_call_count: Option<u64>,
+) -> Result<(), String> {
+    let event = AdapterProgressEvent {
+        schema_name: "agent-evaluation-progress".into(),
+        schema_version: "1.0".into(),
+        provider: provider.name().into(),
+        arm: request.arm,
+        stage,
+        turn,
+        elapsed_millis: u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX),
+        rendered_context_bytes,
+        rendered_context_sha256: rendered_context_sha256.map(str::to_owned),
+        usage,
+        stop_reason: stop_reason.map(str::to_owned),
+        tool_call_count,
+        request_id_sha256: None,
+    };
+    let encoded = serde_json::to_string(&event)
+        .map_err(|_| "serialize source-free progress event".to_owned())?;
+    eprintln!("{PROGRESS_PREFIX}{encoded}");
+    Ok(())
 }
 
 fn read_request() -> Result<AdapterRequest, String> {
@@ -149,6 +316,7 @@ fn validate_request(provider: Provider, request: &AdapterRequest) -> Result<(), 
 pub(super) struct ProviderOutcome {
     answer: ModelAnswer,
     usage: Usage,
+    completed_turns: u32,
 }
 
 #[derive(Debug, Deserialize)]

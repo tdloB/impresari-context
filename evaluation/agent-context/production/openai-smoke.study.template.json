@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "study_id": "replace-with-frozen-openai-smoke-id",
   "repository": "source",
   "source_files": [],
@@ -16,6 +16,24 @@
     "container_image": "REPLACE_WITH_FROZEN_RUNTIME_IDENTITY",
     "operation_timestamp": "REPLACE_WITH_NORMALIZED_UTC_TIMESTAMP",
     "turn_limit": 12,
+    "provider_effort": "high",
+    "provider_max_output_tokens": 16384,
+    "provider_request_timeout_seconds": 120,
+    "packet_resource_policy": {
+      "requested_bytes": 16384,
+      "max_evidence_items": 16,
+      "max_files": 10000,
+      "max_excerpt_bytes_per_item": 1024,
+      "max_matches": 10,
+      "max_traversal_depth": 32,
+      "max_elapsed_ms": 30000,
+      "max_memory_bytes": 536870912
+    },
+    "packet_budget_curve": [
+      {"requested_bytes":8192,"max_evidence_items":8,"max_files":10000,"max_excerpt_bytes_per_item":512,"max_matches":10,"max_traversal_depth":32,"max_elapsed_ms":30000,"max_memory_bytes":536870912},
+      {"requested_bytes":16384,"max_evidence_items":16,"max_files":10000,"max_excerpt_bytes_per_item":1024,"max_matches":10,"max_traversal_depth":32,"max_elapsed_ms":30000,"max_memory_bytes":536870912},
+      {"requested_bytes":32768,"max_evidence_items":24,"max_files":10000,"max_excerpt_bytes_per_item":2048,"max_matches":20,"max_traversal_depth":32,"max_elapsed_ms":30000,"max_memory_bytes":536870912}
+    ],
     "pricing_basis": "openai-official-pricing-frozen-2026-08-27",
     "pricing_schedule": {
       "currency": "USD",

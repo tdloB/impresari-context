@@ -3,6 +3,9 @@
 #![forbid(unsafe_code)]
 
 use crate::model_context::MAX_RENDERED_CONTEXT_BYTES;
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use context_core::ContextPacket;
+use context_core::ResourceBudget;
 use context_engine::ContextPlanStep;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -10,13 +13,15 @@ use sha2::{Digest, Sha256};
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::fs;
-use std::io::Write as _;
+use std::io::{Read, Write as _};
 use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const SCHEMA_VERSION: &str = "1.1";
+const SCHEMA_VERSION: &str = "1.2";
 const MAX_ADAPTER_STREAM_BYTES: usize = 1024 * 1024;
+const MAX_PROGRESS_EVENTS: usize = 256;
+const PROGRESS_PREFIX: &str = "IMPRESARI_EVAL_PROGRESS ";
 
 /// A study definition loaded from a JSON file.
 #[derive(Clone, Debug, Deserialize)]
@@ -86,11 +91,58 @@ pub struct ExecutionSpec {
     pub operation_timestamp: String,
     /// Maximum agent turns permitted for each run.
     pub turn_limit: u32,
+    /// Frozen provider reasoning-effort control.
+    pub provider_effort: String,
+    /// Frozen provider output-token ceiling per request.
+    pub provider_max_output_tokens: u64,
+    /// Maximum duration of one provider request.
+    pub provider_request_timeout_seconds: u64,
+    /// Complete packet resource policy used by the treatment arm.
+    pub packet_resource_policy: PacketResourceSpec,
+    /// Optional offline packet policies analyzed before the live primary point.
+    #[serde(default)]
+    pub packet_budget_curve: Vec<PacketResourceSpec>,
     /// Human-readable basis for adapter-reported cost estimates.
     pub pricing_basis: String,
     /// Frozen machine-readable token pricing used to verify adapter costs.
     #[serde(default)]
     pub pricing_schedule: PricingSchedule,
+}
+
+/// Explicit integer representation of every packet resource limit.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct PacketResourceSpec {
+    pub requested_bytes: u64,
+    pub max_evidence_items: u64,
+    pub max_files: u64,
+    pub max_excerpt_bytes_per_item: u64,
+    pub max_matches: u64,
+    pub max_traversal_depth: u64,
+    pub max_elapsed_ms: u64,
+    pub max_memory_bytes: u64,
+}
+
+impl PacketResourceSpec {
+    /// Convert the manifest representation to the validated core budget.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when any integer is outside the core policy bounds.
+    pub fn to_resource_budget(&self) -> Result<ResourceBudget, String> {
+        ResourceBudget::conservative(
+            self.requested_bytes,
+            self.max_evidence_items,
+            self.max_files,
+            self.max_excerpt_bytes_per_item,
+            self.max_matches,
+            self.max_traversal_depth,
+            self.max_elapsed_ms,
+            self.max_memory_bytes,
+        )
+        .map_err(|_| "packet resource policy is outside supported bounds".to_owned())
+    }
 }
 
 /// Frozen provider token pricing in US dollars per million tokens.
@@ -130,6 +182,8 @@ impl Default for PricingSchedule {
 pub struct TaskSpec {
     /// Stable identifier for the task.
     pub id: String,
+    /// Frozen source-free explanation of why the task has one interpretation.
+    pub uniqueness_rationale: String,
     /// Prompt delivered to the adapter.
     pub prompt: String,
     /// Case-insensitive fragments required in the answer.
@@ -260,6 +314,14 @@ pub struct RunRecord {
     pub operation_timestamp: String,
     /// Fixed turn limit.
     pub turn_limit: u32,
+    /// Frozen provider reasoning-effort control.
+    pub provider_effort: String,
+    /// Frozen provider output-token ceiling per request.
+    pub provider_max_output_tokens: u64,
+    /// Frozen maximum duration of one provider request.
+    pub provider_request_timeout_seconds: u64,
+    /// Exact treatment packet resource policy.
+    pub packet_resource_policy: PacketResourceSpec,
     /// Fixed adapter timeout.
     pub command_timeout_seconds: u64,
     /// Fixed standard-output limit.
@@ -308,6 +370,116 @@ pub struct RunRecord {
     pub evidence_count: u64,
     /// Returned source citations.
     pub evidence: Vec<EvidenceCitation>,
+    /// Completed, source-free provider progress events.
+    #[serde(default)]
+    pub progress: Vec<AdapterProgressEvent>,
+}
+
+/// One bounded, source-free provider progress event emitted on stderr.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct AdapterProgressEvent {
+    pub schema_name: String,
+    pub schema_version: String,
+    pub provider: String,
+    pub arm: Arm,
+    pub stage: ProgressStage,
+    pub turn: u32,
+    pub elapsed_millis: u64,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendered_context_bytes: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rendered_context_sha256: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub usage: Option<Usage>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_call_count: Option<u64>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub request_id_sha256: Option<String>,
+}
+
+/// Closed set of observable adapter stages.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+#[allow(missing_docs)]
+pub enum ProgressStage {
+    Rendered,
+    TokenCounted,
+    ProviderRequestStarted,
+    ProviderResponseCompleted,
+    ToolsDispatched,
+    Completed,
+}
+
+/// Source-free record written for an unsuccessful arm.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+#[allow(missing_docs)]
+pub struct RunFailureRecord {
+    pub schema_name: String,
+    pub schema_version: String,
+    pub study_id: String,
+    pub sequence: u64,
+    pub repetition: u32,
+    pub arm: Arm,
+    pub task_id: String,
+    pub model_identifier: String,
+    pub provider_effort: String,
+    pub provider_max_output_tokens: u64,
+    pub provider_request_timeout_seconds: u64,
+    pub command_timeout_seconds: u64,
+    pub failure_stage: String,
+    pub reason_code: String,
+    pub elapsed_millis: u64,
+    pub progress: Vec<AdapterProgressEvent>,
+}
+
+/// Source-free packet-budget analysis for one task and policy point.
+#[derive(Clone, Debug, Serialize)]
+#[allow(missing_docs)]
+pub struct BudgetCurvePoint {
+    pub task_id: String,
+    pub policy: PacketResourceSpec,
+    pub packet_bytes: u64,
+    pub rendered_bytes: u64,
+    pub evidence_items: u64,
+    pub unique_source_bytes: u64,
+    pub overlapping_source_bytes: u64,
+    pub overlap_fraction: f64,
+    pub expected_range_coverage: bool,
+    pub evidence_precision_proxy: f64,
+    pub source_density: f64,
+    pub first_covering_rank: Option<u64>,
+}
+
+/// Source-free exact initial-request token count returned by a provider.
+#[derive(Clone, Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct TokenPreflightResponse {
+    /// Provider-reported exact input-token count.
+    pub input_tokens: u64,
+    /// Fingerprint independently observed by the adapter.
+    pub source_fingerprint_sha256: String,
+    /// Treatment rendering metadata, absent for baselines.
+    pub rendered_context: Option<RenderedContextMetadata>,
+}
+
+/// Persistable source-free preflight measurement.
+#[derive(Clone, Debug, Serialize)]
+#[allow(missing_docs)]
+pub struct TokenPreflightRecord {
+    pub schema_name: String,
+    pub schema_version: String,
+    pub study_id: String,
+    pub task_id: String,
+    pub arm: Arm,
+    pub model_identifier: String,
+    pub input_tokens: u64,
+    pub rendered_context_bytes: u64,
+    pub rendered_context_sha256: Option<String>,
 }
 
 /// Aggregate outcomes for all arms.
@@ -426,6 +598,16 @@ pub struct AdapterRequest {
     pub operation_timestamp: String,
     /// Hard agent turn limit.
     pub turn_limit: u32,
+    /// Frozen provider reasoning-effort control.
+    pub provider_effort: String,
+    /// Frozen provider output-token ceiling per request.
+    pub provider_max_output_tokens: u64,
+    /// Maximum duration of one provider request.
+    pub provider_request_timeout_seconds: u64,
+    /// Outer arm deadline used for remaining-time calculations.
+    pub command_timeout_seconds: u64,
+    /// Complete explicit treatment packet resource policy.
+    pub packet_resource_policy: PacketResourceSpec,
     /// Treatment packet; always absent in both baselines.
     pub packet: Option<String>,
 }
@@ -524,7 +706,16 @@ pub fn run_study(
     for repetition in 1..=spec.repetitions {
         for task in &spec.tasks {
             for arm in [Arm::BaselineA, Arm::Treatment, Arm::BaselineB] {
-                let record = execute_run(spec, &source_root, task, arm, repetition, sequence)?;
+                let record = match execute_run(spec, &source_root, task, arm, repetition, sequence)
+                {
+                    Ok(record) => record,
+                    Err(failure) => {
+                        let record = failure.to_record(spec, task, arm, repetition, sequence);
+                        let path = output_directory.join(format!("failure-{sequence:05}.json"));
+                        write_json(&path, &record)?;
+                        return Err(failure.message);
+                    }
+                };
                 let path = output_directory.join(format!("run-{sequence:05}.json"));
                 write_json(&path, &record)?;
                 records.push(record);
@@ -534,6 +725,311 @@ pub fn run_study(
     }
     validate_records(spec, &records)?;
     Ok(records)
+}
+
+/// Execute only the packet adapter across the declared offline budget curve.
+///
+/// This command never starts an agent adapter or reads provider credentials.
+///
+/// # Errors
+///
+/// Returns an error for invalid studies, adapter failures, invalid packets,
+/// source changes, or a curve point that loses required evidence.
+pub fn analyze_budgets(
+    spec: &StudySpec,
+    explicit_consent: bool,
+) -> Result<Vec<BudgetCurvePoint>, String> {
+    if !explicit_consent {
+        return Err("packet adapter execution requires --allow-adapter-execution".to_owned());
+    }
+    validate_spec(spec)?;
+    let root = source_root(spec)?;
+    let fingerprint = source_fingerprint(spec, &root)?;
+    let policies = if spec.execution.packet_budget_curve.is_empty() {
+        vec![spec.execution.packet_resource_policy.clone()]
+    } else {
+        spec.execution.packet_budget_curve.clone()
+    };
+    let mut points = Vec::new();
+    for task in &spec.tasks {
+        for policy in &policies {
+            let request = adapter_request(
+                spec,
+                task,
+                Arm::Treatment,
+                &root,
+                &fingerprint,
+                policy.clone(),
+                None,
+            );
+            let execution =
+                execute_adapter::<PacketResponse, _>(spec, &spec.packet_command, &request, false)
+                    .map_err(|failure| failure.message)?;
+            if execution.response.source_fingerprint_sha256 != fingerprint {
+                return Err("packet adapter returned a mismatched source fingerprint".to_owned());
+            }
+            let mut render_request = request;
+            render_request.packet = Some(execution.response.packet.clone());
+            let rendered = crate::model_context::render_model_context(&render_request, &root)?;
+            let packet: ContextPacket = serde_json::from_str(&execution.response.packet)
+                .map_err(|_| "packet adapter returned invalid packet JSON".to_owned())?;
+            points.push(analyze_packet_point(
+                &root,
+                task,
+                policy.clone(),
+                &packet,
+                rendered.metadata.bytes,
+                u64::try_from(execution.response.packet.len()).unwrap_or(u64::MAX),
+            )?);
+        }
+    }
+    if points.iter().any(|point| !point.expected_range_coverage) {
+        return Err("one or more packet budget points lost required evidence".to_owned());
+    }
+    Ok(points)
+}
+
+/// Count exact initial provider requests without authorizing generation.
+///
+/// # Errors
+///
+/// Returns an error for invalid studies, packet/preflight adapter failures,
+/// source changes, or invalid provider accounting.
+pub fn token_preflight(
+    spec: &StudySpec,
+    explicit_consent: bool,
+) -> Result<Vec<TokenPreflightRecord>, String> {
+    if !explicit_consent {
+        return Err("token preflight requires --allow-adapter-execution".to_owned());
+    }
+    validate_spec(spec)?;
+    let root = source_root(spec)?;
+    let fingerprint = source_fingerprint(spec, &root)?;
+    let mut command = spec.agent_command.clone();
+    command.push("--count-tokens".into());
+    let mut records = Vec::new();
+    for task in &spec.tasks {
+        let mut treatment_packet = None;
+        for arm in [Arm::BaselineA, Arm::Treatment, Arm::BaselineB] {
+            if arm == Arm::Treatment && treatment_packet.is_none() {
+                let packet_request = adapter_request(
+                    spec,
+                    task,
+                    arm,
+                    &root,
+                    &fingerprint,
+                    spec.execution.packet_resource_policy.clone(),
+                    None,
+                );
+                let packet = execute_adapter::<PacketResponse, _>(
+                    spec,
+                    &spec.packet_command,
+                    &packet_request,
+                    false,
+                )
+                .map_err(|failure| failure.message)?
+                .response;
+                if packet.source_fingerprint_sha256 != fingerprint {
+                    return Err("packet adapter returned a mismatched source fingerprint".into());
+                }
+                treatment_packet = Some(packet.packet);
+            }
+            let request = adapter_request(
+                spec,
+                task,
+                arm,
+                &root,
+                &fingerprint,
+                spec.execution.packet_resource_policy.clone(),
+                if arm == Arm::Treatment {
+                    treatment_packet.clone()
+                } else {
+                    None
+                },
+            );
+            let response =
+                execute_adapter::<TokenPreflightResponse, _>(spec, &command, &request, true)
+                    .map_err(|failure| failure.message)?
+                    .response;
+            if response.source_fingerprint_sha256 != fingerprint || response.input_tokens == 0 {
+                return Err("provider token preflight returned invalid accounting".into());
+            }
+            records.push(TokenPreflightRecord {
+                schema_name: "agent-evaluation-token-preflight".into(),
+                schema_version: "1.0".into(),
+                study_id: spec.study_id.clone(),
+                task_id: task.id.clone(),
+                arm,
+                model_identifier: spec.execution.model_identifier.clone(),
+                input_tokens: response.input_tokens,
+                rendered_context_bytes: response
+                    .rendered_context
+                    .as_ref()
+                    .map_or(0, |value| value.bytes),
+                rendered_context_sha256: response.rendered_context.map(|value| value.sha256),
+            });
+        }
+    }
+    Ok(records)
+}
+
+fn adapter_request(
+    spec: &StudySpec,
+    task: &TaskSpec,
+    arm: Arm,
+    root: &Path,
+    fingerprint: &str,
+    packet_resource_policy: PacketResourceSpec,
+    packet: Option<String>,
+) -> AdapterRequest {
+    AdapterRequest {
+        task_id: task.id.clone(),
+        prompt: task.prompt.clone(),
+        arm,
+        workspace_root: root.display().to_string(),
+        source_files: spec.source_files.clone(),
+        context_plan: task.context_plan.clone(),
+        source_fingerprint_sha256: fingerprint.to_owned(),
+        model_identifier: spec.execution.model_identifier.clone(),
+        model_context_renderer_identifier: spec.execution.model_context_renderer_identifier.clone(),
+        model_context_renderer_version: spec.execution.model_context_renderer_version.clone(),
+        max_rendered_context_bytes: spec.execution.max_rendered_context_bytes,
+        pricing_schedule: spec.execution.pricing_schedule.clone(),
+        container_image: spec.execution.container_image.clone(),
+        operation_timestamp: spec.execution.operation_timestamp.clone(),
+        turn_limit: spec.execution.turn_limit,
+        provider_effort: spec.execution.provider_effort.clone(),
+        provider_max_output_tokens: spec.execution.provider_max_output_tokens,
+        provider_request_timeout_seconds: spec.execution.provider_request_timeout_seconds,
+        command_timeout_seconds: spec.command_timeout_seconds,
+        packet_resource_policy,
+        packet,
+    }
+}
+
+fn analyze_packet_point(
+    root: &Path,
+    task: &TaskSpec,
+    policy: PacketResourceSpec,
+    packet: &ContextPacket,
+    rendered_bytes: u64,
+    packet_bytes: u64,
+) -> Result<BudgetCurvePoint, String> {
+    let mut intervals = Vec::<(String, u64, u64)>::new();
+    let mut first_covering_rank = None;
+    let mut relevant = 0_u64;
+    for (index, evidence) in packet.observed_evidence.iter().enumerate() {
+        let match_start = evidence
+            .span
+            .start_byte
+            .parse::<u64>()
+            .map_err(|_| "invalid evidence span")?;
+        let excerpt_match_start = evidence
+            .excerpt
+            .match_start_byte
+            .parse::<u64>()
+            .map_err(|_| "invalid excerpt span")?;
+        let start = match_start
+            .checked_sub(excerpt_match_start)
+            .ok_or("invalid excerpt interval")?;
+        let length = u64::try_from(
+            URL_SAFE_NO_PAD
+                .decode(&evidence.excerpt.bytes_base64url)
+                .map_err(|_| "invalid excerpt encoding")?
+                .len(),
+        )
+        .unwrap_or(u64::MAX);
+        let end = start
+            .checked_add(length)
+            .ok_or("excerpt interval overflow")?;
+        let path = evidence.artifact.path.display_path.clone();
+        let covers = task.required_evidence.iter().any(|requirement| {
+            requirement.path == path
+                && required_line_interval(root, requirement).is_ok_and(
+                    |(required_start, required_end)| start <= required_start && end >= required_end,
+                )
+        });
+        if covers {
+            relevant = relevant.saturating_add(1);
+            first_covering_rank.get_or_insert(u64::try_from(index + 1).unwrap_or(u64::MAX));
+        }
+        intervals.push((path, start, end));
+    }
+    let total_source_bytes = intervals.iter().fold(0_u64, |sum, (_, start, end)| {
+        sum.saturating_add(end.saturating_sub(*start))
+    });
+    let mut unique_source_bytes = 0_u64;
+    let mut by_path = BTreeMap::<String, Vec<(u64, u64)>>::new();
+    for (path, start, end) in intervals {
+        by_path.entry(path).or_default().push((start, end));
+    }
+    for ranges in by_path.values_mut() {
+        ranges.sort_unstable();
+        let mut current: Option<(u64, u64)> = None;
+        for &(start, end) in ranges.iter() {
+            current = match current {
+                None => Some((start, end)),
+                Some((left, right)) if start <= right => Some((left, right.max(end))),
+                Some((left, right)) => {
+                    unique_source_bytes = unique_source_bytes.saturating_add(right - left);
+                    Some((start, end))
+                }
+            };
+        }
+        if let Some((start, end)) = current {
+            unique_source_bytes = unique_source_bytes.saturating_add(end - start);
+        }
+    }
+    let overlap = total_source_bytes.saturating_sub(unique_source_bytes);
+    let item_count = u64::try_from(packet.observed_evidence.len()).unwrap_or(u64::MAX);
+    Ok(BudgetCurvePoint {
+        task_id: task.id.clone(),
+        policy,
+        packet_bytes,
+        rendered_bytes,
+        evidence_items: item_count,
+        unique_source_bytes,
+        overlapping_source_bytes: overlap,
+        overlap_fraction: ratio(overlap, total_source_bytes),
+        expected_range_coverage: first_covering_rank.is_some(),
+        evidence_precision_proxy: ratio(relevant, item_count),
+        source_density: ratio(unique_source_bytes, rendered_bytes),
+        first_covering_rank,
+    })
+}
+
+fn required_line_interval(
+    root: &Path,
+    requirement: &EvidenceRequirement,
+) -> Result<(u64, u64), String> {
+    let bytes = fs::read(resolve_source_file(root, &requirement.path)?)
+        .map_err(|error| format!("read required evidence: {error}"))?;
+    let mut starts = vec![0_usize];
+    for (index, byte) in bytes.iter().enumerate() {
+        if *byte == b'\n' && index + 1 < bytes.len() {
+            starts.push(index + 1);
+        }
+    }
+    let start_index =
+        usize::try_from(requirement.line_start - 1).map_err(|_| "line range overflow")?;
+    let end_index = usize::try_from(requirement.line_end).map_err(|_| "line range overflow")?;
+    let start = *starts
+        .get(start_index)
+        .ok_or("required line is outside source")?;
+    let end = starts.get(end_index).copied().unwrap_or(bytes.len());
+    Ok((
+        u64::try_from(start).unwrap_or(u64::MAX),
+        u64::try_from(end).unwrap_or(u64::MAX),
+    ))
+}
+
+#[allow(clippy::cast_precision_loss)]
+fn ratio(numerator: u64, denominator: u64) -> f64 {
+    if denominator == 0 {
+        0.0
+    } else {
+        numerator as f64 / denominator as f64
+    }
 }
 
 /// Load all persisted run records in deterministic file-name order.
@@ -573,6 +1069,7 @@ pub fn load_records(directory: &Path) -> Result<Vec<RunRecord>, String> {
 ///
 /// Returns an error when record identity, accounting, evidence, ordering, or
 /// source freshness does not match the study specification.
+#[allow(clippy::too_many_lines)]
 pub fn validate_records(spec: &StudySpec, records: &[RunRecord]) -> Result<(), String> {
     validate_spec(spec)?;
     let expected = usize::try_from(spec.repetitions)
@@ -618,6 +1115,11 @@ pub fn validate_records(spec: &StudySpec, records: &[RunRecord]) -> Result<(), S
             || record.container_image != spec.execution.container_image
             || record.operation_timestamp != spec.execution.operation_timestamp
             || record.turn_limit != spec.execution.turn_limit
+            || record.provider_effort != spec.execution.provider_effort
+            || record.provider_max_output_tokens != spec.execution.provider_max_output_tokens
+            || record.provider_request_timeout_seconds
+                != spec.execution.provider_request_timeout_seconds
+            || record.packet_resource_policy != spec.execution.packet_resource_policy
             || record.command_timeout_seconds != spec.command_timeout_seconds
             || record.max_stdout_bytes != spec.max_stdout_bytes
             || record.max_stderr_bytes != spec.max_stderr_bytes
@@ -631,6 +1133,21 @@ pub fn validate_records(spec: &StudySpec, records: &[RunRecord]) -> Result<(), S
             ));
         }
         validate_usage(&record.agent_usage, &spec.execution.pricing_schedule)?;
+        if record.progress.len() > MAX_PROGRESS_EVENTS {
+            return Err(format!(
+                "run {} has too many progress events",
+                record.sequence
+            ));
+        }
+        for event in &record.progress {
+            validate_progress_event(event)?;
+            if event.arm != record.arm {
+                return Err(format!(
+                    "run {} has progress for another arm",
+                    record.sequence
+                ));
+            }
+        }
         if let Some(packet_usage) = &record.packet_usage {
             validate_usage(packet_usage, &spec.execution.pricing_schedule)?;
         }
@@ -823,7 +1340,7 @@ fn execute_run(
     arm: Arm,
     repetition: u32,
     sequence: u64,
-) -> Result<RunRecord, String> {
+) -> Result<RunRecord, AdapterExecutionError> {
     let total_start = Instant::now();
     let fingerprint_before = source_fingerprint(spec, source_root)?;
     let workspace_root = source_root.display().to_string();
@@ -853,25 +1370,30 @@ fn execute_run(
             container_image: spec.execution.container_image.clone(),
             operation_timestamp: spec.execution.operation_timestamp.clone(),
             turn_limit: spec.execution.turn_limit,
+            provider_effort: spec.execution.provider_effort.clone(),
+            provider_max_output_tokens: spec.execution.provider_max_output_tokens,
+            provider_request_timeout_seconds: spec.execution.provider_request_timeout_seconds,
+            command_timeout_seconds: spec.command_timeout_seconds,
+            packet_resource_policy: spec.execution.packet_resource_policy.clone(),
             packet: None,
         };
-        let (response, elapsed) =
+        let execution =
             execute_adapter::<PacketResponse, _>(spec, &spec.packet_command, &request, false)?;
+        let response = execution.response;
+        let elapsed = execution.elapsed_millis;
         if response.source_fingerprint_sha256 != fingerprint_before {
             return Err(format!(
                 "packet adapter returned a mismatched source fingerprint for {}",
                 task.id
-            ));
+            )
+            .into());
         }
         validate_usage(&response.usage, &spec.execution.pricing_schedule)?;
         packet_generation_millis = elapsed;
         packet_bytes =
             u64::try_from(response.packet.len()).map_err(|_| "packet too large".to_owned())?;
         if packet_bytes > u64::try_from(spec.max_stdout_bytes).unwrap_or(u64::MAX) {
-            return Err(format!(
-                "packet is larger than {} bytes",
-                spec.max_stdout_bytes
-            ));
+            return Err(format!("packet is larger than {} bytes", spec.max_stdout_bytes).into());
         }
         packet_sha256 = Some(hash_bytes(response.packet.as_bytes()));
         packet_usage = Some(response.usage);
@@ -894,15 +1416,23 @@ fn execute_run(
         container_image: spec.execution.container_image.clone(),
         operation_timestamp: spec.execution.operation_timestamp.clone(),
         turn_limit: spec.execution.turn_limit,
+        provider_effort: spec.execution.provider_effort.clone(),
+        provider_max_output_tokens: spec.execution.provider_max_output_tokens,
+        provider_request_timeout_seconds: spec.execution.provider_request_timeout_seconds,
+        command_timeout_seconds: spec.command_timeout_seconds,
+        packet_resource_policy: spec.execution.packet_resource_policy.clone(),
         packet,
     };
-    let (response, agent_wall_clock_millis) =
-        execute_adapter::<AgentResponse, _>(spec, &spec.agent_command, &request, true)?;
+    let execution = execute_adapter::<AgentResponse, _>(spec, &spec.agent_command, &request, true)?;
+    let response = execution.response;
+    let agent_wall_clock_millis = execution.elapsed_millis;
+    let progress = execution.progress;
     if response.source_fingerprint_sha256 != fingerprint_before {
         return Err(format!(
             "agent adapter returned a mismatched source fingerprint for {}",
             task.id
-        ));
+        )
+        .into());
     }
     validate_usage(&response.usage, &spec.execution.pricing_schedule)?;
     validate_response_rendered_context(spec, arm, response.rendered_context.as_ref())?;
@@ -910,7 +1440,7 @@ fn execute_run(
     validate_returned_evidence(source_root, &spec.source_files, &response.evidence)?;
     let evidence_verified = verify_expected_evidence(task, &response.evidence).is_ok();
     if source_fingerprint(spec, source_root)? != fingerprint_before {
-        return Err(format!("evaluated source changed during run {sequence}"));
+        return Err(format!("evaluated source changed during run {sequence}").into());
     }
 
     let packet_usage_value = packet_usage.clone().unwrap_or_default();
@@ -958,6 +1488,10 @@ fn execute_run(
         container_image: spec.execution.container_image.clone(),
         operation_timestamp: spec.execution.operation_timestamp.clone(),
         turn_limit: spec.execution.turn_limit,
+        provider_effort: spec.execution.provider_effort.clone(),
+        provider_max_output_tokens: spec.execution.provider_max_output_tokens,
+        provider_request_timeout_seconds: spec.execution.provider_request_timeout_seconds,
+        packet_resource_policy: spec.execution.packet_resource_policy.clone(),
         command_timeout_seconds: spec.command_timeout_seconds,
         max_stdout_bytes: spec.max_stdout_bytes,
         max_stderr_bytes: spec.max_stderr_bytes,
@@ -984,15 +1518,161 @@ fn execute_run(
         evidence_verified,
         evidence_count: u64::try_from(response.evidence.len()).unwrap_or(u64::MAX),
         evidence: response.evidence,
+        progress,
     })
 }
 
+struct AdapterExecution<T> {
+    response: T,
+    elapsed_millis: u64,
+    progress: Vec<AdapterProgressEvent>,
+}
+
+#[derive(Debug)]
+struct AdapterExecutionError {
+    message: String,
+    reason_code: String,
+    elapsed_millis: u64,
+    progress: Vec<AdapterProgressEvent>,
+}
+
+impl AdapterExecutionError {
+    fn plain(message: impl Into<String>) -> Self {
+        Self {
+            message: message.into(),
+            reason_code: "harness_validation_failed".into(),
+            elapsed_millis: 0,
+            progress: Vec::new(),
+        }
+    }
+
+    fn to_record(
+        &self,
+        spec: &StudySpec,
+        task: &TaskSpec,
+        arm: Arm,
+        repetition: u32,
+        sequence: u64,
+    ) -> RunFailureRecord {
+        RunFailureRecord {
+            schema_name: "agent-evaluation-failure".into(),
+            schema_version: "1.0".into(),
+            study_id: spec.study_id.clone(),
+            sequence,
+            repetition,
+            arm,
+            task_id: task.id.clone(),
+            model_identifier: spec.execution.model_identifier.clone(),
+            provider_effort: spec.execution.provider_effort.clone(),
+            provider_max_output_tokens: spec.execution.provider_max_output_tokens,
+            provider_request_timeout_seconds: spec.execution.provider_request_timeout_seconds,
+            command_timeout_seconds: spec.command_timeout_seconds,
+            failure_stage: self.progress.last().map_or_else(
+                || "harness".into(),
+                |event| progress_stage_name(event.stage).into(),
+            ),
+            reason_code: self.reason_code.clone(),
+            elapsed_millis: self.elapsed_millis,
+            progress: self.progress.clone(),
+        }
+    }
+}
+
+impl From<String> for AdapterExecutionError {
+    fn from(message: String) -> Self {
+        Self::plain(message)
+    }
+}
+
+struct CapturedStream {
+    bytes: Vec<u8>,
+    total_bytes: usize,
+}
+
+fn capture_stream<R: Read>(mut stream: R, retained_limit: usize) -> CapturedStream {
+    let mut bytes = Vec::new();
+    let mut total_bytes = 0_usize;
+    let mut chunk = [0_u8; 8192];
+    loop {
+        let count = match stream.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(count) => count,
+        };
+        total_bytes = total_bytes.saturating_add(count);
+        if bytes.len() < retained_limit {
+            let retain = count.min(retained_limit - bytes.len());
+            bytes.extend_from_slice(&chunk[..retain]);
+        }
+    }
+    CapturedStream { bytes, total_bytes }
+}
+
+fn parse_progress(stderr: &[u8]) -> Result<Vec<AdapterProgressEvent>, String> {
+    let text = std::str::from_utf8(stderr).map_err(|_| "adapter stderr is not UTF-8".to_owned())?;
+    let mut events = Vec::new();
+    for line in text.lines() {
+        let Some(encoded) = line.strip_prefix(PROGRESS_PREFIX) else {
+            continue;
+        };
+        if events.len() >= MAX_PROGRESS_EVENTS {
+            return Err("adapter progress event limit exceeded".to_owned());
+        }
+        let event: AdapterProgressEvent = serde_json::from_str(encoded)
+            .map_err(|_| "adapter emitted malformed progress telemetry".to_owned())?;
+        validate_progress_event(&event)?;
+        events.push(event);
+    }
+    Ok(events)
+}
+
+fn validate_progress_event(event: &AdapterProgressEvent) -> Result<(), String> {
+    if event.schema_name != "agent-evaluation-progress"
+        || event.schema_version != "1.0"
+        || !matches!(event.provider.as_str(), "openai" | "anthropic")
+        || event.turn > 200
+        || event
+            .stop_reason
+            .as_ref()
+            .is_some_and(|value| value.len() > 64)
+        || event
+            .request_id_sha256
+            .as_ref()
+            .is_some_and(|value| !is_sha256(value))
+        || event
+            .rendered_context_sha256
+            .as_ref()
+            .is_some_and(|value| !is_sha256(value))
+    {
+        return Err("adapter emitted invalid progress telemetry".to_owned());
+    }
+    if let Some(usage) = &event.usage
+        && (usage.total_tokens != usage.input_tokens.saturating_add(usage.output_tokens)
+            || !usage.estimated_cost_usd.is_finite()
+            || usage.estimated_cost_usd < 0.0)
+    {
+        return Err("adapter emitted invalid progress usage".to_owned());
+    }
+    Ok(())
+}
+
+const fn progress_stage_name(stage: ProgressStage) -> &'static str {
+    match stage {
+        ProgressStage::Rendered => "rendered",
+        ProgressStage::TokenCounted => "token_counted",
+        ProgressStage::ProviderRequestStarted => "provider_request_started",
+        ProgressStage::ProviderResponseCompleted => "provider_response_completed",
+        ProgressStage::ToolsDispatched => "tools_dispatched",
+        ProgressStage::Completed => "completed",
+    }
+}
+
+#[allow(clippy::too_many_lines)]
 fn execute_adapter<T: DeserializeOwned, R: Serialize>(
     spec: &StudySpec,
     command: &[String],
     request: &R,
     include_agent_secrets: bool,
-) -> Result<(T, u64), String> {
+) -> Result<AdapterExecution<T>, AdapterExecutionError> {
     let input =
         serde_json::to_vec(request).map_err(|error| format!("encode adapter request: {error}"))?;
     let started = Instant::now();
@@ -1017,9 +1697,9 @@ fn execute_adapter<T: DeserializeOwned, R: Serialize>(
             configured.env(key, value);
         }
     }
-    let mut child = configured
-        .spawn()
-        .map_err(|error| format!("start adapter {:?}: {error}", command[0]))?;
+    let mut child = configured.spawn().map_err(|error| {
+        AdapterExecutionError::plain(format!("start adapter {:?}: {error}", command[0]))
+    })?;
     {
         let stdin = child
             .stdin
@@ -1030,7 +1710,20 @@ fn execute_adapter<T: DeserializeOwned, R: Serialize>(
             .map_err(|error| format!("write adapter stdin: {error}"))?;
     }
     drop(child.stdin.take());
+    let stdout = child
+        .stdout
+        .take()
+        .ok_or_else(|| "adapter stdout unavailable".to_owned())?;
+    let stderr = child
+        .stderr
+        .take()
+        .ok_or_else(|| "adapter stderr unavailable".to_owned())?;
+    let stdout_limit = spec.max_stdout_bytes.saturating_add(1);
+    let stderr_limit = spec.max_stderr_bytes.saturating_add(1);
+    let stdout_thread = std::thread::spawn(move || capture_stream(stdout, stdout_limit));
+    let stderr_thread = std::thread::spawn(move || capture_stream(stderr, stderr_limit));
     let limit = Duration::from_secs(spec.command_timeout_seconds);
+    let mut timed_out = false;
     loop {
         if child
             .try_wait()
@@ -1040,44 +1733,77 @@ fn execute_adapter<T: DeserializeOwned, R: Serialize>(
             break;
         }
         if started.elapsed() > limit {
-            child
-                .kill()
-                .map_err(|error| format!("stop timed-out adapter: {error}"))?;
-            let _ = child.wait();
-            return Err(format!(
-                "adapter exceeded {} seconds",
-                spec.command_timeout_seconds
-            ));
+            child.kill().map_err(|error| {
+                AdapterExecutionError::plain(format!("stop timed-out adapter: {error}"))
+            })?;
+            timed_out = true;
+            break;
         }
         std::thread::sleep(Duration::from_millis(10));
     }
-    let output = child
-        .wait_with_output()
-        .map_err(|error| format!("collect adapter output: {error}"))?;
-    if output.stdout.len() > spec.max_stdout_bytes {
-        return Err(format!(
-            "adapter stdout exceeded {} bytes",
-            spec.max_stdout_bytes
+    let status = child.wait().map_err(|error| {
+        AdapterExecutionError::plain(format!("collect adapter status: {error}"))
+    })?;
+    let stdout = stdout_thread
+        .join()
+        .map_err(|_| AdapterExecutionError::plain("stdout capture thread failed"))?;
+    let stderr = stderr_thread
+        .join()
+        .map_err(|_| AdapterExecutionError::plain("stderr capture thread failed"))?;
+    let elapsed_millis = duration_millis(started.elapsed());
+    let progress = parse_progress(&stderr.bytes).map_err(|message| AdapterExecutionError {
+        message,
+        reason_code: "invalid_progress".into(),
+        elapsed_millis,
+        progress: Vec::new(),
+    })?;
+    let failure = |message: String, reason_code: &str| AdapterExecutionError {
+        message,
+        reason_code: reason_code.into(),
+        elapsed_millis,
+        progress: progress.clone(),
+    };
+    if timed_out {
+        return Err(failure(
+            format!("adapter exceeded {} seconds", spec.command_timeout_seconds),
+            "adapter_deadline_exceeded",
         ));
     }
-    if output.stderr.len() > spec.max_stderr_bytes {
-        return Err(format!(
-            "adapter stderr exceeded {} bytes",
-            spec.max_stderr_bytes
+    if stdout.total_bytes > spec.max_stdout_bytes {
+        return Err(failure(
+            format!("adapter stdout exceeded {} bytes", spec.max_stdout_bytes),
+            "stdout_overflow",
         ));
     }
-    if !output.status.success() {
-        return Err(format!(
-            "adapter exited {}: {}",
-            output.status,
-            String::from_utf8_lossy(&output.stderr).trim()
+    if stderr.total_bytes > spec.max_stderr_bytes {
+        return Err(failure(
+            format!("adapter stderr exceeded {} bytes", spec.max_stderr_bytes),
+            "stderr_overflow",
         ));
     }
-    let response = serde_json::from_slice(&output.stdout)
-        .map_err(|error| format!("parse adapter response: {error}"))?;
-    Ok((response, duration_millis(started.elapsed())))
+    if !status.success() {
+        return Err(failure(
+            format!(
+                "adapter exited {status}: {}",
+                String::from_utf8_lossy(&stderr.bytes).trim()
+            ),
+            "adapter_failed",
+        ));
+    }
+    let response = serde_json::from_slice(&stdout.bytes).map_err(|error| {
+        failure(
+            format!("parse adapter response: {error}"),
+            "invalid_response",
+        )
+    })?;
+    Ok(AdapterExecution {
+        response,
+        elapsed_millis,
+        progress,
+    })
 }
 
+#[allow(clippy::too_many_lines)]
 fn validate_spec(spec: &StudySpec) -> Result<(), String> {
     if spec.schema_version != SCHEMA_VERSION {
         return Err(format!(
@@ -1103,6 +1829,34 @@ fn validate_spec(spec: &StudySpec) -> Result<(), String> {
     }
     if !(1..=200).contains(&spec.execution.turn_limit) {
         return Err("turn limit must be between 1 and 200".to_owned());
+    }
+    if !matches!(
+        spec.execution.provider_effort.as_str(),
+        "low" | "medium" | "high"
+    ) {
+        return Err("provider effort must be low, medium, or high".to_owned());
+    }
+    if !(1..=65_536).contains(&spec.execution.provider_max_output_tokens) {
+        return Err("provider max output tokens must be between 1 and 65536".to_owned());
+    }
+    if spec.execution.provider_request_timeout_seconds == 0
+        || spec
+            .execution
+            .provider_request_timeout_seconds
+            .saturating_add(5)
+            >= spec.command_timeout_seconds
+    {
+        return Err(
+            "provider request timeout must leave at least five seconds inside the command timeout"
+                .to_owned(),
+        );
+    }
+    spec.execution.packet_resource_policy.to_resource_budget()?;
+    if spec.execution.packet_budget_curve.len() > 16 {
+        return Err("packet budget curve must not exceed 16 points".to_owned());
+    }
+    for point in &spec.execution.packet_budget_curve {
+        point.to_resource_budget()?;
     }
     if !(1..=50).contains(&spec.repetitions) {
         return Err("repetitions must be between 1 and 50".to_owned());
@@ -1153,11 +1907,28 @@ fn validate_spec(spec: &StudySpec) -> Result<(), String> {
         validate_identifier(&task.id, "task id")?;
         if !ids.insert(task.id.as_str())
             || task.prompt.trim().is_empty()
+            || task.uniqueness_rationale.trim().is_empty()
+            || task.uniqueness_rationale.len() > 512
+            || task.uniqueness_rationale.contains('\0')
             || task.expected_answer_fragments.is_empty()
             || task.required_evidence.is_empty()
             || task.required_evidence.len() > 32
         {
             return Err(format!("task {:?} is incomplete or duplicated", task.id));
+        }
+        let query_text = task
+            .context_plan
+            .iter()
+            .map(|step| step.query.to_lowercase())
+            .collect::<Vec<_>>()
+            .join("\n");
+        if task.expected_answer_fragments.iter().any(|fragment| {
+            !fragment.trim().is_empty() && query_text.contains(&fragment.to_lowercase())
+        }) {
+            return Err(format!(
+                "task {:?} leaks an expected answer fragment into its context plan",
+                task.id
+            ));
         }
         for requirement in &task.required_evidence {
             if !is_relative_safe_path(&requirement.path)

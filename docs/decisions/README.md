@@ -67,6 +67,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0059](0059-developer-agent-evaluation-adapter-boundary.md) | Permit explicit, bounded adapter execution only in the developer agent-evaluation runner | Accepted for harness implementation |
 | [ADR-0060](0060-provider-backed-agent-evaluation-adapters.md) | Permit two fixed-endpoint, evaluation-only provider adapters with cold-run and measured repository-tool boundaries | Accepted for private evaluation preparation |
 | [ADR-0061](0061-human-readable-evaluation-model-context.md) | Render validated treatment packets as deterministic, source-bound, human-readable model context without changing retrieval | Accepted and implemented locally; corrected live smoke pending |
+| [ADR-0062](0062-observable-deadlines-and-relevance-preserving-evaluation-context.md) | Persist source-free provider progress and select explicitly budgeted evaluation evidence by stable relevance and overlap coverage | Accepted for implementation |
 
 ## Change Rules
 

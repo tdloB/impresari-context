@@ -1,5 +1,5 @@
 {
-  "schema_version": "1.1",
+  "schema_version": "1.2",
   "study_id": "five-language-deterministic-renderer-v1",
   "repository": "source",
   "source_files": ["go.go", "python.py", "rust.rs", "strict.json", "typescript.ts"],
@@ -15,20 +15,33 @@
     "model_identifier": "deterministic-offline-fixture",
     "container_image": "none-local-test-only",
     "turn_limit": 1,
+    "provider_effort": "high",
+    "provider_max_output_tokens": 1024,
+    "provider_request_timeout_seconds": 1,
+    "packet_resource_policy": {
+      "requested_bytes": 65536,
+      "max_evidence_items": 100,
+      "max_files": 10000,
+      "max_excerpt_bytes_per_item": 4096,
+      "max_matches": 1000,
+      "max_traversal_depth": 32,
+      "max_elapsed_ms": 30000,
+      "max_memory_bytes": 536870912
+    },
     "pricing_basis": "fixture-zero-cost"
   },
   "repetitions": 1,
   "agent_command": ["../../../target/debug/impresari-context-deterministic-adapter", "agent"],
   "packet_command": ["../../../target/debug/impresari-context-deterministic-adapter", "packet"],
   "environment": {},
-  "command_timeout_seconds": 5,
+  "command_timeout_seconds": 10,
   "max_stdout_bytes": 131072,
   "max_stderr_bytes": 16384,
   "tasks": [
-    {"id":"typescript","prompt":"Return the TypeScript greeting.","expected_answer_fragments":["hello-typescript"],"required_evidence":[{"path":"typescript.ts","line_start":1,"line_end":1}]},
-    {"id":"python","prompt":"Return the Python greeting.","expected_answer_fragments":["hello-python"],"required_evidence":[{"path":"python.py","line_start":1,"line_end":1}]},
-    {"id":"go","prompt":"Return the Go greeting.","expected_answer_fragments":["hello-go"],"required_evidence":[{"path":"go.go","line_start":2,"line_end":2}]},
-    {"id":"rust","prompt":"Return the Rust greeting.","expected_answer_fragments":["hello-rust"],"required_evidence":[{"path":"rust.rs","line_start":1,"line_end":1}]},
-    {"id":"strict-json","prompt":"Return the strict JSON greeting.","expected_answer_fragments":["hello-json"],"required_evidence":[{"path":"strict.json","line_start":1,"line_end":1}]}
+    {"id":"typescript","uniqueness_rationale":"The fixture declares one TypeScript greeting constant.","prompt":"Return the TypeScript greeting.","expected_answer_fragments":["hello-typescript"],"required_evidence":[{"path":"typescript.ts","line_start":1,"line_end":1}]},
+    {"id":"python","uniqueness_rationale":"The fixture declares one Python greeting constant.","prompt":"Return the Python greeting.","expected_answer_fragments":["hello-python"],"required_evidence":[{"path":"python.py","line_start":1,"line_end":1}]},
+    {"id":"go","uniqueness_rationale":"The fixture declares one Go greeting constant.","prompt":"Return the Go greeting.","expected_answer_fragments":["hello-go"],"required_evidence":[{"path":"go.go","line_start":2,"line_end":2}]},
+    {"id":"rust","uniqueness_rationale":"The fixture declares one Rust greeting constant.","prompt":"Return the Rust greeting.","expected_answer_fragments":["hello-rust"],"required_evidence":[{"path":"rust.rs","line_start":1,"line_end":1}]},
+    {"id":"strict-json","uniqueness_rationale":"The fixture contains one greeting property.","prompt":"Return the strict JSON greeting.","expected_answer_fragments":["hello-json"],"required_evidence":[{"path":"strict.json","line_start":1,"line_end":1}]}
   ]
 }

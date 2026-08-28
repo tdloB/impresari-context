@@ -352,6 +352,7 @@ mod tests {
         }
     }
 
+    #[allow(clippy::too_many_lines)]
     fn fixture_request(
         root: &Path,
         relative: &str,
@@ -444,6 +445,20 @@ mod tests {
             container_image: "test".into(),
             operation_timestamp: "1970-01-01T00:00:00Z".into(),
             turn_limit: 1,
+            provider_effort: "high".into(),
+            provider_max_output_tokens: 16_384,
+            provider_request_timeout_seconds: 120,
+            command_timeout_seconds: 600,
+            packet_resource_policy: crate::agent_eval::PacketResourceSpec {
+                requested_bytes: 65_536,
+                max_evidence_items: 100,
+                max_files: 10_000,
+                max_excerpt_bytes_per_item: 4096,
+                max_matches: 1000,
+                max_traversal_depth: 32,
+                max_elapsed_ms: 30_000,
+                max_memory_bytes: 536_870_912,
+            },
             packet: Some(serde_json::to_string(&packet).expect("serialize packet")),
         }
     }

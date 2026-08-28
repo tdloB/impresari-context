@@ -54,7 +54,22 @@ fn run() -> Result<(), String> {
                 .map_err(|error| format!("write oversized stderr: {error}"))?;
         }
         "fail" => return Err("intentional adapter failure".to_owned()),
-        "sleep" => std::thread::sleep(std::time::Duration::from_secs(2)),
+        "sleep" => {
+            let arm = required_string(&request, "arm")?;
+            eprintln!(
+                "IMPRESARI_EVAL_PROGRESS {}",
+                json!({
+                    "schema_name": "agent-evaluation-progress",
+                    "schema_version": "1.0",
+                    "provider": "anthropic",
+                    "arm": arm,
+                    "stage": "provider_request_started",
+                    "turn": 1,
+                    "elapsed_millis": 1
+                })
+            );
+            std::thread::sleep(std::time::Duration::from_secs(8));
+        }
         "mutate" => {
             let workspace = required_string(&request, "workspace_root")?;
             fs::write(
