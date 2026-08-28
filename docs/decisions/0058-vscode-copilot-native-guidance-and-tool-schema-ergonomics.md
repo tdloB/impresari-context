@@ -1,6 +1,6 @@
 # ADR-0058: VS Code Copilot native guidance and tool-schema ergonomics
 
-- Status: Accepted for implementation; L2 admission pending live evidence
+- Status: Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64
 - Date: 2026-08-27
 - Scope: VS Code Copilot extension-host native guidance
 
@@ -41,10 +41,10 @@ remain normalized by the server but are not the canonical advertised form.
 
 ## Consequences
 
-- VS Code L2 can earn a distinct recorded-scope admission through its own
-  disposable guidance-and-packet smoke; L1 evidence does not imply it.
-- GitHub Copilot CLI's prior v2 L2 record remains historical evidence and is
-  revalidated with v3 before a current-template claim.
+- VS Code L2 earned a distinct recorded-scope admission through its own
+  disposable guidance-and-packet smoke; L1 evidence alone did not imply it.
+- GitHub Copilot CLI's prior v2 L2 record was revalidated with v3 in its own
+  isolated client scope before the current-template claim was promoted.
 - Clients receive clearer portable guidance without a provider-specific proxy
   or automatic retrieval.
 - Conversational selection remains non-deterministic and requires revalidation

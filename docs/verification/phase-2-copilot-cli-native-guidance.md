@@ -12,7 +12,7 @@
 The authenticated Copilot CLI used an isolated caller-named Git project and
 `COPILOT_HOME` under `/private/tmp`, a separate cache, a fixed source fixture,
 and the exact owned
-`.github/instructions/impresari-context.instructions.md` v2 artifact. The
+`.github/instructions/impresari-context.instructions.md` v3 artifact. The
 rehearsal explicitly created the required instruction parent directory,
 installed and validated the artifact, then started a new Copilot session
 without `--no-custom-instructions`. Custom instructions were therefore enabled
@@ -33,6 +33,11 @@ The resolved packet matched the delivered packet and an independent direct-MCP
 control packet. The rehearsal then removed the exact owned instruction, the
 MCP entry, the project instruction directories, and only its temporary trusted
 folder value. The source fixture remained byte-identical before removal.
+
+The isolated rehearsal passed again on 2026-08-27 with the v3 artifact: native
+project discovery, the four-tool lifecycle, direct-MCP packet equivalence,
+source immutability, exact managed removal, and temporary trust removal all
+succeeded.
 
 The reusable command is:
 

@@ -1,6 +1,6 @@
 # CI-2 VS Code Copilot native-guidance ARD
 
-- Status: Approved implementation design; L2 admission pending live evidence
+- Status: Implemented; recorded-scope L2 admitted
 - Date: 2026-08-27
 - Governing product record: [CI-2 VS Code Copilot native-guidance PRD](../product/ci-2-vscode-copilot-native-guidance-prd.md)
 - Governing decisions: [ADR-0041](../decisions/0041-native-agent-guidance-artifacts.md), [ADR-0045](../decisions/0045-owned-native-guidance-artifact-lifecycle.md), and [ADR-0058](../decisions/0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md)

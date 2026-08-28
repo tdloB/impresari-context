@@ -1,6 +1,6 @@
 # CI-2 VS Code Copilot native-guidance PRD
 
-- Status: Approved implementation increment; L2 admission pending live evidence
+- Status: Accepted; recorded-scope L2 admitted
 - Date: 2026-08-27
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Parent records: [CI-2 native guidance PRD](client-integration-l2-native-guidance-prd.md), [VS Code Copilot L1 record](../verification/ci-1-vscode-copilot-admission.md), and [Client Integration Depth Roadmap](client-integration-roadmap.md)

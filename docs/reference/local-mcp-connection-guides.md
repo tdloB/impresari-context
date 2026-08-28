@@ -316,8 +316,8 @@ automated removal. The [compatibility matrix](compatibility-matrix.md) is the
 authoritative classification: Codex, Claude Code, Cursor, GitHub Copilot CLI,
 and VS Code Copilot extension host are First-class only for their individually
 recorded client/version/OS scopes. Gemini CLI remains **Generic local MCP**.
-The VS Code record is L1 managed-connection evidence only; its L2
-native-guidance packet-build/resolve gate remains separate.
+The VS Code record includes separate L1 managed-connection and recorded-scope
+L2 native-guidance packet-build/resolve evidence.
 
 Source references for the host-side configuration surfaces: [OpenAI Codex MCP
 documentation](https://learn.chatgpt.com/docs/extend/mcp), [OpenAI Codex

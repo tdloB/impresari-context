@@ -1,6 +1,6 @@
 # CI-2 VS Code Copilot native-guidance verification
 
-- Status: VS Code live-client record passed; public L2 promotion pending the separate Copilot CLI v3 revalidation
+- Status: passed for recorded scope; L2 admitted
 - Candidate scope: VS Code `1.134.0`, macOS arm64
 - Governing records: [CI-2 PRD](../product/ci-2-vscode-copilot-native-guidance-prd.md), [CI-2 ARD](../architecture/ci-2-vscode-copilot-native-guidance-ard.md), and [ADR-0058](../decisions/0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md)
 
@@ -81,8 +81,8 @@ The operator must confirm all of the following from the live VS Code client:
 
 ## Promotion condition
 
-The manual VS Code packet build/resolve record, exact-owned cleanup, complete
-local gate, and hosted CI now pass. Public L2 promotion remains gated on the
-separate GitHub Copilot CLI v3 native-guidance smoke. This conversational result
-is live smoke evidence only; it does not claim that repeating a prompt repeats
-the same tool calls.
+The manual VS Code packet build/resolve record, exact-owned cleanup, separate
+GitHub Copilot CLI v3 native-guidance smoke, complete local gate, and hosted CI
+all pass. L2 is admitted only for VS Code `1.134.0` on macOS arm64. This
+conversational result is live smoke evidence only; it does not claim that
+repeating a prompt repeats the same tool calls.
