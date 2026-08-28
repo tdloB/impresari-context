@@ -31,3 +31,11 @@ context-structural = { version = "=0.1.0", path = "../context-structural" }
 [[bin]]
 name = "impresari-context-eval"
 path = "src/main.rs"
+
+[[bin]]
+name = "impresari-context-agent-eval"
+path = "src/bin/agent-eval.rs"
+
+[[bin]]
+name = "impresari-context-deterministic-adapter"
+path = "src/bin/deterministic-agent-adapter.rs"

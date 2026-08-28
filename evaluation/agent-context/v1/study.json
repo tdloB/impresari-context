@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "study_id": "five-language-deterministic",
+  "repository": "source",
+  "source_files": ["go.go", "python.py", "rust.rs", "strict.json", "typescript.ts"],
+  "workspace_revision": "fixture-v1",
+  "execution": {
+    "agent_adapter_identifier": "deterministic-fixture-agent",
+    "agent_adapter_version": "1.0.0",
+    "packet_adapter_identifier": "deterministic-fixture-packet",
+    "packet_adapter_version": "1.0.0",
+    "model_identifier": "deterministic-offline-fixture",
+    "container_image": "none-local-test-only",
+    "turn_limit": 1,
+    "pricing_basis": "fixture-zero-cost"
+  },
+  "repetitions": 1,
+  "agent_command": ["../../../target/debug/impresari-context-deterministic-adapter", "agent"],
+  "packet_command": ["../../../target/debug/impresari-context-deterministic-adapter", "packet"],
+  "environment": {},
+  "command_timeout_seconds": 5,
+  "max_stdout_bytes": 131072,
+  "max_stderr_bytes": 16384,
+  "tasks": [
+    {"id":"typescript","prompt":"Return the TypeScript greeting.","expected_answer_fragments":["hello-typescript"],"required_evidence":[{"path":"typescript.ts","line_start":1,"line_end":1}]},
+    {"id":"python","prompt":"Return the Python greeting.","expected_answer_fragments":["hello-python"],"required_evidence":[{"path":"python.py","line_start":1,"line_end":1}]},
+    {"id":"go","prompt":"Return the Go greeting.","expected_answer_fragments":["hello-go"],"required_evidence":[{"path":"go.go","line_start":2,"line_end":2}]},
+    {"id":"rust","prompt":"Return the Rust greeting.","expected_answer_fragments":["hello-rust"],"required_evidence":[{"path":"rust.rs","line_start":1,"line_end":1}]},
+    {"id":"strict-json","prompt":"Return the strict JSON greeting.","expected_answer_fragments":["hello-json"],"required_evidence":[{"path":"strict.json","line_start":1,"line_end":1}]}
+  ]
+}

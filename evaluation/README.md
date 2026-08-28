@@ -1,5 +1,9 @@
 # Local Evaluation Corpus
 
+The developer agent-context A/B/A study and its operating guidance live in
+[`agent-context/`](agent-context/). It is separate from the product runtime and
+requires explicit adapter-execution consent.
+
 The v1 manifest defines twelve original, generated synthetic repositories and
 their frozen ground truth. Three fixtures are held out (25%). The manifest
 records split, language, task rationale, query capability, required evidence,
