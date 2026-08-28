@@ -1,0 +1,15 @@
+{
+  "schema_name": "client-lifecycle-health-receipt",
+  "schema_version": "1.0.0",
+  "status": "compatible",
+  "reason_code": "contract_matches",
+  "manifest_id": "fixture-client-guidance-v1",
+  "client": "Fixture Client",
+  "surface": "native_guidance_v1",
+  "observed": {"client_version": "1.2.3", "client_available": true, "os": "macos", "arch": "aarch64", "as_of": "2026-08-02", "target_supplied": true},
+  "manifest_identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evidence_identity": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "checks": ["manifest_valid"],
+  "safe_next_step": "Repair the client automatically.",
+  "authority": {"source_read": "denied", "source_write": "denied", "client_mutation": "allowed", "process_execution": "denied", "network": "denied", "background_monitoring": "denied"}
+}

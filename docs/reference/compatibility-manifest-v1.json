@@ -1,7 +1,7 @@
 {
   "schema_name": "impresari-context-compatibility-manifest",
   "schema_version": "1.0.0",
-  "published_at": "2026-08-26",
+  "published_at": "2026-08-27",
   "evidence_sources": [
     "docs/decisions/0004-source-language-and-parser-strategy.md",
     "docs/decisions/0010-structural-worker-protocol-and-isolation.md",
@@ -23,6 +23,8 @@
     "docs/decisions/0052-claude-disposable-local-scope-admission.md",
     "docs/decisions/0053-cursor-guarded-project-admission.md",
     "docs/decisions/0055-codex-ephemeral-guided-delivery.md",
+    "docs/decisions/0043-source-free-client-lifecycle-maintenance.md",
+    "docs/verification/ci-4-copilot-cli-lifecycle-maintenance.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -203,7 +205,16 @@
       "transport": "local_stdio",
       "first_class": true,
       "conformance": "managed_trusted_project_configuration_and_bounded_model_directed_packet_equivalence",
-      "conformance_evidence": "docs/verification/phase-2-copilot-cli-connection-kit.md"
+      "conformance_evidence": "docs/verification/phase-2-copilot-cli-connection-kit.md",
+      "lifecycle_maintenance": {
+        "level": "L4",
+        "manifest": "client-lifecycle/copilot-cli-native-guidance-v1.json",
+        "scope": "native_guidance_v2",
+        "client_version": "1.0.80",
+        "os": "macos",
+        "arch": "aarch64",
+        "fresh_through": "2026-11-24"
+      }
     },
     {
       "client": "VS Code Copilot",

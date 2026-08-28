@@ -1,6 +1,6 @@
 # ADR-0043: Source-free client lifecycle maintenance
 
-- Status: Accepted for implementation
+- Status: Accepted; initial GitHub Copilot CLI scope implemented
 - Date: 2026-08-25
 - Scope: CI-4 health, freshness, and compatibility signals
 

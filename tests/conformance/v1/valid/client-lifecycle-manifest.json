@@ -1,0 +1,14 @@
+{
+  "schema_name": "client-lifecycle-compatibility-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "fixture-client-guidance-v1",
+  "client": "Fixture Client",
+  "surface": "native_guidance_v1",
+  "supported_versions": ["1.2.3"],
+  "supported_os": ["macos"],
+  "supported_arch": ["aarch64"],
+  "artifact": {"kind": "native_guidance", "owned_relative_path": ".fixture/instructions.md", "ownership_marker": "ownership=exact_fixed_artifact:fixture", "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"},
+  "evidence": {"record": "docs/verification/fixture.md", "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "observed_at": "2026-08-01", "fresh_through": "2026-11-01"},
+  "lifecycle": {"health_check": "explicit_read_only", "automatic_repair": "denied", "background_monitoring": "denied", "exact_removal": "explicit_owned_artifact_only"},
+  "safe_next_steps": {"compatible": "Retain and recheck after change.", "degraded": "Use manual MCP.", "stale_evidence": "Revalidate in isolation.", "unknown": "Use generic MCP.", "unsupported": "No assertion is available."}
+}

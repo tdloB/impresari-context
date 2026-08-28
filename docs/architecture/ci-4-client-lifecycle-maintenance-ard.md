@@ -1,6 +1,6 @@
 # CI-4 Client Lifecycle Maintenance — Architecture Requirements and Design
 
-- Status: Approved for implementation
+- Status: Initial GitHub Copilot CLI scope implemented
 - Date: 2026-08-25
 - Governing product record: [CI-4 PRD](../product/client-integration-l4-lifecycle-maintenance-prd.md)
 - Governing decision: [ADR-0043](../decisions/0043-source-free-client-lifecycle-maintenance.md)
@@ -80,3 +80,14 @@ source-free safe next step.
    official lifecycle surface.
 4. Defer all other clients rather than simulating health from conversational
    behavior or unverified version detection.
+
+## Implemented boundary
+
+`scripts/client-lifecycle-health.rb` accepts an explicit manifest, absolute
+owned-target path, client availability, exact version, OS, architecture, and
+assessment date. It reads only the supplied manifest and supplied target. It
+does not inspect a workspace, discover a client, read environment variables,
+spawn a client or shell, access a network, mutate an artifact, or retain a
+background process. The initial manifest is
+`client-lifecycle/copilot-cli-native-guidance-v1.json`; its artifact and
+evidence SHA-256 identities are checked by the repository gate.

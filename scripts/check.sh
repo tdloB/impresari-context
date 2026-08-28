@@ -17,6 +17,7 @@ ruby ./scripts/check-evaluation.rb
 ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
 ruby ./scripts/check-client-guidance-templates.rb
+ruby ./scripts/check-client-lifecycle.rb
 ruby -c ./scripts/rehearse-codex-app-server.rb
 ruby -c ./scripts/rehearse-claude-code.rb
 ruby -c ./scripts/rehearse-claude-native-local-scope.rb
