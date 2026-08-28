@@ -11,6 +11,13 @@ The approved adapter targets are:
 - Anthropic Messages API: `claude-opus-5`, effort `high`; and
 - the same local Impresari Context packet adapter in both provider strata.
 
+Both provider templates use evaluation schema `1.1`, production adapter
+version `1.1.0`, and the shared
+`impresari-evaluation-model-context` renderer version `1.0.0`. The renderer
+validates and source-binds the canonical packet, then supplies decoded strict
+UTF-8 evidence as deterministic untrusted JSON. Raw Base64URL packet excerpts
+must never be sent to either provider.
+
 Each provider runs a separate A/B/A study. Do not pool raw provider token or
 cost measurements. The agent tools remain identical in every arm; only the
 treatment receives the packet.

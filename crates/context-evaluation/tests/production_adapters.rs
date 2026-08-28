@@ -54,6 +54,9 @@ fn request(root: &Path, model: &str, arm: Arm) -> AdapterRequest {
             query: "one.rs".into(),
         }],
         model_identifier: model.into(),
+        model_context_renderer_identifier: "impresari-evaluation-model-context".into(),
+        model_context_renderer_version: "1.0.0".into(),
+        max_rendered_context_bytes: 131_072,
         pricing_schedule: PricingSchedule::default(),
         container_image: "offline-test".into(),
         operation_timestamp: "1970-01-01T00:00:00Z".into(),
@@ -138,4 +141,51 @@ fn provider_adapters_fail_before_network_when_credentials_are_absent() {
         assert!(String::from_utf8_lossy(&output.stderr).contains(expected));
         assert!(output.stdout.is_empty());
     }
+}
+
+#[test]
+fn treatment_packets_render_before_provider_credentials_or_network_are_used() {
+    let directory = TestDirectory::new();
+    fs::write(directory.0.join("one.rs"), "pub const ONE: u8 = 1;\n").expect("write source");
+    let mut packet_request = request(&directory.0, "offline", Arm::Treatment);
+    packet_request.packet = None;
+    let packet_output = invoke(
+        env!("CARGO_BIN_EXE_impresari-context-production-packet-adapter"),
+        &packet_request,
+    );
+    assert!(packet_output.status.success());
+    let packet: PacketResponse =
+        serde_json::from_slice(&packet_output.stdout).expect("parse packet response");
+
+    for (binary, model, expected) in [
+        (
+            env!("CARGO_BIN_EXE_impresari-context-openai-agent-adapter"),
+            "gpt-5.6-sol",
+            "OPENAI_API_KEY is required",
+        ),
+        (
+            env!("CARGO_BIN_EXE_impresari-context-anthropic-agent-adapter"),
+            "claude-opus-5",
+            "ANTHROPIC_API_KEY is required",
+        ),
+    ] {
+        let mut treatment = request(&directory.0, model, Arm::Treatment);
+        treatment.packet = Some(packet.packet.clone());
+        let output = invoke(binary, &treatment);
+        assert!(!output.status.success());
+        assert!(String::from_utf8_lossy(&output.stderr).contains(expected));
+        assert!(output.stdout.is_empty());
+    }
+
+    let mut malformed = request(&directory.0, "gpt-5.6-sol", Arm::Treatment);
+    malformed.packet = Some("not a packet".into());
+    let output = invoke(
+        env!("CARGO_BIN_EXE_impresari-context-openai-agent-adapter"),
+        &malformed,
+    );
+    assert!(!output.status.success());
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    assert!(stderr.contains("model context packet parsing failed"));
+    assert!(!stderr.contains("OPENAI_API_KEY"));
+    assert!(output.stdout.is_empty());
 }

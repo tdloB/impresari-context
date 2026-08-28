@@ -2,7 +2,7 @@
 
 use super::{
     ProviderOutcome, add_usage, decode_response, dispatch_tool, parse_answer, system_instructions,
-    tool_definitions, user_content,
+    tool_definitions,
 };
 use crate::agent_eval::{AdapterRequest, Usage};
 use crate::production_adapter::RepositoryToolBoundary;
@@ -17,12 +17,10 @@ pub(super) fn execute(
     client: &Client,
     key: &str,
     request: &AdapterRequest,
+    prepared_user_content: &str,
     tools: &mut RepositoryToolBoundary,
 ) -> Result<ProviderOutcome, String> {
-    let mut input = vec![
-        json!({"role": "developer", "content": system_instructions()}),
-        json!({"role": "user", "content": user_content(request)}),
-    ];
+    let mut input = initial_input(prepared_user_content);
     let mut usage = Usage::default();
     for turn in 0..request.turn_limit {
         let allow_tools = turn + 1 < request.turn_limit;
@@ -63,6 +61,13 @@ pub(super) fn execute(
         }
     }
     Err("OpenAI adapter exhausted the fixed turn limit".to_owned())
+}
+
+pub(super) fn initial_input(prepared_user_content: &str) -> Vec<Value> {
+    vec![
+        json!({"role": "developer", "content": system_instructions()}),
+        json!({"role": "user", "content": prepared_user_content}),
+    ]
 }
 
 fn request_body(request: &AdapterRequest, input: &[Value], allow_tools: bool) -> Value {
@@ -225,6 +230,9 @@ mod tests {
             context_plan: Vec::new(),
             source_fingerprint_sha256: "sha256:test".into(),
             model_identifier: "gpt-5.6-sol".into(),
+            model_context_renderer_identifier: "impresari-evaluation-model-context".into(),
+            model_context_renderer_version: "1.0.0".into(),
+            max_rendered_context_bytes: 131_072,
             pricing_schedule: PricingSchedule::default(),
             container_image: "test".into(),
             operation_timestamp: "1970-01-01T00:00:00Z".into(),

@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-EVAL-RENDER-001 / 0.1.
-- Status: Draft implementation contract for the adapter-correction increment.
+- Status: Implemented locally; corrected live smoke remains separately gated.
 - Date: 2026-08-28.
 - Scope: Developer-only model-facing rendering of a validated treatment packet
   in `context-evaluation`.
@@ -22,11 +22,11 @@
 
 ## Problem
 
-The treatment adapter currently appends the canonical serialized
-`ContextPacket` directly to the provider prompt. That packet is a machine wire
-format. Its exact source excerpts are stored as Base64URL so arbitrary bytes
-can be represented canonically and verified across consumers. Base64URL is not
-an appropriate model-facing source representation.
+Before this correction, the treatment adapter appended the canonical
+serialized `ContextPacket` directly to the provider prompt. That packet is a
+machine wire format. Its exact source excerpts are stored as Base64URL so
+arbitrary bytes can be represented canonically and verified across consumers.
+Base64URL is not an appropriate model-facing source representation.
 
 The first Rust pilot exposed the consequence. Its valid 64,993-byte packet
 contained ten evidence records, with encoded excerpts accounting for most of

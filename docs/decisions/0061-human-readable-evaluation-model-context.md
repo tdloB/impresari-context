@@ -1,15 +1,16 @@
 # ADR-0061: Human-readable model context for agent evaluation
 
-- Status: Proposed for adapter-correction implementation
+- Status: Accepted and implemented locally; corrected live smoke remains gated
 - Date: 2026-08-28
 - Scope: Developer-only provider adapters in `context-evaluation`
 
 ## Context
 
 ADR-0059 permits bounded developer evaluation adapters, and ADR-0060 permits
-fixed OpenAI and Anthropic provider adapters. The implemented treatment path
-passes the canonical serialized `ContextPacket` directly to the model. Exact
-source excerpts in that packet are Base64URL because the packet is a
+fixed OpenAI and Anthropic provider adapters. The treatment path present when
+this decision was proposed passed the canonical serialized `ContextPacket`
+directly to the model. Exact source excerpts in that packet are Base64URL
+because the packet is a
 byte-authoritative, provider-neutral machine contract.
 
 The first Rust pilot produced a valid 64,993-byte packet but an initial

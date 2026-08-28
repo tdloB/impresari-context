@@ -2,6 +2,7 @@
 
 #![forbid(unsafe_code)]
 
+use crate::model_context::MAX_RENDERED_CONTEXT_BYTES;
 use context_engine::ContextPlanStep;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -14,7 +15,7 @@ use std::path::{Component, Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const SCHEMA_VERSION: &str = "1.0";
+const SCHEMA_VERSION: &str = "1.1";
 const MAX_ADAPTER_STREAM_BYTES: usize = 1024 * 1024;
 
 /// A study definition loaded from a JSON file.
@@ -70,6 +71,12 @@ pub struct ExecutionSpec {
     pub packet_adapter_identifier: String,
     /// Version label for the packet adapter.
     pub packet_adapter_version: String,
+    /// Stable identifier for the model-context renderer.
+    pub model_context_renderer_identifier: String,
+    /// Version label for the model-context renderer.
+    pub model_context_renderer_version: String,
+    /// Hard byte ceiling for provider-bound rendered context.
+    pub max_rendered_context_bytes: usize,
     /// Model identifier recorded for comparison.
     pub model_identifier: String,
     /// Container or runtime image identifier recorded for comparison.
@@ -235,6 +242,12 @@ pub struct RunRecord {
     pub packet_adapter_identifier: String,
     /// Packet-adapter version label.
     pub packet_adapter_version: String,
+    /// Stable model-context renderer identifier.
+    pub model_context_renderer_identifier: String,
+    /// Model-context renderer version label.
+    pub model_context_renderer_version: String,
+    /// Frozen maximum provider-bound rendered-context bytes.
+    pub max_rendered_context_bytes: usize,
     /// Declared basis for estimated costs.
     pub pricing_basis: String,
     /// Frozen pricing schedule used for this run.
@@ -261,6 +274,12 @@ pub struct RunRecord {
     pub packet_sha256: Option<String>,
     /// Packet preparation usage, if any.
     pub packet_usage: Option<Usage>,
+    /// Exact provider-bound rendered-context bytes, zero for baselines.
+    pub rendered_context_bytes: u64,
+    /// SHA-256 of exact provider-bound rendered context, absent for baselines.
+    pub rendered_context_sha256: Option<String>,
+    /// Number of rendered packet evidence items, zero for baselines.
+    pub rendered_context_evidence_count: u64,
     /// Agent usage for this arm.
     pub agent_usage: Usage,
     /// Combined packet and agent input tokens.
@@ -393,6 +412,12 @@ pub struct AdapterRequest {
     pub source_fingerprint_sha256: String,
     /// Fixed model identifier.
     pub model_identifier: String,
+    /// Stable model-context renderer identifier.
+    pub model_context_renderer_identifier: String,
+    /// Model-context renderer version label.
+    pub model_context_renderer_version: String,
+    /// Hard provider-bound rendered-context byte ceiling.
+    pub max_rendered_context_bytes: usize,
     /// Frozen pricing schedule used to compute provider cost.
     pub pricing_schedule: PricingSchedule,
     /// Fixed runtime image identifier.
@@ -429,6 +454,24 @@ pub struct AgentResponse {
     pub source_fingerprint_sha256: String,
     /// Adapter-derived verified citations.
     pub evidence: Vec<EvidenceCitation>,
+    /// Source-free treatment rendering measurements; absent for baselines.
+    pub rendered_context: Option<RenderedContextMetadata>,
+}
+
+/// Source-free identity and accounting for provider-bound treatment context.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RenderedContextMetadata {
+    /// Stable model-context renderer identifier.
+    pub renderer_identifier: String,
+    /// Model-context renderer version label.
+    pub renderer_version: String,
+    /// Exact rendered UTF-8 byte count.
+    pub bytes: u64,
+    /// SHA-256 of the exact rendered bytes.
+    pub sha256: String,
+    /// Number of packet evidence items represented.
+    pub evidence_count: u64,
 }
 
 /// Load and validate a study specification.
@@ -565,6 +608,11 @@ pub fn validate_records(spec: &StudySpec, records: &[RunRecord]) -> Result<(), S
             || record.agent_adapter_version != spec.execution.agent_adapter_version
             || record.packet_adapter_identifier != spec.execution.packet_adapter_identifier
             || record.packet_adapter_version != spec.execution.packet_adapter_version
+            || record.model_context_renderer_identifier
+                != spec.execution.model_context_renderer_identifier
+            || record.model_context_renderer_version
+                != spec.execution.model_context_renderer_version
+            || record.max_rendered_context_bytes != spec.execution.max_rendered_context_bytes
             || record.pricing_basis != spec.execution.pricing_basis
             || record.pricing_schedule != spec.execution.pricing_schedule
             || record.container_image != spec.execution.container_image
@@ -602,6 +650,7 @@ pub fn validate_records(spec: &StudySpec, records: &[RunRecord]) -> Result<(), S
                 record.sequence
             ));
         }
+        validate_record_rendered_context(record)?;
         validate_record_totals(record)?;
         validate_returned_evidence(&source_root, &spec.source_files, &record.evidence)?;
         let expected_evidence_verified =
@@ -794,6 +843,12 @@ fn execute_run(
             context_plan: task.context_plan.clone(),
             source_fingerprint_sha256: fingerprint_before.clone(),
             model_identifier: spec.execution.model_identifier.clone(),
+            model_context_renderer_identifier: spec
+                .execution
+                .model_context_renderer_identifier
+                .clone(),
+            model_context_renderer_version: spec.execution.model_context_renderer_version.clone(),
+            max_rendered_context_bytes: spec.execution.max_rendered_context_bytes,
             pricing_schedule: spec.execution.pricing_schedule.clone(),
             container_image: spec.execution.container_image.clone(),
             operation_timestamp: spec.execution.operation_timestamp.clone(),
@@ -832,6 +887,9 @@ fn execute_run(
         context_plan: task.context_plan.clone(),
         source_fingerprint_sha256: fingerprint_before.clone(),
         model_identifier: spec.execution.model_identifier.clone(),
+        model_context_renderer_identifier: spec.execution.model_context_renderer_identifier.clone(),
+        model_context_renderer_version: spec.execution.model_context_renderer_version.clone(),
+        max_rendered_context_bytes: spec.execution.max_rendered_context_bytes,
         pricing_schedule: spec.execution.pricing_schedule.clone(),
         container_image: spec.execution.container_image.clone(),
         operation_timestamp: spec.execution.operation_timestamp.clone(),
@@ -847,6 +905,7 @@ fn execute_run(
         ));
     }
     validate_usage(&response.usage, &spec.execution.pricing_schedule)?;
+    validate_response_rendered_context(spec, arm, response.rendered_context.as_ref())?;
     let correctness = answer_is_correct(task, &response.answer);
     validate_returned_evidence(source_root, &spec.source_files, &response.evidence)?;
     let evidence_verified = verify_expected_evidence(task, &response.evidence).is_ok();
@@ -875,6 +934,7 @@ fn execute_run(
     let total_repeated_repository_file_reads = packet_usage_value
         .repeated_repository_file_reads
         .saturating_add(response.usage.repeated_repository_file_reads);
+    let rendered_context = response.rendered_context.clone();
 
     Ok(RunRecord {
         schema_version: SCHEMA_VERSION.to_owned(),
@@ -890,6 +950,9 @@ fn execute_run(
         agent_adapter_version: spec.execution.agent_adapter_version.clone(),
         packet_adapter_identifier: spec.execution.packet_adapter_identifier.clone(),
         packet_adapter_version: spec.execution.packet_adapter_version.clone(),
+        model_context_renderer_identifier: spec.execution.model_context_renderer_identifier.clone(),
+        model_context_renderer_version: spec.execution.model_context_renderer_version.clone(),
+        max_rendered_context_bytes: spec.execution.max_rendered_context_bytes,
         pricing_basis: spec.execution.pricing_basis.clone(),
         pricing_schedule: spec.execution.pricing_schedule.clone(),
         container_image: spec.execution.container_image.clone(),
@@ -902,6 +965,11 @@ fn execute_run(
         packet_bytes,
         packet_sha256,
         packet_usage,
+        rendered_context_bytes: rendered_context.as_ref().map_or(0, |value| value.bytes),
+        rendered_context_sha256: rendered_context.as_ref().map(|value| value.sha256.clone()),
+        rendered_context_evidence_count: rendered_context
+            .as_ref()
+            .map_or(0, |value| value.evidence_count),
         agent_usage: response.usage,
         total_input_tokens,
         total_output_tokens,
@@ -1057,6 +1125,7 @@ fn validate_spec(spec: &StudySpec) -> Result<(), String> {
         &spec.execution.packet_adapter_identifier,
         "packet adapter identifier",
     )?;
+    validate_renderer_spec(&spec.execution)?;
     if spec.execution.agent_adapter_version.trim().is_empty()
         || spec.execution.packet_adapter_version.trim().is_empty()
         || spec.execution.model_identifier.trim().is_empty()
@@ -1113,6 +1182,22 @@ fn validate_spec(spec: &StudySpec) -> Result<(), String> {
 
 fn default_operation_timestamp() -> String {
     "1970-01-01T00:00:00Z".to_owned()
+}
+
+fn validate_renderer_spec(execution: &ExecutionSpec) -> Result<(), String> {
+    validate_identifier(
+        &execution.model_context_renderer_identifier,
+        "model context renderer identifier",
+    )?;
+    if execution.model_context_renderer_version.trim().is_empty() {
+        return Err("model context renderer version must not be empty".to_owned());
+    }
+    if !(1..=MAX_RENDERED_CONTEXT_BYTES).contains(&execution.max_rendered_context_bytes) {
+        return Err(format!(
+            "rendered context limit must be between 1 and {MAX_RENDERED_CONTEXT_BYTES} bytes"
+        ));
+    }
+    Ok(())
 }
 
 fn validate_agent_secret_names(names: &[String]) -> Result<(), String> {
@@ -1430,6 +1515,63 @@ fn validate_record_totals(record: &RunRecord) -> Result<(), String> {
         ));
     }
     Ok(())
+}
+
+fn validate_response_rendered_context(
+    spec: &StudySpec,
+    arm: Arm,
+    rendered: Option<&RenderedContextMetadata>,
+) -> Result<(), String> {
+    match (arm, rendered) {
+        (Arm::Treatment, Some(rendered))
+            if rendered.renderer_identifier == spec.execution.model_context_renderer_identifier
+                && rendered.renderer_version == spec.execution.model_context_renderer_version
+                && rendered.bytes > 0
+                && rendered.bytes
+                    <= u64::try_from(spec.execution.max_rendered_context_bytes)
+                        .unwrap_or(u64::MAX)
+                && is_sha256(&rendered.sha256) =>
+        {
+            Ok(())
+        }
+        (Arm::BaselineA | Arm::BaselineB, None) => Ok(()),
+        _ => Err("agent adapter returned invalid rendered-context metadata".to_owned()),
+    }
+}
+
+fn validate_record_rendered_context(record: &RunRecord) -> Result<(), String> {
+    match record.arm {
+        Arm::Treatment
+            if record.rendered_context_bytes > 0
+                && record.rendered_context_bytes
+                    <= u64::try_from(record.max_rendered_context_bytes).unwrap_or(u64::MAX)
+                && record
+                    .rendered_context_sha256
+                    .as_deref()
+                    .is_some_and(is_sha256) =>
+        {
+            Ok(())
+        }
+        Arm::BaselineA | Arm::BaselineB
+            if record.rendered_context_bytes == 0
+                && record.rendered_context_sha256.is_none()
+                && record.rendered_context_evidence_count == 0 =>
+        {
+            Ok(())
+        }
+        _ => Err(format!(
+            "invalid rendered-context accounting in run {}",
+            record.sequence
+        )),
+    }
+}
+
+fn is_sha256(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn read_json<T: DeserializeOwned>(path: &Path) -> Result<T, String> {

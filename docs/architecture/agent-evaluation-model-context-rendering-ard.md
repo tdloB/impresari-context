@@ -1,6 +1,6 @@
 # Agent-Evaluation Model-Context Rendering — Architecture Requirements And Design
 
-- Status: Draft for adapter-correction implementation
+- Status: Implemented locally; corrected live smoke remains separately gated
 - Date: 2026-08-28
 - Governing product record:
   [Model-Context Rendering PRD](../product/agent-evaluation-model-context-rendering-prd.md)
@@ -27,17 +27,17 @@ renderer translates representation only. It must not become a retriever,
 planner, ranker, summarizer, policy engine, tokenizer authority, or second
 packet builder.
 
-## Current And Target Flow
+## Pre-Correction And Implemented Flow
 
 ```text
-Current treatment flow
+Pre-correction treatment flow
 
 packet adapter -> canonical packet JSON with Base64URL excerpts
                -> provider-specific agent adapter
                -> raw packet string appended to user content
                -> provider
 
-Target treatment flow
+Implemented treatment flow
 
 packet adapter -> canonical packet JSON
                -> parse + core packet validation

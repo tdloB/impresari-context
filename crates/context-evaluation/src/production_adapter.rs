@@ -293,7 +293,7 @@ pub fn materialize_source(
     Ok(())
 }
 
-fn resolve_regular_file(root: &Path, relative: &str) -> Result<PathBuf, String> {
+pub(crate) fn resolve_regular_file(root: &Path, relative: &str) -> Result<PathBuf, String> {
     let path = Path::new(relative);
     if !path.is_relative()
         || !path
@@ -324,7 +324,7 @@ fn resolve_regular_file(root: &Path, relative: &str) -> Result<PathBuf, String> 
     Ok(current)
 }
 
-fn hash_bytes(bytes: &[u8]) -> String {
+pub(crate) fn hash_bytes(bytes: &[u8]) -> String {
     hex_digest(Sha256::digest(bytes))
 }
 

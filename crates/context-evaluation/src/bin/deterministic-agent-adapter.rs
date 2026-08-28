@@ -128,11 +128,24 @@ fn agent_response(request: &Value, fingerprint: &str) -> Result<Value, String> {
     } else {
         json!([])
     };
+    let rendered_context = if treatment {
+        let bytes = b"deterministic model context v1";
+        json!({
+            "renderer_identifier": required_string(request, "model_context_renderer_identifier")?,
+            "renderer_version": required_string(request, "model_context_renderer_version")?,
+            "bytes": bytes.len(),
+            "sha256": hash_bytes(bytes),
+            "evidence_count": 1,
+        })
+    } else {
+        Value::Null
+    };
     Ok(json!({
         "answer": answer,
         "usage": if treatment { usage(40, 10, 1, 1) } else { usage(80, 20, 3, 2) },
         "source_fingerprint_sha256": fingerprint,
         "evidence": evidence,
+        "rendered_context": rendered_context,
     }))
 }
 

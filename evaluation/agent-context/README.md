@@ -1,8 +1,9 @@
 # Agent-context A/B/A evaluation
 
 This directory contains the developer-only agent-context study described by
-the [focused PRD](../../docs/product/agent-context-evaluation-harness-prd.md)
-and [ADR-0059](../../docs/decisions/0059-developer-agent-evaluation-adapter-boundary.md).
+the [focused PRD](../../docs/product/agent-context-evaluation-harness-prd.md),
+[ADR-0059](../../docs/decisions/0059-developer-agent-evaluation-adapter-boundary.md),
+and [ADR-0061](../../docs/decisions/0061-human-readable-evaluation-model-context.md).
 It does not add process execution to the engine, MCP server, or extension
 contract.
 
@@ -30,6 +31,10 @@ the only executing operation and requires the consent flag every time.
 
 ## Authoring a real study
 
+- Use evaluation schema `1.1` and freeze
+  `model_context_renderer_identifier`, `model_context_renderer_version`, and
+  `max_rendered_context_bytes`. Corrected production adapters require
+  `impresari-evaluation-model-context` version `1.0.0`.
 - Freeze an exact source-file allowlist and ground-truth evidence ranges before
   scoring.
 - Use direct argv arrays. Shells and `-c`/`--command` command strings are
@@ -48,6 +53,13 @@ Each repetition is executed in fixed `baseline_a`, `treatment`, `baseline_b`
 order. Interpret treatment results against both cold baselines and report their
 drift. Incorrect answers are retained as measured outcomes. Evidence-integrity
 failures invalidate a record, and efficiency gains cannot compensate for them.
+
+For a production treatment, the adapter validates the canonical packet, binds
+every evidence excerpt back to the frozen allow-listed source, decodes strict
+UTF-8, and sends one deterministic JSON data rendering to either provider. It
+does not send the packet's Base64URL wire excerpts, and it does not rank,
+deduplicate, resize, summarize, or omit packet evidence. Renderer identity,
+rendered bytes, SHA-256, and evidence count are persisted without source text.
 
 ## Data handling
 

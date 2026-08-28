@@ -35,6 +35,38 @@ impl Drop for TestDirectory {
     }
 }
 
+fn assert_rendered_context_records(records: &[fs::DirEntry]) {
+    for entry in records {
+        let record: Value = serde_json::from_slice(&fs::read(entry.path()).expect("read record"))
+            .expect("parse record");
+        assert_eq!(record["schema_version"], "1.1");
+        assert_eq!(
+            record["model_context_renderer_identifier"],
+            "deterministic-fixture-model-context"
+        );
+        assert_eq!(record["model_context_renderer_version"], "1.0.0");
+        assert_eq!(record["max_rendered_context_bytes"], 131_072);
+        if record["arm"] == "treatment" {
+            assert!(
+                record["rendered_context_bytes"]
+                    .as_u64()
+                    .unwrap_or_default()
+                    > 0
+            );
+            assert!(
+                record["rendered_context_sha256"]
+                    .as_str()
+                    .is_some_and(|value| value.starts_with("sha256:"))
+            );
+            assert_eq!(record["rendered_context_evidence_count"], 1);
+        } else {
+            assert_eq!(record["rendered_context_bytes"], 0);
+            assert!(record["rendered_context_sha256"].is_null());
+            assert_eq!(record["rendered_context_evidence_count"], 0);
+        }
+    }
+}
+
 #[test]
 fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
     let directory = TestDirectory::new();
@@ -106,6 +138,7 @@ fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
         .filter(|entry| entry.file_name().to_string_lossy().starts_with("run-"))
         .collect::<Vec<_>>();
     assert_eq!(records.len(), 15);
+    assert_rendered_context_records(&records);
     let summary: Value =
         serde_json::from_slice(&fs::read(output.join("summary.json")).expect("read summary"))
             .expect("parse summary");
@@ -131,6 +164,7 @@ fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
         "hello-typescript",
         "intentionally incorrect cold baseline",
         "deterministic Impresari Context fixture packet",
+        "deterministic model context v1",
     ] {
         assert!(
             !persisted.contains(forbidden),
@@ -198,7 +232,7 @@ fn specification_rejects_shell_command_strings() {
     fs::create_dir_all(&source).expect("create source");
     fs::write(source.join("one.rs"), "const ONE: u8 = 1;\n").expect("write source");
     let spec = serde_json::json!({
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "study_id": "reject-shell",
         "repository": "source",
         "source_files": ["one.rs"],
@@ -208,6 +242,9 @@ fn specification_rejects_shell_command_strings() {
             "agent_adapter_version": "1",
             "packet_adapter_identifier": "test-packet",
             "packet_adapter_version": "1",
+            "model_context_renderer_identifier": "test-model-context",
+            "model_context_renderer_version": "1",
+            "max_rendered_context_bytes": 1024,
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,
@@ -317,7 +354,7 @@ fn specification_rejects_repository_and_source_root_escape() {
     fs::create_dir_all(&source).expect("create source");
     fs::write(source.join("one.rs"), "const ONE: u8 = 1;\n").expect("write source");
     let base = serde_json::json!({
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "study_id": "reject-escape",
         "repository": "source",
         "source_files": ["one.rs"],
@@ -327,6 +364,9 @@ fn specification_rejects_repository_and_source_root_escape() {
             "agent_adapter_version": "1",
             "packet_adapter_identifier": "test-packet",
             "packet_adapter_version": "1",
+            "model_context_renderer_identifier": "test-model-context",
+            "model_context_renderer_version": "1",
+            "max_rendered_context_bytes": 1024,
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,
@@ -381,7 +421,7 @@ fn specification_rejects_symlinked_source_files() {
     fs::write(source.join("real.rs"), "const ONE: u8 = 1;\n").expect("write source");
     symlink("real.rs", source.join("linked.rs")).expect("create source symlink");
     let spec = serde_json::json!({
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "study_id": "reject-symlink",
         "repository": "source",
         "source_files": ["linked.rs"],
@@ -391,6 +431,9 @@ fn specification_rejects_symlinked_source_files() {
             "agent_adapter_version": "1",
             "packet_adapter_identifier": "test-packet",
             "packet_adapter_version": "1",
+            "model_context_renderer_identifier": "test-model-context",
+            "model_context_renderer_version": "1",
+            "max_rendered_context_bytes": 1024,
             "model_identifier": "test-model",
             "container_image": "none",
             "turn_limit": 1,

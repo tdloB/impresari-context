@@ -27,8 +27,9 @@ the provider. Live treatment comparisons made through that adapter version are
 diagnostic only and must not be used as product-performance evidence. The
 [Model-Context Rendering PRD](agent-evaluation-model-context-rendering-prd.md)
 and [ADR-0061](../decisions/0061-human-readable-evaluation-model-context.md)
-must be implemented and the complete A/B/A arms rerun before production-study
-readiness can be reassessed.
+are now implemented locally. The complete corrected A/B/A arms must still be
+rerun under a new schema, adapter version, renderer version, execution manifest,
+and study identity before production-study readiness can be reassessed.
 
 ## Adapter Boundary
 
