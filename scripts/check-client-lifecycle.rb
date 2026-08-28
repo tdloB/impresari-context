@@ -15,7 +15,7 @@ TEMPLATE = ROOT.join("templates/client-guidance/copilot/impresari-context.instru
 
 def run_check(target:, version: "1.0.80", available: true, os: "macos", arch: "aarch64", as_of: "2026-08-27")
   command = [RbConfig.ruby, CHECKER.to_s, "--manifest", MANIFEST.to_s, "--target", target.to_s, "--client-version", version, "--client-available", available ? "yes" : "no", "--os", os, "--arch", arch, "--as-of", as_of]
-  stdout, stderr, status = Open3.capture3(*command, unsetenv_others: true)
+  stdout, stderr, status = Open3.capture3(*command)
   abort("health checker failed: #{stderr}") unless status.success?
   JSON.parse(stdout)
 end
@@ -90,7 +90,7 @@ end
 malformed = ROOT.join("client-lifecycle/malformed-test-only.json")
 begin
   File.write(malformed, "{not-json")
-  _stdout, _stderr, status = Open3.capture3(RbConfig.ruby, CHECKER.to_s, "--manifest", malformed.to_s, "--target", TEMPLATE.to_s, "--client-version", "1.0.80", "--client-available", "yes", "--os", "macos", "--arch", "aarch64", "--as-of", "2026-08-27", unsetenv_others: true)
+  _stdout, _stderr, status = Open3.capture3(RbConfig.ruby, CHECKER.to_s, "--manifest", malformed.to_s, "--target", TEMPLATE.to_s, "--client-version", "1.0.80", "--client-available", "yes", "--os", "macos", "--arch", "aarch64", "--as-of", "2026-08-27")
   abort("malformed manifest was accepted") if status.success?
 ensure
   File.delete(malformed) if malformed.exist?
