@@ -12,8 +12,11 @@
 - Parent requirements: [Master PRD](master-prd.md) and
   [Evaluation PRD](evaluation-prd.md).
 - Architecture decisions:
-  [ADR-0059](../decisions/0059-developer-agent-evaluation-adapter-boundary.md)
-  and [ADR-0060](../decisions/0060-provider-backed-agent-evaluation-adapters.md).
+  [ADR-0059](../decisions/0059-developer-agent-evaluation-adapter-boundary.md),
+  [ADR-0060](../decisions/0060-provider-backed-agent-evaluation-adapters.md),
+  and [ADR-0061](../decisions/0061-human-readable-evaluation-model-context.md).
+- Adapter-correction requirements:
+  [Model-Context Rendering PRD](agent-evaluation-model-context-rendering-prd.md).
 - Production-study readiness:
   [Agent-Context Production Study Preparation](agent-context-production-study-preparation.md).
 

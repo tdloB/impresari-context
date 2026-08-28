@@ -21,6 +21,15 @@ The three production adapter implementations and offline tests now exist in
 item in the readiness gate is resolved and the corpus, pricing schedule, and
 execution manifest are frozen before any result is inspected.
 
+The 2026-08-28 Rust smoke exposed a model-facing adapter defect: the treatment
+path transmitted the canonical packet's Base64URL wire excerpts directly to
+the provider. Live treatment comparisons made through that adapter version are
+diagnostic only and must not be used as product-performance evidence. The
+[Model-Context Rendering PRD](agent-evaluation-model-context-rendering-prd.md)
+and [ADR-0061](../decisions/0061-human-readable-evaluation-model-context.md)
+must be implemented and the complete A/B/A arms rerun before production-study
+readiness can be reassessed.
+
 ## Adapter Boundary
 
 The harness starts a new adapter process for every arm and sends one bounded

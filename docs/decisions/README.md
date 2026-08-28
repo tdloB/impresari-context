@@ -66,6 +66,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0059](0059-developer-agent-evaluation-adapter-boundary.md) | Permit explicit, bounded adapter execution only in the developer agent-evaluation runner | Accepted for harness implementation |
 | [ADR-0060](0060-provider-backed-agent-evaluation-adapters.md) | Permit two fixed-endpoint, evaluation-only provider adapters with cold-run and measured repository-tool boundaries | Accepted for private evaluation preparation |
+| [ADR-0061](0061-human-readable-evaluation-model-context.md) | Render validated treatment packets as deterministic, source-bound, human-readable model context without changing retrieval | Proposed for adapter-correction implementation |
 
 ## Change Rules
 
