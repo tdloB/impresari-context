@@ -1,6 +1,6 @@
 # Dedicated Agent-Evaluation PR Extraction — Architecture Requirements And Design
 
-- Status: Proposed for sequence-1 review
+- Status: Accepted for sequence-1 implementation
 - Date: 2026-08-28
 - Governing product record:
   [Dedicated Agent-Evaluation PR Extraction PRD](../product/agent-evaluation-dedicated-pr-extraction-prd.md)
@@ -112,12 +112,24 @@ surface them rather than presenting the change as evaluation-crate-only.
 ## Evidence Preservation
 
 Temporary live-study files are not source inputs and are never copied into the
-candidate worktree. A separate evidence operation copies only approved
-source-free artifacts to an operator-controlled private durable directory.
+candidate worktree. A separate evidence operation copies only an explicit
+allowlist to an operator-controlled private durable directory. It separates:
+
+- source-free measurement and failure telemetry, including the successful run
+  records needed to revalidate summaries; and
+- restricted study definitions containing prompts, expected-answer fragments,
+  retrieval queries, source allowlists, and expected evidence coordinates.
+
+Both classes remain private. The second class is not called source-free and is
+never eligible for PR attachment. Obsolete preliminary summaries, superseded
+manifests, incomplete runs other than the admitted parser-failure record,
+source-tree copies, and unrelated experiments are not preserved in the
+sequence-1 evidence set.
 
 The evidence manifest records, for each retained file:
 
 - study and provider stratum;
+- evidence class;
 - artifact role;
 - byte length;
 - SHA-256 digest;
@@ -125,9 +137,12 @@ The evidence manifest records, for each retained file:
 - preservation timestamp.
 
 The preservation operation must reject symlinks, directories, unexpected file
-names, oversized files, and files that contain known credential or forbidden
-payload sentinels. The parser-failure record is retained as diagnostic evidence
-but is never combined with successful study records.
+names, oversized files, and credentials. Source-free artifacts must also
+reject forbidden prompt, answer, packet, excerpt, and provider-body sentinels.
+Restricted manifests may contain only their schema-admitted study-definition
+fields; they still reject environment values, credentials, provider bodies,
+packets, source excerpts, and run output. The parser-failure record is retained
+as diagnostic evidence but is never combined with successful study records.
 
 ## Validation Pipeline
 

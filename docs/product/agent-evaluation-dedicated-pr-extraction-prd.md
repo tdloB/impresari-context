@@ -4,8 +4,8 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-EVAL-PR-001 / 0.1.
-- Status: Proposed for sequence-1 review; no push or pull request is authorized
-  by this document alone.
+- Status: Accepted for sequence-1 implementation; push and pull-request
+  publication remain gated by the acceptance evidence below.
 - Date: 2026-08-28.
 - Scope: Extract the completed agent-context evaluation harness from its local
   recovery history into one dedicated Impresari Context pull request.
@@ -132,17 +132,30 @@ be mechanically attributable to the harness dependency graph.
 
 ### IC-EVAL-PR-FR-005 — Preserve Durable Private Evidence
 
-Before temporary storage is allowed to expire, copy the source-free Anthropic
-Rust, Ruby, and Shell summaries, the admitted manifests, the budget analyses,
-the token preflight summaries, and the one parser-failure diagnostic into an
-operator-controlled durable private evidence directory outside every evaluated
-source root.
+Before temporary storage is allowed to expire, preserve two explicitly
+separated evidence classes in an operator-controlled durable private directory
+outside every evaluated source root:
+
+1. **Measurement evidence:** the corrected Anthropic Rust, Ruby, and Shell run
+   records and summaries, budget analyses, token-preflight summaries, and the
+   one parser-failure diagnostic. These records omit prompts, answers, packets,
+   excerpts, provider bodies, and secrets, although run records may contain
+   verified citation paths and ranges.
+2. **Restricted study definitions:** the corrected provider manifests needed
+   to reconstruct the exact study. These intentionally contain prompts,
+   expected-answer fragments, retrieval queries, source allowlists, and
+   evidence paths and therefore must not be described as source-free.
+
+Obsolete preliminary summaries, superseded studies, copied source trees, and
+unrelated experiments are excluded. The frozen Git revision and allowlists in
+the restricted manifests are sufficient to reconstruct the evaluated source
+from repository history.
 
 The public pull request may summarize those results, but it must not commit
 credentials, prompts, answers, packets, source excerpts, provider bodies, raw
 tool payloads, or live run directories. Evidence copying must be exact and
-followed by hashes or a manifest so the retained files can be distinguished
-from later runs.
+followed by hashes and a manifest that records each file's evidence class so
+the retained files can be distinguished from later runs.
 
 ### IC-EVAL-PR-FR-006 — Revalidate The Complete Candidate
 
@@ -206,7 +219,7 @@ work begins on the sequence-1 branch.
 | Correct base | Fresh fetch output, merge-base equality, and ahead/behind count against `origin/main` |
 | Dedicated PR | New remote branch and new PR URL targeting `main` |
 | Exact scope | Path inventory and reviewed aggregate diff |
-| Durable private evidence | Private evidence manifest with hashes and no source-bearing public files |
+| Durable private evidence | Private evidence manifest with hashes, explicit evidence classes, and no restricted or source-bearing public files |
 | Complete validation | Successful post-extraction `scripts/check.sh` and `git diff --check` |
 | No secrets or live payloads | Candidate-diff scan plus manual persisted-field review |
 | Honest claims | PR description explicitly labels the three live studies as smoke evidence |

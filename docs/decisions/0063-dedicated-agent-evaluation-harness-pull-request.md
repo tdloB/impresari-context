@@ -1,6 +1,6 @@
 # ADR-0063: Isolate the agent-evaluation harness in a dedicated pull request
 
-- Status: Proposed for sequence-1 review
+- Status: Accepted for sequence-1 implementation
 - Date: 2026-08-28
 - Scope: Git, review, and release isolation for the completed developer
   agent-context evaluation harness
@@ -45,9 +45,12 @@ selection changes in the harness PR and call them out explicitly. Keep
 SWE-bench schemas, patch mutation, shell access, Docker orchestration, grader
 integration, and paid follow-up studies out of this PR.
 
-Preserve approved source-free smoke evidence privately with hashes before
-temporary files expire. Do not commit live records, prompts, answers, packets,
-provider bodies, source excerpts, or credentials.
+Preserve approved smoke evidence privately with hashes before temporary files
+expire. Separate source-free measurement records from restricted study
+definitions, which intentionally contain prompts, expected-answer fragments,
+retrieval queries, source allowlists, and evidence coordinates. Do not commit
+either class, live records, prompts, answers, packets, provider bodies, source
+excerpts, or credentials.
 
 After the new PR and remote head are verified, stop sequence 1. Reassess the
 next PRD, ARD, and ADR using the actual extraction and review evidence.
@@ -65,7 +68,8 @@ next PRD, ARD, and ADR using the actual extraction and review evidence.
 - The harness remains coupled to internal Context contracts, avoiding a
   premature cross-repository versioning and release problem.
 - Private smoke evidence gains durable provenance without entering public Git
-  history.
+  history, and its manifest distinguishes source-free measurements from
+  restricted study definitions.
 
 ## Alternatives Rejected
 
