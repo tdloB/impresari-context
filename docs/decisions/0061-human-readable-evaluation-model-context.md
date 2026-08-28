@@ -1,6 +1,6 @@
 # ADR-0061: Human-readable model context for agent evaluation
 
-- Status: Accepted and implemented locally; corrected live smoke remains gated
+- Status: Accepted and implemented; corrected Anthropic smoke completed
 - Date: 2026-08-28
 - Scope: Developer-only provider adapters in `context-evaluation`
 
@@ -180,3 +180,12 @@ a deterministic trusted transformation to an untrusted probabilistic actor.
 - Rendered context is persisted, logged, cached, or reused across arms.
 - Corrected studies still miss token, cost, latency, correctness, evidence, or
   tool-read thresholds and a core retrieval change is proposed.
+
+## Implementation Outcome
+
+The shared renderer passed its local integrity, parity, boundedness, and
+privacy checks. The first corrected rerun exposed independent deadline and
+evidence-selection concerns. ADR-0062 governed those changes rather than
+expanding this renderer's responsibility. After that increment, corrected
+Anthropic Rust, Shell, and Ruby A/B/A smoke studies completed. The results
+remain one-task mechanics evidence and are not a product-wide claim.

@@ -4,7 +4,8 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-EVAL-RENDER-001 / 0.1.
-- Status: Implemented locally; corrected live smoke remains separately gated.
+- Status: Implemented and locally validated; corrected Anthropic smoke
+  completed through the separately governed recovery increment.
 - Date: 2026-08-28.
 - Scope: Developer-only model-facing rendering of a validated treatment packet
   in `context-evaluation`.
@@ -313,3 +314,17 @@ or begin a tool loop until rendering succeeds.
 
 Those questions require clean post-fix measurements and a separate architecture
 review. They must not be answered inside the adapter correction.
+
+## Post-Implementation Outcome
+
+The renderer passed its local fidelity, source-binding, provider-parity,
+privacy, and boundedness checks. A renderer-corrected Rust rerun then exposed
+separate deadline observability, task ambiguity, packet-budget, relevance, and
+overlap concerns. Those concerns were not hidden inside this renderer; they
+were governed and implemented separately by the
+[Recovery PRD](agent-evaluation-recovery-prd.md) and
+[ADR-0062](../decisions/0062-observable-deadlines-and-relevance-preserving-evaluation-context.md).
+
+After that separate increment, corrected Anthropic Rust, Shell, and Ruby A/B/A
+smoke studies completed. This satisfies the renderer's mechanics gate but does
+not create a statistically powered product-performance claim.

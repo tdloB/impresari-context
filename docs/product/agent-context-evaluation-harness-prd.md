@@ -4,8 +4,8 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-EVAL-AGENT-001 / 0.1.
-- Status: Implementation contract for the recovery branch; acceptance remains
-  subject to the repository validation gate and maintainer review.
+- Status: Implemented and locally validated; dedicated pull-request review
+  remains pending.
 - Date: 2026-08-27.
 - Scope: Developer-only, local A/B/A evaluation of agent answers with and
   without an Impresari Context packet.

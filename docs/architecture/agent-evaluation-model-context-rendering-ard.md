@@ -1,6 +1,7 @@
 # Agent-Evaluation Model-Context Rendering — Architecture Requirements And Design
 
-- Status: Implemented locally; corrected live smoke remains separately gated
+- Status: Implemented and locally validated; corrected Anthropic smoke
+  completed through the separately governed recovery increment
 - Date: 2026-08-28
 - Governing product record:
   [Model-Context Rendering PRD](../product/agent-evaluation-model-context-rendering-prd.md)
@@ -355,3 +356,12 @@ into this renderer under the label of formatting.
 - Non-UTF-8 repositories become an admitted production-study requirement.
 - A proposal would rank, deduplicate, resize, summarize, or omit evidence in
   the renderer.
+
+## Post-Implementation Review
+
+The renderer remained a fidelity boundary and did not absorb retrieval or
+selection policy. The corrected rerun exposed independent observability and
+evidence-selection concerns, which were governed by the recovery ARD and
+ADR-0062. With those separate changes, the Anthropic Rust gate and subsequent
+Shell and Ruby smoke studies completed. No broader renderer change is
+warranted by the current evidence.

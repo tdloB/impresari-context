@@ -66,8 +66,8 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0059](0059-developer-agent-evaluation-adapter-boundary.md) | Permit explicit, bounded adapter execution only in the developer agent-evaluation runner | Accepted for harness implementation |
 | [ADR-0060](0060-provider-backed-agent-evaluation-adapters.md) | Permit two fixed-endpoint, evaluation-only provider adapters with cold-run and measured repository-tool boundaries | Accepted for private evaluation preparation |
-| [ADR-0061](0061-human-readable-evaluation-model-context.md) | Render validated treatment packets as deterministic, source-bound, human-readable model context without changing retrieval | Accepted and implemented locally; corrected live smoke pending |
-| [ADR-0062](0062-observable-deadlines-and-relevance-preserving-evaluation-context.md) | Persist source-free provider progress and select explicitly budgeted evaluation evidence by stable relevance and overlap coverage | Accepted for implementation |
+| [ADR-0061](0061-human-readable-evaluation-model-context.md) | Render validated treatment packets as deterministic, source-bound, human-readable model context without changing retrieval | Accepted and implemented; corrected Anthropic smoke completed |
+| [ADR-0062](0062-observable-deadlines-and-relevance-preserving-evaluation-context.md) | Persist source-free provider progress and select explicitly budgeted evaluation evidence by stable relevance and overlap coverage | Accepted and implemented |
 | [ADR-0063](0063-dedicated-agent-evaluation-harness-pull-request.md) | Isolate the completed agent-evaluation harness in a dedicated new pull request before SWE-bench work | Accepted for sequence-1 implementation |
 
 ## Change Rules

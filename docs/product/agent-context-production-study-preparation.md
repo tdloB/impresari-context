@@ -17,9 +17,12 @@ transmission, or execution of a production study. Each of those remains behind
 the harness's explicit execution consent and the readiness gate below.
 
 The three production adapter implementations and offline tests now exist in
-`context-evaluation`. No production study is ready to run until every remaining
-item in the readiness gate is resolved and the corpus, pricing schedule, and
-execution manifest are frozen before any result is inspected.
+`context-evaluation`. Corrected Anthropic Rust, Shell, and Ruby one-task smoke
+studies completed under separately frozen schema `1.2` manifests. They prove
+the repaired pipeline mechanics only and are not a statistically powered or
+multi-repository production study. A meaningful study remains gated on a
+reviewed corpus, repetition design, current pricing, and separately authorized
+provider execution.
 
 The 2026-08-28 Rust smoke exposed a model-facing adapter defect: the treatment
 path transmitted the canonical packet's Base64URL wire excerpts directly to
@@ -27,9 +30,12 @@ the provider. Live treatment comparisons made through that adapter version are
 diagnostic only and must not be used as product-performance evidence. The
 [Model-Context Rendering PRD](agent-evaluation-model-context-rendering-prd.md)
 and [ADR-0061](../decisions/0061-human-readable-evaluation-model-context.md)
-are now implemented locally. The complete corrected A/B/A arms must still be
-rerun under a new schema, adapter version, renderer version, execution manifest,
-and study identity before production-study readiness can be reassessed.
+are implemented. The first renderer-only rerun exposed separate adapter
+observability and packet-selection problems; ADR-0062 corrected those under a
+new schema, adapter version, execution manifest, and study identity. The
+corrected Anthropic A/B/A smoke sequence then completed. OpenAI remains blocked
+at token preflight by HTTP 401 credential rejection; no OpenAI generation was
+performed.
 
 ## Adapter Boundary
 
