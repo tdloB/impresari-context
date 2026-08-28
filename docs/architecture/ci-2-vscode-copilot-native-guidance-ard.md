@@ -21,6 +21,16 @@ budget grammar, identifier pattern, and allowed request fields. This keeps the
 instruction stable while the transport remains the single normative source for
 request validation.
 
+VS Code Copilot `1.134.0` accepts a narrower tool-schema subset and rejects
+top-level `oneOf` before tool arguments are formed. The published
+`context_build` schema is therefore a flat closed object: required common
+fields, optional form-specific fields, explicit descriptions, and canonical
+decimal-string budget fields. The server remains the authoritative exclusive
+grammar. Its deny-unknown deserialization and exhaustive form match reject
+mixed or incomplete direct, planner, structural, change-set, associated-test,
+and orientation requests before engine work. Flattening the client schema does
+not make an invalid combination valid.
+
 ## Canonical evidence lifecycle
 
 ```text

@@ -11,6 +11,12 @@ During the live smoke, Copilot opened and closed a bounded session but formed
 an invalid `context_build` request and then read the local fixture directly.
 The local read was not an Impresari packet and must not be treated as one.
 
+A second live attempt with v3 guidance exposed a separate client-validator
+constraint before any build arguments reached the MCP server. VS Code Copilot
+`1.134.0` rejected the tool definition with `object has unsupported top-level
+schema keyword 'oneOf'`. Supplying an exact request in the prompt could not
+bypass that definition-level rejection.
+
 The existing owned Copilot v2 instruction correctly avoided copying mutable
 protocol values, but it did not make the two legal packet forms sufficiently
 explicit for a conversational client. The transport already exposes the
@@ -26,6 +32,12 @@ obtain the dynamic required values from the MCP schema itself.
 
 Maintain v2 as a removal-only legacy artifact. Do not broaden `context_build`,
 default budgets, or make any configuration/approval decision for a client.
+Publish the input schema as a flat closed object using the Copilot-supported
+schema subset and canonical decimal-string budget fields. Keep mutual
+exclusivity authoritative in the existing server-side deserialization and
+dispatch match, which rejects mixed, incomplete, or unknown request shapes
+before engine work. Previously accepted non-negative integer budget values
+remain normalized by the server but are not the canonical advertised form.
 
 ## Consequences
 

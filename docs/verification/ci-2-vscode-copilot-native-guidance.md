@@ -17,6 +17,15 @@ The MCP tool schema supplies a canonical direct-evidence example with the
 complete hard-budget shape. Neither artifact adds a default budget, automatic
 approval, source authority, or delivery behavior.
 
+The first v3 live attempt safely failed before packet construction and did not
+read the source fixture. The VS Code Copilot log recorded the exact cause:
+`object has unsupported top-level schema keyword 'oneOf'`. A second attempt
+using an exact caller-supplied request produced the same definition-level
+rejection, then closed its session without source access. The candidate schema
+now avoids `oneOf`, `anyOf`, `allOf`, and `not` throughout `context_build`;
+regression tests preserve the client-supported subset while runtime tests keep
+strict request-form validation authoritative.
+
 ## Required manual evidence
 
 The disposable runner prepares only an explicit root below `/private/tmp`. It

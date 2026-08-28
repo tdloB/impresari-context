@@ -22,6 +22,11 @@ and Copilot read the local probe file instead. That is not a transport or
 permission failure. It shows that the owned guidance and live tool descriptions
 need a clearer canonical request path.
 
+The first v3 live attempt then proved that VS Code Copilot `1.134.0` rejects a
+tool definition containing top-level `oneOf` before evaluating any proposed
+arguments. The supported client-schema subset and the server's strict runtime
+request grammar are therefore separate compatibility layers.
+
 ## Scope
 
 - Revise the owned GitHub Copilot project instruction from v2 to v3 with an
@@ -38,6 +43,9 @@ need a clearer canonical request path.
 - Enrich the live `context_build` tool description with the same canonical
   shape, without changing engine policy, budget accounting, transport, or
   authority.
+- Advertise a flat, closed, Copilot-compatible input schema with canonical
+  decimal-string budgets while retaining exact exclusive-form checks in the
+  server runtime.
 - Add a disposable VS Code extension-host rehearsal that installs, validates,
   inspects, and exactly removes both the L1 `.vscode/mcp.json` entry and the
   v3 owned project instruction.
@@ -61,6 +69,8 @@ need a clearer canonical request path.
 2. The live `context_build` schema describes one canonical direct-evidence
    request form and one canonical profile request form; it never suggests that
    a model may omit a required budget or use both forms together.
+   It contains none of the `oneOf`, `anyOf`, `allOf`, or `not` keywords rejected
+   by the recorded VS Code Copilot validator.
 3. A disposable runner has a source-free preview, rejects non-`/private/tmp`
    roots and symlinks, validates the fixed configuration and guidance artifact,
    and removes only exact owned files after explicit operator confirmations.

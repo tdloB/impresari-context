@@ -637,15 +637,7 @@ fn context_build_definition(budget: &Value) -> Value {
                     "max_excerpt_bytes_per_item":"256", "max_matches":"100",
                     "max_traversal_depth":"8", "max_elapsed_ms":"30000",
                     "max_memory_bytes":"1048576", "policy_profile":POLICY_PROFILE}
-            }],
-            "oneOf":[
-                {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
-                {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
-                {"required":["profile","query","structural_graph","start_node"],"not":{"anyOf":[{"required":["steps"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
-                {"required":["profile","query","declared_change_set"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
-                {"required":["profile","query","declared_associated_tests"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
-                {"required":["profile","query","orientation_graph","max_orientation_entries"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]}]}}
-            ]
+            }]
         }
     })
 }
@@ -675,10 +667,9 @@ fn tool_definitions() -> Value {
 
 fn decimal_schema() -> Value {
     json!({
-        "oneOf":[
-            {"type":"string","pattern":DECIMAL_PATTERN},
-            {"type":"integer","minimum":0}
-        ]
+        "type":"string",
+        "pattern":DECIMAL_PATTERN,
+        "description":"Canonical decimal-string wire form. The server continues to normalize non-negative integer values from previously compatible clients."
     })
 }
 
@@ -696,6 +687,22 @@ mod tests {
     use context_workspace::DiscoveryPolicy;
 
     use super::*;
+
+    fn assert_copilot_schema_subset(value: &Value) {
+        match value {
+            Value::Object(object) => {
+                for unsupported in ["oneOf", "anyOf", "allOf", "not"] {
+                    assert!(
+                        !object.contains_key(unsupported),
+                        "VS Code Copilot rejects schema keyword {unsupported}"
+                    );
+                }
+                object.values().for_each(assert_copilot_schema_subset);
+            }
+            Value::Array(values) => values.iter().for_each(assert_copilot_schema_subset),
+            _ => {}
+        }
+    }
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
@@ -869,12 +876,12 @@ mod tests {
             IDENTIFIER_PATTERN
         );
         assert_eq!(
-            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["oneOf"][0]["pattern"],
+            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["pattern"],
             DECIMAL_PATTERN
         );
         assert_eq!(
-            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["oneOf"][1]["type"],
-            "integer"
+            build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["type"],
+            "string"
         );
         assert!(
             build["description"]
@@ -896,6 +903,7 @@ mod tests {
             build["inputSchema"]["examples"][0]["budget"]["policy_profile"],
             POLICY_PROFILE
         );
+        assert_copilot_schema_subset(&build["inputSchema"]);
     }
 
     #[test]
