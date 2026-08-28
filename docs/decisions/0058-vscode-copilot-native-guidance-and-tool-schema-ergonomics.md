@@ -1,0 +1,47 @@
+# ADR-0058: VS Code Copilot native guidance and tool-schema ergonomics
+
+- Status: Accepted for implementation; L2 admission pending live evidence
+- Date: 2026-08-27
+- Scope: VS Code Copilot extension-host native guidance
+
+## Context
+
+VS Code Copilot L1 admission established a safe extension-host MCP connection.
+During the live smoke, Copilot opened and closed a bounded session but formed
+an invalid `context_build` request and then read the local fixture directly.
+The local read was not an Impresari packet and must not be treated as one.
+
+The existing owned Copilot v2 instruction correctly avoided copying mutable
+protocol values, but it did not make the two legal packet forms sufficiently
+explicit for a conversational client. The transport already exposes the
+required live schema and no engine-policy gap was identified.
+
+## Decision
+
+Publish a v3 exact-owned Copilot instruction that describes one canonical
+direct-evidence path (`steps`) and one canonical planner path (`profile` plus
+`query`), their lifecycle order, and the no-packet failure boundary. Enhance
+the live `context_build` description and field descriptions so clients can
+obtain the dynamic required values from the MCP schema itself.
+
+Maintain v2 as a removal-only legacy artifact. Do not broaden `context_build`,
+default budgets, or make any configuration/approval decision for a client.
+
+## Consequences
+
+- VS Code L2 can earn a distinct recorded-scope admission through its own
+  disposable guidance-and-packet smoke; L1 evidence does not imply it.
+- GitHub Copilot CLI's prior v2 L2 record remains historical evidence and is
+  revalidated with v3 before a current-template claim.
+- Clients receive clearer portable guidance without a provider-specific proxy
+  or automatic retrieval.
+- Conversational selection remains non-deterministic and requires revalidation
+  when the client, custom-instruction behavior, MCP schema, or platform changes.
+
+## References
+
+- [CI-2 VS Code Copilot native-guidance PRD](../product/ci-2-vscode-copilot-native-guidance-prd.md)
+- [CI-2 native-guidance ARD](../architecture/ci-2-vscode-copilot-native-guidance-ard.md)
+- [VS Code custom instructions](https://code.visualstudio.com/docs/agent-customization/custom-instructions)
+- [ADR-0041](0041-native-agent-guidance-artifacts.md)
+- [ADR-0045](0045-owned-native-guidance-artifact-lifecycle.md)

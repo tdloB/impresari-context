@@ -12,12 +12,14 @@ secrets, or deliver packets automatically.
 | Cursor | project rule | `.cursor/rules/impresari-context.mdc` |
 | GitHub Copilot | path-specific repository instruction | `.github/instructions/impresari-context.instructions.md` |
 
-Every template is deliberately small. Current **v2** guidance asks the agent to
-use only an already configured local Impresari MCP server, select an explicit
-task profile and hard budget, follow the session open/build/resolve/close
-lifecycle when a session-scoped packet is needed, surface packet
-identity/reasons/omissions, and continue normally when the server is
-unavailable. It grants no additional authority.
+Every template is deliberately small. Codex, Claude Code, and Cursor retain
+their current **v2** guidance. GitHub Copilot's current **v3** guidance adds
+the two legal `context_build` forms—explicit `steps`, or `profile` plus
+`query`—and directs the client to use the live schema for current identifiers,
+operation time, full hard budget, and policy fingerprint. It preserves the
+session open/build/resolve/close lifecycle, packet identity/reasons/omissions,
+and the rule that ordinary local analysis is not packet evidence. It grants no
+additional authority.
 
 The client-specific locations are based on the documented project surfaces for
 [Claude Code skills](https://code.claude.com/docs/en/slash-commands),
@@ -44,7 +46,8 @@ client's documented target parent directory. A client still requires its own
 version/OS native-surface evidence before it is promoted to L2.
 
 `validate` accepts only the current template version. To prevent a template
-revision from stranding a safe cleanup path, `inspect` recognizes an exact
-owned v1 artifact as `owned_legacy` and `remove` can remove it; it is not
-considered current guidance. Preview removal before applying it, then install
-the current template deliberately if wanted.
+revision from stranding a safe cleanup path, `inspect` recognizes exact owned
+legacy artifacts and `remove` can remove them; they are not considered current
+guidance. Copilot v1 and v2 are removal-only after the v3 update. Preview
+removal before applying it, then install the current template deliberately if
+wanted.

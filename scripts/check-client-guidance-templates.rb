@@ -6,7 +6,7 @@ templates = {
   "templates/client-guidance/codex/AGENTS.md" => ["Impresari Context", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
   "templates/client-guidance/claude/SKILL.md" => ["description:", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
   "templates/client-guidance/cursor/impresari-context.mdc" => ["description:", "alwaysApply: false", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
-  "templates/client-guidance/copilot/impresari-context.instructions.md" => ["applyTo:", "native guidance v2", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close"],
+  "templates/client-guidance/copilot/impresari-context.instructions.md" => ["applyTo:", "native guidance v3", "packet ID", "context_session_open", "context_build", "context_packet_resolve", "context_session_close", "two exclusive request forms", "live input schema", "no Impresari packet was delivered"],
 }
 forbidden = [
   /https?:\/\//i,

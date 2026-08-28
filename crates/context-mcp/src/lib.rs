@@ -613,21 +613,31 @@ fn context_build_definition(budget: &Value) -> Value {
     json!({
         "name":"context_build",
         "title":"Build verified context",
-        "description":"Build a bounded verified packet from explicit steps, a deterministic declared profile, a verified caller-declared current change set or associated-test set, or a profile plus an already validated snapshot-bound structural graph. Adds no authority.",
+        "description":"Build a bounded verified packet. Canonical direct evidence uses one-to-eight explicit steps and no profile/query; canonical planner evidence uses exactly one profile plus query and no steps. Every form requires client-generated request/event identifiers, RFC 3339 occurred_at, and the complete current hard budget from this schema. session_id is optional but, when present, must name an already-open same-process session for packet resolution. Adds no authority.",
         "inputSchema":{
             "type":"object",
             "additionalProperties":false,
             "properties":{
-                "request_id":{"type":"string","pattern":IDENTIFIER_PATTERN}, "event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},
-                "purpose":{"type":"string"}, "occurred_at":{"type":"string"},
-                "steps":{"type":"array","minItems":1,"maxItems":8,"items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},
-                "profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"]},
-                "query":{"type":"string","minLength":1,"maxLength":4096},
+                "request_id":{"type":"string","pattern":IDENTIFIER_PATTERN,"description":"Client-generated opaque request identifier matching this pattern."}, "event_id":{"type":"string","pattern":IDENTIFIER_PATTERN,"description":"Client-generated opaque event identifier matching this pattern."},
+                "purpose":{"type":"string","description":"Caller-declared bounded evidence purpose."}, "occurred_at":{"type":"string","description":"Caller-declared RFC 3339 operation time."},
+                "steps":{"type":"array","minItems":1,"maxItems":8,"description":"Canonical direct-evidence form. Do not combine with profile, query, or structural declarations.","items":{"type":"object","additionalProperties":false,"properties":{"kind":{"enum":["exact_path","filename","literal","lexical"]},"query":{"type":"string"}},"required":["kind","query"]}},
+                "profile":{"enum":["orientation","implementation","bug_investigation","change_review","security_review","test_selection","configuration_change"],"description":"Canonical planner form. Requires query and cannot be combined with steps."},
+                "query":{"type":"string","minLength":1,"maxLength":4096,"description":"Bounded query required with profile unless explicit steps are used."},
                 "structural_graph":{"type":"object"}, "start_node":{"type":"string"},
                 "edge_kinds":{"type":"array","maxItems":8,"items":{"enum":["declares","contains","imports","exports","calls","references"]}},
-                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "orientation_graph":{"type":"object"}, "max_orientation_entries":{"type":"integer","minimum":1,"maximum":10000}, "budget":budget, "session_id":{"type":"string"}
+                "declared_change_set":{"type":"object"}, "declared_associated_tests":{"type":"object"}, "orientation_graph":{"type":"object"}, "max_orientation_entries":{"type":"integer","minimum":1,"maximum":10000}, "budget":budget, "session_id":{"type":"string","description":"Optional already-open same-process session that owns the returned packet reference."}
             },
             "required":["request_id","event_id","purpose","occurred_at","budget"],
+            "examples":[{
+                "request_id":"req_guidepacket0001", "event_id":"evt_guidepacket0001",
+                "purpose":"direct_evidence_example", "occurred_at":"2026-08-27T00:00:00Z",
+                "steps":[{"kind":"filename","query":"README.md"}],
+                "budget":{"unit_kind":"utf8_bytes", "requested":"4096", "hard":true,
+                    "max_evidence_items":"20", "max_files":"100",
+                    "max_excerpt_bytes_per_item":"256", "max_matches":"100",
+                    "max_traversal_depth":"8", "max_elapsed_ms":"30000",
+                    "max_memory_bytes":"1048576", "policy_profile":POLICY_PROFILE}
+            }],
             "oneOf":[
                 {"required":["steps"],"not":{"anyOf":[{"required":["profile"]},{"required":["query"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
                 {"required":["profile","query"],"not":{"anyOf":[{"required":["steps"]},{"required":["structural_graph"]},{"required":["start_node"]},{"required":["edge_kinds"]},{"required":["declared_change_set"]},{"required":["declared_associated_tests"]},{"required":["orientation_graph"]},{"required":["max_orientation_entries"]}]}},
@@ -865,6 +875,26 @@ mod tests {
         assert_eq!(
             build["inputSchema"]["properties"]["budget"]["properties"]["requested"]["oneOf"][1]["type"],
             "integer"
+        );
+        assert!(
+            build["description"]
+                .as_str()
+                .expect("context_build description")
+                .contains("Canonical direct evidence")
+        );
+        assert!(
+            build["inputSchema"]["properties"]["steps"]["description"]
+                .as_str()
+                .expect("steps description")
+                .contains("Do not combine with profile")
+        );
+        assert_eq!(
+            build["inputSchema"]["examples"][0]["steps"][0]["kind"],
+            "filename"
+        );
+        assert_eq!(
+            build["inputSchema"]["examples"][0]["budget"]["policy_profile"],
+            POLICY_PROFILE
         );
     }
 
