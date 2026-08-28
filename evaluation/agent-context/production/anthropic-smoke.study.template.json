@@ -1,0 +1,35 @@
+{
+  "schema_version": "1.0",
+  "study_id": "replace-with-frozen-anthropic-smoke-id",
+  "repository": "source",
+  "source_files": [],
+  "workspace_revision": "REPLACE_WITH_EXACT_COMMIT_SHA",
+  "execution": {
+    "agent_adapter_identifier": "anthropic-messages-claude-opus-5-high",
+    "agent_adapter_version": "1.0.0",
+    "packet_adapter_identifier": "impresari-context-library-packet",
+    "packet_adapter_version": "1.0.0",
+    "model_identifier": "claude-opus-5",
+    "container_image": "REPLACE_WITH_FROZEN_RUNTIME_IDENTITY",
+    "operation_timestamp": "REPLACE_WITH_NORMALIZED_UTC_TIMESTAMP",
+    "turn_limit": 12,
+    "pricing_basis": "anthropic-official-pricing-frozen-2026-08-27",
+    "pricing_schedule": {
+      "currency": "USD",
+      "effective_date": "2026-08-27",
+      "input_usd_per_million": 5.0,
+      "cached_input_usd_per_million": 0.5,
+      "cache_write_input_usd_per_million": 6.25,
+      "output_usd_per_million": 25.0
+    }
+  },
+  "repetitions": 1,
+  "agent_command": ["../../../target/debug/impresari-context-anthropic-agent-adapter"],
+  "packet_command": ["../../../target/debug/impresari-context-production-packet-adapter"],
+  "environment": {},
+  "agent_secret_environment_variables": ["ANTHROPIC_API_KEY"],
+  "command_timeout_seconds": 600,
+  "max_stdout_bytes": 1048576,
+  "max_stderr_bytes": 16384,
+  "tasks": []
+}

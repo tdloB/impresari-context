@@ -6,8 +6,23 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$repo_root"
 
 production_sources=$(find crates -path '*/src/*.rs' -type f -print)
-if grep -n -E 'std::net::|TcpStream|UdpSocket|reqwest|ureq|hyper::|tonic::|enable_load_extension' $production_sources; then
+network_sites=$(grep -n -E 'std::net::|TcpStream|UdpSocket|reqwest|ureq|hyper::|tonic::|enable_load_extension' $production_sources || true)
+unexpected_network_sites=$(printf '%s\n' "$network_sites" |
+    grep -v '^crates/context-evaluation/src/provider_adapter\.rs:' |
+    grep -v '^crates/context-evaluation/src/provider_adapter/\(openai\|anthropic\)\.rs:' || true)
+if [ -n "$unexpected_network_sites" ]; then
+    printf '%s\n' "$unexpected_network_sites" >&2
     printf 'forbidden network or extension-loading surface in production code\n' >&2
+    exit 1
+fi
+
+# ADR-0060 permits one HTTPS client dependency only in the developer evaluation
+# crate. Provider endpoints remain constants in the two reviewed translations.
+network_manifest_sites=$(grep -n -E '^[[:space:]]*(reqwest|ureq|hyper|tonic|curl|openssl)[[:space:]]*=' crates/*/Cargo.toml || true)
+if [ "$(printf '%s\n' "$network_manifest_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 1 ] ||
+   ! printf '%s\n' "$network_manifest_sites" | grep -q '^crates/context-evaluation/Cargo.toml:.*reqwest'; then
+    printf '%s\n' "$network_manifest_sites" >&2
+    printf 'unexpected direct network-capable runtime dependency\n' >&2
     exit 1
 fi
 
@@ -27,11 +42,6 @@ if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 3
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_evaluation_site"; then
     printf '%s\n' "$process_sites" >&2
     printf 'unexpected child-process authority outside ADR-0010, ADR-0055, and ADR-0059 launch sites\n' >&2
-    exit 1
-fi
-
-if cargo tree --locked --offline --prefix none | grep -E '^(reqwest|ureq|hyper|tonic|curl|openssl) '; then
-    printf 'unexpected network-capable runtime dependency\n' >&2
     exit 1
 fi
 

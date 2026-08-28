@@ -141,11 +141,15 @@ hostile output that is validated all-or-nothing. General extensions remain
 future work and require separate filesystem, network, environment, output,
 integrity, and lifecycle controls.
 
-### Z7 — Future external providers
+### Z7 — External providers
 
-Denied. Later model/network access requires destination allowlists, data
-classification, redaction, retention disclosure, consent/approval, audit, and
-failure design.
+Denied in the product runtime. ADR-0060 permits a developer-only evaluation
+adapter to reach fixed OpenAI or Anthropic endpoints after per-invocation
+consent. It requires source classification, explicit repository-transmission
+approval, agent-only secret inheritance, cold sessions, bounded measured tools,
+source-free records, and fail-closed provider accounting. This exception adds
+no network or model authority to the core engine, MCP, extensions, or consumer
+adapters.
 
 ## Adversaries And Failure Sources
 

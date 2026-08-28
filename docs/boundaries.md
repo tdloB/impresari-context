@@ -105,6 +105,10 @@ Denied by default. Enabling access requires destination allowlists, data
 classification, redaction policy, retention disclosure, and an auditable
 consumer decision.
 
+ADR-0060 defines one developer-only exception for explicitly consented agent
+evaluation. It does not authorize network or model access in the OSS core,
+MCP, extensions, consumer adapters, or product runtime.
+
 ## 5. Process and storage boundaries
 
 The preferred local deployment uses separate roots:

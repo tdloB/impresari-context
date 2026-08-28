@@ -6,7 +6,10 @@ use serde_json::Value;
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
+
+static TEST_DIRECTORY_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 struct TestDirectory(PathBuf);
 
@@ -16,9 +19,10 @@ impl TestDirectory {
             .duration_since(UNIX_EPOCH)
             .expect("clock after epoch")
             .as_nanos();
+        let sequence = TEST_DIRECTORY_SEQUENCE.fetch_add(1, Ordering::Relaxed);
         let path = std::env::temp_dir().join(format!(
-            "impresari-agent-eval-cli-{}-{nonce}",
-            std::process::id()
+            "impresari-agent-eval-cli-{}-{nonce}-{sequence}",
+            std::process::id(),
         ));
         fs::create_dir_all(&path).expect("create test directory");
         Self(path)
@@ -47,7 +51,6 @@ fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
         fs::copy(fixture.join("source").join(name), source.join(name))
             .expect("copy fixture source");
     }
-
     let mut spec: Value =
         serde_json::from_slice(&fs::read(fixture.join("study.json")).expect("read fixture study"))
             .expect("parse fixture study");
@@ -109,6 +112,16 @@ fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
     assert_eq!(summary["arms"][0]["correctness_rate"], 0.0);
     assert_eq!(summary["arms"][1]["correctness_rate"], 1.0);
     assert_eq!(summary["arms"][2]["correctness_rate"], 0.0);
+    assert_eq!(summary["arms"][0]["evidence_verification_rate"], 0.0);
+    assert_eq!(summary["arms"][1]["evidence_verification_rate"], 1.0);
+    assert_eq!(summary["arms"][2]["evidence_verification_rate"], 0.0);
+    assert!(summary["treatment_vs_baseline"]["cost_reduction_fraction"].is_number());
+    assert!(summary["treatment_vs_baseline"]["repeated_read_reduction_fraction"].is_number());
+    assert_eq!(summary["baseline_drift"]["total_tokens_delta"], 0.0);
+    assert_eq!(
+        summary["baseline_drift"]["repeated_repository_file_reads_delta"],
+        0.0
+    );
     let persisted = records
         .iter()
         .map(|entry| fs::read_to_string(entry.path()).expect("read record"))
@@ -124,6 +137,58 @@ fn deterministic_five_language_study_requires_consent_and_omits_payloads() {
             "persisted sensitive payload: {forbidden}"
         );
     }
+}
+
+#[test]
+fn agent_secret_is_inherited_only_by_agent_and_never_persisted() {
+    let directory = TestDirectory::new();
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../evaluation/agent-context/v1");
+    let source = directory.0.join("source");
+    fs::create_dir_all(&source).expect("create source directory");
+    for name in [
+        "go.go",
+        "python.py",
+        "rust.rs",
+        "strict.json",
+        "typescript.ts",
+    ] {
+        fs::copy(fixture.join("source").join(name), source.join(name))
+            .expect("copy fixture source");
+    }
+    let mut spec: Value =
+        serde_json::from_slice(&fs::read(fixture.join("study.json")).expect("read fixture study"))
+            .expect("parse fixture study");
+    let adapter = env!("CARGO_BIN_EXE_impresari-context-deterministic-adapter");
+    spec["agent_command"] = serde_json::json!([adapter, "require-openai-key"]);
+    spec["packet_command"] = serde_json::json!([adapter, "packet"]);
+    spec["agent_secret_environment_variables"] = serde_json::json!(["OPENAI_API_KEY"]);
+    let spec_path = directory.0.join("study.json");
+    fs::write(
+        &spec_path,
+        serde_json::to_vec_pretty(&spec).expect("encode study"),
+    )
+    .expect("write study");
+    let output_directory = directory.0.join("records");
+    let secret = "offline-sentinel-must-not-persist";
+    let output = Command::new(env!("CARGO_BIN_EXE_impresari-context-agent-eval"))
+        .arg("run")
+        .arg(&spec_path)
+        .arg(&output_directory)
+        .arg("--allow-adapter-execution")
+        .env("OPENAI_API_KEY", secret)
+        .output()
+        .expect("run study with agent secret");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let persisted = fs::read_dir(&output_directory)
+        .expect("read output directory")
+        .filter_map(Result::ok)
+        .map(|entry| fs::read_to_string(entry.path()).unwrap_or_default())
+        .collect::<String>();
+    assert!(!persisted.contains(secret));
 }
 
 #[test]
@@ -189,6 +254,11 @@ fn adapter_failures_timeouts_and_output_limits_fail_closed() {
         fs::copy(fixture.join("source").join(name), source.join(name))
             .expect("copy fixture source");
     }
+    fs::write(
+        source.join("unlisted.txt"),
+        "must remain outside evidence\n",
+    )
+    .expect("write unlisted source");
     let original: Value =
         serde_json::from_slice(&fs::read(fixture.join("study.json")).expect("read fixture study"))
             .expect("parse fixture study");
@@ -199,6 +269,7 @@ fn adapter_failures_timeouts_and_output_limits_fail_closed() {
         ("malformed", "parse adapter response"),
         ("oversize", "stdout exceeded"),
         ("stderr-oversize", "stderr exceeded"),
+        ("unlisted-evidence", "outside the source allowlist"),
         ("fail", "adapter exited"),
         ("sleep", "adapter exceeded"),
         ("mutate", "evaluated source changed"),

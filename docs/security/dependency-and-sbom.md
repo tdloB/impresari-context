@@ -23,14 +23,20 @@ same lockfile produces the same document on Linux, macOS, and Windows.
 
 ## Current review result
 
-- 187 workspace and transitive packages are recorded.
+- 296 workspace and transitive packages are recorded.
 - Every registry package records its Cargo checksum when supplied by Cargo.
 - `cargo deny check` passes its advisory, ban, source, and license policy.
-- RustSec scanning passes against 1,225 loaded advisories on 2026-08-23.
+- RustSec scanning passes against 1,226 loaded advisories on 2026-08-27.
 - No Git dependency is present in the current graph.
-- Duplicate transitive `io-lifetimes` and Windows support crate versions are
-  accepted warnings inherited through `cap-std`; they increase inventory size
-  but do not create a second runtime authority.
+- The evaluation-only provider adapters add pinned `reqwest` with Rustls for
+  two fixed HTTPS endpoints. The security-boundary gate denies any second
+  direct network-capable dependency or network source outside those adapters.
+- Duplicate transitive `base64`, `io-lifetimes`, `syn`, and Windows support
+  crate versions are accepted warnings. `reqwest` accounts for the new
+  `base64`, `syn`, and Windows-family branches; the pre-existing capability
+  filesystem graph accounts for `io-lifetimes` and additional Windows
+  branches. They expand the reviewed inventory but not product-runtime network
+  authority.
 - Declared licenses are within the current permissive allow policy. The SBOM
   preserves each package's exact Cargo license expression rather than
   simplifying dual-license choices.

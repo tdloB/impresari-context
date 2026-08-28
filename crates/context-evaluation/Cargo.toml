@@ -16,6 +16,7 @@ context-core = { version = "=0.1.0", path = "../context-core" }
 context-engine = { version = "=0.1.0", path = "../context-engine" }
 context-store = { version = "=0.1.0", path = "../context-store" }
 context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+reqwest = { version = "=0.13.3", default-features = false, features = ["blocking", "json", "rustls"] }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 sha2 = { version = "=0.11.0", default-features = false }
@@ -39,3 +40,15 @@ path = "src/bin/agent-eval.rs"
 [[bin]]
 name = "impresari-context-deterministic-adapter"
 path = "src/bin/deterministic-agent-adapter.rs"
+
+[[bin]]
+name = "impresari-context-production-packet-adapter"
+path = "src/bin/production-packet-adapter.rs"
+
+[[bin]]
+name = "impresari-context-openai-agent-adapter"
+path = "src/bin/openai-agent-adapter.rs"
+
+[[bin]]
+name = "impresari-context-anthropic-agent-adapter"
+path = "src/bin/anthropic-agent-adapter.rs"

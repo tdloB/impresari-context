@@ -23,6 +23,11 @@ fn run() -> Result<(), String> {
     let mode = env::args()
         .nth(1)
         .ok_or_else(|| "expected packet or agent mode".to_owned())?;
+    if mode == "packet"
+        && (env::var_os("OPENAI_API_KEY").is_some() || env::var_os("ANTHROPIC_API_KEY").is_some())
+    {
+        return Err("agent credential reached packet adapter".to_owned());
+    }
     let mut input = Vec::new();
     std::io::stdin()
         .take(256 * 1024)
@@ -67,7 +72,24 @@ fn run() -> Result<(), String> {
             "usage": usage(20, 10, 1, 1),
             "source_fingerprint_sha256": fingerprint,
         }),
-        "agent" | "sleep" | "stderr-oversize" | "mutate" => agent_response(&request, fingerprint)?,
+        "agent" | "require-openai-key" | "sleep" | "stderr-oversize" | "unlisted-evidence"
+        | "mutate" => {
+            if mode == "require-openai-key" && env::var_os("OPENAI_API_KEY").is_none() {
+                return Err("OPENAI_API_KEY did not reach agent adapter".to_owned());
+            }
+            let mut response = agent_response(&request, fingerprint)?;
+            if mode == "unlisted-evidence" {
+                let workspace = required_string(&request, "workspace_root")?;
+                let bytes = line_range(&Path::new(workspace).join("unlisted.txt"), 1, 1)?;
+                response["evidence"] = json!([{
+                    "path": "unlisted.txt",
+                    "line_start": 1,
+                    "line_end": 1,
+                    "sha256": hash_bytes(&bytes),
+                }]);
+            }
+            response
+        }
         _ => return Err("mode must be packet or agent".to_owned()),
     };
     let bytes =
@@ -96,16 +118,21 @@ fn agent_response(request: &Value, fingerprint: &str) -> Result<Value, String> {
     } else {
         "intentionally incorrect cold baseline"
     };
-    Ok(json!({
-        "answer": answer,
-        "usage": if treatment { usage(40, 10, 1, 1) } else { usage(80, 20, 3, 2) },
-        "source_fingerprint_sha256": fingerprint,
-        "evidence": [{
+    let evidence = if treatment {
+        json!([{
             "path": path,
             "line_start": line_start,
             "line_end": line_end,
             "sha256": hash_bytes(&evidence_bytes),
-        }],
+        }])
+    } else {
+        json!([])
+    };
+    Ok(json!({
+        "answer": answer,
+        "usage": if treatment { usage(40, 10, 1, 1) } else { usage(80, 20, 3, 2) },
+        "source_fingerprint_sha256": fingerprint,
+        "evidence": evidence,
     }))
 }
 

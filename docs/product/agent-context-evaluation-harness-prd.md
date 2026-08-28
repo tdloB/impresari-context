@@ -11,8 +11,11 @@
   without an Impresari Context packet.
 - Parent requirements: [Master PRD](master-prd.md) and
   [Evaluation PRD](evaluation-prd.md).
-- Architecture decision:
-  [ADR-0059](../decisions/0059-developer-agent-evaluation-adapter-boundary.md).
+- Architecture decisions:
+  [ADR-0059](../decisions/0059-developer-agent-evaluation-adapter-boundary.md)
+  and [ADR-0060](../decisions/0060-provider-backed-agent-evaluation-adapters.md).
+- Production-study readiness:
+  [Agent-Context Production Study Preparation](agent-context-production-study-preparation.md).
 
 ## Problem And Purpose
 
@@ -89,11 +92,13 @@ Each arm records, when supplied by the adapter:
 - source fingerprint and non-sensitive adapter metadata.
 
 Correctness and evidence rules are specified before execution. Answer
-correctness is a scored outcome, not a record-validity condition. Exact evidence
-must identify an allowed source-relative file and valid byte or line range.
-Missing, malformed, out-of-root, symlink-mediated, or mismatched evidence fails
-the arm. Aggregate comparisons report treatment versus Baseline A, treatment
-versus Baseline B, and the A-to-B drift; they do not hide individual records.
+correctness and failure to return the expected citation are scored outcomes,
+not record-validity conditions. Every returned citation must identify an
+allowed source-relative file and valid line range with an adapter-derived
+digest. Malformed, out-of-root, symlink-mediated, or digest-mismatched evidence
+invalidates the arm. Aggregate comparisons report treatment versus Baseline A,
+treatment versus Baseline B, and the A-to-B drift; they do not hide individual
+records.
 
 ## Reproducibility And Five-Language Fixture
 
