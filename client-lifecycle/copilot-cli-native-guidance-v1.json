@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "manifest_id": "copilot-cli-native-guidance-v1",
   "client": "GitHub Copilot CLI",
-  "surface": "native_guidance_v2",
+  "surface": "native_guidance_v3",
   "supported_versions": ["1.0.80"],
   "supported_os": ["macos"],
   "supported_arch": ["aarch64"],
@@ -11,13 +11,13 @@
     "kind": "native_guidance",
     "owned_relative_path": ".github/instructions/impresari-context.instructions.md",
     "ownership_marker": "ownership=exact_fixed_artifact:impresari-context",
-    "sha256": "ebc0d5b2f410aa52bc1c09b50bb115425b4f06ef3f3928eaea20ae6934111917"
+    "sha256": "30c9e78ea01c56a5b60024a961a2fb2d3f06bad5afedd97e8dc25d2c8e5950b5"
   },
   "evidence": {
     "record": "docs/verification/phase-2-copilot-cli-native-guidance.md",
-    "sha256": "fe68e7b2c9388d9afc340be3863a0bbb7afa902681d568fc2b6bd122e678d8b3",
-    "observed_at": "2026-08-26",
-    "fresh_through": "2026-11-24"
+    "sha256": "074c75d8bbfbe30eb4fd40cbda950d02fea6c6d488af6fa84b509c9d7fc18400",
+    "observed_at": "2026-08-27",
+    "fresh_through": "2026-11-25"
   },
   "lifecycle": {
     "health_check": "explicit_read_only",

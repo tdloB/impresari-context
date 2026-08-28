@@ -209,11 +209,11 @@
       "lifecycle_maintenance": {
         "level": "L4",
         "manifest": "client-lifecycle/copilot-cli-native-guidance-v1.json",
-        "scope": "native_guidance_v2",
+        "scope": "native_guidance_v3",
         "client_version": "1.0.80",
         "os": "macos",
         "arch": "aarch64",
-        "fresh_through": "2026-11-24"
+        "fresh_through": "2026-11-25"
       }
     },
     {

@@ -2,14 +2,14 @@
 
 - Status: passed for the recorded source-free scope
 - Verified: 2026-08-27
-- Client scope: GitHub Copilot CLI `1.0.80`, macOS aarch64, native-guidance v2
+- Client scope: GitHub Copilot CLI `1.0.80`, macOS aarch64, native-guidance v3
 - Governing records: [CI-4 PRD](../product/client-integration-l4-lifecycle-maintenance-prd.md),
   [CI-4 ARD](../architecture/ci-4-client-lifecycle-maintenance-ard.md), and
   [ADR-0043](../decisions/0043-source-free-client-lifecycle-maintenance.md)
 
 ## Implemented contract
 
-The initial compatibility manifest binds the exact v2 owned guidance path,
+The initial compatibility manifest binds the exact v3 owned guidance path,
 ownership marker, artifact SHA-256, client/version/OS/architecture scope,
 evidence-record SHA-256, freshness window, lifecycle constraints, and safe
 next steps. The receipt schema closes every object and fixes all authority

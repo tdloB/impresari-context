@@ -46,7 +46,7 @@ Dir.mktmpdir("impresari-client-lifecycle-") do |directory|
 
   cases = {
     "compatible" => run_check(target: owned),
-    "stale_evidence" => run_check(target: owned, as_of: "2026-11-25"),
+    "stale_evidence" => run_check(target: owned, as_of: "2026-11-26"),
     "unsupported" => run_check(target: owned, os: "windows"),
     "unknown" => run_check(target: owned, version: "9.9.9"),
     "client_unavailable" => run_check(target: owned, available: false),

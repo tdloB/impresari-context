@@ -69,7 +69,7 @@ maintenance process, not an automated monitoring service.
 
 ## Initial admitted scope
 
-The first CI-4 implementation covers only the exact GitHub Copilot CLI v2
+The first CI-4 implementation covers only the exact GitHub Copilot CLI v3
 native-guidance artifact recorded for CLI `1.0.80` on macOS aarch64. The
 versioned manifest, receipt contract, and one-shot checker are source-free and
 read-only. Client availability, version, OS, architecture, date, manifest, and
