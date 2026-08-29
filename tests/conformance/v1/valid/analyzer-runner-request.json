@@ -1,0 +1,21 @@
+{
+  "schema_name": "analyzer-runner-request",
+  "schema_version": "1.0.0",
+  "request_id": "req_synthetic01",
+  "occurred_at": "2026-08-29T00:00:00Z",
+  "deadline_at": "2026-08-29T00:00:01Z",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "assessment_plan_id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "policy_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "capability_ids": ["synthetic.accounting"],
+  "artifacts": [{"artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "bytes": "4", "media_type": "application.octet-stream", "target_platform": "any"}],
+  "resource_profile_id": "iar-protocol-synthetic-v1",
+  "resource_profile_digest": "sha256:f4e05f583e5af4719703e1178546d625bccb8efde1527143d55e32a9bfcb00b0",
+  "synthetic_behavior": "no_op",
+  "source_paths_included": false,
+  "commands_included": false,
+  "network_destinations_included": false,
+  "credentials_included": false,
+  "authority_added": false
+}

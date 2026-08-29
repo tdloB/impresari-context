@@ -68,12 +68,14 @@ assessment assembly. HRA-4 is complete as a separate pure deterministic
 evaluator with monotonic restriction, explicit incomplete-analysis handling,
 and no exception or ordinary-host authorization input. HRA-5 is complete with
 an exact-commit, three-platform candidate build and clean-install rehearsal;
-ADR-0073 Step 1 is complete. None of these components
-authorizes scanner execution, repository execution, artifact upload,
-threat-intelligence access, or VM/cloud provisioning. Each implementation
-Step 2 and Step 3 remain gated by their proposed ADRs and an explicit
-founder-approved threat model, platform, supply-chain, privacy, and
-release-evidence scope.
+ADR-0073 Step 1 is complete. ADR-0074 IAR-0 is also complete with closed runner
+contracts, a fixed synthetic resource profile, reviewed fixture provenance,
+exact framing and identities, and a pure in-memory no-op/fault worker. None of
+these components authorizes scanner execution, repository execution, artifact upload,
+threat-intelligence access, or VM/cloud provisioning. Each increment remains
+bound to its accepted threat-model, platform, supply-chain, privacy, and
+release-evidence scope. IAR-1 process confinement is next; real analyzers and
+Step 3 quarantine remain later, separately evidenced increments.
 
 ## Parallel Client Integration Depth Track
 

@@ -1,0 +1,23 @@
+{
+  "schema_name": "analyzer-runner-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-29T12:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/analyzer-runner-capability.json", "sha256": "01cb27bfcbfef5e27d33f4d2394d3470e9efece921bf3a596df195d23712f20b", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "closed synthetic-only capability declaration"},
+    {"path": "valid/analyzer-execution-manifest.json", "sha256": "40df228760a3d52e512ee4634e7764ec4120dfeaef9b807f34d443061d60c2f3", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "pinned authority-neutral synthetic manifest"},
+    {"path": "valid/analyzer-runner-request.json", "sha256": "2ad94a206cae67b379aeb1452fe41bc5c929f511b2d2136bf52c8567afdc8e35", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "path-free bounded synthetic request"},
+    {"path": "valid/analyzer-runner-result.json", "sha256": "3857959bc59aadc17119b59ea8bc5c20a2902bf54686f45d497e54c8280dc010", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "complete zero-finding synthetic result"},
+    {"path": "valid/analyzer-runner-failure.json", "sha256": "94ae41a98049694581a8184d92993a53aeb83b8179d229cee37aa41d3788e0f2", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free all-or-nothing synthetic failure"},
+    {"path": "valid/iar-protocol-synthetic-profile.json", "sha256": "f4e05f583e5af4719703e1178546d625bccb8efde1527143d55e32a9bfcb00b0", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "fixed IAR-0 protocol resource profile"},
+    {"path": "invalid/analyzer-runner-request-command.json", "sha256": "e0fc8ebe57432463ad50025d3d41ddb881664e3d4a360fa9260ae21e247d9131", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject command-bearing requests"},
+    {"path": "invalid/analyzer-execution-manifest-repository-supplied.json", "sha256": "cdf0b2390e2c8f3c152fdb9b50a619fc6bb0d60abcc5ecbe7f1ac8df8ae7e872", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject repository-supplied analyzer identity"},
+    {"path": "invalid/analyzer-runner-result-finding.json", "sha256": "11cac3c9c23b9867be325aef7451b895cd6baa5bff25dcb4864459304076f36a", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject findings from the no-analysis worker"},
+    {"path": "invalid/analyzer-runner-failure-partial.json", "sha256": "6a29d64b1fcb96d599c15e60359ce593e0e1bfc335bd52ae31f81212fb7c3ce7", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject partial result promotion after failure"}
+  ]
+}

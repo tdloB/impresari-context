@@ -184,6 +184,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-analyzer-protocol"
+version = "0.1.0"
+dependencies = [
+ "jsonschema",
+ "serde",
+ "serde_json",
+ "serde_json_canonicalizer",
+ "sha2",
+]
+
+[[package]]
 name = "context-claude-code"
 version = "0.1.0"
 dependencies = [

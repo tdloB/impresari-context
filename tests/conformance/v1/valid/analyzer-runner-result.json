@@ -1,0 +1,22 @@
+{
+  "schema_name": "analyzer-runner-result",
+  "schema_version": "1.0.0",
+  "result_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "request_id": "req_synthetic01",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "analyzer_id": "impresari.synthetic",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "capability_ids": ["synthetic.accounting"],
+  "resource_profile_digest": "sha256:f4e05f583e5af4719703e1178546d625bccb8efde1527143d55e32a9bfcb00b0",
+  "completed_at": "2026-08-29T00:00:01Z",
+  "artifact_statuses": [{"artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "status": "synthetic_accounted", "bytes_observed": "4"}],
+  "findings": [],
+  "completeness": "complete",
+  "limitations": ["synthetic-worker-no-analysis"],
+  "synthetic_only": true,
+  "safety_claimed": false,
+  "ordinary_host_execution_authorized": false,
+  "authority_added": false
+}

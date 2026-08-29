@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-runner-resource-profile.schema.json",
+  "title": "IAR-0 protocol-only synthetic worker resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "limits", "capabilities"],
+  "properties": {
+    "schema_name": {"const": "analyzer-runner-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-protocol-synthetic-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["request_bytes", "artifacts", "artifact_bytes", "total_artifact_bytes", "result_bytes", "findings", "elapsed_ms", "memory_bytes", "frames"],
+      "properties": {
+        "request_bytes": {"const": "262144"},
+        "artifacts": {"const": "64"},
+        "artifact_bytes": {"const": "1048576"},
+        "total_artifact_bytes": {"const": "4194304"},
+        "result_bytes": {"const": "262144"},
+        "findings": {"const": "0"},
+        "elapsed_ms": {"const": "1000"},
+        "memory_bytes": {"const": "33554432"},
+        "frames": {"const": "1"}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesystem", "process", "analyzer_execution", "network", "credentials", "environment", "artifact_upload", "repository_execution", "quarantine_execution", "policy_decision"],
+      "properties": {
+        "filesystem": {"const": false},
+        "process": {"const": false},
+        "analyzer_execution": {"const": false},
+        "network": {"const": false},
+        "credentials": {"const": false},
+        "environment": {"const": false},
+        "artifact_upload": {"const": false},
+        "repository_execution": {"const": false},
+        "quarantine_execution": {"const": false},
+        "policy_decision": {"const": false}
+      }
+    }
+  }
+}

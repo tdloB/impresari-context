@@ -1,0 +1,20 @@
+{
+  "schema_name": "analyzer-execution-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "analyzer_id": "impresari.synthetic",
+  "analyzer_version": "1.0.0",
+  "publisher": "BoldtHaus Studio, LLC",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "capability_ids": ["synthetic.accounting"],
+  "host_platforms": ["macos_arm64", "linux_x86_64", "windows_x86_64"],
+  "target_platforms": ["any"],
+  "network": "none",
+  "determinism": "deterministic",
+  "result_schema": "analyzer-runner-result@1.0.0",
+  "revoked": false,
+  "synthetic_only": true,
+  "repository_supplied": false,
+  "authority_added": false
+}

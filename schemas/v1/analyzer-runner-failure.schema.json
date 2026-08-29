@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-runner-failure.schema.json",
+  "title": "IAR-0 source-free synthetic worker failure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "failure_id", "request_id", "workspace_snapshot", "manifest_id", "completed_at", "failure_code", "source_free", "partial_result_accepted", "coverage_completed", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "analyzer-runner-failure"},
+    "schema_version": {"const": "1.0.0"},
+    "failure_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "manifest_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "failure_code": {"type": "string", "enum": ["invalid_request", "invalid_manifest", "missing_artifact", "artifact_mismatch", "simulated_crash", "simulated_timeout", "simulated_input_mutation", "simulated_output_flood", "simulated_malformed_output", "result_limit_exceeded"]},
+    "source_free": {"const": true},
+    "partial_result_accepted": {"const": false},
+    "coverage_completed": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

@@ -4,7 +4,8 @@
 
 - Product: Impresari Analyzer Runner for Impresari Context.
 - ARD ID/version: IC-IAR-ARD-001 / 0.1.
-- Status: Proposed; architecture and implementation planning only.
+- Status: Accepted; IAR-0 closed protocol and synthetic worker implemented.
+  IAR-1 process confinement remains pending.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 2 of 3.
 - Related records:

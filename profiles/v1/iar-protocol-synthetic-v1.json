@@ -1,0 +1,29 @@
+{
+  "schema_name": "analyzer-runner-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-protocol-synthetic-v1",
+  "profile_version": "1.0.0",
+  "limits": {
+    "request_bytes": "262144",
+    "artifacts": "64",
+    "artifact_bytes": "1048576",
+    "total_artifact_bytes": "4194304",
+    "result_bytes": "262144",
+    "findings": "0",
+    "elapsed_ms": "1000",
+    "memory_bytes": "33554432",
+    "frames": "1"
+  },
+  "capabilities": {
+    "filesystem": false,
+    "process": false,
+    "analyzer_execution": false,
+    "network": false,
+    "credentials": false,
+    "environment": false,
+    "artifact_upload": false,
+    "repository_execution": false,
+    "quarantine_execution": false,
+    "policy_decision": false
+  }
+}

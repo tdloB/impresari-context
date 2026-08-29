@@ -23,6 +23,12 @@
     {"fixture": "valid/repository-admission-policy.json", "schema": "repository-admission-policy.schema.json", "valid": true},
     {"fixture": "valid/repository-admission-decision.json", "schema": "repository-admission-decision.schema.json", "valid": true},
     {"fixture": "valid/hra-static-contract-profile.json", "schema": "hostile-repository-resource-profile.schema.json", "valid": true},
+    {"fixture": "valid/iar-protocol-synthetic-profile.json", "schema": "analyzer-runner-resource-profile.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-execution-manifest.json", "schema": "analyzer-execution-manifest.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-runner-request.json", "schema": "analyzer-runner-request.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-runner-result.json", "schema": "analyzer-runner-result.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-runner-failure.json", "schema": "analyzer-runner-failure.schema.json", "valid": true},
     {"fixture": "valid/repository-map.json", "schema": "repository-map.schema.json", "valid": true},
     {"fixture": "valid/structural-graph.json", "schema": "structural-graph.schema.json", "valid": true},
     {"fixture": "valid/structural-query.json", "schema": "structural-query.schema.json", "valid": true},
@@ -43,6 +49,10 @@
     {"fixture": "invalid/security-finding-observed-without-evidence.json", "schema": "security-finding.schema.json", "valid": false},
     {"fixture": "invalid/analyzer-coverage-completed-without-provenance.json", "schema": "analyzer-coverage.schema.json", "valid": false},
     {"fixture": "invalid/analyzer-result-envelope-authority.json", "schema": "analyzer-result-envelope.schema.json", "valid": false},
-    {"fixture": "invalid/repository-admission-decision-isolated-without-profile.json", "schema": "repository-admission-decision.schema.json", "valid": false}
+    {"fixture": "invalid/repository-admission-decision-isolated-without-profile.json", "schema": "repository-admission-decision.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-runner-request-command.json", "schema": "analyzer-runner-request.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-execution-manifest-repository-supplied.json", "schema": "analyzer-execution-manifest.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-runner-result-finding.json", "schema": "analyzer-runner-result.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-runner-failure-partial.json", "schema": "analyzer-runner-failure.schema.json", "valid": false}
   ]
 }
