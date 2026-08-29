@@ -1,0 +1,23 @@
+{
+  "schema_name": "analyzer-result-envelope",
+  "schema_version": "1.0.0",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "requirement_id": "req_synthetic12345678",
+  "capability_id": "windows.pe.metadata",
+  "artifact_hashes": ["sha256:5555555555555555555555555555555555555555555555555555555555555555"],
+  "ruleset_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "completed_at": "2026-08-29T13:00:00Z",
+  "fresh_until": "2026-08-29T14:00:00Z",
+  "findings": [
+    {
+      "artifact_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "category": "analyzer_detection",
+      "severity": "high",
+      "confidence": "confirmed",
+      "method": "synthetic-signature-v1"
+    }
+  ],
+  "safety_claimed": false,
+  "ordinary_host_execution_authorized": false,
+  "authority_added": false
+}

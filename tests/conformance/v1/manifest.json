@@ -18,6 +18,7 @@
     {"fixture": "valid/security-artifact-inventory.json", "schema": "security-artifact-inventory.schema.json", "valid": true},
     {"fixture": "valid/security-finding.json", "schema": "security-finding.schema.json", "valid": true},
     {"fixture": "valid/analyzer-coverage.json", "schema": "analyzer-coverage.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-result-envelope.json", "schema": "analyzer-result-envelope.schema.json", "valid": true},
     {"fixture": "valid/repository-security-assessment.json", "schema": "repository-security-assessment.schema.json", "valid": true},
     {"fixture": "valid/repository-admission-policy.json", "schema": "repository-admission-policy.schema.json", "valid": true},
     {"fixture": "valid/repository-admission-decision.json", "schema": "repository-admission-decision.schema.json", "valid": true},
@@ -41,6 +42,7 @@
     {"fixture": "invalid/repository-admission-decision-host-authority.json", "schema": "repository-admission-decision.schema.json", "valid": false},
     {"fixture": "invalid/security-finding-observed-without-evidence.json", "schema": "security-finding.schema.json", "valid": false},
     {"fixture": "invalid/analyzer-coverage-completed-without-provenance.json", "schema": "analyzer-coverage.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-result-envelope-authority.json", "schema": "analyzer-result-envelope.schema.json", "valid": false},
     {"fixture": "invalid/repository-admission-decision-isolated-without-profile.json", "schema": "repository-admission-decision.schema.json", "valid": false}
   ]
 }

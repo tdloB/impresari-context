@@ -162,6 +162,7 @@ version = "0.1.0"
 dependencies = [
  "base64",
  "context-core",
+ "context-extensions",
  "context-workspace",
  "jsonschema",
  "serde",

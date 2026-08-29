@@ -20,6 +20,7 @@
     {"name": "security-artifact-inventory", "path": "security-artifact-inventory.schema.json", "identity_object_kind": null},
     {"name": "security-finding", "path": "security-finding.schema.json", "identity_object_kind": null},
     {"name": "analyzer-coverage", "path": "analyzer-coverage.schema.json", "identity_object_kind": null},
+    {"name": "analyzer-result-envelope", "path": "analyzer-result-envelope.schema.json", "identity_object_kind": null},
     {"name": "repository-security-assessment", "path": "repository-security-assessment.schema.json", "identity_object_kind": null},
     {"name": "repository-admission-policy", "path": "repository-admission-policy.schema.json", "identity_object_kind": null},
     {"name": "repository-admission-decision", "path": "repository-admission-decision.schema.json", "identity_object_kind": null},

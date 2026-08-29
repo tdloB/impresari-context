@@ -1,6 +1,6 @@
 # ADR-0073: Evidence-only hostile-repository admission
 
-- Status: Accepted; HRA-1 and HRA-2 implemented; HRA-3 implementation in progress
+- Status: Accepted; HRA-1 through HRA-3 implemented; HRA-4 not implemented
 - Date: 2026-08-26
 - Scope: Security artifact inventory, assessment, coverage, and deterministic
   stage-eligibility contracts
@@ -127,10 +127,10 @@ narrow, deterministic observations for safely admitted formats. The first
 implemented corpora recognize exact npm lifecycle keys under a strict
 `package.json` top-level `scripts` object and exact `privileged: true` service
 keys in a deliberately canonical Compose layout. Values remain uninterpreted
-and unretained. The initial HRA-3 increment deterministically plans unavailable
-mandatory coverage and assembles immutable assessments without accepting or
-running analyzer output. External-result normalization remains a separate HRA-3
-increment; ADR-0074 and ADR-0075 remain proposed and independently gated.
+and unretained. HRA-3 deterministically plans unavailable mandatory coverage,
+accepts only closed synthetic result payloads after ADR-0013 zero-capability
+normalization, and assembles immutable assessments. It does not discover or run
+analyzers. ADR-0074 and ADR-0075 remain proposed and independently gated.
 
 ## Review Triggers
 

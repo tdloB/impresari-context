@@ -1,6 +1,6 @@
 # HRA-3 Coverage And Assessment Corpus
 
-- Scope: the first ADR-0073 HRA-3 increment.
+- Scope: the complete ADR-0073 HRA-3 increment.
 - Inputs: an identity-valid HRA-1 inventory, its HRA-2 observation bundle, and
   a caller-supplied canonical UTC generation time.
 - Capability boundary: pure record planning and assembly only; no analyzer
@@ -32,11 +32,30 @@ prominent as stable unknowns and force `partial` completeness.
 are always false. Finding count does not control coverage: zero findings with a
 missing mandatory analysis remains partial.
 
+## Synthetic normalized analyzer results
+
+Completed coverage can enter only through an ADR-0013
+`normalized-extension-output` record with `untrusted_derived_data` trust and an
+exact analyzer artifact digest and envelope digest. Its payload must validate
+against `analyzer-result-envelope.schema.json` and match one unavailable
+requirement's snapshot, identifier, capability, and complete sorted artifact
+set. Completion and freshness timestamps are canonical UTC; the application
+time must be at or after completion and strictly before `fresh_until`.
+
+Only categorical artifact hash, category, severity, confidence, and bounded
+method identifiers are admitted. Raw detection descriptions, source bytes,
+commands, paths, provider metadata, and analyzer-controlled limitations are not
+retained. Accepted findings are marked `derived` and
+`untrusted_derived_data`, with exact analyzer and ruleset digests. The coverage
+ledger is re-identified after completion and the assessment independently
+checks every derived finding against completed coverage provenance.
+
 ## Adversarial and resource review
 
 Tests cover deterministic grouping, ordering, schema conformance, forged
 inventory rejection, coverage-state laundering rejection, mandatory-analysis
 visibility, exact finding propagation, the no-requirement complete case, and
-the frozen output ceiling. Completed external analyzer results are deliberately
-not representable by this increment; their envelope normalization, provenance,
-freshness, and mismatch rules remain the next HRA-3 slice.
+the frozen output ceiling. Additional tests cover the closed envelope schema,
+exclusive freshness boundary, snapshot/requirement/capability/artifact
+mismatch, authority claims, duplicate derived identities, exact analyzer and
+ruleset provenance, and completed assessment integration.

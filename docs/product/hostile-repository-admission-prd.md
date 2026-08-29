@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-HRA-PRD-001 / 0.1.
-- Status: HRA-0 through HRA-2 implemented; HRA-3 implementation in progress.
+- Status: HRA-0 through HRA-3 implemented; HRA-4 not implemented.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 1 of 3.
@@ -417,9 +417,10 @@ observations without a repeated approval ceremony. The implemented HRA-2
 corpora are limited to exact npm lifecycle keys under a strict top-level
 `scripts` object and exact `privileged: true` keys at the canonical Compose
 service-property indentation.
-The initial HRA-3 slice deterministically derives unavailable mandatory
-coverage and an immutable assessment from identity-checked HRA-1/HRA-2 records.
-It does not accept completed external analyzer results.
+HRA-3 deterministically derives unavailable mandatory coverage, accepts a
+closed synthetic analyzer-result payload only after ADR-0013 normalization,
+and assembles immutable assessments from identity-checked records. It does not
+discover or run analyzers.
 Analyzers, network access, uploads, deep hostile-format parsing, repository
 execution, policy decisions, and quarantine execution remain outside this
 increment.

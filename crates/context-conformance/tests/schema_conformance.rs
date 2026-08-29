@@ -335,6 +335,7 @@ fn hostile_repository_contract_profile_and_fixture_provenance_are_frozen() {
         "security-artifact-inventory.schema.json",
         "security-finding.schema.json",
         "analyzer-coverage.schema.json",
+        "analyzer-result-envelope.schema.json",
         "repository-security-assessment.schema.json",
         "repository-admission-policy.schema.json",
         "repository-admission-decision.schema.json",

@@ -153,6 +153,16 @@ comparison baseline.
 - Assessment output validates against the frozen schema, stays within the
   frozen output ceiling, and fixes safety, ordinary-host execution, and added
   authority to false.
+- Completed coverage is accepted only from ADR-0013-normalized analyzer output
+  whose closed payload matches the exact snapshot, planned requirement,
+  capability, sorted artifact set, analyzer digest, ruleset digest, and current
+  freshness interval.
+- Stale, future-completed, malformed, excessive, mismatched, duplicate, or
+  authority-claiming result payloads fail closed and cannot change coverage or
+  assessment state.
+- Derived findings retain only bounded categorical fields, exact artifact and
+  analyzer/ruleset digests, constant limitations, and untrusted-derived trust;
+  raw analyzer text is not admitted.
 
 ## Evaluation Principles
 
