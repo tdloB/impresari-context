@@ -27,6 +27,7 @@
     {"fixture": "valid/iar-application-supervisor-profile.json", "schema": "analyzer-supervisor-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/analyzer-supervisor-confinement.json", "schema": "analyzer-supervisor-confinement.schema.json", "valid": true},
     {"fixture": "valid/analyzer-supervisor-audit.json", "schema": "analyzer-supervisor-audit.schema.json", "valid": true},
+    {"fixture": "valid/macos-xpc-sandbox-feasibility.json", "schema": "macos-xpc-sandbox-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
     {"fixture": "valid/analyzer-execution-manifest.json", "schema": "analyzer-execution-manifest.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-request.json", "schema": "analyzer-runner-request.schema.json", "valid": true},
@@ -58,6 +59,7 @@
     {"fixture": "invalid/analyzer-runner-result-finding.json", "schema": "analyzer-runner-result.schema.json", "valid": false},
     {"fixture": "invalid/analyzer-runner-failure-partial.json", "schema": "analyzer-runner-failure.schema.json", "valid": false},
     {"fixture": "invalid/analyzer-supervisor-confinement-os-claim.json", "schema": "analyzer-supervisor-confinement.schema.json", "valid": false},
-    {"fixture": "invalid/analyzer-supervisor-audit-retained-source.json", "schema": "analyzer-supervisor-audit.schema.json", "valid": false}
+    {"fixture": "invalid/analyzer-supervisor-audit-retained-source.json", "schema": "analyzer-supervisor-audit.schema.json", "valid": false},
+    {"fixture": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "schema": "macos-xpc-sandbox-feasibility.schema.json", "valid": false}
   ]
 }

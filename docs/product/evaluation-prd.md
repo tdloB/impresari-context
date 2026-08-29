@@ -234,6 +234,13 @@ comparison baseline.
   artifact participates in IAR-1B admission.
 - IAR-2 remains closed until every platform claimed for YARA has passed IAR-1B.
 
+The first macOS App Sandbox/XPC synthetic candidate records a `partial` result.
+It passes identity, bounded transport, entitlement, external-filesystem,
+credential-canary, unrelated-process, and live loopback network-denial checks.
+Device, resource/process-tree, fault-timeout, complete OS-managed cleanup,
+production signing/notarization, packaging, and multi-host gates remain false or
+unverified; the candidate is not an admission result.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

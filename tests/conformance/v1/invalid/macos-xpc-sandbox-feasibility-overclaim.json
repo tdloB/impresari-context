@@ -1,0 +1,40 @@
+{
+  "schema_name": "macos-xpc-sandbox-feasibility",
+  "schema_version": "1.0.0",
+  "prototype_id": "iar-macos-xpc-feasibility-v1",
+  "observed_host": {
+    "operating_system": "macos",
+    "version": "26.5.1",
+    "build": "25F80",
+    "architecture": "arm64",
+    "xcode_version": "26.6",
+    "swift_version": "6.3.3"
+  },
+  "signing_mode": "ad_hoc_development",
+  "result": "candidate_passed",
+  "checks": {
+    "private_xpc_transport": true,
+    "host_app_sandbox": true,
+    "service_app_sandbox": true,
+    "service_network_entitlement_absent": true,
+    "app_container_read_write": true,
+    "external_filesystem_denial": true,
+    "credential_canary_denial": true,
+    "device_denial": true,
+    "unrelated_process_denial": true,
+    "network_denial": true,
+    "cpu_limit": false,
+    "memory_limit": false,
+    "process_count_limit": false,
+    "descendant_containment": false,
+    "bounded_request": true,
+    "bounded_reply": true,
+    "timeout": true,
+    "cleanup": true
+  },
+  "limitations": ["synthetic-probe-no-analysis"],
+  "os_confined": true,
+  "production_admitted": true,
+  "source_retained": false,
+  "authority_added": false
+}

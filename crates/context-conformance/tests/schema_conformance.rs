@@ -509,6 +509,55 @@ fn analyzer_supervisor_profile_and_fixture_provenance_are_frozen() {
 }
 
 #[test]
+fn macos_xpc_feasibility_fixture_provenance_is_frozen() {
+    let root = repository_root();
+    let provenance =
+        read_json(&root.join("tests/conformance/v1/macos-xpc-sandbox-fixture-provenance.json"));
+    assert_eq!(
+        provenance["review_status"],
+        "approved_original_synthetic_only"
+    );
+    for prohibited in [
+        "contains_executable_artifacts",
+        "contains_malware_or_live_signatures",
+        "contains_third_party_source",
+        "contains_private_or_customer_source",
+        "network_or_provider_data_used",
+    ] {
+        assert_eq!(provenance[prohibited], false);
+    }
+    let provenance_paths = provenance["cases"]
+        .as_array()
+        .expect("macOS XPC provenance cases")
+        .iter()
+        .map(|case| {
+            assert_eq!(case["origin"], "original_synthetic");
+            assert_eq!(case["license"], "Apache-2.0");
+            let relative = case["path"].as_str().expect("fixture path");
+            assert!(!relative.starts_with('/') && !relative.contains(".."));
+            let bytes = fs::read(root.join("tests/conformance/v1").join(relative))
+                .unwrap_or_else(|error| panic!("provenance fixture {relative}: {error}"));
+            assert_eq!(
+                lowercase_hex(Sha256::digest(bytes)),
+                case["sha256"].as_str().expect("fixture digest")
+            );
+            relative
+        })
+        .collect::<BTreeSet<_>>();
+    let conformance = read_json(&root.join("tests/conformance/v1/manifest.json"));
+    let declared_paths = conformance["cases"]
+        .as_array()
+        .expect("conformance cases")
+        .iter()
+        .filter(|case| {
+            case["schema"].as_str().expect("schema") == "macos-xpc-sandbox-feasibility.schema.json"
+        })
+        .map(|case| case["fixture"].as_str().expect("fixture"))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(provenance_paths, declared_paths);
+}
+
+#[test]
 fn rust_packet_output_satisfies_the_published_schema() {
     let root = repository_root();
     let schema_root = root.join("schemas/v1");

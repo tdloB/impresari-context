@@ -262,6 +262,10 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1A verification](docs/verification/iar-1-application-supervision.md):
   delivered controls, fail-closed process tests, exact non-claims, and
   reproduction commands for the synthetic-supervision baseline.
+- [IAR-1B macOS feasibility](docs/verification/iar-1b-macos-xpc-feasibility.md):
+  development-only App Sandbox/private-XPC evidence, exact native denials, and
+  the resource, lifecycle, signing, packaging, and compatibility gates that
+  keep the result partial and unadmitted.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

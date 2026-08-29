@@ -123,6 +123,15 @@ Primary references:
 - [Job Objects](https://learn.microsoft.com/en-us/windows/win32/procthread/job-objects)
 - [Create Process In Sandbox APIs](https://learn.microsoft.com/en-us/windows/win32/secauthz/createprocessinsandbox)
 
+## macOS prototype follow-up
+
+The separately authorized, synthetic-only App Sandbox/XPC prototype is
+recorded in [IAR-1B macOS App Sandbox/XPC feasibility evidence](iar-1b-macos-xpc-feasibility.md).
+It demonstrated a private XPC transport and several native denial boundaries,
+but it did not establish hard resource/process-tree controls, a rehearsed
+timeout, or complete OS-managed container removal. It therefore keeps
+`os_confined` and `production_admitted` false and does not select a backend.
+
 ## Cross-platform selection gate
 
 No platform candidate is selected by this inventory. Selection requires an

@@ -80,6 +80,10 @@ jobs:
       - name: Run quality checks
         shell: bash
         run: ./scripts/check.sh
+      - name: Run macOS App Sandbox/XPC feasibility check
+        if: matrix.os == 'macos-14' && matrix.rust == '1.98.0'
+        shell: bash
+        run: ./scripts/check-macos-xpc-feasibility.sh
       - name: Record bounded platform evidence
         shell: bash
         env:

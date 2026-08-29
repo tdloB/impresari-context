@@ -1,0 +1,15 @@
+{
+  "schema_name": "macos-xpc-sandbox-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-29T23:30:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "da799dd0b91ac40b28cb8bea4f72beba832ab7203adcf193713a611fa101dccc", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS XPC feasibility evidence"},
+    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "b7971851c8da172a4896917501f10bf5a4033181eb3558101cc80430d75d5806", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with incomplete native gates"}
+  ]
+}

@@ -5,7 +5,7 @@
 - Product: Impresari Analyzer Runner for Impresari Context.
 - ARD ID/version: IC-IAR-ARD-001 / 0.1.
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented. IAR-1B OS confinement remains
+  supervision implemented. IAR-1B has one partial macOS feasibility result and remains
   pending.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 2 of 3.
@@ -110,8 +110,13 @@ evidence; Linux and Windows require independent mechanisms and Tier A results.
 Apple's documented preference for XPC privilege separation and its sandbox-
 inheritance/file-access rules make a separately signed app bundle with a
 minimal private XPC service the macOS candidate architecture. This is a design
-candidate only: it is not selected, packaged, signed, implemented, or admitted
-by the application-enforced baseline.
+candidate only. A development-only synthetic prototype now demonstrates the
+private XPC transport, effective App Sandbox identities, bounded messages, and
+selected native denials. It remains unselected and unadmitted because hard
+resource/process-tree controls, fault timeout, OS-managed container cleanup,
+production signing/notarization, packaging, and multi-host evidence are still
+missing. See the
+[macOS feasibility evidence](../verification/iar-1b-macos-xpc-feasibility.md).
 
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
