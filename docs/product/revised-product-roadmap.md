@@ -33,8 +33,11 @@ recorded managed clients. Homebrew distribution now has a reviewable
 [proposed PRD](homebrew-distribution-prd.md), architecture, and ADR; it remains
 unapproved until its separate tap and trust boundary receive an explicit
 founder decision. Automatic update installation remains a later, separate
-future increment so neither capability can silently expand installer or
-background authority.
+future increment with a reviewable
+[proposed PRD](automatic-update-installation-prd.md), architecture, and ADR.
+It remains unapproved and separately gated on signing-root custody, scheduled
+background execution, and live-rehearsal authority so neither adoption feature
+can silently expand installer or background authority.
 
 ## Parallel Client Integration Depth Track
 
