@@ -19,6 +19,7 @@ ruby ./scripts/check-abrupt-restart.rb
 ruby ./scripts/check-client-guidance-templates.rb
 ruby ./scripts/check-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
+ruby ./scripts/check-cursor-client-lifecycle.rb
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null
 if ./scripts/install.sh --version latest >/dev/null 2>&1; then
