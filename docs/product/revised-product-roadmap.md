@@ -25,6 +25,14 @@ the capability exists in the `v0.1.0` binaries.
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Complete: bounded Java, Kotlin, C#, structural-impact, declared change-set, caller-declared associated-test, repository orientation, explicit incremental-update, and convention/exemplar evidence are accepted after full hosted CI. |
 | 5 | Demand-led language expansion | In progress: Scala, Elixir, Clojure, and Haskell have been admitted with bounded structural evidence. The evidence-first admission gate remains the requirement for future languages. |
 
+## Adoption experience track
+
+The short-install and first-run increment provides a pinned, checksum-verified
+macOS/Linux installer and one preview-by-default `quickstart` command for the
+recorded managed clients. Homebrew distribution and automatic update
+installation remain separate future increments so neither can silently expand
+the installer or background authority boundary.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
