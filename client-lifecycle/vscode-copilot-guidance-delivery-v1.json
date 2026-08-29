@@ -1,0 +1,44 @@
+{
+  "schema_name": "client-lifecycle-compatibility-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "vscode-copilot-guidance-delivery-v1",
+  "client": "VS Code Copilot",
+  "surface": "native_guidance_v3_and_chat_cli_ask_l3",
+  "supported_versions": ["1.134.0"],
+  "supported_os": ["macos"],
+  "supported_arch": ["aarch64"],
+  "artifact": {
+    "kind": "native_guidance",
+    "owned_relative_path": ".github/instructions/impresari-context.instructions.md",
+    "ownership_marker": "ownership=exact_fixed_artifact:impresari-context",
+    "sha256": "30c9e78ea01c56a5b60024a961a2fb2d3f06bad5afedd97e8dc25d2c8e5950b5"
+  },
+  "evidence": {
+    "record": "docs/verification/ci-3f-vscode-copilot-guided-delivery.md",
+    "sha256": "6d6ddbfa944b0a0c955c464bb353454c20bbaaf0eca908291576419191b88e80",
+    "observed_at": "2026-08-29",
+    "fresh_through": "2026-11-27"
+  },
+  "delivery_contract": {
+    "level": "L3",
+    "mode": "ask",
+    "protocol_scope": "code_chat_ask_prompt_stdin_context_v1",
+    "source_workspace_exposed": false,
+    "provider_delivery_inferred": false,
+    "operator_confirmation_required": true,
+    "authority_added": false
+  },
+  "lifecycle": {
+    "health_check": "explicit_read_only",
+    "automatic_repair": "denied",
+    "background_monitoring": "denied",
+    "exact_removal": "explicit_owned_artifact_only"
+  },
+  "safe_next_steps": {
+    "compatible": "Retain the current owned guidance and recorded L3 claim; recheck after a VS Code, Copilot Chat, instruction-format, prompt/stdin, MCP, or platform change.",
+    "degraded": "Withdraw the L3/L4 claim, use manual MCP operation, or explicitly remove only the exact owned guidance after reviewing its path and identity.",
+    "stale_evidence": "Withdraw the L3/L4 claim and run new isolated guidance and guided-delivery rehearsals before restoring it.",
+    "unknown": "Use generic manual MCP operation; do not retain an L3/L4 claim for this unrecorded scope.",
+    "unsupported": "No VS Code CI-4 assertion is available for this platform; use the documented generic local MCP path where applicable."
+  }
+}
