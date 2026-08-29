@@ -87,6 +87,11 @@ credential, process, and network denials pass, while device denial and hard
 resource/process-tree limits, fault timeout, complete OS-managed container
 cleanup, production signing/notarization, packaging, and multi-host evidence
 remain open. It does not admit macOS or open IAR-2.
+The resource/lifecycle checkpoint subsequently rejected adoption: documented
+private-XPC and per-process resource controls do not provide hard per-job
+memory, process-count/tree, and deterministic teardown. macOS therefore remains
+at IAR-1A, and Linux is the next IAR-1B candidate. No privileged daemon, private
+API, or VM fallback is added.
 
 ## Parallel Client Integration Depth Track
 

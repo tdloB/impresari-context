@@ -1,8 +1,8 @@
 # ADR-0074: Separate isolated analyzer runner
 
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented; IAR-1B has one partial macOS feasibility result and
-  remains pending
+  supervision implemented; the macOS IAR-1B candidate is not admitted and
+  Linux is next; IAR-1B remains pending
 - Date: 2026-08-26
 - Scope: Static analyzer execution, scanner adapters, Windows hostile-format
   analysis, rule/database updates, and hash-only reputation
@@ -143,7 +143,12 @@ demonstrates exact sandbox identity, bounded IPC, and selected native denials,
 but does not yet establish hard resource/process-tree controls, rehearsed fault
 timeout, complete OS-managed container cleanup, production signing/notarization,
 packaging, or multi-host compatibility. It does not change the decision status,
-admit macOS, authorize a real analyzer, or open IAR-2.
+admit macOS, authorize a real analyzer, or open IAR-2. The follow-up resource
+and lifecycle review finds a material gap in hard per-job memory,
+process-count/tree, and deterministic teardown under the documented selected
+architecture. The candidate is not adopted, macOS remains at IAR-1A, and Linux
+becomes the next IAR-1B candidate. Privileged launch daemons, private APIs, and
+VMs remain outside this decision.
 
 ## Review Triggers
 

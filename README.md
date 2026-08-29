@@ -266,6 +266,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   development-only App Sandbox/private-XPC evidence, exact native denials, and
   the resource, lifecycle, signing, packaging, and compatibility gates that
   keep the result partial and unadmitted.
+- [IAR-1B macOS resource/lifecycle decision](docs/verification/iar-1b-macos-resource-lifecycle-decision.md):
+  why the candidate is not adopted, macOS remains at IAR-1A, and Linux is the
+  next platform rather than weakening hard per-job confinement requirements.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

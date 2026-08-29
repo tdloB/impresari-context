@@ -5,8 +5,9 @@
 - Product: Impresari Analyzer Runner for Impresari Context.
 - PRD ID/version: IC-IAR-PRD-001 / 0.1.
 - Status: Accepted; IAR-0 and IAR-1A application-enforced synthetic supervision
-  implemented. IAR-1B has one partial macOS feasibility prototype; OS
-  confinement and real analyzers remain later increments.
+  implemented. The macOS IAR-1B candidate is not admitted after partial
+  feasibility; Linux is next. OS confinement and real analyzers remain later
+  increments.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 2 of 3; depends on accepted step 1 contracts.
@@ -333,7 +334,12 @@ credentials, unrelated-process access, and a live loopback
 connection. The result remains `partial`: hard CPU, memory, process-count and
 descendant limits, device denial, fault-injected timeout, complete OS-managed container
 cleanup, Developer ID/notarization, packaging, and a second host are unverified.
-It neither admits macOS nor opens IAR-2.
+It neither admits macOS nor opens IAR-2. The follow-up resource/lifecycle review
+found that the documented independently distributed architecture cannot supply
+a hard per-job memory ceiling, per-job process-count/tree boundary, and
+deterministic teardown without changing architectures. The candidate is not
+adopted; macOS remains IAR-1A and the roadmap advances Linux rather than
+weakening the hard gates.
 
 ### IAR-2 — YARA reference adapter
 

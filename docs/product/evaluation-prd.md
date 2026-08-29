@@ -241,6 +241,12 @@ Device, resource/process-tree, fault-timeout, complete OS-managed cleanup,
 production signing/notarization, packaging, and multi-host gates remain false or
 unverified; the candidate is not an admission result.
 
+The subsequent documented-interface review closes this macOS candidate as not
+admitted: XPC service configuration provides no hard per-job resource contract,
+`RLIMIT_NPROC` is per user, `RLIMIT_RSS` is advisory under memory pressure, and
+idle XPC reclamation is not deterministic job-tree teardown. These hard gates
+must not be rescored as passing. Linux is evaluated independently next.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

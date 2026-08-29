@@ -131,6 +131,10 @@ It demonstrated a private XPC transport and several native denial boundaries,
 but it did not establish hard resource/process-tree controls, a rehearsed
 timeout, or complete OS-managed container removal. It therefore keeps
 `os_confined` and `production_admitted` false and does not select a backend.
+The follow-up
+[resource and lifecycle decision](iar-1b-macos-resource-lifecycle-decision.md)
+finds the remaining hard per-job controls unavailable under the selected
+documented architecture. macOS remains at IAR-1A and Linux is evaluated next.
 
 ## Cross-platform selection gate
 

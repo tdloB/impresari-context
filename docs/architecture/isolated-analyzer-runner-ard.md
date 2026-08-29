@@ -5,8 +5,8 @@
 - Product: Impresari Analyzer Runner for Impresari Context.
 - ARD ID/version: IC-IAR-ARD-001 / 0.1.
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented. IAR-1B has one partial macOS feasibility result and remains
-  pending.
+  supervision implemented. The macOS IAR-1B candidate is not admitted; Linux
+  remains pending.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 2 of 3.
 - Related records:
@@ -117,6 +117,14 @@ resource/process-tree controls, fault timeout, OS-managed container cleanup,
 production signing/notarization, packaging, and multi-host evidence are still
 missing. See the
 [macOS feasibility evidence](../verification/iar-1b-macos-xpc-feasibility.md).
+
+The follow-up
+[resource and lifecycle decision](../verification/iar-1b-macos-resource-lifecycle-decision.md)
+does not select that candidate. Documented private-XPC configuration and
+per-process resource limits do not compose a hard per-job memory,
+process-count/tree, and deterministic teardown boundary. macOS therefore stays
+at IAR-1A. A privileged launch daemon, private API, or VM would be a different
+architecture requiring a future explicit decision; none is introduced here.
 
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The

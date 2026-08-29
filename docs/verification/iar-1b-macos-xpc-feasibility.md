@@ -66,11 +66,13 @@ notarization credential was inspected or used.
 
 ## Decision consequence
 
-App Sandbox with a private XPC service remains the preferred macOS candidate,
-but this partial result does not adopt it as the IAR-1B backend. The macOS
-backend remains unsupported for real analyzers until every IAR-1B hard gate is
-demonstrated on an exact supported host profile. IAR-2 YARA execution remains
-closed.
+The subsequent
+[resource and lifecycle decision](iar-1b-macos-resource-lifecycle-decision.md)
+found a material platform gap: the selected independently distributed
+architecture does not provide a documented hard per-job memory,
+process-count/tree, and deterministic teardown composition. The candidate is
+therefore not adopted. macOS remains at IAR-1A, its IAR-1B analyzer backend is
+unsupported, and IAR-2 YARA execution remains closed on macOS.
 
 ## Reproduction
 
