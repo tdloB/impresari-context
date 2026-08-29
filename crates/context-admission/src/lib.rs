@@ -693,7 +693,7 @@ mod tests {
         inventory
             .artifacts
             .iter()
-            .find(|artifact| artifact.path.display_path == display_path)
+            .find(|artifact| artifact.path.display_path.replace('\\', "/") == display_path)
             .unwrap_or_else(|| panic!("missing artifact {display_path}"))
     }
 
