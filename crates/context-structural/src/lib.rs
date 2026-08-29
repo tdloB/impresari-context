@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/C++/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/C++/Ruby/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -52,6 +52,8 @@ pub enum StructuralLanguage {
     C,
     /// C++ source.
     Cpp,
+    /// Ruby source.
+    Ruby,
     /// Scala source.
     Scala,
     /// Elixir source.
@@ -1585,6 +1587,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
         StructuralLanguage::C => "tree-sitter-c-0.24.2",
         StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
+        StructuralLanguage::Ruby => "tree-sitter-ruby-0.23.1",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -1614,6 +1617,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
         StructuralLanguage::C => tree_sitter_c::LANGUAGE.into(),
         StructuralLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
+        StructuralLanguage::Ruby => tree_sitter_ruby::LANGUAGE.into(),
         StructuralLanguage::Scala => tree_sitter_scala::LANGUAGE.into(),
         StructuralLanguage::Elixir => tree_sitter_elixir::LANGUAGE.into(),
         StructuralLanguage::Clojure => tree_sitter_clojure_orchard::LANGUAGE.into(),
@@ -1801,6 +1805,14 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
+        "module" | "class" | "method" | "singleton_method"
+            if request.language == StructuralLanguage::Ruby =>
+        {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
         "function" | "bind" if request.language == StructuralLanguage::Haskell => {
             let name = node
                 .child_by_field_name("name")
@@ -1909,6 +1921,7 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Import, None, module)
         }
+        "call" if request.language == StructuralLanguage::Ruby => ruby_call_fact(node, source)?,
         "export_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1952,6 +1965,11 @@ fn fact_for_node(
                 .then(|| text(function, source))
                 .flatten()?;
             (FactClass::Call, Some(name), None)
+        }
+        "constant"
+            if request.language == StructuralLanguage::Ruby && !is_declaration_name(node) =>
+        {
+            (FactClass::Reference, text(node, source), None)
         }
         "identifier" if !is_declaration_name(node) && !is_call_callee(node) => {
             (FactClass::Reference, text(node, source), None)
@@ -2009,6 +2027,12 @@ fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>>
         .find(|child| child.kind() == kind)
 }
 
+fn has_descendant_kind(node: Node<'_>, kind: &str) -> bool {
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .any(|child| child.kind() == kind || has_descendant_kind(child, kind))
+}
+
 fn is_declaration_name(node: Node<'_>) -> bool {
     let direct_name = node.parent().is_some_and(|parent| {
         ["name", "property"]
@@ -2045,6 +2069,10 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "struct_specifier"
                     | "union_specifier"
                     | "enum_specifier"
+                    | "module"
+                    | "class"
+                    | "method"
+                    | "singleton_method"
             )
     });
     if direct_name {
@@ -2075,6 +2103,9 @@ fn is_call_callee(node: Node<'_>) -> bool {
         "invocation_expression" => parent
             .child_by_field_name("function")
             .is_some_and(|candidate| candidate.id() == node.id()),
+        "call" => parent
+            .child_by_field_name("method")
+            .is_some_and(|candidate| candidate.id() == node.id()),
         _ => false,
     })
 }
@@ -2087,6 +2118,31 @@ fn text(node: Node<'_>, source: &[u8]) -> Option<String> {
 
 fn string_text(node: Node<'_>, source: &[u8]) -> Option<String> {
     text(node, source).map(|value| value.trim_matches(['\'', '"']).to_owned())
+}
+
+fn ruby_call_fact(
+    node: Node<'_>,
+    source: &[u8],
+) -> Option<(FactClass, Option<String>, Option<String>)> {
+    // Admit only syntactically direct sends. Computed method names, receivers,
+    // interpolation, autoloading, and runtime dispatch remain outside scope.
+    let method = node
+        .child_by_field_name("method")
+        .and_then(|value| text(value, source))?;
+    let receiver = node.child_by_field_name("receiver");
+    if receiver.is_none() && matches!(method.as_str(), "require" | "require_relative" | "load") {
+        let argument = node
+            .child_by_field_name("arguments")
+            .and_then(|arguments| arguments.named_child(0))
+            .filter(|value| {
+                value.kind() == "string" && !has_descendant_kind(*value, "interpolation")
+            })
+            .and_then(|value| string_text(value, source))?;
+        return Some((FactClass::Import, None, Some(argument)));
+    }
+    receiver
+        .is_none()
+        .then_some((FactClass::Call, Some(method), None))
 }
 
 fn java_import_module(node: Node<'_>, source: &[u8]) -> Option<String> {
@@ -2319,6 +2375,7 @@ mod tests {
             StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
             StructuralLanguage::C => "tree-sitter-c-0.24.2",
             StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
+            StructuralLanguage::Ruby => "tree-sitter-ruby-0.23.1",
             StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
             StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
             StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -2952,6 +3009,63 @@ using ServiceAlias = Service;
     fn reports_cpp_syntax_recovery_without_invoking_a_toolchain() {
         let source = b"class Service { int run( { return 1; }";
         let output = process_request(&request(source, StructuralLanguage::Cpp)).expect("parse");
+        assert!(output.syntax_errors);
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
+    }
+
+    #[test]
+    fn extracts_bounded_ruby_declarations_requires_calls_and_references() {
+        let source = br#"require "json"
+require_relative "support/helper"
+require dynamic_path
+require "feature/#{dynamic_name}"
+
+module Example
+  class Service
+    def run(value)
+      helper(value)
+    end
+
+    def helper(value)
+      value
+    end
+  end
+end
+"#;
+        let output = process_request(&request(source, StructuralLanguage::Ruby)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Example", "Service", "run", "helper"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing Ruby declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        for module in ["json", "support/helper"] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Import && fact.module.as_deref() == Some(module)
+            }));
+        }
+        assert_eq!(
+            output
+                .facts
+                .iter()
+                .filter(|fact| fact.class == FactClass::Import)
+                .count(),
+            2,
+            "computed require targets must not become structural imports"
+        );
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+    }
+
+    #[test]
+    fn reports_ruby_syntax_recovery_without_invoking_an_interpreter() {
+        let source = b"class Service\n  def run(\nend\n";
+        let output = process_request(&request(source, StructuralLanguage::Ruby)).expect("parse");
         assert!(output.syntax_errors);
         assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
     }
