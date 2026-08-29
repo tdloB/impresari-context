@@ -1,6 +1,6 @@
 # Phase 5 Swift Structural Admission PRD
 
-- Status: Implemented; hosted acceptance pending
+- Status: Complete; hosted acceptance passed in PR 107
 
 ## Outcome
 

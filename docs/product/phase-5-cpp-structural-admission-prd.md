@@ -1,6 +1,6 @@
 # Phase 5 C++ Structural Admission PRD
 
-- Status: Implemented; hosted acceptance pending
+- Status: Complete; hosted acceptance passed in PR 104
 
 ## Outcome
 
@@ -29,4 +29,3 @@ extensions: `.cc`, `.cpp`, `.cxx`, `.hh`, `.hpp`, and `.hxx`.
   policy checks, formatting, linting, tests, and hosted acceptance all pass.
 - No public C++ structural-support claim is made until hosted acceptance
   succeeds.
-

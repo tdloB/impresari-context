@@ -1,6 +1,6 @@
 # Phase 5 Ruby Structural Admission PRD
 
-- Status: Implemented; hosted acceptance pending
+- Status: Complete; hosted acceptance passed in PR 105
 
 ## Outcome
 
