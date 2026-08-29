@@ -4096,6 +4096,14 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
         {
             Some(StructuralLanguage::C)
         }
+        Some(extension)
+            if matches!(
+                extension.to_ascii_lowercase().as_str(),
+                "cc" | "cpp" | "cxx" | "hh" | "hpp" | "hxx"
+            ) =>
+        {
+            Some(StructuralLanguage::Cpp)
+        }
         Some(extension) if extension.eq_ignore_ascii_case("scala") => {
             Some(StructuralLanguage::Scala)
         }
@@ -4182,6 +4190,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
         StructuralLanguage::C => "tree-sitter-c-0.24.2",
+        StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -4670,6 +4679,29 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::C),
             "tree-sitter-c-0.24.2"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_unambiguous_cpp_sources_and_headers() {
+        for path in [
+            "src/service.cc",
+            "src/service.cpp",
+            "src/service.cxx",
+            "include/service.hh",
+            "include/service.hpp",
+            "include/service.hxx",
+        ] {
+            assert_eq!(structural_language(path), Some(StructuralLanguage::Cpp));
+        }
+        assert_eq!(
+            grammar_version(StructuralLanguage::Cpp),
+            "tree-sitter-cpp-0.23.4"
+        );
+        assert_eq!(
+            structural_language("include/service.h"),
+            Some(StructuralLanguage::C),
+            "ambiguous .h remains deterministically owned by the C admission"
         );
     }
 

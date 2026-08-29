@@ -20,6 +20,7 @@
     "docs/decisions/0049-clojure-structural-language-admission.md",
     "docs/decisions/0050-haskell-structural-language-admission.md",
     "docs/decisions/0065-c-structural-language-admission.md",
+    "docs/decisions/0066-cpp-structural-language-admission.md",
     "docs/decisions/0051-codex-user-home-managed-connection.md",
     "docs/decisions/0052-claude-disposable-local-scope-admission.md",
     "docs/decisions/0053-cursor-guarded-project-admission.md",
@@ -97,6 +98,13 @@
     {
       "family": "C",
       "extensions": [".c", ".h"],
+      "discovery": "eligible_regular_file",
+      "lexical_evidence": "eligible_utf8",
+      "structural_evidence": "supported"
+    },
+    {
+      "family": "C++",
+      "extensions": [".cc", ".cpp", ".cxx", ".hh", ".hpp", ".hxx"],
       "discovery": "eligible_regular_file",
       "lexical_evidence": "eligible_utf8",
       "structural_evidence": "supported"
