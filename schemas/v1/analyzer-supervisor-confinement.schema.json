@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-supervisor-confinement.schema.json",
+  "title": "IAR-1A measured application-enforced confinement posture",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["profile_id", "profile_digest", "application_enforced", "os_confined", "vm_confined", "environment_cleared", "private_working_directory", "input_rehashed", "bounded_transport", "network_denial_verified", "limitations"],
+  "properties": {
+    "profile_id": {"const": "iar-application-supervisor-v1"},
+    "profile_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "application_enforced": {"const": true},
+    "os_confined": {"const": false},
+    "vm_confined": {"const": false},
+    "environment_cleared": {"const": true},
+    "private_working_directory": {"const": true},
+    "input_rehashed": {"const": true},
+    "bounded_transport": {"const": true},
+    "network_denial_verified": {"const": false},
+    "limitations": {
+      "const": ["no-os-sandbox", "network-denial-unverified", "descendant-containment-unverified", "executable-substitution-race-unresolved", "staged-input-immutability-unverified", "synthetic-worker-no-analysis"]
+    }
+  }
+}

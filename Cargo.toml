@@ -10,6 +10,7 @@ members = [
     "crates/context-admission",
     "crates/context-admission-policy",
     "crates/context-analyzer-protocol",
+    "crates/context-analyzer-runner",
     "crates/context-conformance",
     "crates/context-core",
     "crates/context-engine",

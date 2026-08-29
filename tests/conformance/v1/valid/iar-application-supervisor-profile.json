@@ -1,0 +1,32 @@
+{
+  "schema_name": "analyzer-supervisor-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-application-supervisor-v1",
+  "profile_version": "1.0.0",
+  "limits": {
+    "jobs": "1",
+    "control_bytes": "262144",
+    "output_bytes": "262144",
+    "stderr_bytes": "16384",
+    "artifacts": "64",
+    "artifact_bytes": "1048576",
+    "total_artifact_bytes": "4194304",
+    "elapsed_ms": "60000"
+  },
+  "controls": {
+    "filesystem_staging": true,
+    "process_launch": true,
+    "environment_cleared": true,
+    "private_working_directory": true,
+    "input_rehashed": true,
+    "bounded_transport": true,
+    "analyzer_execution": false,
+    "network_authorized": false,
+    "network_denial_verified": false,
+    "credentials_authorized": false,
+    "artifact_upload_authorized": false,
+    "repository_execution_authorized": false,
+    "os_confined": false,
+    "vm_confined": false
+  }
+}

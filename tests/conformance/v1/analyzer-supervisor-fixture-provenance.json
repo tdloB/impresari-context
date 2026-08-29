@@ -1,0 +1,18 @@
+{
+  "schema_name": "analyzer-supervisor-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-29T12:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/iar-application-supervisor-profile.json", "sha256": "3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "fixed application-enforced supervisor profile"},
+    {"path": "valid/analyzer-supervisor-confinement.json", "sha256": "be542679425b6ad4f9d7ac718ee5fe563d6ec1419c81084be6e2e5d412d0309e", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "honest application-only confinement posture"},
+    {"path": "invalid/analyzer-supervisor-confinement-os-claim.json", "sha256": "1a650aec6c8afaecf61745b96cbbc429ad9219440295d59846612b1dc9b9a0b8", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject unsupported OS confinement claims"},
+    {"path": "valid/analyzer-supervisor-audit.json", "sha256": "77c504ba03eb92b0b1ae305cd76b5f857423914988144c248aa355b3693d6b48", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free completed-job audit"},
+    {"path": "invalid/analyzer-supervisor-audit-retained-source.json", "sha256": "237f524ffb811ec832e9735e799e529f4dd43903a05a0fe1a8efc8aab48bff23", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject source retention in supervisor audit"}
+  ]
+}

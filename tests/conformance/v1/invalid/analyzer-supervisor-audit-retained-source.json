@@ -1,0 +1,12 @@
+{
+  "schema_name": "analyzer-supervisor-audit",
+  "schema_version": "1.0.0",
+  "request_id": "req_iar1_noop",
+  "profile_digest": "sha256:3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa",
+  "artifacts_staged": "1",
+  "bytes_staged": "24",
+  "outcome": "complete_result",
+  "job_removed": true,
+  "source_retained": true,
+  "authority_added": false
+}

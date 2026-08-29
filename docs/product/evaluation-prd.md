@@ -200,6 +200,40 @@ comparison baseline.
   credentials, uploads, quarantine, repository execution, safety claims, and
   added authority remain zero and unclaimed.
 
+### ADR-0074 IAR-1A application-supervisor hard gates
+
+- The fixed `iar-application-supervisor-v1` profile is byte-identical to its
+  fixture and digest sidecar; it records staging/process launch as present and
+  fixes analyzer execution and every external authority false.
+- Exact executable substitution, symlinked staging roots, and preexisting job
+  identities fail before launch or staging reuse.
+- Every artifact is written under an opaque digest name with create-new
+  semantics and matches exact pre/post hashes.
+- Crash, wall timeout, staged-input mutation, output flood, malformed output,
+  and nonzero exit produce no partial promoted result; the direct child is
+  reaped and the exact job is removed.
+- The worker receives no shell, arguments, inherited environment, repository
+  path, credentials, endpoint, analyzer selection, or parser selection.
+- The posture is `application_enforced` only. OS/VM confinement, verified
+  network denial, unrelated-handle closure, and descendant containment remain
+  false, unverified, and unclaimed.
+- Fixtures remain original synthetic JSON; process tests use only an exact
+  first-party synthetic worker and synthetic bytes.
+
+### ADR-0074 IAR-1B OS-confinement hard gates
+
+- Each claimed host has one exact platform mechanism/version/profile identity;
+  missing primitives or verification produce `unsupported`, never fallback.
+- Filesystem, descriptor/handle, credential, device, process visibility,
+  descendant/orphan, network, CPU, memory, process-count, disk, mutation,
+  timeout, crash, and cleanup escape attempts pass on the native host.
+- Effective policy is verified after launch and source-free evidence records the
+  selected backend, OS/kernel version, profile digest, limits, and complete
+  cleanup state.
+- No real analyzer, hostile-format parser, updater, provider, or repository
+  artifact participates in IAR-1B admission.
+- IAR-2 remains closed until every platform claimed for YARA has passed IAR-1B.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

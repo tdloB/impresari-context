@@ -4,8 +4,9 @@
 
 - Product: Impresari Analyzer Runner for Impresari Context.
 - ARD ID/version: IC-IAR-ARD-001 / 0.1.
-- Status: Accepted; IAR-0 closed protocol and synthetic worker implemented.
-  IAR-1 process confinement remains pending.
+- Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
+  supervision implemented. IAR-1B OS confinement remains
+  pending.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 2 of 3.
 - Related records:
@@ -98,6 +99,27 @@ SHA-256 list -> Reputation Gateway -> one allowed provider
 
 The updater and reputation gateway never share a process with an analyzer
 worker. The Runner supervisor never receives provider credential values.
+
+The first OS-confinement feasibility inventory is recorded in
+[IAR-1B OS-confinement feasibility](../verification/iar-1-os-confinement-feasibility.md).
+On the observed macOS host, `sandbox-exec` is present but its installed manual
+marks it deprecated. It may remain a bounded test harness, but it is not an
+admitted production confinement mechanism. A macOS implementation decision
+requires separate App Sandbox signing/entitlement and subprocess feasibility
+evidence; Linux and Windows require independent mechanisms and Tier A results.
+Apple's documented preference for XPC privilege separation and its sandbox-
+inheritance/file-access rules make a separately signed app bundle with a
+minimal private XPC service the macOS candidate architecture. This is a design
+candidate only: it is not selected, packaged, signed, implemented, or admitted
+by the application-enforced baseline.
+
+The corresponding Linux candidate composes `no_new_privs`, version-negotiated
+Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
+Windows candidate composes AppContainer or a restricted token, explicit staged-
+object ACLs, a non-breakaway kill-on-close Job Object, and headless/resource
+mitigations. Neither candidate is selected: missing kernel/API/controller,
+delegation, signing, packaging, or effective-policy evidence must produce an
+unsupported state rather than a weaker confinement claim.
 
 ## Trust Zones
 

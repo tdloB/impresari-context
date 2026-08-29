@@ -21,8 +21,9 @@ AI-assisted evidence is not an independent audit.
 - The run created no tag, GitHub release, package publication, signature, or
   release credential and makes no claim that a repository is safe, trusted,
   clean, or malware-free.
-- This is release-readiness evidence for HRA-0 through HRA-4, not evidence that
-  ADR-0074 analyzer execution or ADR-0075 quarantine execution exists.
+- This candidate run is release-readiness evidence for HRA-0 through HRA-4. It
+  does not evidence the later ADR-0074 synthetic-supervision baseline, any real
+  analyzer execution, or ADR-0075 quarantine execution.
 
 ## 2026-08-23 UTC — `v0.1.0` published
 

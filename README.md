@@ -249,11 +249,19 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   HRA-2 npm/Compose observations, HRA-3 unavailable-by-default coverage,
   bounded synthetic analyzer-result normalization and immutable assessment
   construction, the HRA-4 pure deterministic reference evaluator, and the
-  completed HRA-5 three-platform release-readiness evidence plus
-  isolated-analysis and disposable-quarantine designs; no
-  analyzer, networking, upload, deep-parser, exception, approval, or repository
-  execution implementation is authorized; the evaluator can return only an
-  authority-neutral quarantine-stage eligibility classification.
+  completed HRA-5 three-platform release-readiness evidence plus the IAR-0
+  protocol and IAR-1A application-enforced synthetic-supervision baseline. No
+  real analyzer, verified OS/network sandbox, networking, upload, deep-parser,
+  exception, approval, quarantine, or repository-execution implementation is
+  admitted; the evaluator can return only an authority-neutral quarantine-stage
+  eligibility classification.
+- [Isolated Analyzer Runner](docs/product/isolated-analyzer-runner-prd.md): the
+  accepted separated-runner requirements, closed protocol, private synthetic
+  staging, exact executable pinning, bounded subprocess supervision, explicit
+  application-only posture, and pending IAR-1B OS-confinement gate.
+- [IAR-1A verification](docs/verification/iar-1-application-supervision.md):
+  delivered controls, fail-closed process tests, exact non-claims, and
+  reproduction commands for the synthetic-supervision baseline.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

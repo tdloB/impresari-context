@@ -1,0 +1,13 @@
+{
+  "profile_id": "iar-application-supervisor-v1",
+  "profile_digest": "sha256:3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa",
+  "application_enforced": true,
+  "os_confined": true,
+  "vm_confined": false,
+  "environment_cleared": true,
+  "private_working_directory": true,
+  "input_rehashed": true,
+  "bounded_transport": true,
+  "network_denial_verified": false,
+  "limitations": ["no-os-sandbox", "network-denial-unverified", "descendant-containment-unverified", "executable-substitution-race-unresolved", "staged-input-immutability-unverified", "synthetic-worker-no-analysis"]
+}

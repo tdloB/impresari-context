@@ -50,9 +50,9 @@ Step 1, and the classification does not create, authorize, or invoke one.
 
 ## Step 2 boundary
 
-ADR-0074 IAR-0 now provides only closed schemas, a fixed profile, exact
-identities and framing, provenance-reviewed synthetic fixtures, and a pure
-in-memory no-op/fault worker. It does not stage files, launch a process, provide
-OS confinement, install or execute a scanner, or produce findings. IAR-1
-process isolation and ADR-0075 quarantine execution remain separately evidenced
-scopes; neither is implied by the IAR-0 protocol milestone.
+ADR-0074 IAR-0 provides closed schemas, exact identities/framing, and a pure
+in-memory worker. IAR-1A adds private synthetic staging and a short-lived
+first-party subprocess with application-enforced bounds. It does not provide an
+OS/VM sandbox, verified network or descendant-process containment, a real
+scanner/parser, findings, or malware-detection evidence. IAR-1B OS confinement, real
+analyzers, and ADR-0075 quarantine remain separately evidenced scopes.
