@@ -26,56 +26,27 @@ approved exception. The local MCP feature supplies recent evidence: protocol,
 lifecycle, authority, direct-engine equivalence, and adversarial tests are
 mapped in `docs/verification/mcp-release-traceability.md`.
 
+### Release versioning, provenance, and notes
+
+Criteria: `version_unique`, `version_semver`, `version_tags`, and
+`release_notes`.
+
+The published [`v0.1.0` release](https://github.com/tdloB/impresari-context/releases/tag/v0.1.0)
+uses a matching Semantic Versioning tag and is bound to exact commit
+`c77e95ce95b2fde99da2582707d4e4d58a512122`. Its three native archives include
+adjacent SHA-256 files and GitHub build provenance attestations. Its reviewed
+human-readable notes describe capabilities, adoption considerations, security
+boundaries, known limitations, and the absence of an independent audit. The
+exact evidence is linked from `docs/verification/release-evidence.md`.
+
 ## Open items
 
-### Release versioning and tags (`version_unique`, `version_semver`, `version_tags`)
+### Release-tag protection (`version_tags` hardening)
 
-Each public release must have a unique Semantic Versioning identifier and a
-matching protected Git tag, with public evidence connecting the source commit,
-release artifacts, checksums, and provenance.
-
-Required work:
-
-- Publish the first approved release as `v0.1.0` rather than the internal
-  `0.0.0` development version.
-- Create the matching Git tag through the approved release workflow.
-- Protect release tags against unauthorized modification or deletion.
-- Link the GitHub release, tag, checksums, attestations, and exact source commit
-  from the release evidence documentation.
-
-Acceptance evidence:
-
-- The public release and tag use the same valid Semantic Versioning identifier.
-- Release artifacts and checksums are reproducible from the tagged commit.
-- GitHub artifact attestations bind the published artifacts to the repository,
-  workflow, and source commit.
-- The protected tag and release evidence URLs are publicly accessible.
-
-### Human-readable release notes (`release_notes`)
-
-Every public release must include human-readable release notes that explain its
-major changes, upgrade relevance, and expected user impact. A raw commit log is
-not sufficient.
-
-Required work:
-
-- Create release notes for `v0.1.0` as part of the approved release process.
-- Summarize added capabilities, compatibility or migration considerations,
-  security-relevant changes, known limitations, and unresolved risks.
-- For later releases, identify every publicly known project vulnerability fixed
-  by that release, including its CVE or equivalent identifier when one exists.
-- Link the notes from the GitHub release and release evidence documentation.
-
-Acceptance evidence:
-
-- The public GitHub release contains reviewed prose rather than an unedited
-  version-control log.
-- The notes allow a user to understand whether and how to adopt or upgrade.
-- Applicable fixed project vulnerabilities and identifiers are explicitly
-  listed, or the notes explicitly state that none are known for that release.
-
-Preparation status: `CHANGELOG.md` contains reviewed draft `v0.1.0` notes. The
-criterion remains open until those notes are attached to the published release.
+The `v0.1.0` tag and exact-commit release evidence are public, but repository
+rules do not yet protect release tags against unauthorized modification or
+deletion. Add and verify a `v*` tag ruleset before treating this hardening item
+as complete.
 
 ### Human secure-development knowledge (`know_secure_design`, `know_common_errors`)
 

@@ -32,18 +32,25 @@ capabilities over bounded newline-delimited JSON-RPC. Its launch configuration
 fixes the authorized workspace, cache, consumer identity, and role; MCP cannot
 broaden them.
 
-This is a release candidate, not yet a published release. Executable or
-privileged extensions and long-lived transports remain separately gated, and
-package publication remains gated. The complete local gate and
-hosted Tier A matrix and native clean-install release-candidate rehearsals pass.
+[`v0.1.0`](https://github.com/tdloB/impresari-context/releases/tag/v0.1.0)
+was published on 2026-08-23 UTC (2026-08-22 EDT) from commit
+`c77e95ce95b2fde99da2582707d4e4d58a512122`. It provides checksummed,
+provenance-attested archives for macOS ARM64, Linux x86-64, and Windows x86-64.
+The default branch includes later work; its current capability claims must not
+be attributed retroactively to the `v0.1.0` binaries. Executable or privileged
+extensions and long-lived transports remain separately gated. The complete
+local gate, hosted Tier A matrix, and native clean-install release checks pass.
 The repository also runs CodeQL, OpenSSF Scorecard, dependency and license
 audits, secret protection, and a bounded coverage-guided Rust fuzz target. The
 release workflow implements the approved SHA-256 checksum and GitHub artifact
 attestation design. Independent human security and release review remains a
 documented assurance target before `v1.0.0`, or earlier if the project
-materially expands its trust boundary. It is encouraged but is not a mandatory
-gate for `v0.1.0`; that release must disclose the absence of an independent
-third-party security audit.
+materially expands its trust boundary. It was not a mandatory `v0.1.0` gate;
+the published release discloses the absence of an independent third-party
+security audit.
+
+See the [`v0.1.0` conformance statement](CONFORMANCE.md) for the exact artifact
+scope, normative contracts, verification basis, limitations, and non-claims.
 
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
@@ -53,8 +60,10 @@ dependency policy, and RustSec auditing.
 
 ## Get the software, ask for help, or contribute
 
-Clone the public repository and build the workspace with the standard Rust
-toolchain:
+Download the published binaries and checksum files from the
+[`v0.1.0` release](https://github.com/tdloB/impresari-context/releases/tag/v0.1.0),
+or clone the public repository and build the current source tree with the
+standard Rust toolchain:
 
 ```text
 git clone https://github.com/tdloB/impresari-context.git
@@ -126,20 +135,24 @@ versioning, limits, and security boundaries.
 See the [compatibility matrix](docs/reference/compatibility-matrix.md) for the
 exact difference between discovery, lexical evidence, and structural language
 support, and between generic local-MCP compatibility and a first-class client
-integration. At this release, TypeScript/JavaScript, Python, Java, Kotlin,
-C#, Scala, Elixir, Clojure, Haskell, Go, Rust, strict JSON, JSONC, TOML, and
-YAML have bounded structural support; Swift remains lexical-only. Codex,
-Claude Code, Cursor, and GitHub Copilot CLI are first-class only for their
-recorded client/version/OS scopes. Gemini CLI and VS Code Copilot remain
-generic local-MCP integrations.
+integration. In the current source tree, TypeScript/JavaScript, Python, Java,
+Kotlin, C#, Scala, Elixir, Clojure, Haskell, Go, Rust, strict JSON, JSONC, TOML,
+and YAML have bounded structural support; Swift remains lexical-only. Codex,
+Claude Code, Cursor, GitHub Copilot CLI, and VS Code Copilot are first-class
+only for their recorded client/version/OS scopes. Gemini CLI remains a generic
+local-MCP integration.
 
-Codex, Claude Code, Cursor, and GitHub Copilot CLI also have recorded-scope L2
-native guidance. That guidance is opt-in and does not make conversational tool
-selection deterministic. See the [compatibility matrix](docs/reference/compatibility-matrix.md),
+Codex, Claude Code, Cursor, GitHub Copilot CLI, and VS Code Copilot also have
+recorded-scope L2 native guidance. GitHub Copilot CLI additionally has bounded
+L4 lifecycle-health evidence for its exact recorded guidance artifact. These
+claims describe the current source tree, not the earlier `v0.1.0` binaries.
+Native guidance is opt-in and does not make conversational tool selection
+deterministic. See the [compatibility matrix](docs/reference/compatibility-matrix.md),
 the [Codex L2 record](docs/verification/phase-2-codex-native-guidance.md), the
 [Claude Code L2 record](docs/verification/phase-2-claude-code-native-guidance.md),
 the [Cursor L2 record](docs/verification/phase-2-cursor-native-guidance.md),
-and the [Copilot CLI L2 record](docs/verification/phase-2-copilot-cli-native-guidance.md).
+the [Copilot CLI L2 record](docs/verification/phase-2-copilot-cli-native-guidance.md),
+and the [VS Code L2 record](docs/verification/ci-2-vscode-copilot-native-guidance.md).
 
 Codex also has an **experimental CI-3b guided-delivery preview/apply path** for
 its exact recorded App Server version. It is disabled by default, requires an
@@ -189,7 +202,8 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted
-  native-matrix results and explicitly open release gates.
+  native-matrix results, published `v0.1.0` provenance, and current assurance
+  targets.
 - [MCP and release traceability](docs/verification/mcp-release-traceability.md):
   direct-engine equivalence, transport hardening, and packaging evidence.
 - [Compatibility matrix](docs/reference/compatibility-matrix.md): versioned
