@@ -1,6 +1,6 @@
 # ADR-0073: Evidence-only hostile-repository admission
 
-- Status: Accepted; HRA-1 through HRA-4 implemented; HRA-5 release readiness remains
+- Status: Accepted; Step 1 complete (HRA-0 through HRA-5)
 - Date: 2026-08-26
 - Scope: Security artifact inventory, assessment, coverage, and deterministic
   stage-eligibility contracts
@@ -134,6 +134,12 @@ analyzers. HRA-4 evaluates immutable records in a separate pure library with no
 I/O, exception, approval, or execution authority; restrictive effects dominate
 and eligibility can name only a quarantine profile. ADR-0074 and ADR-0075
 remain proposed and independently gated.
+
+HRA-5 passed the exact-commit Tier A release-candidate matrix at commit
+`12a46c1b9d934830450019470c3a74c9a1b47bf8` in GitHub Actions run 33266846683.
+All candidate artifacts were temporary and no release was published. ADR-0073
+Step 1 is complete; ADR-0074 implementation still requires explicit founder
+approval.
 
 ## Review Triggers
 

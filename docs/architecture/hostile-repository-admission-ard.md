@@ -4,7 +4,8 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 through HRA-4 implemented; HRA-5 release readiness remains.
+- Status: Step 1 complete (HRA-0 through HRA-5); Step 2 requires explicit
+  founder approval.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -390,14 +391,15 @@ The component sequence mirrors HRA-0 through HRA-5 in the PRD. Each increment
 must remain releasable behind a disabled capability flag and must not require
 Step 2 or Step 3 to preserve current Context behavior.
 
-The HRA-0 prerequisites and HRA-1 inventory are complete. Before implementing
-any later increment:
+HRA-0 through HRA-5 are complete. Before implementing Step 2:
 
-1. Accept ADR-0073.
-2. Update the security threat model and evaluation PRD.
-3. Approve exact schemas and resource ceilings.
-4. Approve the initial artifact/rule matrix and fixture provenance.
-5. Record an explicit founder implementation authorization for that increment.
+1. Record explicit founder approval for ADR-0074 implementation.
+2. Update the threat model and evaluation plan for the isolated runner.
+3. Approve the exact analyzer protocol, capability profile, resource ceilings,
+   and platform matrix.
+4. Review analyzer, ruleset, and hostile-fixture provenance.
+5. Preserve the existing prohibitions on uploads, implicit network access,
+   ordinary-host execution, and final risk acceptance.
 
 ## Rollback And Failure-Domain Preservation
 
@@ -439,3 +441,6 @@ restriction order `blocked` > `manual_review_required` >
 coverage overrides eligibility, conflicting quarantine profiles deny
 eligibility, and the API contains no exception, approval, credential, model,
 or ordinary-host authorization input.
+HRA-5 binds Step 1 readiness to exact commit
+`12a46c1b9d934830450019470c3a74c9a1b47bf8`; the complete native candidate
+matrix passed without publishing a release or adding runtime authority.
