@@ -99,6 +99,7 @@ options[:runs].times do |index|
     abort("Claude delivery did not complete: #{JSON.generate(receipt)}") unless receipt["outcome"] == "delivered"
     abort("receipt did not bind the authenticated Claude home") unless receipt["authenticated_claude_home_used"] == true
     abort("receipt did not select the user home in place") unless receipt["authenticated_user_home_used_in_place"] == true
+    abort("receipt did not inherit provider authentication in place") unless receipt["provider_auth_environment_inherited"] == true
     abort("terminal result was not observed") unless receipt["terminal_result_observed"] == true
     abort("tool execution was observed") unless receipt["tool_executions_observed"] == 0
     abort("source workspace was exposed") unless receipt["source_workspace_exposed"] == false
@@ -123,6 +124,7 @@ options[:runs].times do |index|
       "authority_added" => receipt.fetch("authority_added"),
       "authenticated_claude_home_used" => receipt.fetch("authenticated_claude_home_used"),
       "authenticated_user_home_used_in_place" => receipt.fetch("authenticated_user_home_used_in_place"),
+      "provider_auth_environment_inherited" => receipt.fetch("provider_auth_environment_inherited"),
       "credential_state_copied" => receipt.fetch("credential_state_copied"),
       "credential_state_deleted" => receipt.fetch("credential_state_deleted")
     }

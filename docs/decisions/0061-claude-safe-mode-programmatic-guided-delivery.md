@@ -1,6 +1,6 @@
 # ADR-0061: Deliver reviewed packets through Claude Code safe-mode print
 
-- Status: Accepted for implementation; live admission pending
+- Status: Accepted; Claude Code `2.1.241` live admission recorded
 - Date: 2026-08-29
 - Deciders: Impresari Context maintainers
 
@@ -18,7 +18,8 @@ fresh process while safe mode disables customizations and project authority.
 Admit Claude Code `2.1.241` only through an explicit preview/apply adapter using
 safe-mode non-interactive print, streaming JSON, an empty tool selection,
 disabled slash commands, and no session persistence. Use the existing
-authenticated user home in place without inspecting credential state. Require
+authenticated user home in place and, when present, forward the existing
+`ANTHROPIC_API_KEY` only to Claude without inspecting or persisting it. Require
 the exact echoed input, empty tool/MCP initialization, zero tool-use blocks,
 and one successful result. Retain only the bounded receipt.
 

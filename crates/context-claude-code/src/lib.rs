@@ -211,8 +211,10 @@ pub struct ClaudeDeliveryReceipt {
     pub source_workspace_exposed: bool,
     /// Whether the explicit authenticated home was selected.
     pub authenticated_claude_home_used: bool,
-    /// Whether the explicit existing GitHub CLI auth directory was selected in place.
+    /// Whether the explicit existing user home was selected in place.
     pub authenticated_user_home_used_in_place: bool,
+    /// Whether the existing provider-authentication environment reached only Claude.
+    pub provider_auth_environment_inherited: bool,
     /// Always false: credential state is never copied.
     pub credential_state_copied: bool,
     /// Always false: credential state is never deleted.
@@ -437,6 +439,8 @@ fn receipt_for(
         source_workspace_exposed: false,
         authenticated_claude_home_used: client_io_performed,
         authenticated_user_home_used_in_place: client_io_performed,
+        provider_auth_environment_inherited: client_io_performed
+            && env::var_os("ANTHROPIC_API_KEY").is_some(),
         credential_state_copied: false,
         credential_state_deleted: false,
         authority_added: false,
@@ -523,6 +527,9 @@ fn base_command(binary: &Path, cwd: &Path, home: &Path) -> Command {
     if let Some(path) = env::var_os("PATH") {
         command.env("PATH", path);
     }
+    if let Some(provider_authentication) = env::var_os("ANTHROPIC_API_KEY") {
+        command.env("ANTHROPIC_API_KEY", provider_authentication);
+    }
     command
 }
 
@@ -556,6 +563,7 @@ fn run_claude(binary: &Path, cwd: &Path, home: &Path, prompt: &str) -> Transport
             "--no-session-persistence",
             "--input-format",
             "stream-json",
+            "--replay-user-messages",
             "--output-format",
             "stream-json",
             "--verbose",
@@ -652,19 +660,37 @@ fn run_claude(binary: &Path, cwd: &Path, home: &Path, prompt: &str) -> Transport
                         evidence.tools,
                     );
                 }
-                if status.success()
-                    && evidence.valid
-                    && stderr_valid
-                    && evidence.terminal_results == 1
-                    && evidence.prompt_events == 1
-                    && evidence.init_events == 1
-                {
-                    return TransportOutcome::Delivered;
+                if !status.success() {
+                    return TransportOutcome::Degraded("claude_process_failed", evidence.tools);
                 }
-                return TransportOutcome::Degraded(
-                    "claude_programmatic_prompt_failed",
-                    evidence.tools,
-                );
+                if !evidence.valid {
+                    return TransportOutcome::Degraded(
+                        "claude_event_contract_invalid",
+                        evidence.tools,
+                    );
+                }
+                if !stderr_valid {
+                    return TransportOutcome::Degraded("claude_stderr_invalid", evidence.tools);
+                }
+                if evidence.prompt_events != 1 {
+                    return TransportOutcome::Degraded(
+                        "claude_prompt_acknowledgment_failed",
+                        evidence.tools,
+                    );
+                }
+                if evidence.init_events != 1 {
+                    return TransportOutcome::Degraded(
+                        "claude_initialization_evidence_failed",
+                        evidence.tools,
+                    );
+                }
+                if evidence.terminal_results != 1 {
+                    return TransportOutcome::Degraded(
+                        "claude_terminal_result_failed",
+                        evidence.tools,
+                    );
+                }
+                return TransportOutcome::Delivered;
             }
             Ok(None) if Instant::now() < deadline => thread::sleep(Duration::from_millis(20)),
             Ok(None) => {

@@ -8,7 +8,7 @@
     "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
     "client_version", "protocol_scope", "request_id", "event_id", "client_io_performed",
     "terminal_result_observed", "tool_executions_observed", "provider_network_required",
-    "source_workspace_exposed", "authenticated_claude_home_used", "authenticated_user_home_used_in_place", "credential_state_copied",
+    "source_workspace_exposed", "authenticated_claude_home_used", "authenticated_user_home_used_in_place", "provider_auth_environment_inherited", "credential_state_copied",
     "credential_state_deleted", "authority_added"
   ],
   "properties": {
@@ -32,6 +32,7 @@
     "source_workspace_exposed": {"const": false},
     "authenticated_claude_home_used": {"type": "boolean"},
     "authenticated_user_home_used_in_place": {"type": "boolean"},
+    "provider_auth_environment_inherited": {"type": "boolean"},
     "credential_state_copied": {"const": false},
     "credential_state_deleted": {"const": false},
     "authority_added": {"const": false}

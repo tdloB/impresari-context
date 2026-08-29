@@ -1,6 +1,6 @@
 # CI-3d Claude Code guided-delivery verification
 
-- Status: Deterministic implementation verified; live admission pending
+- Status: Passed; exact-scope L3 admitted
 - Date: 2026-08-29
 - Client scope: Claude Code `2.1.241`, macOS aarch64, `safe_mode_print`
 
@@ -16,20 +16,30 @@
   exact prompt-event validation, empty tool/MCP initialization, tool-use
   degradation, and authority-free receipts.
 - The installed client reports exactly `2.1.241 (Claude Code)` and exposes the
-  required safe-mode, print, empty-tools, slash-disable, no-persistence, and
-  streaming JSON flags.
+  required safe-mode, print, empty-tools, slash-disable, no-persistence,
+  streaming JSON, and exact user-message replay flags.
 
-## Live admission gate
+## Live admission evidence
 
-Run `scripts/rehearse-claude-guided-delivery.rb --user-home <authenticated-home>`
-only after the operator explicitly authorizes sending bounded
-workspace-derived packet content to Anthropic's Claude service. Admission
-requires two successful records, exact packet/plan/snapshot bindings, empty
-tool and MCP inventories, zero tool executions, immutable source, runtime
-cleanup, and no credential copying or deletion.
+The operator explicitly authorized sending bounded synthetic workspace-derived
+packets to Anthropic through the existing Claude authentication in place. On
+2026-08-29, `scripts/rehearse-claude-guided-delivery.rb` completed two runs:
 
-Until those records exist, Claude Code remains L1/L2 and CI-3d remains an
-implemented but unadmitted L3 path.
+| Run | Packet | Plan | Snapshot | Outcome |
+| --- | --- | --- | --- | --- |
+| 1 | `sha256:92797a726073f5c4abfd840fa5df08ecf2b32975acab106bfae82b88804913fd` | `sha256:1498632eddd347feb422f1d39dc3e1fb7125d3d7ca1cc01f9978a9a323a852c1` | `sha256:c90273934c02b90c76575ba849f2f99daa8bc044f30f65867e46acd2bd4f4e09` | `delivered` |
+| 2 | `sha256:6694632c7fe84c71b6be3ec9634493a0f8a34acaa21b6d849b0c26c963bf3e97` | `sha256:5310c49ded8a0d8ca737f89981c6cdf685869d766bda38d81c165adb2083f9eb` | `sha256:33a89185e8de6db70effe91ad9442cfc7ac20db6fef39e7d00839de81130734d` | `delivered` |
+
+Both records prove exact prompt acknowledgment, one successful terminal result,
+empty tool and MCP initialization, zero tool execution, provider-network
+disclosure, no source-workspace exposure, immutable source SHA-256
+`0c327c4bcb0f06ab595264a0efc26d1f78ce4802020c20e1e16857810087efc2`,
+clean runtime removal, existing authentication inherited only by the Claude
+child, and no credential-state copy or deletion.
+
+This evidence admits only Claude Code `2.1.241`, macOS aarch64, and the
+`safe_mode_print` lifecycle. It does not admit interactive sessions, hooks,
+other platforms, or later versions.
 
 ## Upstream surface references
 

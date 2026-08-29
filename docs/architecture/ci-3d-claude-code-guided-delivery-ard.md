@@ -1,6 +1,6 @@
 # Impresari Context — CI-3d Claude Code Guided-Delivery ARD
 
-- Status: Accepted for implementation; live admission pending
+- Status: Implemented; exact-scope live admission recorded
 - Date: 2026-08-29
 - Product requirement: [CI-3d PRD](../product/ci-3d-claude-code-guided-delivery-prd.md)
 - Decision: [ADR-0061](../decisions/0061-claude-safe-mode-programmatic-guided-delivery.md)
@@ -35,10 +35,12 @@ request. Model output is parsed for terminal evidence and discarded.
 - Apply requires `--apply` and the expected packet identity.
 - The Claude binary, runtime parent, and authenticated user home must be
   absolute, canonical, and separated; the home is used in place.
-- The child environment is cleared except `HOME` and the caller's `PATH`.
+- The child environment is cleared except `HOME`, the caller's `PATH`, and the
+  existing `ANTHROPIC_API_KEY` forwarded only to Claude. The adapter does not
+  inspect, print, persist, or forward that credential elsewhere.
 - The fixed invocation uses `--safe-mode --print --tools ""
   --disable-slash-commands --no-session-persistence --input-format stream-json
-  --output-format stream-json --verbose`.
+  --replay-user-messages --output-format stream-json --verbose`.
 - The prompt travels over stdin, not argv. The parser requires its exact echoed
   bytes, empty initialized tool and MCP lists, zero tool-use blocks, one success
   result, bounded stdout/stderr, and a zero exit.
