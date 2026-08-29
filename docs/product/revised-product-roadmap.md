@@ -23,7 +23,7 @@ the capability exists in the `v0.1.0` binaries.
 | 2 | Rust and Go structural evidence; broader agent access | Complete for recorded scopes: Rust and Go are complete. GitHub Copilot CLI is first-class L1 with recorded-scope L2 guidance and L4 health for CLI `1.0.80` on macOS aarch64. VS Code Copilot extension host is independently first-class L1 with recorded-scope L2 guidance for VS Code `1.134.0` on macOS arm64. Gemini remains generic because normal-client testing is blocked by its current free-tier service. |
 | 3 | Deterministic context planner | Complete (approved initial scope): profile-bound deterministic plans, coverage/omission reporting, exact plan and packet identities, CLI, and MCP support are implemented. Standalone profiles retain explicit structural, change-set, associated-test, and configuration-to-code omissions rather than inferring evidence. |
 | 4 | Java, Kotlin, C#, impact evidence, and incremental updates | Complete: bounded Java, Kotlin, C#, structural-impact, declared change-set, caller-declared associated-test, repository orientation, explicit incremental-update, and convention/exemplar evidence are accepted after full hosted CI. |
-| 5 | Demand-led language expansion | In progress: Scala, Elixir, Clojure, and Haskell have been admitted with bounded structural evidence. The evidence-first admission gate remains the requirement for future languages. |
+| 5 | Demand-led language expansion | In progress: Scala, Elixir, Clojure, and Haskell are admitted. Founder-requested C, C++, Ruby, PHP, and Swift are approved for independent bounded structural admission in that order; no structural claim is made before each slice passes hosted acceptance. |
 
 ## Adoption experience track
 
@@ -89,6 +89,7 @@ exemplar evidence.
 ## Phase 5 — Demand-led language expansion
 
 Scala, Elixir, Clojure, and Haskell are admitted with bounded structural
-evidence. Evaluate any further language—including Swift, PHP, Ruby, C/C++,
-Dart, and carefully constrained SQL—only from attributable adopter demand and
-evaluation evidence.
+evidence. C, C++, Ruby, PHP, and Swift have explicit founder demand and are
+approved for independently gated implementation under ADR-0064. Evaluate any
+other language—including F#, Elm, Dart, and carefully constrained SQL—only
+from attributable adopter demand and evaluation evidence.
