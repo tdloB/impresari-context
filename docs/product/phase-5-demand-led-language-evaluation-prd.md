@@ -9,8 +9,10 @@
 
 Make Phase 5 language expansion a repeatable evidence-led decision rather
 than a feature list. Scala, Elixir, Clojure, and Haskell are admitted.
-Remaining candidates are Swift, PHP, Ruby, C/C++, Dart, and carefully
-constrained SQL; no candidate is admitted automatically.
+C, C++, Ruby, PHP, and Swift have since received founder demand and are approved
+as independently gated implementation slices under ADR-0064. Remaining
+candidates include F#, Elm, Dart, and carefully constrained SQL; no remaining
+candidate is admitted automatically.
 
 ## Required admission evidence
 

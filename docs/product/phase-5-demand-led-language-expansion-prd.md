@@ -14,11 +14,15 @@ evidence justify the parser, resolver, and maintenance cost.
 Scala, Elixir, Clojure, and Haskell have passed their bounded structural
 admission gates. Their individual PRDs and ADRs remain the claim boundaries.
 
+## Approved expansion program
+
+C, C++, Ruby, PHP, and Swift are founder-approved for independently gated
+implementation under the [five-language expansion PRD](phase-5-five-language-expansion-prd.md).
+
 ## Remaining candidate languages
 
-Swift, PHP, Ruby, C/C++, Dart, and SQL under a deliberately constrained
-structural model. No remaining candidate is selected without new attributable
-demand evidence.
+F#, Elm, Dart, and SQL under a deliberately constrained structural model. No
+remaining candidate is selected without new attributable demand evidence.
 
 ## Admission requirements
 
