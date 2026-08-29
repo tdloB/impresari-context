@@ -157,10 +157,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-claude-code"
+version = "0.1.0"
+dependencies = [
+ "context-adapters",
+ "context-core",
+ "context-engine",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "context-cli"
 version = "0.1.0"
 dependencies = [
  "context-adapters",
+ "context-claude-code",
  "context-codex-app-server",
  "context-copilot-cli",
  "context-core",

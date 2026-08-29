@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/claude-code-delivery.schema.json",
+  "title": "Explicit Claude Code programmatic-prompt delivery",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
+    "client_version", "protocol_scope", "request_id", "event_id", "client_io_performed",
+    "terminal_result_observed", "tool_executions_observed", "provider_network_required",
+    "source_workspace_exposed", "authenticated_claude_home_used", "authenticated_user_home_used_in_place", "provider_auth_environment_inherited", "credential_state_copied",
+    "credential_state_deleted", "authority_added"
+  ],
+  "properties": {
+    "schema_name": {"const": "claude-code-delivery-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "outcome": {"enum": ["delivered", "no_delivery", "degraded"]},
+    "reason_code": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
+    "client": {"const": "claude_code"},
+    "scope": {"const": "safe_mode_print"},
+    "client_version": {"const": "2.1.241"},
+    "protocol_scope": {"const": "safe_mode_print_stream_json_v1"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "client_io_performed": {"type": "boolean"},
+    "terminal_result_observed": {"type": "boolean"},
+    "tool_executions_observed": {"type": "integer", "minimum": 0},
+    "provider_network_required": {"const": true},
+    "source_workspace_exposed": {"const": false},
+    "authenticated_claude_home_used": {"type": "boolean"},
+    "authenticated_user_home_used_in_place": {"type": "boolean"},
+    "provider_auth_environment_inherited": {"type": "boolean"},
+    "credential_state_copied": {"const": false},
+    "credential_state_deleted": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "packet_id", "packet_sha256", "packet_bytes_base64url", "task_query", "prompt"],
+      "properties": {
+        "schema_name": {"const": "claude-code-delivery-envelope"},
+        "schema_version": {"const": "1.0.0"},
+        "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_bytes_base64url": {"type": "string", "minLength": 1, "maxLength": 699052, "pattern": "^[A-Za-z0-9_-]+$"},
+        "task_query": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000]*$"},
+        "prompt": {"type": "string", "minLength": 1, "maxLength": 786432, "pattern": "^[^\\u0000]*$"}
+      }
+    },
+    "preparationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "outcome", "reason_code", "client", "scope", "client_version", "lifecycle_point", "request_id", "event_id", "workspace_identity", "packet_id", "plan_id", "workspace_snapshot", "policy_decision", "client_io_performed", "authority_added"],
+      "properties": {
+        "schema_name": {"const": "guided-delivery-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "outcome": {"const": "prepared"},
+        "reason_code": {"const": "claude_code_packet_prepared"},
+        "client": {"const": "claude_code"},
+        "scope": {"const": "safe_mode_print"},
+        "client_version": {"const": "2.1.241"},
+        "lifecycle_point": {"const": "prompt_start"},
+        "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+        "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+        "client_io_performed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "preview": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "client", "scope", "client_version", "protocol_scope", "prepared", "preparation_receipt", "delivery_envelope"],
+      "properties": {
+        "schema_name": {"const": "claude-code-delivery-preview"},
+        "schema_version": {"const": "1.0.0"},
+        "client": {"const": "claude_code"},
+        "scope": {"const": "safe_mode_print"},
+        "client_version": {"const": "2.1.241"},
+        "protocol_scope": {"const": "safe_mode_print_stream_json_v1"},
+        "prepared": {"$ref": "guided-delivery.schema.json#/$defs/prepared"},
+        "preparation_receipt": {"$ref": "#/$defs/preparationReceipt"},
+        "delivery_envelope": {"$ref": "#/$defs/envelope"}
+      }
+    },
+    "preparation": {
+      "oneOf": [
+        {"type": "object", "additionalProperties": false, "required": ["state", "value"], "properties": {"state": {"const": "prepared"}, "value": {"$ref": "#/$defs/preview"}}},
+        {"type": "object", "additionalProperties": false, "required": ["state", "value"], "properties": {"state": {"const": "no_delivery"}, "value": {"$ref": "#"}}}
+      ]
+    }
+  }
+}

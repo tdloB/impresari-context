@@ -26,6 +26,7 @@
     {"name": "guided-delivery", "path": "guided-delivery.schema.json", "identity_object_kind": null},
     {"name": "codex-app-server-delivery", "path": "codex-app-server-delivery.schema.json", "identity_object_kind": null},
     {"name": "copilot-cli-delivery", "path": "copilot-cli-delivery.schema.json", "identity_object_kind": null},
+    {"name": "claude-code-delivery", "path": "claude-code-delivery.schema.json", "identity_object_kind": null},
     {"name": "client-lifecycle-maintenance", "path": "client-lifecycle-maintenance.schema.json", "identity_object_kind": null},
     {"name": "handoff-export", "path": "handoff-export.schema.json", "identity_object_kind": null},
     {"name": "error-envelope", "path": "error-envelope.schema.json", "identity_object_kind": null},

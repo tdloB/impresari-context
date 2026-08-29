@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-5dd1d96519ef",
-  "documentNamespace": "https://impresari-context.invalid/sbom/5dd1d96519ef5003c657e9c5ded9120f05f497c87bfaf7f992f8faea6bac135e",
+  "name": "impresari-context-cargo-lock-e5f4d1be1a67",
+  "documentNamespace": "https://impresari-context.invalid/sbom/e5f4d1be1a676b26ccab08f4b0d61b32e664b3ea29b72bb637a4f582818b22b0",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
@@ -208,7 +208,8 @@
     "SPDXRef-Package-195",
     "SPDXRef-Package-196",
     "SPDXRef-Package-197",
-    "SPDXRef-Package-198"
+    "SPDXRef-Package-198",
+    "SPDXRef-Package-199"
   ],
   "packages": [
     {
@@ -519,6 +520,23 @@
     },
     {
       "SPDXID": "SPDXRef-Package-19",
+      "name": "context-claude-code",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-claude-code@0.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-20",
       "name": "context-cli",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -535,7 +553,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-20",
+      "SPDXID": "SPDXRef-Package-21",
       "name": "context-codex-app-server",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -552,7 +570,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-21",
+      "SPDXID": "SPDXRef-Package-22",
       "name": "context-conformance",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -569,7 +587,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-22",
+      "SPDXID": "SPDXRef-Package-23",
       "name": "context-copilot-cli",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -586,7 +604,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-23",
+      "SPDXID": "SPDXRef-Package-24",
       "name": "context-core",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -603,7 +621,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-24",
+      "SPDXID": "SPDXRef-Package-25",
       "name": "context-engine",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -620,7 +638,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-25",
+      "SPDXID": "SPDXRef-Package-26",
       "name": "context-evaluation",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -637,7 +655,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-26",
+      "SPDXID": "SPDXRef-Package-27",
       "name": "context-extensions",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -654,7 +672,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-27",
+      "SPDXID": "SPDXRef-Package-28",
       "name": "context-mcp",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -671,7 +689,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-28",
+      "SPDXID": "SPDXRef-Package-29",
       "name": "context-reference-client",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -688,7 +706,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-29",
+      "SPDXID": "SPDXRef-Package-30",
       "name": "context-retrieval",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -705,7 +723,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-30",
+      "SPDXID": "SPDXRef-Package-31",
       "name": "context-session",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -722,7 +740,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-31",
+      "SPDXID": "SPDXRef-Package-32",
       "name": "context-store",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -739,7 +757,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-32",
+      "SPDXID": "SPDXRef-Package-33",
       "name": "context-structural",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -756,7 +774,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-33",
+      "SPDXID": "SPDXRef-Package-34",
       "name": "context-workspace",
       "versionInfo": "0.1.0",
       "downloadLocation": "NOASSERTION",
@@ -773,7 +791,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-34",
+      "SPDXID": "SPDXRef-Package-35",
       "name": "cpufeatures",
       "versionInfo": "0.3.0",
       "downloadLocation": "https://crates.io/crates/cpufeatures/0.3.0",
@@ -790,7 +808,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-35",
+      "SPDXID": "SPDXRef-Package-36",
       "name": "crypto-common",
       "versionInfo": "0.2.2",
       "downloadLocation": "https://crates.io/crates/crypto-common/0.2.2",
@@ -807,7 +825,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-36",
+      "SPDXID": "SPDXRef-Package-37",
       "name": "data-encoding",
       "versionInfo": "2.11.1",
       "downloadLocation": "https://crates.io/crates/data-encoding/2.11.1",
@@ -824,7 +842,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-37",
+      "SPDXID": "SPDXRef-Package-38",
       "name": "digest",
       "versionInfo": "0.11.3",
       "downloadLocation": "https://crates.io/crates/digest/0.11.3",
@@ -841,7 +859,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-38",
+      "SPDXID": "SPDXRef-Package-39",
       "name": "displaydoc",
       "versionInfo": "0.2.7",
       "downloadLocation": "https://crates.io/crates/displaydoc/0.2.7",
@@ -858,7 +876,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-39",
+      "SPDXID": "SPDXRef-Package-40",
       "name": "email_address",
       "versionInfo": "0.2.9",
       "downloadLocation": "https://crates.io/crates/email_address/0.2.9",
@@ -875,7 +893,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-40",
+      "SPDXID": "SPDXRef-Package-41",
       "name": "equivalent",
       "versionInfo": "1.0.2",
       "downloadLocation": "https://crates.io/crates/equivalent/1.0.2",
@@ -892,7 +910,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-41",
+      "SPDXID": "SPDXRef-Package-42",
       "name": "errno",
       "versionInfo": "0.3.14",
       "downloadLocation": "https://crates.io/crates/errno/0.3.14",
@@ -909,7 +927,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-42",
+      "SPDXID": "SPDXRef-Package-43",
       "name": "fallible-iterator",
       "versionInfo": "0.3.0",
       "downloadLocation": "https://crates.io/crates/fallible-iterator/0.3.0",
@@ -926,7 +944,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-43",
+      "SPDXID": "SPDXRef-Package-44",
       "name": "fallible-streaming-iterator",
       "versionInfo": "0.1.9",
       "downloadLocation": "https://crates.io/crates/fallible-streaming-iterator/0.1.9",
@@ -943,7 +961,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-44",
+      "SPDXID": "SPDXRef-Package-45",
       "name": "fancy-regex",
       "versionInfo": "0.19.0",
       "downloadLocation": "https://crates.io/crates/fancy-regex/0.19.0",
@@ -960,7 +978,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-45",
+      "SPDXID": "SPDXRef-Package-46",
       "name": "find-msvc-tools",
       "versionInfo": "0.1.11",
       "downloadLocation": "https://crates.io/crates/find-msvc-tools/0.1.11",
@@ -977,7 +995,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-46",
+      "SPDXID": "SPDXRef-Package-47",
       "name": "fluent-uri",
       "versionInfo": "0.4.1",
       "downloadLocation": "https://crates.io/crates/fluent-uri/0.4.1",
@@ -994,7 +1012,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-47",
+      "SPDXID": "SPDXRef-Package-48",
       "name": "foldhash",
       "versionInfo": "0.2.0",
       "downloadLocation": "https://crates.io/crates/foldhash/0.2.0",
@@ -1011,7 +1029,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-48",
+      "SPDXID": "SPDXRef-Package-49",
       "name": "fraction",
       "versionInfo": "0.16.0",
       "downloadLocation": "https://crates.io/crates/fraction/0.16.0",
@@ -1028,7 +1046,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-49",
+      "SPDXID": "SPDXRef-Package-50",
       "name": "fs-set-times",
       "versionInfo": "0.20.3",
       "downloadLocation": "https://crates.io/crates/fs-set-times/0.20.3",
@@ -1045,7 +1063,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-50",
+      "SPDXID": "SPDXRef-Package-51",
       "name": "getrandom",
       "versionInfo": "0.3.4",
       "downloadLocation": "https://crates.io/crates/getrandom/0.3.4",
@@ -1062,7 +1080,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-51",
+      "SPDXID": "SPDXRef-Package-52",
       "name": "hashbrown",
       "versionInfo": "0.17.1",
       "downloadLocation": "https://crates.io/crates/hashbrown/0.17.1",
@@ -1079,7 +1097,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-52",
+      "SPDXID": "SPDXRef-Package-53",
       "name": "heck",
       "versionInfo": "0.5.0",
       "downloadLocation": "https://crates.io/crates/heck/0.5.0",
@@ -1096,7 +1114,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-53",
+      "SPDXID": "SPDXRef-Package-54",
       "name": "hybrid-array",
       "versionInfo": "0.4.14",
       "downloadLocation": "https://crates.io/crates/hybrid-array/0.4.14",
@@ -1113,7 +1131,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-54",
+      "SPDXID": "SPDXRef-Package-55",
       "name": "icu_collections",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_collections/2.3.0",
@@ -1130,7 +1148,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-55",
+      "SPDXID": "SPDXRef-Package-56",
       "name": "icu_locale_core",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_locale_core/2.3.0",
@@ -1147,7 +1165,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-56",
+      "SPDXID": "SPDXRef-Package-57",
       "name": "icu_normalizer",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_normalizer/2.3.0",
@@ -1164,7 +1182,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-57",
+      "SPDXID": "SPDXRef-Package-58",
       "name": "icu_normalizer_data",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_normalizer_data/2.3.0",
@@ -1181,7 +1199,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-58",
+      "SPDXID": "SPDXRef-Package-59",
       "name": "icu_properties",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_properties/2.3.0",
@@ -1198,7 +1216,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-59",
+      "SPDXID": "SPDXRef-Package-60",
       "name": "icu_properties_data",
       "versionInfo": "2.3.0",
       "downloadLocation": "https://crates.io/crates/icu_properties_data/2.3.0",
@@ -1215,7 +1233,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-60",
+      "SPDXID": "SPDXRef-Package-61",
       "name": "icu_provider",
       "versionInfo": "2.3.1",
       "downloadLocation": "https://crates.io/crates/icu_provider/2.3.1",
@@ -1232,7 +1250,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-61",
+      "SPDXID": "SPDXRef-Package-62",
       "name": "idna",
       "versionInfo": "1.1.0",
       "downloadLocation": "https://crates.io/crates/idna/1.1.0",
@@ -1249,7 +1267,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-62",
+      "SPDXID": "SPDXRef-Package-63",
       "name": "idna_adapter",
       "versionInfo": "1.2.2",
       "downloadLocation": "https://crates.io/crates/idna_adapter/1.2.2",
@@ -1266,7 +1284,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-63",
+      "SPDXID": "SPDXRef-Package-64",
       "name": "indexmap",
       "versionInfo": "2.14.0",
       "downloadLocation": "https://crates.io/crates/indexmap/2.14.0",
@@ -1283,7 +1301,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-64",
+      "SPDXID": "SPDXRef-Package-65",
       "name": "io-extras",
       "versionInfo": "0.19.0",
       "downloadLocation": "https://crates.io/crates/io-extras/0.19.0",
@@ -1300,7 +1318,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-65",
+      "SPDXID": "SPDXRef-Package-66",
       "name": "io-lifetimes",
       "versionInfo": "2.0.4",
       "downloadLocation": "https://crates.io/crates/io-lifetimes/2.0.4",
@@ -1317,7 +1335,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-66",
+      "SPDXID": "SPDXRef-Package-67",
       "name": "io-lifetimes",
       "versionInfo": "3.0.1",
       "downloadLocation": "https://crates.io/crates/io-lifetimes/3.0.1",
@@ -1334,7 +1352,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-67",
+      "SPDXID": "SPDXRef-Package-68",
       "name": "ipnet",
       "versionInfo": "2.12.1",
       "downloadLocation": "https://crates.io/crates/ipnet/2.12.1",
@@ -1351,7 +1369,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-68",
+      "SPDXID": "SPDXRef-Package-69",
       "name": "itoa",
       "versionInfo": "1.0.18",
       "downloadLocation": "https://crates.io/crates/itoa/1.0.18",
@@ -1368,7 +1386,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-69",
+      "SPDXID": "SPDXRef-Package-70",
       "name": "js-sys",
       "versionInfo": "0.3.104",
       "downloadLocation": "https://crates.io/crates/js-sys/0.3.104",
@@ -1385,7 +1403,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-70",
+      "SPDXID": "SPDXRef-Package-71",
       "name": "jsonschema",
       "versionInfo": "0.50.0",
       "downloadLocation": "https://crates.io/crates/jsonschema/0.50.0",
@@ -1402,7 +1420,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-71",
+      "SPDXID": "SPDXRef-Package-72",
       "name": "jsonschema-regex",
       "versionInfo": "0.50.0",
       "downloadLocation": "https://crates.io/crates/jsonschema-regex/0.50.0",
@@ -1419,7 +1437,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-72",
+      "SPDXID": "SPDXRef-Package-73",
       "name": "jsonschema-value",
       "versionInfo": "0.50.0",
       "downloadLocation": "https://crates.io/crates/jsonschema-value/0.50.0",
@@ -1436,7 +1454,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-73",
+      "SPDXID": "SPDXRef-Package-74",
       "name": "libc",
       "versionInfo": "0.2.189",
       "downloadLocation": "https://crates.io/crates/libc/0.2.189",
@@ -1453,7 +1471,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-74",
+      "SPDXID": "SPDXRef-Package-75",
       "name": "libsqlite3-sys",
       "versionInfo": "0.38.2",
       "downloadLocation": "https://crates.io/crates/libsqlite3-sys/0.38.2",
@@ -1470,7 +1488,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-75",
+      "SPDXID": "SPDXRef-Package-76",
       "name": "linux-raw-sys",
       "versionInfo": "0.12.1",
       "downloadLocation": "https://crates.io/crates/linux-raw-sys/0.12.1",
@@ -1487,7 +1505,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-76",
+      "SPDXID": "SPDXRef-Package-77",
       "name": "litemap",
       "versionInfo": "0.8.3",
       "downloadLocation": "https://crates.io/crates/litemap/0.8.3",
@@ -1504,7 +1522,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-77",
+      "SPDXID": "SPDXRef-Package-78",
       "name": "lock_api",
       "versionInfo": "0.4.14",
       "downloadLocation": "https://crates.io/crates/lock_api/0.4.14",
@@ -1521,7 +1539,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-78",
+      "SPDXID": "SPDXRef-Package-79",
       "name": "maybe-owned",
       "versionInfo": "0.3.4",
       "downloadLocation": "https://crates.io/crates/maybe-owned/0.3.4",
@@ -1538,7 +1556,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-79",
+      "SPDXID": "SPDXRef-Package-80",
       "name": "memchr",
       "versionInfo": "2.8.3",
       "downloadLocation": "https://crates.io/crates/memchr/2.8.3",
@@ -1555,7 +1573,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-80",
+      "SPDXID": "SPDXRef-Package-81",
       "name": "micromap",
       "versionInfo": "0.3.0",
       "downloadLocation": "https://crates.io/crates/micromap/0.3.0",
@@ -1572,7 +1590,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-81",
+      "SPDXID": "SPDXRef-Package-82",
       "name": "num",
       "versionInfo": "0.4.3",
       "downloadLocation": "https://crates.io/crates/num/0.4.3",
@@ -1589,7 +1607,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-82",
+      "SPDXID": "SPDXRef-Package-83",
       "name": "num-bigint",
       "versionInfo": "0.4.8",
       "downloadLocation": "https://crates.io/crates/num-bigint/0.4.8",
@@ -1606,7 +1624,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-83",
+      "SPDXID": "SPDXRef-Package-84",
       "name": "num-cmp",
       "versionInfo": "0.1.0",
       "downloadLocation": "https://crates.io/crates/num-cmp/0.1.0",
@@ -1623,7 +1641,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-84",
+      "SPDXID": "SPDXRef-Package-85",
       "name": "num-complex",
       "versionInfo": "0.4.6",
       "downloadLocation": "https://crates.io/crates/num-complex/0.4.6",
@@ -1640,7 +1658,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-85",
+      "SPDXID": "SPDXRef-Package-86",
       "name": "num-integer",
       "versionInfo": "0.1.47",
       "downloadLocation": "https://crates.io/crates/num-integer/0.1.47",
@@ -1657,7 +1675,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-86",
+      "SPDXID": "SPDXRef-Package-87",
       "name": "num-iter",
       "versionInfo": "0.1.46",
       "downloadLocation": "https://crates.io/crates/num-iter/0.1.46",
@@ -1674,7 +1692,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-87",
+      "SPDXID": "SPDXRef-Package-88",
       "name": "num-rational",
       "versionInfo": "0.4.2",
       "downloadLocation": "https://crates.io/crates/num-rational/0.4.2",
@@ -1691,7 +1709,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-88",
+      "SPDXID": "SPDXRef-Package-89",
       "name": "num-traits",
       "versionInfo": "0.2.19",
       "downloadLocation": "https://crates.io/crates/num-traits/0.2.19",
@@ -1708,7 +1726,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-89",
+      "SPDXID": "SPDXRef-Package-90",
       "name": "once_cell",
       "versionInfo": "1.21.4",
       "downloadLocation": "https://crates.io/crates/once_cell/1.21.4",
@@ -1725,7 +1743,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-90",
+      "SPDXID": "SPDXRef-Package-91",
       "name": "outref",
       "versionInfo": "0.5.2",
       "downloadLocation": "https://crates.io/crates/outref/0.5.2",
@@ -1742,7 +1760,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-91",
+      "SPDXID": "SPDXRef-Package-92",
       "name": "parking_lot",
       "versionInfo": "0.12.5",
       "downloadLocation": "https://crates.io/crates/parking_lot/0.12.5",
@@ -1759,7 +1777,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-92",
+      "SPDXID": "SPDXRef-Package-93",
       "name": "parking_lot_core",
       "versionInfo": "0.9.12",
       "downloadLocation": "https://crates.io/crates/parking_lot_core/0.9.12",
@@ -1776,7 +1794,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-93",
+      "SPDXID": "SPDXRef-Package-94",
       "name": "percent-encoding",
       "versionInfo": "2.3.2",
       "downloadLocation": "https://crates.io/crates/percent-encoding/2.3.2",
@@ -1793,7 +1811,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-94",
+      "SPDXID": "SPDXRef-Package-95",
       "name": "pkg-config",
       "versionInfo": "0.3.34",
       "downloadLocation": "https://crates.io/crates/pkg-config/0.3.34",
@@ -1810,7 +1828,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-95",
+      "SPDXID": "SPDXRef-Package-96",
       "name": "potential_utf",
       "versionInfo": "0.1.6",
       "downloadLocation": "https://crates.io/crates/potential_utf/0.1.6",
@@ -1827,7 +1845,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-96",
+      "SPDXID": "SPDXRef-Package-97",
       "name": "proc-macro2",
       "versionInfo": "1.0.107",
       "downloadLocation": "https://crates.io/crates/proc-macro2/1.0.107",
@@ -1844,7 +1862,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-97",
+      "SPDXID": "SPDXRef-Package-98",
       "name": "quote",
       "versionInfo": "1.0.47",
       "downloadLocation": "https://crates.io/crates/quote/1.0.47",
@@ -1861,7 +1879,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-98",
+      "SPDXID": "SPDXRef-Package-99",
       "name": "r-efi",
       "versionInfo": "5.3.0",
       "downloadLocation": "https://crates.io/crates/r-efi/5.3.0",
@@ -1878,7 +1896,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-99",
+      "SPDXID": "SPDXRef-Package-100",
       "name": "redox_syscall",
       "versionInfo": "0.5.18",
       "downloadLocation": "https://crates.io/crates/redox_syscall/0.5.18",
@@ -1895,7 +1913,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-100",
+      "SPDXID": "SPDXRef-Package-101",
       "name": "ref-cast",
       "versionInfo": "1.0.27",
       "downloadLocation": "https://crates.io/crates/ref-cast/1.0.27",
@@ -1912,7 +1930,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-101",
+      "SPDXID": "SPDXRef-Package-102",
       "name": "ref-cast-impl",
       "versionInfo": "1.0.27",
       "downloadLocation": "https://crates.io/crates/ref-cast-impl/1.0.27",
@@ -1929,7 +1947,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-102",
+      "SPDXID": "SPDXRef-Package-103",
       "name": "referencing",
       "versionInfo": "0.50.0",
       "downloadLocation": "https://crates.io/crates/referencing/0.50.0",
@@ -1946,7 +1964,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-103",
+      "SPDXID": "SPDXRef-Package-104",
       "name": "regex",
       "versionInfo": "1.13.1",
       "downloadLocation": "https://crates.io/crates/regex/1.13.1",
@@ -1963,7 +1981,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-104",
+      "SPDXID": "SPDXRef-Package-105",
       "name": "regex-automata",
       "versionInfo": "0.4.18",
       "downloadLocation": "https://crates.io/crates/regex-automata/0.4.18",
@@ -1980,7 +1998,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-105",
+      "SPDXID": "SPDXRef-Package-106",
       "name": "regex-syntax",
       "versionInfo": "0.8.11",
       "downloadLocation": "https://crates.io/crates/regex-syntax/0.8.11",
@@ -1997,7 +2015,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-106",
+      "SPDXID": "SPDXRef-Package-107",
       "name": "rusqlite",
       "versionInfo": "0.40.2",
       "downloadLocation": "https://crates.io/crates/rusqlite/0.40.2",
@@ -2014,7 +2032,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-107",
+      "SPDXID": "SPDXRef-Package-108",
       "name": "rustix",
       "versionInfo": "1.1.4",
       "downloadLocation": "https://crates.io/crates/rustix/1.1.4",
@@ -2031,7 +2049,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-108",
+      "SPDXID": "SPDXRef-Package-109",
       "name": "rustix-linux-procfs",
       "versionInfo": "0.1.1",
       "downloadLocation": "https://crates.io/crates/rustix-linux-procfs/0.1.1",
@@ -2048,7 +2066,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-109",
+      "SPDXID": "SPDXRef-Package-110",
       "name": "rustversion",
       "versionInfo": "1.0.23",
       "downloadLocation": "https://crates.io/crates/rustversion/1.0.23",
@@ -2065,7 +2083,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-110",
+      "SPDXID": "SPDXRef-Package-111",
       "name": "ryu-js",
       "versionInfo": "1.0.3",
       "downloadLocation": "https://crates.io/crates/ryu-js/1.0.3",
@@ -2082,7 +2100,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-111",
+      "SPDXID": "SPDXRef-Package-112",
       "name": "scopeguard",
       "versionInfo": "1.2.0",
       "downloadLocation": "https://crates.io/crates/scopeguard/1.2.0",
@@ -2099,7 +2117,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-112",
+      "SPDXID": "SPDXRef-Package-113",
       "name": "serde",
       "versionInfo": "1.0.229",
       "downloadLocation": "https://crates.io/crates/serde/1.0.229",
@@ -2116,7 +2134,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-113",
+      "SPDXID": "SPDXRef-Package-114",
       "name": "serde_core",
       "versionInfo": "1.0.229",
       "downloadLocation": "https://crates.io/crates/serde_core/1.0.229",
@@ -2133,7 +2151,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-114",
+      "SPDXID": "SPDXRef-Package-115",
       "name": "serde_derive",
       "versionInfo": "1.0.229",
       "downloadLocation": "https://crates.io/crates/serde_derive/1.0.229",
@@ -2150,7 +2168,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-115",
+      "SPDXID": "SPDXRef-Package-116",
       "name": "serde_json",
       "versionInfo": "1.0.151",
       "downloadLocation": "https://crates.io/crates/serde_json/1.0.151",
@@ -2167,7 +2185,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-116",
+      "SPDXID": "SPDXRef-Package-117",
       "name": "serde_json_canonicalizer",
       "versionInfo": "0.3.2",
       "downloadLocation": "https://crates.io/crates/serde_json_canonicalizer/0.3.2",
@@ -2184,7 +2202,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-117",
+      "SPDXID": "SPDXRef-Package-118",
       "name": "serde_spanned",
       "versionInfo": "1.1.1",
       "downloadLocation": "https://crates.io/crates/serde_spanned/1.1.1",
@@ -2201,7 +2219,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-118",
+      "SPDXID": "SPDXRef-Package-119",
       "name": "sha2",
       "versionInfo": "0.11.0",
       "downloadLocation": "https://crates.io/crates/sha2/0.11.0",
@@ -2218,7 +2236,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-119",
+      "SPDXID": "SPDXRef-Package-120",
       "name": "shlex",
       "versionInfo": "2.0.1",
       "downloadLocation": "https://crates.io/crates/shlex/2.0.1",
@@ -2235,7 +2253,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-120",
+      "SPDXID": "SPDXRef-Package-121",
       "name": "smallvec",
       "versionInfo": "1.15.2",
       "downloadLocation": "https://crates.io/crates/smallvec/1.15.2",
@@ -2252,7 +2270,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-121",
+      "SPDXID": "SPDXRef-Package-122",
       "name": "stable_deref_trait",
       "versionInfo": "1.2.1",
       "downloadLocation": "https://crates.io/crates/stable_deref_trait/1.2.1",
@@ -2269,7 +2287,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-122",
+      "SPDXID": "SPDXRef-Package-123",
       "name": "streaming-iterator",
       "versionInfo": "0.1.9",
       "downloadLocation": "https://crates.io/crates/streaming-iterator/0.1.9",
@@ -2286,7 +2304,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-123",
+      "SPDXID": "SPDXRef-Package-124",
       "name": "strum",
       "versionInfo": "0.28.0",
       "downloadLocation": "https://crates.io/crates/strum/0.28.0",
@@ -2303,7 +2321,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-124",
+      "SPDXID": "SPDXRef-Package-125",
       "name": "strum_macros",
       "versionInfo": "0.28.0",
       "downloadLocation": "https://crates.io/crates/strum_macros/0.28.0",
@@ -2320,7 +2338,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-125",
+      "SPDXID": "SPDXRef-Package-126",
       "name": "syn",
       "versionInfo": "2.0.119",
       "downloadLocation": "https://crates.io/crates/syn/2.0.119",
@@ -2337,7 +2355,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-126",
+      "SPDXID": "SPDXRef-Package-127",
       "name": "syn",
       "versionInfo": "3.0.3",
       "downloadLocation": "https://crates.io/crates/syn/3.0.3",
@@ -2354,7 +2372,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-127",
+      "SPDXID": "SPDXRef-Package-128",
       "name": "synstructure",
       "versionInfo": "0.13.2",
       "downloadLocation": "https://crates.io/crates/synstructure/0.13.2",
@@ -2371,7 +2389,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-128",
+      "SPDXID": "SPDXRef-Package-129",
       "name": "tinystr",
       "versionInfo": "0.8.4",
       "downloadLocation": "https://crates.io/crates/tinystr/0.8.4",
@@ -2388,7 +2406,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-129",
+      "SPDXID": "SPDXRef-Package-130",
       "name": "toml",
       "versionInfo": "1.1.4+spec-1.1.0",
       "downloadLocation": "https://crates.io/crates/toml/1.1.4+spec-1.1.0",
@@ -2405,7 +2423,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-130",
+      "SPDXID": "SPDXRef-Package-131",
       "name": "toml_datetime",
       "versionInfo": "1.1.1+spec-1.1.0",
       "downloadLocation": "https://crates.io/crates/toml_datetime/1.1.1+spec-1.1.0",
@@ -2422,7 +2440,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-131",
+      "SPDXID": "SPDXRef-Package-132",
       "name": "toml_parser",
       "versionInfo": "1.1.3+spec-1.1.0",
       "downloadLocation": "https://crates.io/crates/toml_parser/1.1.3+spec-1.1.0",
@@ -2439,7 +2457,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-132",
+      "SPDXID": "SPDXRef-Package-133",
       "name": "toml_writer",
       "versionInfo": "1.1.2+spec-1.1.0",
       "downloadLocation": "https://crates.io/crates/toml_writer/1.1.2+spec-1.1.0",
@@ -2456,7 +2474,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-133",
+      "SPDXID": "SPDXRef-Package-134",
       "name": "tree-sitter",
       "versionInfo": "0.26.12",
       "downloadLocation": "https://crates.io/crates/tree-sitter/0.26.12",
@@ -2473,7 +2491,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-134",
+      "SPDXID": "SPDXRef-Package-135",
       "name": "tree-sitter-c-sharp",
       "versionInfo": "0.23.5",
       "downloadLocation": "https://crates.io/crates/tree-sitter-c-sharp/0.23.5",
@@ -2490,7 +2508,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-135",
+      "SPDXID": "SPDXRef-Package-136",
       "name": "tree-sitter-clojure-orchard",
       "versionInfo": "0.2.8",
       "downloadLocation": "https://crates.io/crates/tree-sitter-clojure-orchard/0.2.8",
@@ -2507,7 +2525,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-136",
+      "SPDXID": "SPDXRef-Package-137",
       "name": "tree-sitter-elixir",
       "versionInfo": "0.3.5",
       "downloadLocation": "https://crates.io/crates/tree-sitter-elixir/0.3.5",
@@ -2524,7 +2542,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-137",
+      "SPDXID": "SPDXRef-Package-138",
       "name": "tree-sitter-go",
       "versionInfo": "0.25.0",
       "downloadLocation": "https://crates.io/crates/tree-sitter-go/0.25.0",
@@ -2541,7 +2559,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-138",
+      "SPDXID": "SPDXRef-Package-139",
       "name": "tree-sitter-haskell",
       "versionInfo": "0.23.1",
       "downloadLocation": "https://crates.io/crates/tree-sitter-haskell/0.23.1",
@@ -2558,7 +2576,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-139",
+      "SPDXID": "SPDXRef-Package-140",
       "name": "tree-sitter-java",
       "versionInfo": "0.23.5",
       "downloadLocation": "https://crates.io/crates/tree-sitter-java/0.23.5",
@@ -2575,7 +2593,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-140",
+      "SPDXID": "SPDXRef-Package-141",
       "name": "tree-sitter-javascript",
       "versionInfo": "0.25.0",
       "downloadLocation": "https://crates.io/crates/tree-sitter-javascript/0.25.0",
@@ -2592,7 +2610,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-141",
+      "SPDXID": "SPDXRef-Package-142",
       "name": "tree-sitter-json",
       "versionInfo": "0.24.8",
       "downloadLocation": "https://crates.io/crates/tree-sitter-json/0.24.8",
@@ -2609,7 +2627,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-142",
+      "SPDXID": "SPDXRef-Package-143",
       "name": "tree-sitter-kotlin-ng",
       "versionInfo": "1.1.0",
       "downloadLocation": "https://crates.io/crates/tree-sitter-kotlin-ng/1.1.0",
@@ -2626,7 +2644,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-143",
+      "SPDXID": "SPDXRef-Package-144",
       "name": "tree-sitter-language",
       "versionInfo": "0.1.7",
       "downloadLocation": "https://crates.io/crates/tree-sitter-language/0.1.7",
@@ -2643,7 +2661,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-144",
+      "SPDXID": "SPDXRef-Package-145",
       "name": "tree-sitter-python",
       "versionInfo": "0.25.0",
       "downloadLocation": "https://crates.io/crates/tree-sitter-python/0.25.0",
@@ -2660,7 +2678,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-145",
+      "SPDXID": "SPDXRef-Package-146",
       "name": "tree-sitter-rust",
       "versionInfo": "0.24.2",
       "downloadLocation": "https://crates.io/crates/tree-sitter-rust/0.24.2",
@@ -2677,7 +2695,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-146",
+      "SPDXID": "SPDXRef-Package-147",
       "name": "tree-sitter-scala",
       "versionInfo": "0.26.2",
       "downloadLocation": "https://crates.io/crates/tree-sitter-scala/0.26.2",
@@ -2694,7 +2712,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-147",
+      "SPDXID": "SPDXRef-Package-148",
       "name": "tree-sitter-toml-ng",
       "versionInfo": "0.7.0",
       "downloadLocation": "https://crates.io/crates/tree-sitter-toml-ng/0.7.0",
@@ -2711,7 +2729,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-148",
+      "SPDXID": "SPDXRef-Package-149",
       "name": "tree-sitter-typescript",
       "versionInfo": "0.23.2",
       "downloadLocation": "https://crates.io/crates/tree-sitter-typescript/0.23.2",
@@ -2728,7 +2746,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-149",
+      "SPDXID": "SPDXRef-Package-150",
       "name": "tree-sitter-yaml",
       "versionInfo": "0.7.2",
       "downloadLocation": "https://crates.io/crates/tree-sitter-yaml/0.7.2",
@@ -2745,7 +2763,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-150",
+      "SPDXID": "SPDXRef-Package-151",
       "name": "typenum",
       "versionInfo": "1.20.1",
       "downloadLocation": "https://crates.io/crates/typenum/1.20.1",
@@ -2762,7 +2780,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-151",
+      "SPDXID": "SPDXRef-Package-152",
       "name": "unicode-general-category",
       "versionInfo": "1.1.0",
       "downloadLocation": "https://crates.io/crates/unicode-general-category/1.1.0",
@@ -2779,7 +2797,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-152",
+      "SPDXID": "SPDXRef-Package-153",
       "name": "unicode-ident",
       "versionInfo": "1.0.24",
       "downloadLocation": "https://crates.io/crates/unicode-ident/1.0.24",
@@ -2796,7 +2814,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-153",
+      "SPDXID": "SPDXRef-Package-154",
       "name": "utf8_iter",
       "versionInfo": "1.0.4",
       "downloadLocation": "https://crates.io/crates/utf8_iter/1.0.4",
@@ -2813,7 +2831,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-154",
+      "SPDXID": "SPDXRef-Package-155",
       "name": "uuid-simd",
       "versionInfo": "0.8.0",
       "downloadLocation": "https://crates.io/crates/uuid-simd/0.8.0",
@@ -2830,7 +2848,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-155",
+      "SPDXID": "SPDXRef-Package-156",
       "name": "vcpkg",
       "versionInfo": "0.2.15",
       "downloadLocation": "https://crates.io/crates/vcpkg/0.2.15",
@@ -2847,7 +2865,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-156",
+      "SPDXID": "SPDXRef-Package-157",
       "name": "version_check",
       "versionInfo": "0.9.5",
       "downloadLocation": "https://crates.io/crates/version_check/0.9.5",
@@ -2864,7 +2882,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-157",
+      "SPDXID": "SPDXRef-Package-158",
       "name": "vsimd",
       "versionInfo": "0.8.0",
       "downloadLocation": "https://crates.io/crates/vsimd/0.8.0",
@@ -2881,7 +2899,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-158",
+      "SPDXID": "SPDXRef-Package-159",
       "name": "wasip2",
       "versionInfo": "1.0.4+wasi-0.2.12",
       "downloadLocation": "https://crates.io/crates/wasip2/1.0.4+wasi-0.2.12",
@@ -2898,7 +2916,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-159",
+      "SPDXID": "SPDXRef-Package-160",
       "name": "wasm-bindgen",
       "versionInfo": "0.2.127",
       "downloadLocation": "https://crates.io/crates/wasm-bindgen/0.2.127",
@@ -2915,7 +2933,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-160",
+      "SPDXID": "SPDXRef-Package-161",
       "name": "wasm-bindgen-macro",
       "versionInfo": "0.2.127",
       "downloadLocation": "https://crates.io/crates/wasm-bindgen-macro/0.2.127",
@@ -2932,7 +2950,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-161",
+      "SPDXID": "SPDXRef-Package-162",
       "name": "wasm-bindgen-macro-support",
       "versionInfo": "0.2.127",
       "downloadLocation": "https://crates.io/crates/wasm-bindgen-macro-support/0.2.127",
@@ -2949,7 +2967,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-162",
+      "SPDXID": "SPDXRef-Package-163",
       "name": "wasm-bindgen-shared",
       "versionInfo": "0.2.127",
       "downloadLocation": "https://crates.io/crates/wasm-bindgen-shared/0.2.127",
@@ -2966,7 +2984,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-163",
+      "SPDXID": "SPDXRef-Package-164",
       "name": "windows-link",
       "versionInfo": "0.2.1",
       "downloadLocation": "https://crates.io/crates/windows-link/0.2.1",
@@ -2983,7 +3001,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-164",
+      "SPDXID": "SPDXRef-Package-165",
       "name": "windows-sys",
       "versionInfo": "0.59.0",
       "downloadLocation": "https://crates.io/crates/windows-sys/0.59.0",
@@ -3000,7 +3018,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-165",
+      "SPDXID": "SPDXRef-Package-166",
       "name": "windows-sys",
       "versionInfo": "0.60.2",
       "downloadLocation": "https://crates.io/crates/windows-sys/0.60.2",
@@ -3017,7 +3035,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-166",
+      "SPDXID": "SPDXRef-Package-167",
       "name": "windows-sys",
       "versionInfo": "0.61.2",
       "downloadLocation": "https://crates.io/crates/windows-sys/0.61.2",
@@ -3034,7 +3052,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-167",
+      "SPDXID": "SPDXRef-Package-168",
       "name": "windows-targets",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows-targets/0.52.6",
@@ -3051,7 +3069,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-168",
+      "SPDXID": "SPDXRef-Package-169",
       "name": "windows-targets",
       "versionInfo": "0.53.5",
       "downloadLocation": "https://crates.io/crates/windows-targets/0.53.5",
@@ -3068,7 +3086,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-169",
+      "SPDXID": "SPDXRef-Package-170",
       "name": "windows_aarch64_gnullvm",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_aarch64_gnullvm/0.52.6",
@@ -3085,7 +3103,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-170",
+      "SPDXID": "SPDXRef-Package-171",
       "name": "windows_aarch64_gnullvm",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_aarch64_gnullvm/0.53.1",
@@ -3102,7 +3120,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-171",
+      "SPDXID": "SPDXRef-Package-172",
       "name": "windows_aarch64_msvc",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_aarch64_msvc/0.52.6",
@@ -3119,7 +3137,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-172",
+      "SPDXID": "SPDXRef-Package-173",
       "name": "windows_aarch64_msvc",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_aarch64_msvc/0.53.1",
@@ -3136,7 +3154,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-173",
+      "SPDXID": "SPDXRef-Package-174",
       "name": "windows_i686_gnu",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_i686_gnu/0.52.6",
@@ -3153,7 +3171,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-174",
+      "SPDXID": "SPDXRef-Package-175",
       "name": "windows_i686_gnu",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_i686_gnu/0.53.1",
@@ -3170,7 +3188,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-175",
+      "SPDXID": "SPDXRef-Package-176",
       "name": "windows_i686_gnullvm",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_i686_gnullvm/0.52.6",
@@ -3187,7 +3205,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-176",
+      "SPDXID": "SPDXRef-Package-177",
       "name": "windows_i686_gnullvm",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_i686_gnullvm/0.53.1",
@@ -3204,7 +3222,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-177",
+      "SPDXID": "SPDXRef-Package-178",
       "name": "windows_i686_msvc",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_i686_msvc/0.52.6",
@@ -3221,7 +3239,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-178",
+      "SPDXID": "SPDXRef-Package-179",
       "name": "windows_i686_msvc",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_i686_msvc/0.53.1",
@@ -3238,7 +3256,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-179",
+      "SPDXID": "SPDXRef-Package-180",
       "name": "windows_x86_64_gnu",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_gnu/0.52.6",
@@ -3255,7 +3273,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-180",
+      "SPDXID": "SPDXRef-Package-181",
       "name": "windows_x86_64_gnu",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_gnu/0.53.1",
@@ -3272,7 +3290,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-181",
+      "SPDXID": "SPDXRef-Package-182",
       "name": "windows_x86_64_gnullvm",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_gnullvm/0.52.6",
@@ -3289,7 +3307,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-182",
+      "SPDXID": "SPDXRef-Package-183",
       "name": "windows_x86_64_gnullvm",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_gnullvm/0.53.1",
@@ -3306,7 +3324,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-183",
+      "SPDXID": "SPDXRef-Package-184",
       "name": "windows_x86_64_msvc",
       "versionInfo": "0.52.6",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_msvc/0.52.6",
@@ -3323,7 +3341,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-184",
+      "SPDXID": "SPDXRef-Package-185",
       "name": "windows_x86_64_msvc",
       "versionInfo": "0.53.1",
       "downloadLocation": "https://crates.io/crates/windows_x86_64_msvc/0.53.1",
@@ -3340,7 +3358,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-185",
+      "SPDXID": "SPDXRef-Package-186",
       "name": "winnow",
       "versionInfo": "1.0.4",
       "downloadLocation": "https://crates.io/crates/winnow/1.0.4",
@@ -3357,7 +3375,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-186",
+      "SPDXID": "SPDXRef-Package-187",
       "name": "winx",
       "versionInfo": "0.36.4",
       "downloadLocation": "https://crates.io/crates/winx/0.36.4",
@@ -3374,7 +3392,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-187",
+      "SPDXID": "SPDXRef-Package-188",
       "name": "wit-bindgen",
       "versionInfo": "0.57.1",
       "downloadLocation": "https://crates.io/crates/wit-bindgen/0.57.1",
@@ -3391,7 +3409,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-188",
+      "SPDXID": "SPDXRef-Package-189",
       "name": "writeable",
       "versionInfo": "0.6.4",
       "downloadLocation": "https://crates.io/crates/writeable/0.6.4",
@@ -3408,7 +3426,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-189",
+      "SPDXID": "SPDXRef-Package-190",
       "name": "yoke",
       "versionInfo": "0.8.3",
       "downloadLocation": "https://crates.io/crates/yoke/0.8.3",
@@ -3425,7 +3443,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-190",
+      "SPDXID": "SPDXRef-Package-191",
       "name": "yoke-derive",
       "versionInfo": "0.8.2",
       "downloadLocation": "https://crates.io/crates/yoke-derive/0.8.2",
@@ -3442,7 +3460,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-191",
+      "SPDXID": "SPDXRef-Package-192",
       "name": "zerocopy",
       "versionInfo": "0.8.56",
       "downloadLocation": "https://crates.io/crates/zerocopy/0.8.56",
@@ -3459,7 +3477,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-192",
+      "SPDXID": "SPDXRef-Package-193",
       "name": "zerocopy-derive",
       "versionInfo": "0.8.56",
       "downloadLocation": "https://crates.io/crates/zerocopy-derive/0.8.56",
@@ -3476,7 +3494,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-193",
+      "SPDXID": "SPDXRef-Package-194",
       "name": "zerofrom",
       "versionInfo": "0.1.8",
       "downloadLocation": "https://crates.io/crates/zerofrom/0.1.8",
@@ -3493,7 +3511,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-194",
+      "SPDXID": "SPDXRef-Package-195",
       "name": "zerofrom-derive",
       "versionInfo": "0.1.7",
       "downloadLocation": "https://crates.io/crates/zerofrom-derive/0.1.7",
@@ -3510,7 +3528,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-195",
+      "SPDXID": "SPDXRef-Package-196",
       "name": "zerotrie",
       "versionInfo": "0.2.5",
       "downloadLocation": "https://crates.io/crates/zerotrie/0.2.5",
@@ -3527,7 +3545,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-196",
+      "SPDXID": "SPDXRef-Package-197",
       "name": "zerovec",
       "versionInfo": "0.11.8",
       "downloadLocation": "https://crates.io/crates/zerovec/0.11.8",
@@ -3544,7 +3562,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-197",
+      "SPDXID": "SPDXRef-Package-198",
       "name": "zerovec-derive",
       "versionInfo": "0.11.6",
       "downloadLocation": "https://crates.io/crates/zerovec-derive/0.11.6",
@@ -3561,7 +3579,7 @@
       ]
     },
     {
-      "SPDXID": "SPDXRef-Package-198",
+      "SPDXID": "SPDXRef-Package-199",
       "name": "zmij",
       "versionInfo": "1.0.23",
       "downloadLocation": "https://crates.io/crates/zmij/1.0.23",
