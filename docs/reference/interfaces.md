@@ -1,7 +1,9 @@
 # CLI and local MCP interface reference
 
 This document describes the supported external interfaces for the current
-release candidate. Both adapters call the same local engine. They read only the
+source tree. Published binary behavior is scoped to its tagged release; see the
+[release evidence](../verification/release-evidence.md). Both adapters call the
+same local engine. They read only the
 workspace root explicitly authorized at launch and write only to the explicit
 cache or export location.
 

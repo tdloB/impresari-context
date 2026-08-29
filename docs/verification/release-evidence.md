@@ -5,6 +5,25 @@ replace release signing, clean-install testing, an owner decision to publish, or
 an independent review when ADR-0017 makes one mandatory. Automated and
 AI-assisted evidence is not an independent audit.
 
+## 2026-08-23 UTC — `v0.1.0` published
+
+- Release:
+  [`v0.1.0`](https://github.com/tdloB/impresari-context/releases/tag/v0.1.0)
+- Tagged commit: `c77e95ce95b2fde99da2582707d4e4d58a512122`
+- Publish workflow:
+  [GitHub Actions 32606121468](https://github.com/tdloB/impresari-context/actions/runs/32606121468),
+  successful.
+- Published native targets: `aarch64-apple-darwin`,
+  `x86_64-unknown-linux-gnu`, and `x86_64-pc-windows-msvc`.
+- Each target's release archive has an adjacent SHA-256 file and a GitHub build
+  provenance attestation produced by the release workflow from the tagged
+  commit.
+- The reviewed release notes describe capabilities, compatibility, security
+  boundaries, limitations, and the absence of an independent third-party
+  security audit.
+- This closes the publication gate for `v0.1.0`. Later default-branch
+  capabilities are not claims about these published artifacts.
+
 ## 2026-08-22 — Slices A–C native matrix
 
 - Commit: `cea4a36f3d28e84cc7b429702f94d09daa15f126`
@@ -29,15 +48,13 @@ AI-assisted evidence is not an independent audit.
   a qualifying trust-boundary expansion triggers ADR-0017. This is encouraged
   but is not an open `v0.1.0` release blocker.
 
-## Open release evidence
+## Current release status
 
-- Final exact-commit release-evidence review and explicit owner publication
-  authorization. The provenance/signing policy and implementation are recorded
-  in ADR-0016.
-
-Local packaging and clean-install rehearsal pass on macOS ARM64, including a
-real MCP initialize/tools exchange. This is implementation evidence, not a
-substitute for the exact-commit hosted native candidate matrix.
+There is no open `v0.1.0` publication gate. Future releases still require an
+exact-commit hosted native matrix, clean-install evidence, checksums,
+provenance attestations, reviewed release notes, and explicit owner
+authorization. The provenance policy and implementation are recorded in
+ADR-0016. Independent human review remains the deferred assurance target above.
 
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
