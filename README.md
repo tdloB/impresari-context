@@ -49,6 +49,9 @@ materially expands its trust boundary. It was not a mandatory `v0.1.0` gate;
 the published release discloses the absence of an independent third-party
 security audit.
 
+See the [`v0.1.0` conformance statement](CONFORMANCE.md) for the exact artifact
+scope, normative contracts, verification basis, limitations, and non-claims.
+
 The workspace pins Rust 1.98.0 and declares Rust 1.96 as its initial MSRV. Run
 the complete local quality gate with `./scripts/check.sh`. Current milestones
 are tested on Rust 1.96.0, 1.97.0, and stable, with Clippy warnings denied,
