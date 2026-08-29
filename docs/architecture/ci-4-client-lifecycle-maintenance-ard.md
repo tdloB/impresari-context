@@ -1,6 +1,6 @@
 # CI-4 Client Lifecycle Maintenance — Architecture Requirements and Design
 
-- Status: Initial GitHub Copilot CLI scope implemented
+- Status: GitHub Copilot CLI and Claude Code scopes implemented
 - Date: 2026-08-25
 - Governing product record: [CI-4 PRD](../product/client-integration-l4-lifecycle-maintenance-prd.md)
 - Governing decision: [ADR-0043](../decisions/0043-source-free-client-lifecycle-maintenance.md)
@@ -88,6 +88,8 @@ owned-target path, client availability, exact version, OS, architecture, and
 assessment date. It reads only the supplied manifest and supplied target. It
 does not inspect a workspace, discover a client, read environment variables,
 spawn a client or shell, access a network, mutate an artifact, or retain a
-background process. The initial manifest is
-`client-lifecycle/copilot-cli-native-guidance-v1.json`; its artifact and
-evidence SHA-256 identities are checked by the repository gate.
+background process. The admitted manifests are
+`client-lifecycle/copilot-cli-native-guidance-v1.json` and
+`client-lifecycle/claude-code-native-guidance-v1.json`; independent repository
+gates bind each exact artifact and evidence record by SHA-256 while sharing the
+same closed health-receipt contract.
