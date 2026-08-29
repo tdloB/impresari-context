@@ -441,6 +441,74 @@ fn analyzer_runner_profile_and_fixture_provenance_are_frozen() {
 }
 
 #[test]
+fn analyzer_supervisor_profile_and_fixture_provenance_are_frozen() {
+    let root = repository_root();
+    let profile_path = root.join("profiles/v1/iar-application-supervisor-v1.json");
+    let profile_bytes = fs::read(&profile_path).expect("IAR-1 profile");
+    let sidecar = fs::read_to_string(root.join("profiles/v1/iar-application-supervisor-v1.sha256"))
+        .expect("IAR-1 profile digest sidecar");
+    assert_eq!(
+        lowercase_hex(Sha256::digest(&profile_bytes)),
+        sidecar.split_whitespace().next().expect("profile digest")
+    );
+    assert_eq!(
+        profile_bytes,
+        fs::read(root.join("tests/conformance/v1/valid/iar-application-supervisor-profile.json"))
+            .expect("IAR-1 profile fixture")
+    );
+
+    let provenance =
+        read_json(&root.join("tests/conformance/v1/analyzer-supervisor-fixture-provenance.json"));
+    assert_eq!(
+        provenance["review_status"],
+        "approved_original_synthetic_only"
+    );
+    for prohibited in [
+        "contains_executable_artifacts",
+        "contains_malware_or_live_signatures",
+        "contains_third_party_source",
+        "contains_private_or_customer_source",
+        "network_or_provider_data_used",
+    ] {
+        assert_eq!(provenance[prohibited], false);
+    }
+    let provenance_paths = provenance["cases"]
+        .as_array()
+        .expect("provenance cases")
+        .iter()
+        .map(|case| {
+            assert_eq!(case["origin"], "original_synthetic");
+            assert_eq!(case["license"], "Apache-2.0");
+            let relative = case["path"].as_str().expect("fixture path");
+            assert!(!relative.starts_with('/') && !relative.contains(".."));
+            let bytes = fs::read(root.join("tests/conformance/v1").join(relative))
+                .unwrap_or_else(|error| panic!("provenance fixture {relative}: {error}"));
+            assert_eq!(
+                lowercase_hex(Sha256::digest(bytes)),
+                case["sha256"].as_str().expect("fixture digest")
+            );
+            relative
+        })
+        .collect::<BTreeSet<_>>();
+    let conformance = read_json(&root.join("tests/conformance/v1/manifest.json"));
+    let declared_paths = conformance["cases"]
+        .as_array()
+        .expect("conformance cases")
+        .iter()
+        .filter(|case| {
+            matches!(
+                case["schema"].as_str().expect("schema"),
+                "analyzer-supervisor-resource-profile.schema.json"
+                    | "analyzer-supervisor-confinement.schema.json"
+                    | "analyzer-supervisor-audit.schema.json"
+            )
+        })
+        .map(|case| case["fixture"].as_str().expect("fixture"))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(provenance_paths, declared_paths);
+}
+
+#[test]
 fn rust_packet_output_satisfies_the_published_schema() {
     let root = repository_root();
     let schema_root = root.join("schemas/v1");

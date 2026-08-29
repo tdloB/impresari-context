@@ -4,8 +4,8 @@
 
 - Product: Impresari Analyzer Runner for Impresari Context.
 - PRD ID/version: IC-IAR-PRD-001 / 0.1.
-- Status: Accepted; IAR-0 closed protocol and synthetic worker implemented.
-  Process isolation and real analyzers remain later increments.
+- Status: Accepted; IAR-0 and IAR-1A application-enforced synthetic supervision
+  implemented. IAR-1B OS confinement and real analyzers remain later increments.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 2 of 3; depends on accepted step 1 contracts.
@@ -294,14 +294,36 @@ users to deploy MISP for the initial product.
 Gate: ADR-0074 acceptance, threat-model expansion, and independent protocol
 review.
 
-### IAR-1 — Local supervisor confinement
+### IAR-1A — Application-enforced local supervision
 
-- Implement per-job staging, process supervision, platform confinement, quotas,
+- Implement per-job staging, direct-child process supervision, portable bounds,
   cleanup, and source-free audit.
 - Use no real scanner or network.
 
-Gate: Tier A escape, handle, process-tree, mutation, resource, crash, and cleanup
-suites. Claims remain `application_enforced` where OS confinement is incomplete.
+Gate: exact identity, staging, mutation, framing, output, crash, wall-time,
+direct-child, cleanup, and source-free-audit suites. The claim is fixed to
+`application_enforced` and cannot imply an OS sandbox.
+
+Application-enforced baseline result: private content-addressed staging, exact executable
+pinning, cleared environment, private current directory, bounded single-frame
+transport, wall timeout, direct-child reap, input rehash, all-or-nothing result
+validation, and exact job cleanup are implemented for the first-party synthetic
+worker. Escape, network-denial, unrelated-handle, and descendant-process-tree
+containment are not established by portable application controls and remain
+explicit limitations.
+
+### IAR-1B — Platform OS confinement
+
+- Select independently admitted macOS, Linux, and Windows confinement backends.
+- Enforce CPU, memory, process-count/tree, disk, filesystem, descriptor/handle,
+  device, credential, and network boundaries around only the synthetic worker.
+- Fail closed as unsupported when a required platform primitive or effective-
+  policy verifier is absent.
+
+Gate: the complete Tier A escape, handle, process-tree, mutation, resource,
+network, crash, and cleanup suites on every claimed host. The candidate platform
+matrix and unresolved selection evidence are recorded in the OS-confinement
+feasibility record. IAR-1B must complete before IAR-2 executes YARA.
 
 ### IAR-2 — YARA reference adapter
 

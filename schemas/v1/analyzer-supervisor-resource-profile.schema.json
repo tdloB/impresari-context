@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-supervisor-resource-profile.schema.json",
+  "title": "IAR-1A application-enforced supervisor resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "analyzer-supervisor-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-application-supervisor-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobs", "control_bytes", "output_bytes", "stderr_bytes", "artifacts", "artifact_bytes", "total_artifact_bytes", "elapsed_ms"],
+      "properties": {
+        "jobs": {"const": "1"},
+        "control_bytes": {"const": "262144"},
+        "output_bytes": {"const": "262144"},
+        "stderr_bytes": {"const": "16384"},
+        "artifacts": {"const": "64"},
+        "artifact_bytes": {"const": "1048576"},
+        "total_artifact_bytes": {"const": "4194304"},
+        "elapsed_ms": {"const": "60000"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["filesystem_staging", "process_launch", "environment_cleared", "private_working_directory", "input_rehashed", "bounded_transport", "analyzer_execution", "network_authorized", "network_denial_verified", "credentials_authorized", "artifact_upload_authorized", "repository_execution_authorized", "os_confined", "vm_confined"],
+      "properties": {
+        "filesystem_staging": {"const": true},
+        "process_launch": {"const": true},
+        "environment_cleared": {"const": true},
+        "private_working_directory": {"const": true},
+        "input_rehashed": {"const": true},
+        "bounded_transport": {"const": true},
+        "analyzer_execution": {"const": false},
+        "network_authorized": {"const": false},
+        "network_denial_verified": {"const": false},
+        "credentials_authorized": {"const": false},
+        "artifact_upload_authorized": {"const": false},
+        "repository_execution_authorized": {"const": false},
+        "os_confined": {"const": false},
+        "vm_confined": {"const": false}
+      }
+    }
+  }
+}

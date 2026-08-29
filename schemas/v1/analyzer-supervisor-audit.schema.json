@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-supervisor-audit.schema.json",
+  "title": "IAR-1A bounded source-free completion audit",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "request_id", "profile_digest", "artifacts_staged", "bytes_staged", "outcome", "job_removed", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "analyzer-supervisor-audit"},
+    "schema_version": {"const": "1.0.0"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "profile_digest": {"const": "sha256:3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa"},
+    "artifacts_staged": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "bytes_staged": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "outcome": {"type": "string", "enum": ["complete_result", "complete_failure"]},
+    "job_removed": {"const": true},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

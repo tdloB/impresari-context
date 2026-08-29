@@ -284,7 +284,8 @@ pub struct AnalyzerRunnerFailure {
 }
 
 /// The complete possible outcome of the pure synthetic model.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(tag = "status", content = "record", rename_all = "snake_case")]
 pub enum SyntheticOutcome {
     /// Complete no-op accounting result.
     Result(AnalyzerRunnerResult),

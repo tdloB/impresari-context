@@ -1,6 +1,7 @@
 # ADR-0074: Separate isolated analyzer runner
 
-- Status: Accepted; IAR-0 protocol and synthetic worker implemented
+- Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
+  supervision implemented; IAR-1B OS confinement pending
 - Date: 2026-08-26
 - Scope: Static analyzer execution, scanner adapters, Windows hostile-format
   analysis, rule/database updates, and hash-only reputation
@@ -126,8 +127,12 @@ in-memory no-op/fault worker. It adds no scanner installation, subprocess,
 filesystem staging, network query, upload, credential access, parser, or
 repository execution.
 
-IAR-1 must add only staging, supervision, and measured platform confinement;
-it requires its own architecture checkpoint and evidence. Real analyzer
+IAR-1A adds private content-addressed staging,
+exact executable pinning, a short-lived synthetic subprocess, bounded transport
+and wall time, input rehashing, complete-result validation, cleanup, and an
+explicit measured posture. It claims only `application_enforced`: OS/VM
+confinement, verified network denial, and descendant containment remain false
+or unverified, so the IAR-1B OS-confinement checkpoint remains open. Real analyzer
 admission, updater/network capability, provider access, and quarantine remain
 separate later gates.
 
