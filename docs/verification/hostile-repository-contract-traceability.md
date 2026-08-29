@@ -1,10 +1,11 @@
-# ADR-0073 HRA-0/HRA-1 Traceability
+# ADR-0073 HRA-0/HRA-1/HRA-2 Traceability
 
-- Scope: static, evidence-only contracts and bounded read-only inventory.
+- Scope: static contracts, bounded read-only inventory, and narrow exact-evidence observations.
 - Authorization: founder-approved HRA-0 and separately approved HRA-1 on
   2026-08-29.
-- Runtime status: HRA-1 inventory is implemented. HRA-2 observations, ADR-0074
-  analyzers, and ADR-0075 quarantine execution remain unapproved and absent.
+- Runtime status: HRA-1 inventory and the initial HRA-2 npm lifecycle corpus are
+  implemented. Broader HRA-2 ecosystems, HRA-3, ADR-0074 analyzers, and ADR-0075
+  quarantine execution remain absent.
 
 | Requirement | Authoritative artifact | Verification |
 | --- | --- | --- |
@@ -19,6 +20,7 @@
 | Threat coverage | `docs/security/threat-model.md` SEC-T-042 through SEC-T-044 and SEC-REQ-017 | Repository security and policy checks |
 | Evaluation gates | `docs/product/evaluation-prd.md` ADR-0073 HRA-0 hard gates | Full local and hosted conformance suites |
 | Runtime inventory | `crates/context-admission/src/lib.rs` | Schema validation, exact snapshot/hash/length binding, deterministic cross-platform classification, explicit exclusions, source immutability, stale-snapshot failure, and symlink non-following unit tests |
+| npm lifecycle observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-npm-lifecycle-rule-corpus.md` | Closed rule corpus, exact finding/evidence schema validation, false-positive cases, unsupported syntax, stale-source failure, command-value non-retention, and source immutability |
 
 ## Authority audit
 
@@ -29,4 +31,5 @@ ordinary-host execution authorization, and added authority to false. HRA-1 adds
 only the `context-admission` library crate and reuses the existing guarded
 read-only workspace capability. It adds no command, transport, provider,
 credential, parser dependency, finding, policy decision, or execution
-capability.
+capability. HRA-2 adds deterministic observed findings over already-admitted
+JSON only; it adds no command surface or authority.

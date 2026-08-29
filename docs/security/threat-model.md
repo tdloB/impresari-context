@@ -272,6 +272,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-042 | Hostile artifact classification spoofing | Extension, magic prefix, path, or declared platform attempts to trigger unsafe parsing or hide an execution surface | Regular-file boundary; bounded prefix only; extension/magic disagreement is explicit; closed artifact classes; no archive traversal or deep hostile-format parser | HRA schema, malformed-contract, resource-profile, cross-platform synthetic fixtures, and HRA-1 runtime inventory tests | Static classification can be incomplete or ambiguous and is not malware detection |
 | SEC-T-043 | Coverage laundering | Zero findings, unavailable analyzers, or stale results are presented as complete or safe | Coverage is canonical and separate from findings; closed lifecycle states; incomplete mandatory analysis cannot yield a safety claim | HRA coverage and assessment fixtures; later deterministic truth tables | An authorized consumer can ignore the assessment outside Context |
 | SEC-T-044 | Repository admission authority escalation | Repository text, analyzer output, policy data, or a model attempts to authorize host execution or claim safety | Closed policy fields and four decision states; `safety_claimed`, `ordinary_host_execution_authorized`, and `authority_added` fixed false; exceptions owned by an external authorized human | Invalid safety-claim and host-authority fixtures; schema conformance | Future quarantine eligibility still requires separate runtime and human gates |
+| SEC-T-045 | Execution-surface rule confusion | A lifecycle-like key outside the admitted object, malformed JSON, duplicate/escaped syntax, or an untrusted command value attempts to create or alter an observation | Closed filename/key corpus; strict JSON validation; direct top-level object/key recovery; key-token-only evidence; values never interpreted; unsupported syntax explicit | HRA-2 false-positive, schema, stale-source, non-retention, and immutability tests | A declared lifecycle hook is an execution surface, not evidence of malicious intent |
 
 ### Future-scope threats
 
@@ -310,6 +311,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-REQ-015 | Keep MCP local to bounded stdio, enforce lifecycle/framing/tool schemas, and grant no roots, network, model, execution, or orchestration authority |
 | SEC-REQ-016 | Build release candidates from exact commits with locked inputs, checksums, SBOM, native clean-install rehearsal, and no automatic publication |
 | SEC-REQ-017 | Keep hostile-repository admission evidence-only: closed schemas, fixed resource profile, canonical incomplete coverage, no safety claim, and no mutation, process, analyzer, network, upload, deep-parser, or ordinary-host authority |
+| SEC-REQ-018 | Keep execution-surface observations to reviewed deterministic rules over safely admitted formats, exact evidence, explicit unsupported syntax, and uninterpreted repository-controlled values |
 
 ## Verification Strategy
 
@@ -328,6 +330,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | Supply-chain review | Locks, SBOM, licenses, advisories, pinned CI/toolchain, artifact provenance |
 | HRA-0 contract conformance | Full Draft 2020-12 validation, fixed-profile digest, original-synthetic fixture provenance, false-safety rejection, and ordinary-host-authority rejection |
 | HRA-1 inventory conformance | Snapshot/hash/length binding, bounded static classification, explicit exclusions, source immutability, schema-valid output, and symlink non-following |
+| HRA-2 npm lifecycle conformance | Closed lifecycle-key corpus, exact key-token evidence, false-positive rejection, unsupported syntax, stale-snapshot failure, value non-retention, and source immutability |
 | Independent review | Threat model and release candidate reviewed by someone other than primary implementer when feasible |
 
 ## Security Release Gates

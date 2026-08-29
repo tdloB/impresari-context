@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-HRA-PRD-001 / 0.1.
-- Status: HRA-0 and HRA-1 authorized and implemented; HRA-2 is not authorized.
+- Status: HRA-0 and HRA-1 implemented; HRA-2 implementation in progress.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 1 of 3.
@@ -411,8 +411,10 @@ Gate: explicit founder approval before Step 2 implementation begins.
 ## Approval Boundary
 
 The founder authorized HRA-0 contract freezing and, after reviewing that
-evidence, separately authorized HRA-1 on 2026-08-29. HRA-1 is limited to
-bounded, read-only security artifact inventory and explicit exclusions under
-the frozen contracts and profile. HRA-2 observations, analyzers, network
-access, uploads, deep hostile-format parsing, repository execution, policy
-decisions, and quarantine execution remain unauthorized.
+evidence, separately authorized HRA-1 on 2026-08-29. The standing roadmap
+directive and confirmed HRA-2 boundary permit narrow execution-surface
+observations without a repeated approval ceremony. The initial HRA-2 corpus is
+limited to exact npm lifecycle keys under a strict top-level `scripts` object.
+Analyzers, network access, uploads, deep hostile-format parsing, repository
+execution, policy decisions, and quarantine execution remain outside this
+increment.

@@ -105,6 +105,22 @@ comparison baseline.
   adds no network, process, analyzer, upload, deep-parser, credential, or
   repository-execution capability.
 
+### ADR-0073 HRA-2 npm lifecycle hard gates
+
+- Only the closed `preinstall`, `install`, `postinstall`, `prepare`,
+  `prepublish`, `prepublishOnly`, `publish`, and `postpublish` keys under a
+  strict top-level `package.json` `scripts` object produce observations.
+- Each observation is `informational`, `confirmed`, `observed`, and references
+  exact schema-valid evidence containing only the matched key token.
+- Script values, commands, environment values, and unrelated nested keys are
+  not interpreted, promoted to control fields, or retained in the observation
+  bundle.
+- Invalid JSON, non-object `scripts`, non-string lifecycle values, ambiguous
+  keys, stale snapshots, and the 1,000-finding ceiling fail closed or become
+  explicit exclusions.
+- Repeated input is deterministic; source immutability and the HRA-1 no-authority
+  gates remain passing.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

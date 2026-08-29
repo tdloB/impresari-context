@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-259f526a718e",
-  "documentNamespace": "https://impresari-context.invalid/sbom/259f526a718e757923a9502073128b030d9cb9a2fbd4e0854588af8bffe0f198",
+  "name": "impresari-context-cargo-lock-c0c6d65567ba",
+  "documentNamespace": "https://impresari-context.invalid/sbom/c0c6d65567ba62b3d7e9cd1d3af44719a0434a23111cd49274e5ad5fc5f42674",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
