@@ -52,6 +52,14 @@ pub const CURSOR_AGENT_SCOPE: &str = "ask_mode_print";
 pub const CURSOR_AGENT_VERSION: &str = "2026.08.25-3e8eec8";
 /// Exact Cursor Agent lifecycle point admitted for guided delivery.
 pub const CURSOR_AGENT_LIFECYCLE_POINT: &str = "prompt_start";
+/// Exact VS Code Copilot client identity admitted for guided delivery.
+pub const VSCODE_COPILOT_CLIENT: &str = "vscode_copilot";
+/// Exact VS Code chat CLI scope admitted for guided delivery.
+pub const VSCODE_COPILOT_SCOPE: &str = "chat_cli_ask";
+/// Exact VS Code build admitted for guided delivery.
+pub const VSCODE_COPILOT_VERSION: &str = "1.134.0";
+/// Exact VS Code lifecycle point used to open one chat.
+pub const VSCODE_COPILOT_LIFECYCLE_POINT: &str = "chat_open";
 
 /// Consumer policy for acquiring repository context.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -408,6 +416,10 @@ fn guided_delivery_identity_is_supported(intent: &GuidedDeliveryIntent) -> bool 
             && intent.scope == CURSOR_AGENT_SCOPE
             && intent.client_version == CURSOR_AGENT_VERSION
             && intent.lifecycle_point == CURSOR_AGENT_LIFECYCLE_POINT)
+        || (intent.client == VSCODE_COPILOT_CLIENT
+            && intent.scope == VSCODE_COPILOT_SCOPE
+            && intent.client_version == VSCODE_COPILOT_VERSION
+            && intent.lifecycle_point == VSCODE_COPILOT_LIFECYCLE_POINT)
 }
 
 fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
@@ -416,6 +428,7 @@ fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
         COPILOT_CLI_CLIENT => "copilot_cli_packet_prepared",
         CLAUDE_CODE_CLIENT => "claude_code_packet_prepared",
         CURSOR_AGENT_CLIENT => "cursor_agent_packet_prepared",
+        VSCODE_COPILOT_CLIENT => "vscode_copilot_packet_prepared",
         _ => "reference_packet_prepared",
     }
 }

@@ -31,6 +31,7 @@ ruby -c ./scripts/rehearse-claude-code.rb
 ruby -c ./scripts/rehearse-claude-native-local-scope.rb
 ruby -c ./scripts/rehearse-cursor-preadmission.rb
 ruby -c ./scripts/rehearse-cursor-native-approval.rb
+ruby -c ./scripts/rehearse-vscode-copilot-guided-delivery.rb
 ruby -c ./scripts/rehearse-gemini-copilot-preadmission.rb
 ruby -c ./scripts/rehearse-copilot-native-project.rb
 cargo fmt --all --check

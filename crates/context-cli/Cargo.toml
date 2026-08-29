@@ -18,6 +18,7 @@ context-codex-app-server = { version = "=0.1.0", path = "../context-codex-app-se
 context-copilot-cli = { version = "=0.1.0", path = "../context-copilot-cli" }
 context-claude-code = { version = "=0.1.0", path = "../context-claude-code" }
 context-cursor-agent = { version = "=0.1.0", path = "../context-cursor-agent" }
+context-vscode-copilot = { version = "=0.1.0", path = "../context-vscode-copilot" }
 context-engine = { version = "=0.1.0", path = "../context-engine" }
 context-mcp = { version = "=0.1.0", path = "../context-mcp" }
 context-session = { version = "=0.1.0", path = "../context-session" }

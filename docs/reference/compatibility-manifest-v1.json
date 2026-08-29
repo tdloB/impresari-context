@@ -24,12 +24,14 @@
     "docs/decisions/0053-cursor-guarded-project-admission.md",
     "docs/decisions/0055-codex-ephemeral-guided-delivery.md",
     "docs/decisions/0062-cursor-ask-mode-programmatic-guided-delivery.md",
+    "docs/decisions/0063-vscode-chat-cli-guided-delivery.md",
     "docs/decisions/0043-source-free-client-lifecycle-maintenance.md",
     "docs/verification/ci-4-copilot-cli-lifecycle-maintenance.md",
     "docs/verification/ci-4-claude-code-lifecycle-maintenance.md",
     "docs/verification/ci-4-cursor-lifecycle-maintenance.md",
     "docs/verification/ci-3c-copilot-cli-guided-delivery.md",
     "docs/verification/ci-3e-cursor-guided-delivery.md",
+    "docs/verification/ci-3f-vscode-copilot-guided-delivery.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
@@ -244,8 +246,16 @@
       "classification": "first_class",
       "transport": "local_stdio",
       "first_class": true,
-      "conformance": "managed_extension_host_workspace_configuration_and_bounded_session_tool_lifecycle",
-      "conformance_evidence": "docs/verification/ci-1-vscode-copilot-admission.md"
+      "conformance": "managed_extension_host_workspace_configuration_bounded_session_tool_lifecycle_and_operator_confirmed_guided_delivery",
+      "conformance_evidence": "docs/verification/ci-1-vscode-copilot-admission.md",
+      "guided_delivery": {
+        "level": "L3",
+        "evidence": "docs/verification/ci-3f-vscode-copilot-guided-delivery.md",
+        "scope": "chat_cli_ask",
+        "client_version": "1.134.0",
+        "os": "macos",
+        "arch": "aarch64"
+      }
     },
     {
       "client": "Remote or HTTP MCP consumer",
