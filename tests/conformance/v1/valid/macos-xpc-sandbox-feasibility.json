@@ -1,0 +1,53 @@
+{
+  "schema_name": "macos-xpc-sandbox-feasibility",
+  "schema_version": "1.0.0",
+  "prototype_id": "iar-macos-xpc-feasibility-v1",
+  "observed_host": {
+    "operating_system": "macos",
+    "version": "26.5.1",
+    "build": "25F80",
+    "architecture": "arm64",
+    "xcode_version": "26.6",
+    "swift_version": "6.3.3"
+  },
+  "signing_mode": "ad_hoc_development",
+  "result": "partial",
+  "checks": {
+    "private_xpc_transport": true,
+    "host_app_sandbox": true,
+    "service_app_sandbox": true,
+    "service_network_entitlement_absent": true,
+    "app_container_read_write": true,
+    "external_filesystem_denial": true,
+    "credential_canary_denial": true,
+    "device_denial": false,
+    "unrelated_process_denial": true,
+    "network_denial": true,
+    "cpu_limit": false,
+    "memory_limit": false,
+    "process_count_limit": false,
+    "descendant_containment": false,
+    "bounded_request": true,
+    "bounded_reply": true,
+    "timeout": false,
+    "cleanup": false
+  },
+  "limitations": [
+    "cpu-limit-unverified",
+    "memory-limit-unverified",
+    "process-count-limit-unverified",
+    "descendant-containment-unverified",
+    "device-denial-unverified",
+    "developer-id-signing-not-tested",
+    "notarization-not-tested",
+    "homebrew-packaging-not-tested",
+    "timeout-not-rehearsed",
+    "container-cleanup-os-managed",
+    "single-host-evidence",
+    "synthetic-probe-no-analysis"
+  ],
+  "os_confined": false,
+  "production_admitted": false,
+  "source_retained": false,
+  "authority_added": false
+}

@@ -1,7 +1,8 @@
 # ADR-0074: Separate isolated analyzer runner
 
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented; IAR-1B OS confinement pending
+  supervision implemented; IAR-1B has one partial macOS feasibility result and
+  remains pending
 - Date: 2026-08-26
 - Scope: Static analyzer execution, scanner adapters, Windows hostile-format
   analysis, rule/database updates, and hash-only reputation
@@ -135,6 +136,14 @@ confinement, verified network denial, and descendant containment remain false
 or unverified, so the IAR-1B OS-confinement checkpoint remains open. Real analyzer
 admission, updater/network capability, provider access, and quarantine remain
 separate later gates.
+
+IAR-1B begins with independently admitted platform backends. The first macOS
+App Sandbox/private-XPC feasibility prototype is synthetic-only and partial: it
+demonstrates exact sandbox identity, bounded IPC, and selected native denials,
+but does not yet establish hard resource/process-tree controls, rehearsed fault
+timeout, complete OS-managed container cleanup, production signing/notarization,
+packaging, or multi-host compatibility. It does not change the decision status,
+admit macOS, authorize a real analyzer, or open IAR-2.
 
 ## Review Triggers
 

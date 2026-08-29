@@ -1,0 +1,110 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-xpc-sandbox-feasibility.schema.json",
+  "title": "ADR-0074 macOS App Sandbox/XPC feasibility evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "prototype_id", "observed_host", "signing_mode", "result", "checks", "limitations", "os_confined", "production_admitted", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-xpc-sandbox-feasibility"},
+    "schema_version": {"const": "1.0.0"},
+    "prototype_id": {"const": "iar-macos-xpc-feasibility-v1"},
+    "observed_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "version", "build", "architecture", "xcode_version", "swift_version"],
+      "properties": {
+        "operating_system": {"const": "macos"},
+        "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$", "maxLength": 32},
+        "build": {"type": "string", "pattern": "^[A-Za-z0-9.]+$", "maxLength": 32},
+        "architecture": {"enum": ["arm64", "x86_64"]},
+        "xcode_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$", "maxLength": 32},
+        "swift_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+(?:\\.[0-9]+)?$", "maxLength": 32}
+      }
+    },
+    "signing_mode": {"enum": ["ad_hoc_development", "developer_id_rehearsal"]},
+    "result": {"enum": ["partial", "candidate_passed", "unsupported", "failed"]},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["private_xpc_transport", "host_app_sandbox", "service_app_sandbox", "service_network_entitlement_absent", "app_container_read_write", "external_filesystem_denial", "credential_canary_denial", "device_denial", "unrelated_process_denial", "network_denial", "cpu_limit", "memory_limit", "process_count_limit", "descendant_containment", "bounded_request", "bounded_reply", "timeout", "cleanup"],
+      "properties": {
+        "private_xpc_transport": {"type": "boolean"},
+        "host_app_sandbox": {"type": "boolean"},
+        "service_app_sandbox": {"type": "boolean"},
+        "service_network_entitlement_absent": {"type": "boolean"},
+        "app_container_read_write": {"type": "boolean"},
+        "external_filesystem_denial": {"type": "boolean"},
+        "credential_canary_denial": {"type": "boolean"},
+        "device_denial": {"type": "boolean"},
+        "unrelated_process_denial": {"type": "boolean"},
+        "network_denial": {"type": "boolean"},
+        "cpu_limit": {"type": "boolean"},
+        "memory_limit": {"type": "boolean"},
+        "process_count_limit": {"type": "boolean"},
+        "descendant_containment": {"type": "boolean"},
+        "bounded_request": {"type": "boolean"},
+        "bounded_reply": {"type": "boolean"},
+        "timeout": {"type": "boolean"},
+        "cleanup": {"type": "boolean"}
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "cpu-limit-unverified",
+          "memory-limit-unverified",
+          "process-count-limit-unverified",
+          "descendant-containment-unverified",
+          "device-denial-unverified",
+          "developer-id-signing-not-tested",
+          "notarization-not-tested",
+          "homebrew-packaging-not-tested",
+          "timeout-not-rehearsed",
+          "container-cleanup-os-managed",
+          "single-host-evidence",
+          "synthetic-probe-no-analysis"
+        ]
+      }
+    },
+    "os_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "candidate_passed"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "checks": {
+            "properties": {
+              "private_xpc_transport": {"const": true},
+              "host_app_sandbox": {"const": true},
+              "service_app_sandbox": {"const": true},
+              "service_network_entitlement_absent": {"const": true},
+              "app_container_read_write": {"const": true},
+              "external_filesystem_denial": {"const": true},
+              "credential_canary_denial": {"const": true},
+              "device_denial": {"const": true},
+              "unrelated_process_denial": {"const": true},
+              "network_denial": {"const": true},
+              "cpu_limit": {"const": true},
+              "memory_limit": {"const": true},
+              "process_count_limit": {"const": true},
+              "descendant_containment": {"const": true},
+              "bounded_request": {"const": true},
+              "bounded_reply": {"const": true},
+              "timeout": {"const": true},
+              "cleanup": {"const": true}
+            }
+          }
+        }
+      }
+    }
+  ]
+}

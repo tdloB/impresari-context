@@ -81,6 +81,12 @@ Step 3 quarantine remain later, separately evidenced increments.
 The initial macOS feasibility inventory also records that the available
 `sandbox-exec` command is deprecated and cannot serve as the durable production
 boundary merely because it is already used by a network-denied test harness.
+A synthetic App Sandbox/private-XPC prototype now records a partial macOS
+result: native sandbox identity, bounded IPC, and selected filesystem,
+credential, process, and network denials pass, while device denial and hard
+resource/process-tree limits, fault timeout, complete OS-managed container
+cleanup, production signing/notarization, packaging, and multi-host evidence
+remain open. It does not admit macOS or open IAR-2.
 
 ## Parallel Client Integration Depth Track
 
