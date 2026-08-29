@@ -241,6 +241,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   the exact scope and acceptance contract for the first executable slice.
 - [Security Threat Model](docs/security/threat-model.md): trust zones, threats,
   controls, residual risks, and release-blocking security evidence.
+- [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
+  proposed static admission, isolated analysis, and disposable-quarantine
+  designs; no runtime implementation is authorized by these records.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted
