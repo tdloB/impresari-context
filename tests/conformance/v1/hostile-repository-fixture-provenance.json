@@ -10,7 +10,7 @@
   "network_or_provider_data_used": false,
   "cases": [
     {"path": "valid/hra-static-contract-profile.json", "sha256": "1fa9f737b8452d86bffa00ff0a76539c8312f2342b2a14568e270b05b3170c83", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "fixed authority-denying resource profile"},
-    {"path": "valid/security-artifact-inventory.json", "sha256": "0a21baeb1c561d5bcad2c8ca39155f813560ddb4bed90078be0bb1eb1c2f2448", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "bounded Windows-oriented static inventory"},
+    {"path": "valid/security-artifact-inventory.json", "sha256": "7f924741e9c5d9ab9ccdc478af72b5b8a0a14b74d05cde9ca304c6e3287abb77", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "bounded Windows-oriented static inventory with explicit exclusions"},
     {"path": "valid/security-finding.json", "sha256": "0b3045557c7bb7783f87475edfe6bb912cd2e4c7b5e6368f32f785c70ed393c3", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "exact-evidence observed finding"},
     {"path": "valid/analyzer-coverage.json", "sha256": "cc3722799f20e8010fcccffcf1ac040d76a379aee6d99e4314a742fca3411e76", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "unavailable analyzer remains incomplete"},
     {"path": "valid/repository-security-assessment.json", "sha256": "70fe0ec18c6f85ec55292ea22b2ec22e1566caa13fcf195ce7fd7ec154480648", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "partial immutable assessment without safety claim"},

@@ -88,6 +88,23 @@ comparison baseline.
   safety, analyzer isolation, and quarantine execution remain unscored and
   unclaimed.
 
+### ADR-0073 HRA-1 hard gates
+
+- Runtime inventory output validates against the frozen
+  `security-artifact-inventory` schema and profile digest.
+- Every admitted artifact is bound to the exact workspace snapshot, path
+  identity, content digest, and byte length; stale content fails closed.
+- Windows-oriented, archive, script, source, configuration, documentation,
+  text, binary, and unknown classes are recognized with bounded prefix and
+  extension checks only, independent of host platform.
+- Symlinks, special files, oversized files, read failures, snapshot omissions,
+  and runtime ceilings are explicit and make completeness visible.
+- Inventory records retain no raw source bytes and emit no findings, assessment,
+  policy, safety, or execution decision.
+- Source immutability passes before and after inventory, and the implementation
+  adds no network, process, analyzer, upload, deep-parser, credential, or
+  repository-execution capability.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

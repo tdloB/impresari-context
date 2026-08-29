@@ -4,8 +4,7 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-HRA-PRD-001 / 0.1.
-- Status: HRA-0 contract freeze authorized; HRA-1 runtime inventory is not
-  authorized by this record.
+- Status: HRA-0 and HRA-1 authorized and implemented; HRA-2 is not authorized.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 1 of 3.
@@ -411,9 +410,9 @@ Gate: explicit founder approval before Step 2 implementation begins.
 
 ## Approval Boundary
 
-The founder authorized HRA-0 contract freezing on 2026-08-29. That increment
-updates the threat model and evaluation plan, freezes the exact schemas and
-resource profile, and records synthetic fixture provenance. It does not
-authorize HRA-1 inventory runtime, analyzers, network access, uploads, deep
-hostile-format parsing, or quarantine execution. HRA-1 requires a separate
-recorded approval after the HRA-0 evidence is reviewed.
+The founder authorized HRA-0 contract freezing and, after reviewing that
+evidence, separately authorized HRA-1 on 2026-08-29. HRA-1 is limited to
+bounded, read-only security artifact inventory and explicit exclusions under
+the frozen contracts and profile. HRA-2 observations, analyzers, network
+access, uploads, deep hostile-format parsing, repository execution, policy
+decisions, and quarantine execution remain unauthorized.

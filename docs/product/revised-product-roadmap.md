@@ -57,10 +57,10 @@ a separate [isolated analyzer runner](isolated-analyzer-runner-prd.md), and a
 [disposable quarantine runner](disposable-quarantine-runner-prd.md). The first
 increment is static-first. ClamAV and YARA are the initial local scanner
 direction behind the isolated runner, and any optional online reputation check
-is hash-only and explicit. ADR-0073 HRA-0 contract freezing is authorized and
-records closed schemas, a fixed authority-denying resource profile, and
-original-synthetic fixture provenance. HRA-1 runtime inventory remains
-unapproved. None of these records authorizes scanner execution,
+is hash-only and explicit. ADR-0073 HRA-0 contract freezing and HRA-1 bounded,
+read-only artifact inventory are implemented with closed schemas, a fixed
+authority-denying resource profile, explicit exclusions, and original-synthetic
+fixture provenance. HRA-2 remains unapproved. None of these records authorizes scanner execution,
 repository execution, artifact upload, threat-intelligence access, or VM/cloud
 provisioning. Each implementation increment remains gated by its proposed ADR
 and an explicit founder-approved threat model, platform, supply-chain, privacy,

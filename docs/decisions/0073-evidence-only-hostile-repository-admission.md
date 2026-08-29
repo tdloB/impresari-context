@@ -1,6 +1,6 @@
 # ADR-0073: Evidence-only hostile-repository admission
 
-- Status: Accepted for HRA-0 contract freeze; HRA-1 runtime inventory is not authorized
+- Status: Accepted and implemented through HRA-1 inventory; HRA-2 is not authorized
 - Date: 2026-08-26
 - Scope: Security artifact inventory, assessment, coverage, and deterministic
   stage-eligibility contracts
@@ -116,15 +116,14 @@ human under the existing product boundary.
 
 ## Implementation Gate
 
-The founder authorized only HRA-0 on 2026-08-29: update the threat model and
-evaluation plan, freeze the exact schemas and resource profile, and review
-fixture provenance. That authorization explicitly excludes analyzer execution,
-network access, uploads, deep hostile-format parsers, and quarantine execution.
+The founder authorized HRA-0 and then HRA-1 on 2026-08-29. HRA-1 adds only a
+bounded, read-only artifact inventory and explicit exclusions under the frozen
+HRA-0 contracts and resource profile. It adds no findings, policy decisions,
+analyzer execution, network access, uploads, deep hostile-format parsing, or
+repository execution.
 
-HRA-1 runtime inventory remains unapproved. Before HRA-1, separately review the
-implemented HRA-0 evidence, approve the exact inventory rules and feature gate,
-and obtain explicit founder authorization. ADR-0074 and ADR-0075 remain
-proposed and independently gated.
+HRA-2 execution-surface observations remain unapproved. ADR-0074 and ADR-0075
+remain proposed and independently gated.
 
 ## Review Triggers
 

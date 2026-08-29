@@ -4,7 +4,7 @@
   "title": "Evidence-only security artifact inventory",
   "type": "object",
   "additionalProperties": false,
-  "required": ["schema_name", "schema_version", "inventory_id", "workspace_snapshot", "profile_digest", "generated_at", "completeness", "artifacts", "excluded_count", "authority_added"],
+  "required": ["schema_name", "schema_version", "inventory_id", "workspace_snapshot", "profile_digest", "generated_at", "completeness", "artifacts", "exclusions", "excluded_count", "authority_added"],
   "properties": {
     "schema_name": {"const": "security-artifact-inventory"},
     "schema_version": {"const": "1.0.0"},
@@ -14,6 +14,7 @@
     "generated_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
     "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
     "artifacts": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/artifact"}},
+    "exclusions": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/exclusion"}},
     "excluded_count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
     "authority_added": {"const": false}
   },
@@ -33,6 +34,15 @@
         "classification": {"type": "string", "enum": ["observed", "unknown"]},
         "analyzer_requirements": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
         "limitations": {"$ref": "common.schema.json#/$defs/stringList"}
+      }
+    },
+    "exclusion": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["reason", "count"],
+      "properties": {
+        "reason": {"type": "string", "enum": ["policy_excluded", "oversized", "symlink", "special_file", "limit_reached", "read_failed", "changed_during_read", "profile_file_limit", "snapshot_mismatch"]},
+        "count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
       }
     }
   }
