@@ -27,6 +27,7 @@
     "docs/decisions/0043-source-free-client-lifecycle-maintenance.md",
     "docs/verification/ci-4-copilot-cli-lifecycle-maintenance.md",
     "docs/verification/ci-4-claude-code-lifecycle-maintenance.md",
+    "docs/verification/ci-4-cursor-lifecycle-maintenance.md",
     "docs/verification/ci-3c-copilot-cli-guided-delivery.md",
     "docs/verification/ci-3e-cursor-guided-delivery.md",
     "docs/dependency-policy.md",
@@ -202,7 +203,16 @@
       "transport": "local_stdio",
       "first_class": true,
       "conformance": "managed_project_configuration_and_guarded_agent_mode_packet_equivalence",
-      "conformance_evidence": "docs/verification/phase-1-cursor-connection-kit.md"
+      "conformance_evidence": "docs/verification/phase-1-cursor-connection-kit.md",
+      "lifecycle_maintenance": {
+        "level": "L4",
+        "manifest": "client-lifecycle/cursor-native-guidance-v1.json",
+        "scope": "native_guidance_v2",
+        "client_version": "2026.08.11-e8db854",
+        "os": "macos",
+        "arch": "aarch64",
+        "fresh_through": "2026-11-24"
+      }
     },
     {
       "client": "Gemini CLI",
