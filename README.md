@@ -241,6 +241,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   the exact scope and acceptance contract for the first executable slice.
 - [Security Threat Model](docs/security/threat-model.md): trust zones, threats,
   controls, residual risks, and release-blocking security evidence.
+- [Hostile-repository admission limitations](docs/security/hostile-repository-admission-limitations.md):
+  exact Step 1 capabilities, absent analyzers/quarantine, and prohibited safety
+  or execution claims.
 - [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
   accepted HRA-0 contracts, HRA-1 bounded read-only inventory, completed narrow
   HRA-2 npm/Compose observations, HRA-3 unavailable-by-default coverage,
