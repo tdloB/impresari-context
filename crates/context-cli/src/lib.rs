@@ -4651,7 +4651,7 @@ mod tests {
                 ".c", ".cc", ".cjs", ".clj", ".cljc", ".cljs", ".cpp", ".cs", ".cxx", ".ex",
                 ".exs", ".go", ".h", ".hh", ".hpp", ".hs", ".hxx", ".java", ".js", ".json",
                 ".jsonc", ".jsx", ".kt", ".kts", ".lhs", ".mjs", ".php", ".py", ".rb", ".rs",
-                ".scala", ".toml", ".ts", ".tsx", ".yaml", ".yml",
+                ".scala", ".swift", ".toml", ".ts", ".tsx", ".yaml", ".yml",
             ]),
             "the public manifest must match the shipped structural worker inventory"
         );

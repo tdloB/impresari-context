@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/C++/Ruby/PHP/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/C++/Ruby/PHP/Swift/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -56,6 +56,8 @@ pub enum StructuralLanguage {
     Ruby,
     /// PHP source.
     Php,
+    /// Swift source.
+    Swift,
     /// Scala source.
     Scala,
     /// Elixir source.
@@ -1591,6 +1593,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
         StructuralLanguage::Ruby => "tree-sitter-ruby-0.23.1",
         StructuralLanguage::Php => "tree-sitter-php-0.24.2",
+        StructuralLanguage::Swift => "tree-sitter-swift-0.7.3",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -1622,6 +1625,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
         StructuralLanguage::Ruby => tree_sitter_ruby::LANGUAGE.into(),
         StructuralLanguage::Php => tree_sitter_php::LANGUAGE_PHP.into(),
+        StructuralLanguage::Swift => tree_sitter_swift::LANGUAGE.into(),
         StructuralLanguage::Scala => tree_sitter_scala::LANGUAGE.into(),
         StructuralLanguage::Elixir => tree_sitter_elixir::LANGUAGE.into(),
         StructuralLanguage::Clojure => tree_sitter_clojure_orchard::LANGUAGE.into(),
@@ -1825,6 +1829,14 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
+        "protocol_declaration" | "protocol_function_declaration" | "typealias_declaration"
+            if request.language == StructuralLanguage::Swift =>
+        {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
         "function" | "bind" if request.language == StructuralLanguage::Haskell => {
             let name = node
                 .child_by_field_name("name")
@@ -1918,6 +1930,10 @@ fn fact_for_node(
                 .and_then(|value| text(value, source))?;
             (FactClass::Import, None, Some(module))
         }
+        "import_declaration" if request.language == StructuralLanguage::Swift => {
+            let module = node.named_child(0).and_then(|value| text(value, source))?;
+            (FactClass::Import, None, Some(module))
+        }
         "using_directive" if request.language == StructuralLanguage::CSharp => {
             let module = csharp_using_module(node, source)?;
             (FactClass::Import, None, Some(module))
@@ -1960,13 +1976,16 @@ fn fact_for_node(
             let function = node.child_by_field_name("function").or_else(|| {
                 if request.language == StructuralLanguage::Elixir {
                     node.child_by_field_name("target")
-                } else if request.language == StructuralLanguage::Kotlin {
+                } else if matches!(
+                    request.language,
+                    StructuralLanguage::Kotlin | StructuralLanguage::Swift
+                ) {
                     node.named_child(0)
                 } else {
                     None
                 }
             })?;
-            let name = if function.kind() == "identifier" {
+            let name = if matches!(function.kind(), "identifier" | "simple_identifier") {
                 text(function, source)
             } else {
                 None
@@ -2003,6 +2022,13 @@ fn fact_for_node(
         }
         "name"
             if request.language == StructuralLanguage::Php
+                && !is_declaration_name(node)
+                && !is_call_callee(node) =>
+        {
+            (FactClass::Reference, text(node, source), None)
+        }
+        "simple_identifier"
+            if request.language == StructuralLanguage::Swift
                 && !is_declaration_name(node)
                 && !is_call_callee(node) =>
         {
@@ -2110,6 +2136,9 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "class"
                     | "method"
                     | "singleton_method"
+                    | "protocol_declaration"
+                    | "protocol_function_declaration"
+                    | "typealias_declaration"
             )
     });
     if direct_name {
@@ -2431,6 +2460,7 @@ mod tests {
             StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
             StructuralLanguage::Ruby => "tree-sitter-ruby-0.23.1",
             StructuralLanguage::Php => "tree-sitter-php-0.24.2",
+            StructuralLanguage::Swift => "tree-sitter-swift-0.7.3",
             StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
             StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
             StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -3176,6 +3206,51 @@ class Service {
     fn reports_php_syntax_recovery_without_invoking_an_interpreter() {
         let source = b"<?php class Service { public function run( { }";
         let output = process_request(&request(source, StructuralLanguage::Php)).expect("parse");
+        assert!(output.syntax_errors);
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
+    }
+
+    #[test]
+    fn extracts_bounded_swift_declarations_imports_calls_and_references() {
+        let source = br"import Foundation
+
+protocol Running {
+    func run(value: Int) -> Int
+}
+
+final class Service: Running {
+    func run(value: Int) -> Int {
+        helper(value: value)
+    }
+
+    func helper(value: Int) -> Int {
+        value + 1
+    }
+}
+";
+        let output = process_request(&request(source, StructuralLanguage::Swift)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Running", "run", "Service", "helper"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing Swift declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Import && fact.module.as_deref() == Some("Foundation")
+        }));
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+    }
+
+    #[test]
+    fn reports_swift_syntax_recovery_without_invoking_a_toolchain() {
+        let source = b"class Service { func run( { }";
+        let output = process_request(&request(source, StructuralLanguage::Swift)).expect("parse");
         assert!(output.syntax_errors);
         assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
     }
