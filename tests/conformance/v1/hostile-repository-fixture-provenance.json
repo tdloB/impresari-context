@@ -1,0 +1,25 @@
+{
+  "schema_name": "hostile-repository-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-29T12:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/hra-static-contract-profile.json", "sha256": "1fa9f737b8452d86bffa00ff0a76539c8312f2342b2a14568e270b05b3170c83", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "fixed authority-denying resource profile"},
+    {"path": "valid/security-artifact-inventory.json", "sha256": "0a21baeb1c561d5bcad2c8ca39155f813560ddb4bed90078be0bb1eb1c2f2448", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "bounded Windows-oriented static inventory"},
+    {"path": "valid/security-finding.json", "sha256": "0b3045557c7bb7783f87475edfe6bb912cd2e4c7b5e6368f32f785c70ed393c3", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "exact-evidence observed finding"},
+    {"path": "valid/analyzer-coverage.json", "sha256": "cc3722799f20e8010fcccffcf1ac040d76a379aee6d99e4314a742fca3411e76", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "unavailable analyzer remains incomplete"},
+    {"path": "valid/repository-security-assessment.json", "sha256": "70fe0ec18c6f85ec55292ea22b2ec22e1566caa13fcf195ce7fd7ec154480648", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "partial immutable assessment without safety claim"},
+    {"path": "valid/repository-admission-policy.json", "sha256": "5057f42b68457baa3c9aca55485e752b13bec4023b7106cdb6c8abeec67e2f45", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "closed deterministic policy"},
+    {"path": "valid/repository-admission-decision.json", "sha256": "92e1e2cae48059291c40227d0403d463b1878c374eb647ab91c6a601c57f9d25", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "analysis-incomplete authority-neutral decision"},
+    {"path": "invalid/repository-security-assessment-safety-claim.json", "sha256": "cb2d16c5f2b1686a11c526dc5dbe21203ced0bccb164f29e0b0fdfb7a59a0776", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject false safety claim"},
+    {"path": "invalid/repository-admission-decision-host-authority.json", "sha256": "ed6f3a3849f1674a1e41cabe7765fead04205c8df0c816ac76099cf71f08adb7", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject ordinary-host execution authority"},
+    {"path": "invalid/security-finding-observed-without-evidence.json", "sha256": "adec8c904f1c32ed741e4103227700f4763dc6ff82bb605a0cad98d5cbd88fa5", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "require exact evidence for observed findings"},
+    {"path": "invalid/analyzer-coverage-completed-without-provenance.json", "sha256": "823fd4e0ff54df3674d323d33a1c89ccaf4cd8664caf12698d255fb3e6824f37", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "require provenance and freshness for completed analysis"},
+    {"path": "invalid/repository-admission-decision-isolated-without-profile.json", "sha256": "88414c5b69c47b2a36f0e615b4dc0c8aeaa901201a8f0fae9469ef13e7cb55cc", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "require a named quarantine profile for isolated eligibility"}
+  ]
+}

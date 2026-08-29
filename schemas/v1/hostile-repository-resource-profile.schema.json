@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/hostile-repository-resource-profile.schema.json",
+  "title": "Fixed HRA-0 evidence-only resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_name", "profile_version", "authority", "limits", "capabilities"],
+  "properties": {
+    "schema_name": {"const": "hostile-repository-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_name": {"const": "hra-static-contract-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "authority": {"const": "context_core_read_only"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["files", "workspace_bytes", "file_bytes", "classification_prefix_bytes", "artifacts", "findings", "analyzer_requirements", "output_bytes", "elapsed_ms", "memory_bytes", "archive_traversal_depth"],
+      "properties": {
+        "files": {"const": "10000"},
+        "workspace_bytes": {"const": "536870912"},
+        "file_bytes": {"const": "16777216"},
+        "classification_prefix_bytes": {"const": "4096"},
+        "artifacts": {"const": "10000"},
+        "findings": {"const": "1000"},
+        "analyzer_requirements": {"const": "5000"},
+        "output_bytes": {"const": "4194304"},
+        "elapsed_ms": {"const": "30000"},
+        "memory_bytes": {"const": "536870912"},
+        "archive_traversal_depth": {"const": "0"}
+      }
+    },
+    "capabilities": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["source_mutation", "process_execution", "analyzer_execution", "network", "artifact_upload", "deep_hostile_format_parsing", "ordinary_host_execution"],
+      "properties": {
+        "source_mutation": {"const": false},
+        "process_execution": {"const": false},
+        "analyzer_execution": {"const": false},
+        "network": {"const": false},
+        "artifact_upload": {"const": false},
+        "deep_hostile_format_parsing": {"const": false},
+        "ordinary_host_execution": {"const": false}
+      }
+    }
+  }
+}

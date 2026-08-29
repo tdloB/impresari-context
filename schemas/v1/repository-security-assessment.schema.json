@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/repository-security-assessment.schema.json",
+  "title": "Immutable repository security assessment",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "assessment_id", "workspace_snapshot", "profile_digest", "inventory_id", "finding_ids", "coverage_id", "completeness", "conflicts", "unknowns", "exclusions", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "repository-security-assessment"},
+    "schema_version": {"const": "1.0.0"},
+    "assessment_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "profile_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "inventory_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "finding_ids": {"type": "array", "maxItems": 1000, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/sha256"}},
+    "coverage_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
+    "conflicts": {"$ref": "common.schema.json#/$defs/stringList"},
+    "unknowns": {"$ref": "common.schema.json#/$defs/stringList"},
+    "exclusions": {"$ref": "common.schema.json#/$defs/stringList"},
+    "safety_claimed": {"const": false},
+    "ordinary_host_execution_authorized": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

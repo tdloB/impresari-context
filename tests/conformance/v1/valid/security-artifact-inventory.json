@@ -1,0 +1,25 @@
+{
+  "schema_name": "security-artifact-inventory",
+  "schema_version": "1.0.0",
+  "inventory_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "profile_digest": "sha256:1fa9f737b8452d86bffa00ff0a76539c8312f2342b2a14568e270b05b3170c83",
+  "generated_at": "2026-08-29T12:00:00Z",
+  "completeness": "complete",
+  "artifacts": [
+    {
+      "artifact_id": "sha256:4444444444444444444444444444444444444444444444444444444444444444",
+      "path": {"display_path": "scripts/install.ps1", "platform_family": "unix", "unit_encoding": "unix_bytes", "relative_units_base64url": "c2NyaXB0cy9pbnN0YWxsLnBzMQ"},
+      "content_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+      "byte_size": "128",
+      "format": "text",
+      "classes": ["script"],
+      "target_platforms": ["windows"],
+      "classification": "observed",
+      "analyzer_requirements": ["powershell-static-analysis"],
+      "limitations": ["content was not executed"]
+    }
+  ],
+  "excluded_count": "0",
+  "authority_added": false
+}

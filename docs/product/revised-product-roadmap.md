@@ -51,13 +51,16 @@ the roadmap without a separate founder decision and external-data boundary.
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three
-reviewable, proposed increments: an
+reviewable increments: an
 [evidence-only hostile-repository admission foundation](hostile-repository-admission-prd.md),
 a separate [isolated analyzer runner](isolated-analyzer-runner-prd.md), and a
 [disposable quarantine runner](disposable-quarantine-runner-prd.md). The first
 increment is static-first. ClamAV and YARA are the initial local scanner
 direction behind the isolated runner, and any optional online reputation check
-is hash-only and explicit. None of these records authorizes scanner execution,
+is hash-only and explicit. ADR-0073 HRA-0 contract freezing is authorized and
+records closed schemas, a fixed authority-denying resource profile, and
+original-synthetic fixture provenance. HRA-1 runtime inventory remains
+unapproved. None of these records authorizes scanner execution,
 repository execution, artifact upload, threat-intelligence access, or VM/cloud
 provisioning. Each implementation increment remains gated by its proposed ADR
 and an explicit founder-approved threat model, platform, supply-chain, privacy,

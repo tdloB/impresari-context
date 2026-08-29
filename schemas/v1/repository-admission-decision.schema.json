@@ -1,0 +1,29 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/repository-admission-decision.schema.json",
+  "title": "Authority-neutral repository admission decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "decision_id", "assessment_id", "workspace_snapshot", "policy_id", "policy_version", "policy_digest", "evaluator_version", "decision", "matched_rule_ids", "missing_prerequisites", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "repository-admission-decision"},
+    "schema_version": {"const": "1.0.0"},
+    "decision_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "assessment_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "policy_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "policy_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "policy_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "evaluator_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "decision": {"type": "string", "enum": ["blocked", "manual_review_required", "analysis_incomplete", "isolated_execution_eligible"]},
+    "matched_rule_ids": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
+    "missing_prerequisites": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
+    "quarantine_profile": {"$ref": "common.schema.json#/$defs/schemaName"},
+    "safety_claimed": {"const": false},
+    "ordinary_host_execution_authorized": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "allOf": [
+    {"if": {"properties": {"decision": {"const": "isolated_execution_eligible"}}}, "then": {"required": ["quarantine_profile"]}}
+  ]
+}

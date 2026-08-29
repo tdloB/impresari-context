@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-coverage.schema.json",
+  "title": "Analyzer requirement and coverage ledger",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "coverage_id", "workspace_snapshot", "generated_at", "requirements", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "analyzer-coverage"},
+    "schema_version": {"const": "1.0.0"},
+    "coverage_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "generated_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "requirements": {"type": "array", "maxItems": 5000, "items": {"$ref": "#/$defs/requirement"}},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["requirement_id", "capability_id", "artifact_hashes", "reason_rule_ids", "mandatory", "minimum_contract_version", "state", "state_reason"],
+      "properties": {
+        "requirement_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "capability_id": {"$ref": "common.schema.json#/$defs/schemaName"},
+        "artifact_hashes": {"type": "array", "minItems": 1, "maxItems": 256, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/sha256"}},
+        "reason_rule_ids": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
+        "mandatory": {"type": "boolean"},
+        "minimum_contract_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+        "state": {"type": "string", "enum": ["not_requested", "pending", "completed", "partial", "failed", "unavailable", "stale"]},
+        "state_reason": {"$ref": "common.schema.json#/$defs/schemaName"},
+        "analyzer_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+        "ruleset_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+        "fresh_until": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+        "result_digest": {"$ref": "common.schema.json#/$defs/sha256"}
+      },
+      "allOf": [
+        {"if": {"properties": {"state": {"const": "completed"}}}, "then": {"required": ["analyzer_identity", "ruleset_digest", "completed_at", "fresh_until", "result_digest"]}}
+      ]
+    }
+  }
+}

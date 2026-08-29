@@ -1,0 +1,17 @@
+{
+  "schema_name": "repository-security-assessment",
+  "schema_version": "1.0.0",
+  "assessment_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "profile_digest": "sha256:1fa9f737b8452d86bffa00ff0a76539c8312f2342b2a14568e270b05b3170c83",
+  "inventory_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "finding_ids": [],
+  "coverage_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "completeness": "complete",
+  "conflicts": [],
+  "unknowns": [],
+  "exclusions": [],
+  "safety_claimed": true,
+  "ordinary_host_execution_authorized": false,
+  "authority_added": false
+}

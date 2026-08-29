@@ -1,0 +1,17 @@
+{
+  "schema_name": "repository-admission-decision",
+  "schema_version": "1.0.0",
+  "decision_id": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "assessment_id": "sha256:9999999999999999999999999999999999999999999999999999999999999999",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "policy_id": "policy_default01",
+  "policy_version": "1.0.0",
+  "policy_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "evaluator_version": "1.0.0",
+  "decision": "analysis_incomplete",
+  "matched_rule_ids": ["missing-analysis-is-incomplete"],
+  "missing_prerequisites": ["malware-signature-scan"],
+  "safety_claimed": false,
+  "ordinary_host_execution_authorized": false,
+  "authority_added": false
+}
