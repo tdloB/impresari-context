@@ -4,8 +4,8 @@
 
 - Product: Impresari Analyzer Runner for Impresari Context.
 - PRD ID/version: IC-IAR-PRD-001 / 0.1.
-- Status: Proposed; documentation and planning only. Implementation is not
-  authorized by this record.
+- Status: Accepted; IAR-0 closed protocol and synthetic worker implemented.
+  Process isolation and real analyzers remain later increments.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 2 of 3; depends on accepted step 1 contracts.

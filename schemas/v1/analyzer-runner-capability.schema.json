@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-runner-capability.schema.json",
+  "title": "IAR-0 synthetic analyzer capability declaration",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "capability_id", "capability_version", "description", "input_media_types", "target_platforms", "result_categories", "synthetic_only", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "analyzer-runner-capability"},
+    "schema_version": {"const": "1.0.0"},
+    "capability_id": {"$ref": "common.schema.json#/$defs/schemaName"},
+    "capability_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+    "description": {"$ref": "common.schema.json#/$defs/safeMessage"},
+    "input_media_types": {"type": "array", "minItems": 1, "maxItems": 16, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
+    "target_platforms": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"type": "string", "enum": ["any", "windows", "macos", "linux"]}},
+    "result_categories": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "enum": ["metadata", "detection", "heuristic", "unsupported"]}},
+    "synthetic_only": {"const": true},
+    "authority_added": {"const": false}
+  }
+}

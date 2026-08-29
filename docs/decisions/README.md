@@ -76,7 +76,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0071](0071-opt-in-verified-automatic-updates.md) | Use a separately installed, explicitly enrolled, verified updater | Proposed; founder decision required |
 | [ADR-0072](0072-local-metadata-dashboard-and-narrowing-budget-policy.md) | Use a loopback metadata dashboard and narrowing-only budget policy | Proposed; founder decision required |
 | [ADR-0073](0073-evidence-only-hostile-repository-admission.md) | Add static-first, evidence-only hostile-repository admission contracts | Accepted; Step 1 complete (HRA-0 through HRA-5) |
-| [ADR-0074](0074-separate-isolated-analyzer-runner.md) | Keep hostile analyzers in a separate capability-reduced runner | Proposed; implementation not authorized |
+| [ADR-0074](0074-separate-isolated-analyzer-runner.md) | Keep hostile analyzers in a separate capability-reduced runner | Accepted; IAR-0 protocol and synthetic worker implemented |
 | [ADR-0075](0075-disposable-vm-quarantine-execution.md) | Permit later dynamic execution only in a disposable quarantine VM | Proposed; implementation not authorized |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |

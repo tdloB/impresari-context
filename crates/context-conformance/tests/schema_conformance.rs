@@ -359,6 +359,88 @@ fn hostile_repository_contract_profile_and_fixture_provenance_are_frozen() {
 }
 
 #[test]
+fn analyzer_runner_profile_and_fixture_provenance_are_frozen() {
+    let root = repository_root();
+    let profile_path = root.join("profiles/v1/iar-protocol-synthetic-v1.json");
+    let profile_bytes = fs::read(&profile_path).expect("IAR-0 profile should be readable");
+    let sidecar = fs::read_to_string(root.join("profiles/v1/iar-protocol-synthetic-v1.sha256"))
+        .expect("IAR-0 profile digest sidecar");
+    let expected = sidecar
+        .split_whitespace()
+        .next()
+        .expect("IAR-0 sidecar digest");
+    assert_eq!(lowercase_hex(Sha256::digest(&profile_bytes)), expected);
+    assert_eq!(
+        profile_bytes,
+        fs::read(root.join("tests/conformance/v1/valid/iar-protocol-synthetic-profile.json"))
+            .expect("IAR-0 profile fixture"),
+        "IAR-0 profile fixture must be exact"
+    );
+
+    let provenance =
+        read_json(&root.join("tests/conformance/v1/analyzer-runner-fixture-provenance.json"));
+    assert_eq!(
+        provenance["review_status"],
+        "approved_original_synthetic_only"
+    );
+    for prohibited in [
+        "contains_executable_artifacts",
+        "contains_malware_or_live_signatures",
+        "contains_third_party_source",
+        "contains_private_or_customer_source",
+        "network_or_provider_data_used",
+    ] {
+        assert_eq!(
+            provenance[prohibited], false,
+            "prohibited provenance: {prohibited}"
+        );
+    }
+    let provenance_paths = provenance["cases"]
+        .as_array()
+        .expect("provenance cases")
+        .iter()
+        .map(|case| {
+            assert_eq!(case["origin"], "original_synthetic");
+            assert_eq!(case["license"], "Apache-2.0");
+            let relative = case["path"].as_str().expect("fixture path");
+            assert!(!relative.starts_with('/') && !relative.contains(".."));
+            let bytes = fs::read(root.join("tests/conformance/v1").join(relative))
+                .unwrap_or_else(|error| panic!("provenance fixture {relative}: {error}"));
+            assert_eq!(
+                lowercase_hex(Sha256::digest(bytes)),
+                case["sha256"].as_str().expect("fixture digest"),
+                "fixture provenance digest mismatch for {relative}"
+            );
+            relative
+        })
+        .collect::<BTreeSet<_>>();
+    let conformance = read_json(&root.join("tests/conformance/v1/manifest.json"));
+    let iar_schemas = [
+        "analyzer-runner-capability.schema.json",
+        "analyzer-execution-manifest.schema.json",
+        "analyzer-runner-request.schema.json",
+        "analyzer-runner-result.schema.json",
+        "analyzer-runner-failure.schema.json",
+        "analyzer-runner-resource-profile.schema.json",
+    ];
+    let declared_paths = conformance["cases"]
+        .as_array()
+        .expect("conformance cases")
+        .iter()
+        .filter(|case| {
+            iar_schemas
+                .iter()
+                .any(|schema| case["schema"].as_str().expect("schema").starts_with(schema))
+        })
+        .map(|case| case["fixture"].as_str().expect("fixture"))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(
+        provenance_paths, declared_paths,
+        "every IAR-0 conformance fixture needs reviewed provenance"
+    );
+}
+
+#[test]
 fn rust_packet_output_satisfies_the_published_schema() {
     let root = repository_root();
     let schema_root = root.join("schemas/v1");

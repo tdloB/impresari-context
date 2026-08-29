@@ -50,8 +50,9 @@ Step 1, and the classification does not create, authorize, or invoke one.
 
 ## Step 2 boundary
 
-ADR-0074 analyzer execution and ADR-0075 quarantine execution remain proposed,
-separately gated scopes. Step 2 may not begin merely because Step 1 is ready;
-it requires the explicit founder approval named by the HRA-5 gate plus the
-applicable threat-model, privacy, platform, supply-chain, and independent-review
-requirements.
+ADR-0074 IAR-0 now provides only closed schemas, a fixed profile, exact
+identities and framing, provenance-reviewed synthetic fixtures, and a pure
+in-memory no-op/fault worker. It does not stage files, launch a process, provide
+OS confinement, install or execute a scanner, or produce findings. IAR-1
+process isolation and ADR-0075 quarantine execution remain separately evidenced
+scopes; neither is implied by the IAR-0 protocol milestone.

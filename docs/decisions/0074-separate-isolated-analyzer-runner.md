@@ -1,6 +1,6 @@
 # ADR-0074: Separate isolated analyzer runner
 
-- Status: Proposed; implementation not authorized
+- Status: Accepted; IAR-0 protocol and synthetic worker implemented
 - Date: 2026-08-26
 - Scope: Static analyzer execution, scanner adapters, Windows hostile-format
   analysis, rule/database updates, and hash-only reputation
@@ -117,12 +117,19 @@ lookups.
   upload/download/mutation endpoints.
 - Updater rollback, substitution, expiry, and activation failures fail closed.
 
-## Implementation Gate
+## Implementation Sequence
 
-This ADR authorizes no scanner installation, process execution, network query,
-or code change. Implementation requires accepted step 1 contracts, a threat
-model update, exact analyzer/dependency/license decisions, platform confinement
-plans, provider-terms review, and explicit founder authorization per phase.
+The standing roadmap directive authorizes accepted increments without a
+repeated approval ceremony. IAR-0 freezes closed contracts, the fixed resource
+profile, provenance-reviewed synthetic fixtures, exact framing, and an
+in-memory no-op/fault worker. It adds no scanner installation, subprocess,
+filesystem staging, network query, upload, credential access, parser, or
+repository execution.
+
+IAR-1 must add only staging, supervision, and measured platform confinement;
+it requires its own architecture checkpoint and evidence. Real analyzer
+admission, updater/network capability, provider access, and quarantine remain
+separate later gates.
 
 ## Review Triggers
 

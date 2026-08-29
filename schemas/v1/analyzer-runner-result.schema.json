@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/analyzer-runner-result.schema.json",
+  "title": "IAR-0 complete synthetic worker result",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "result_id", "request_id", "workspace_snapshot", "manifest_id", "analyzer_id", "executable_digest", "ruleset_digest", "capability_ids", "resource_profile_digest", "completed_at", "artifact_statuses", "findings", "completeness", "limitations", "synthetic_only", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "analyzer-runner-result"},
+    "schema_version": {"const": "1.0.0"},
+    "result_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "request_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "manifest_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "analyzer_id": {"$ref": "common.schema.json#/$defs/schemaName"},
+    "executable_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "ruleset_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "capability_ids": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/schemaName"}},
+    "resource_profile_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "artifact_statuses": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/artifactStatus"}},
+    "findings": {"type": "array", "maxItems": 0, "items": {"type": "object"}},
+    "completeness": {"const": "complete"},
+    "limitations": {"type": "array", "minItems": 1, "maxItems": 1, "uniqueItems": true, "items": {"const": "synthetic-worker-no-analysis"}},
+    "synthetic_only": {"const": true},
+    "safety_claimed": {"const": false},
+    "ordinary_host_execution_authorized": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "artifactStatus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["artifact_hash", "status", "bytes_observed"],
+      "properties": {
+        "artifact_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+        "status": {"const": "synthetic_accounted"},
+        "bytes_observed": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    }
+  }
+}

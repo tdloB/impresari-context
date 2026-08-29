@@ -180,6 +180,26 @@ comparison baseline.
 - The only eligibility target is one named quarantine profile; safety and
   ordinary-host authority remain false.
 
+### ADR-0074 IAR-0 protocol and synthetic-worker hard gates
+
+- All six runner contracts validate under the bundled Draft 2020-12 validator;
+  every declared negative fixture is rejected.
+- The fixed `iar-protocol-synthetic-v1` profile is byte-identical to its fixture
+  and matches its committed SHA-256 sidecar.
+- Every fixture is original synthetic JSON with digest-checked provenance and
+  contains no executable, malware, live signature, third-party/private source,
+  or provider data.
+- One bounded big-endian length-prefixed request frame is accepted; truncated,
+  trailing, oversized, malformed, or unknown-field input fails closed.
+- Exact manifest, profile, request, artifact, result, and failure identities are
+  verified before promotion.
+- The no-op path accounts for every exact in-memory artifact and emits zero
+  findings; crash, timeout, mutation, flood, and malformed-output paths emit
+  only source-free all-or-nothing failures.
+- Filesystem access, process launch, analyzer/parser execution, network,
+  credentials, uploads, quarantine, repository execution, safety claims, and
+  added authority remain zero and unclaimed.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

@@ -1,0 +1,12 @@
+{
+  "schema_name": "analyzer-runner-capability",
+  "schema_version": "1.0.0",
+  "capability_id": "synthetic.accounting",
+  "capability_version": "1.0.0",
+  "description": "Accounts for exact synthetic artifacts without analysis.",
+  "input_media_types": ["application.octet-stream"],
+  "target_platforms": ["any"],
+  "result_categories": [],
+  "synthetic_only": true,
+  "authority_added": false
+}
