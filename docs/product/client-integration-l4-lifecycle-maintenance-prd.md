@@ -1,6 +1,6 @@
 # Impresari Context — CI-4: Deep Lifecycle Maintenance PRD
 
-- Status: GitHub Copilot CLI, Claude Code, and Cursor scopes implemented
+- Status: GitHub Copilot CLI, Claude Code, Cursor, and VS Code Copilot scopes implemented
 - Date: 2026-08-25
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -72,8 +72,9 @@ maintenance process, not an automated monitoring service.
 CI-4 covers the exact GitHub Copilot CLI v3 native-guidance artifact recorded
 for CLI `1.0.80`, the exact Claude Code v2 project skill recorded for CLI
 `2.1.241`, and the exact Cursor v2 project rule recorded for Cursor Agent
-`2026.08.11-e8db854`, all on macOS aarch64. Each has an independent manifest and
-regression gate over the shared source-free receipt contract. Client
+`2026.08.11-e8db854`, plus the VS Code Copilot v3 guidance and operator-
+confirmed Ask-mode L3 contract recorded for VS Code `1.134.0`, all on macOS
+aarch64. Each has an independent manifest and regression gate over the shared source-free receipt contract. Client
 availability, version, OS, architecture, date, manifest, and owned target are
 caller-supplied; the checker performs no discovery and starts no client
 process. All other clients and surfaces remain outside CI-4 until independently
