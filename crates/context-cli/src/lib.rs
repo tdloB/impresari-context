@@ -45,6 +45,11 @@ use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
 use context_structural::{StructuralGraph, WorkerLauncher};
+use context_vscode_copilot::{
+    StdioVscodeChatTransport, VscodeDeliveryError, VscodeDeliveryPreparation,
+    VscodeDeliveryReceipt, confirm_vscode_delivery, deliver_vscode_preview,
+    prepare_vscode_delivery, rehydrate_vscode_delivery_preview,
+};
 use context_workspace::DiscoveryPolicy;
 use serde::Serialize;
 use serde_json::json;
@@ -87,6 +92,9 @@ Usage:\n\
   impresari-context [global-options] client delivery claude apply <delivery-preview-json> <runtime-parent> <claude-binary> <authenticated-user-home> <expected-packet-id>\n\
   impresari-context [global-options] client delivery cursor preview <workspace> <cache-root> <delivery-intent-json>\n\
   impresari-context [global-options] client delivery cursor apply <delivery-preview-json> <runtime-parent> <cursor-binary> <authenticated-user-home> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery vscode preview <workspace> <cache-root> <delivery-intent-json>\n\
+  impresari-context [global-options] client delivery vscode apply <delivery-preview-json> <runtime-parent> <code-binary> <user-home> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery vscode confirm <launch-receipt-json> <expected-packet-id> <observed-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -338,6 +346,18 @@ struct CursorDeliveryApplyPreview {
     client_io_performed: bool,
     apply_required: bool,
     preview: context_cursor_agent::CursorDeliveryPreview,
+}
+
+#[derive(Serialize)]
+struct VscodeDeliveryApplyPreview {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    state: &'static str,
+    expected_packet_id: String,
+    client_io_performed: bool,
+    apply_required: bool,
+    operator_confirmation_required_after_launch: bool,
+    preview: context_vscode_copilot::VscodeDeliveryPreview,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -902,6 +922,86 @@ fn dispatch(
             .map_err(cursor_delivery_error)?;
             let receipt = deliver_cursor_preview(&preview, expected_packet_id, &transport);
             Output::new("client delivery cursor apply", &receipt)
+        }
+        [
+            "client",
+            "delivery",
+            "vscode",
+            "preview",
+            root,
+            cache,
+            intent_path,
+        ] => {
+            let intent: GuidedDeliveryIntent =
+                read_json(Path::new(intent_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result =
+                prepare_vscode_delivery(&mut engine, intent).map_err(vscode_delivery_error)?;
+            Output::new("client delivery vscode preview", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "vscode",
+            "apply",
+            preview_path,
+            runtime_parent,
+            code_binary,
+            user_home,
+            expected_packet_id,
+        ] => {
+            let result: VscodeDeliveryPreparation =
+                read_json(Path::new(preview_path), Capability::ContextBuild)?;
+            let VscodeDeliveryPreparation::Prepared(preview) = result else {
+                return Output::new("client delivery vscode apply", &result);
+            };
+            let preview =
+                rehydrate_vscode_delivery_preview(*preview).map_err(vscode_delivery_error)?;
+            if !options.apply {
+                return Output::new(
+                    "client delivery vscode apply preview",
+                    &VscodeDeliveryApplyPreview {
+                        schema_name: "vscode-copilot-delivery-apply-preview",
+                        schema_version: "1.0.0",
+                        state: "apply_required",
+                        expected_packet_id: expected_packet_id.to_string(),
+                        client_io_performed: false,
+                        apply_required: true,
+                        operator_confirmation_required_after_launch: true,
+                        preview,
+                    },
+                );
+            }
+            let runtime_parent = fs::canonicalize(runtime_parent).map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "VS Code delivery runtime parent is unavailable",
+                )
+            })?;
+            let transport = StdioVscodeChatTransport::new(
+                PathBuf::from(code_binary),
+                runtime_parent,
+                PathBuf::from(user_home),
+            )
+            .map_err(vscode_delivery_error)?;
+            let receipt = deliver_vscode_preview(&preview, expected_packet_id, &transport);
+            Output::new("client delivery vscode apply", &receipt)
+        }
+        [
+            "client",
+            "delivery",
+            "vscode",
+            "confirm",
+            receipt_path,
+            expected_packet_id,
+            observed_packet_id,
+        ] => {
+            let receipt: VscodeDeliveryReceipt =
+                read_json(Path::new(receipt_path), Capability::ContextBuild)?;
+            let receipt = confirm_vscode_delivery(&receipt, expected_packet_id, observed_packet_id)
+                .map_err(vscode_delivery_error)?;
+            Output::new("client delivery vscode confirm", &receipt)
         }
         ["client", "kit", "render", client, binary, root, cache] => {
             let kit = managed_connection_kit(
@@ -3346,6 +3446,26 @@ fn cursor_delivery_error(error: CursorDeliveryError) -> EngineError {
     }
 }
 
+fn vscode_delivery_error(error: VscodeDeliveryError) -> EngineError {
+    match error {
+        VscodeDeliveryError::Adapter(AdapterError::Engine(error)) => error,
+        VscodeDeliveryError::Adapter(AdapterError::IncompatibleContract)
+        | VscodeDeliveryError::InvalidConfiguration
+        | VscodeDeliveryError::InvalidPreview
+        | VscodeDeliveryError::InvalidConfirmation => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid VS Code Copilot delivery configuration",
+        ),
+        VscodeDeliveryError::Adapter(AdapterError::Serialization)
+        | VscodeDeliveryError::Serialization => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InternalFailure,
+            "VS Code Copilot delivery packet serialization failed",
+        ),
+    }
+}
+
 fn engine_error(envelope: ErrorEnvelope) -> EngineError {
     // The engine intentionally owns construction. Round-trip through a tiny
     // local operation is avoided by exposing this crate-private adapter below.
@@ -4587,7 +4707,7 @@ mod tests {
                 (
                     "VS Code Copilot",
                     "first_class",
-                    "managed_extension_host_workspace_configuration_and_bounded_session_tool_lifecycle",
+                    "managed_extension_host_workspace_configuration_bounded_session_tool_lifecycle_and_operator_confirmed_guided_delivery",
                 ),
             ])
         );

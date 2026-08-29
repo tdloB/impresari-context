@@ -17,6 +17,7 @@ fi
 # adds the equivalent exact-version, zero-tool Copilot prompt launch site.
 # ADR-0061 adds Claude Code's safe-mode, zero-tool print launch site. ADR-0062
 # adds Cursor Agent's ask-mode, sandboxed, empty-workspace print launch site.
+# ADR-0063 adds VS Code's Ask-mode chat CLI launcher in an empty disposable cwd.
 # No other production module may acquire child-process authority.
 process_sites=$(grep -n -E 'std::process::Command|Command::new' $production_sources || true)
 expected_structural_site='crates/context-structural/src/lib.rs:'
@@ -24,14 +25,16 @@ expected_codex_site='crates/context-codex-app-server/src/lib.rs:'
 expected_copilot_site='crates/context-copilot-cli/src/lib.rs:'
 expected_claude_site='crates/context-claude-code/src/lib.rs:'
 expected_cursor_site='crates/context-cursor-agent/src/lib.rs:'
-if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 5 ] ||
+expected_vscode_site='crates/context-vscode-copilot/src/lib.rs:'
+if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 6 ] ||
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_structural_site" ||
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_codex_site" ||
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_copilot_site" ||
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_claude_site" ||
-   ! printf '%s\n' "$process_sites" | grep -q "^$expected_cursor_site"; then
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_cursor_site" ||
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_vscode_site"; then
     printf '%s\n' "$process_sites" >&2
-    printf 'unexpected production child-process authority outside ADR-0010, ADR-0055, ADR-0060, ADR-0061, and ADR-0062 launch sites\n' >&2
+    printf 'unexpected production child-process authority outside ADR-0010, ADR-0055, ADR-0060, ADR-0061, ADR-0062, and ADR-0063 launch sites\n' >&2
     exit 1
 fi
 

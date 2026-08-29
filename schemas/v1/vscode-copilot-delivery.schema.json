@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/vscode-copilot-delivery.schema.json",
+  "title": "Explicit VS Code Copilot chat-CLI delivery",
+  "oneOf": [
+    {"$ref": "#/$defs/preview"},
+    {"$ref": "#/$defs/receipt"}
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "preview": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "client", "scope", "client_version", "protocol_scope", "prepared", "preparation_receipt", "delivery_envelope"],
+      "properties": {
+        "schema_name": {"const": "vscode-copilot-delivery-preview"},
+        "schema_version": {"const": "1.0.0"},
+        "client": {"const": "vscode_copilot"},
+        "scope": {"const": "chat_cli_ask"},
+        "client_version": {"const": "1.134.0"},
+        "protocol_scope": {"const": "code_chat_ask_prompt_stdin_context_v1"},
+        "prepared": {"type": "object"},
+        "preparation_receipt": {"type": "object"},
+        "delivery_envelope": {"$ref": "#/$defs/envelope"}
+      },
+      "additionalProperties": false
+    },
+    "envelope": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "packet_id", "packet_sha256", "packet_bytes_base64url", "task_query", "launch_prompt", "prompt"],
+      "properties": {
+        "schema_name": {"const": "vscode-copilot-delivery-envelope"},
+        "schema_version": {"const": "1.0.0"},
+        "packet_id": {"$ref": "#/$defs/sha256"},
+        "packet_sha256": {"$ref": "#/$defs/sha256"},
+        "packet_bytes_base64url": {"type": "string", "pattern": "^[A-Za-z0-9_-]+$", "maxLength": 1048576},
+        "task_query": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "launch_prompt": {"type": "string", "minLength": 1, "maxLength": 1024},
+        "prompt": {"type": "string", "minLength": 1, "maxLength": 786432}
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "outcome", "reason_code", "client", "scope", "client_version", "protocol_scope", "request_id", "event_id", "client_io_performed", "chat_launch_observed", "operator_confirmation_observed", "operator_confirmation_required", "model_response_machine_observable", "tool_execution_machine_observable", "provider_delivery_inferred", "source_workspace_exposed", "authenticated_profile_used_in_place", "credential_state_inspected", "credential_state_copied", "credential_state_deleted", "authority_added"],
+      "properties": {
+        "schema_name": {"const": "vscode-copilot-delivery-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "outcome": {"enum": ["confirmation_required", "delivered", "no_delivery", "degraded"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "client": {"const": "vscode_copilot"},
+        "scope": {"const": "chat_cli_ask"},
+        "client_version": {"const": "1.134.0"},
+        "protocol_scope": {"const": "code_chat_ask_prompt_stdin_context_v1"},
+        "request_id": {"type": "string"},
+        "event_id": {"type": "string"},
+        "packet_id": {"$ref": "#/$defs/sha256"},
+        "plan_id": {"$ref": "#/$defs/sha256"},
+        "workspace_snapshot": {"$ref": "#/$defs/sha256"},
+        "client_io_performed": {"type": "boolean"},
+        "chat_launch_observed": {"type": "boolean"},
+        "operator_confirmation_observed": {"type": "boolean"},
+        "operator_confirmation_required": {"type": "boolean"},
+        "model_response_machine_observable": {"const": false},
+        "tool_execution_machine_observable": {"const": false},
+        "provider_delivery_inferred": {"const": false},
+        "source_workspace_exposed": {"const": false},
+        "authenticated_profile_used_in_place": {"type": "boolean"},
+        "credential_state_inspected": {"const": false},
+        "credential_state_copied": {"const": false},
+        "credential_state_deleted": {"const": false},
+        "authority_added": {"const": false}
+      },
+      "additionalProperties": false
+    }
+  }
+}

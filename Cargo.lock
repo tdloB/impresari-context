@@ -185,6 +185,7 @@ dependencies = [
  "context-session",
  "context-store",
  "context-structural",
+ "context-vscode-copilot",
  "context-workspace",
  "serde",
  "serde_json",
@@ -377,6 +378,20 @@ dependencies = [
  "tree-sitter-toml-ng",
  "tree-sitter-typescript",
  "tree-sitter-yaml",
+]
+
+[[package]]
+name = "context-vscode-copilot"
+version = "0.1.0"
+dependencies = [
+ "context-adapters",
+ "context-core",
+ "context-engine",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
+ "sha2",
 ]
 
 [[package]]
