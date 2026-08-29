@@ -124,9 +124,10 @@ repository execution.
 
 The standing roadmap directive and the founder's confirmed HRA-2 boundary admit
 narrow, deterministic observations for safely admitted formats. The first
-implemented corpus recognizes only exact npm lifecycle keys under a strict
-`package.json` top-level `scripts` object. Values remain uninterpreted and
-unretained. Broader HRA-2 ecosystems and HRA-3 remain separate increments;
+implemented corpora recognize exact npm lifecycle keys under a strict
+`package.json` top-level `scripts` object and exact `privileged: true` service
+keys in a deliberately canonical Compose layout. Values remain uninterpreted
+and unretained. Broader HRA-2 ecosystems and HRA-3 remain separate increments;
 ADR-0074 and ADR-0075 remain proposed and independently gated.
 
 ## Review Triggers

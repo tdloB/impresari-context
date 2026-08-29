@@ -273,6 +273,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-043 | Coverage laundering | Zero findings, unavailable analyzers, or stale results are presented as complete or safe | Coverage is canonical and separate from findings; closed lifecycle states; incomplete mandatory analysis cannot yield a safety claim | HRA coverage and assessment fixtures; later deterministic truth tables | An authorized consumer can ignore the assessment outside Context |
 | SEC-T-044 | Repository admission authority escalation | Repository text, analyzer output, policy data, or a model attempts to authorize host execution or claim safety | Closed policy fields and four decision states; `safety_claimed`, `ordinary_host_execution_authorized`, and `authority_added` fixed false; exceptions owned by an external authorized human | Invalid safety-claim and host-authority fixtures; schema conformance | Future quarantine eligibility still requires separate runtime and human gates |
 | SEC-T-045 | Execution-surface rule confusion | A lifecycle-like key outside the admitted object, malformed JSON, duplicate/escaped syntax, or an untrusted command value attempts to create or alter an observation | Closed filename/key corpus; strict JSON validation; direct top-level object/key recovery; key-token-only evidence; values never interpreted; unsupported syntax explicit | HRA-2 false-positive, schema, stale-source, non-retention, and immutability tests | A declared lifecycle hook is an execution surface, not evidence of malicious intent |
+| SEC-T-046 | YAML lexical context spoofing | A comment, block scalar, label, top-level key, alternate scalar, tab, alias, or ambiguous Compose layout resembles a privileged service declaration | Four exact basenames; canonical services/service/property indentation; exact `privileged: true`; key-token-only evidence; unsupported constructs fail explicit | Compose positive, lookalike, alternate-value, block-scalar, and noncanonical-layout tests | The deliberately limited lexical rule does not validate full Compose semantics |
 
 ### Future-scope threats
 
@@ -331,6 +332,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | HRA-0 contract conformance | Full Draft 2020-12 validation, fixed-profile digest, original-synthetic fixture provenance, false-safety rejection, and ordinary-host-authority rejection |
 | HRA-1 inventory conformance | Snapshot/hash/length binding, bounded static classification, explicit exclusions, source immutability, schema-valid output, and symlink non-following |
 | HRA-2 npm lifecycle conformance | Closed lifecycle-key corpus, exact key-token evidence, false-positive rejection, unsupported syntax, stale-snapshot failure, value non-retention, and source immutability |
+| HRA-2 Compose privilege conformance | Exact basename/layout/value rule, key-token evidence, top-level/nested lookalike rejection, explicit unsupported YAML constructs, and no semantic or runtime claim |
 | Independent review | Threat model and release candidate reviewed by someone other than primary implementer when feasible |
 
 ## Security Release Gates

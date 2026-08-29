@@ -3,8 +3,9 @@
 - Scope: static contracts, bounded read-only inventory, and narrow exact-evidence observations.
 - Authorization: founder-approved HRA-0 and separately approved HRA-1 on
   2026-08-29.
-- Runtime status: HRA-1 inventory and the initial HRA-2 npm lifecycle corpus are
-  implemented. Broader HRA-2 ecosystems, HRA-3, ADR-0074 analyzers, and ADR-0075
+- Runtime status: HRA-1 inventory and the HRA-2 npm lifecycle and canonical
+  Compose privilege corpora are implemented. Broader HRA-2 ecosystems, HRA-3,
+  ADR-0074 analyzers, and ADR-0075
   quarantine execution remain absent.
 
 | Requirement | Authoritative artifact | Verification |
@@ -21,6 +22,7 @@
 | Evaluation gates | `docs/product/evaluation-prd.md` ADR-0073 HRA-0 hard gates | Full local and hosted conformance suites |
 | Runtime inventory | `crates/context-admission/src/lib.rs` | Schema validation, exact snapshot/hash/length binding, deterministic cross-platform classification, explicit exclusions, source immutability, stale-snapshot failure, and symlink non-following unit tests |
 | npm lifecycle observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-npm-lifecycle-rule-corpus.md` | Closed rule corpus, exact finding/evidence schema validation, false-positive cases, unsupported syntax, stale-source failure, command-value non-retention, and source immutability |
+| Compose privilege observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-compose-privilege-rule-corpus.md` | Exact basename/layout/value corpus, exact key-token evidence, lookalike rejection, unsupported YAML cases, and no semantic/runtime inference |
 
 ## Authority audit
 

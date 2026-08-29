@@ -243,7 +243,7 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   controls, residual risks, and release-blocking security evidence.
 - [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
   accepted HRA-0 contracts, HRA-1 bounded read-only inventory, and narrow HRA-2
-  npm lifecycle observations plus proposed broader execution-surface,
+  npm lifecycle and canonical Compose privilege observations plus broader execution-surface,
   isolated-analysis, and disposable-quarantine designs; no
   analyzer, networking, upload, deep-parser, policy-decision, or repository
   execution implementation is authorized.
