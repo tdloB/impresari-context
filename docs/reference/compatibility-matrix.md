@@ -61,6 +61,25 @@ Structural facts are conservative syntax-derived facts, not compiler, runtime,
 or language-server semantics. The worker never executes repository code or
 loads repository configuration.
 
+## Hostile-repository admission capability matrix
+
+These are library-level, authority-neutral capabilities on the default branch;
+they are not present in the published `v0.1.0` artifacts unless a later release
+explicitly includes them.
+
+| Capability | Status | Supported scope | Explicit limitation |
+| --- | --- | --- | --- |
+| HRA-1 artifact inventory | Implemented | Bounded, read-only, snapshot-bound static classification with explicit exclusions on all Tier A hosts | Classification is not malware detection; archives and hostile formats are not deeply parsed. |
+| HRA-2 execution-surface observations | Implemented | Exact npm lifecycle keys in strict `package.json` and exact `privileged: true` in the admitted canonical Compose layout | Values are not interpreted; unsupported JSON/YAML syntax is explicit; intent and runtime behavior are not inferred. |
+| HRA-3 coverage and assessment | Implemented | Deterministic required-analysis planning, ADR-0013-normalized synthetic result intake, and immutable assessment assembly | No analyzer is discovered or run. Missing mandatory analysis remains incomplete; zero findings never means safe. |
+| HRA-4 reference policy evaluation | Implemented | Pure deterministic four-state evaluation of exact immutable assessment, coverage, findings, and policy | No filesystem, process, network, model, credential, exception, approval, or ordinary-host authority. Eligibility names only one future quarantine profile. |
+| ADR-0074 isolated analyzer runner | Not implemented | None | No ClamAV, YARA, reputation provider, analyzer discovery, signature lifecycle, or analyzer execution exists. |
+| ADR-0075 disposable quarantine runner | Not implemented | None | No VM/container provisioning, repository execution, behavior observation, or destruction proof exists. |
+
+See the
+[Step 1 limitations statement](../security/hostile-repository-admission-limitations.md)
+before interpreting any inventory, finding, coverage, assessment, or decision.
+
 ## Client compatibility matrix
 
 | Client or surface | Classification | Supported connection today | Limitation |

@@ -23,7 +23,7 @@ same lockfile produces the same document on Linux, macOS, and Windows.
 
 ## Current review result
 
-- 187 workspace and transitive packages are recorded.
+- 208 workspace and transitive packages are recorded.
 - Every registry package records its Cargo checksum when supplied by Cargo.
 - `cargo deny check` passes its advisory, ban, source, and license policy.
 - RustSec scanning passes against 1,225 loaded advisories on 2026-08-23.
