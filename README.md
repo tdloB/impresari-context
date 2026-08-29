@@ -242,9 +242,10 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [Security Threat Model](docs/security/threat-model.md): trust zones, threats,
   controls, residual risks, and release-blocking security evidence.
 - [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
-  accepted HRA-0 contracts, HRA-1 bounded read-only inventory, and narrow HRA-2
-  npm lifecycle and canonical Compose privilege observations plus broader execution-surface,
-  isolated-analysis, and disposable-quarantine designs; no
+  accepted HRA-0 contracts, HRA-1 bounded read-only inventory, completed narrow
+  HRA-2 npm/Compose observations, and initial HRA-3 unavailable-by-default
+  coverage and immutable assessment construction plus isolated-analysis and
+  disposable-quarantine designs; no
   analyzer, networking, upload, deep-parser, policy-decision, or repository
   execution implementation is authorized.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
