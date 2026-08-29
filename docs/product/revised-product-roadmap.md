@@ -29,9 +29,12 @@ the capability exists in the `v0.1.0` binaries.
 
 The short-install and first-run increment provides a pinned, checksum-verified
 macOS/Linux installer and one preview-by-default `quickstart` command for the
-recorded managed clients. Homebrew distribution and automatic update
-installation remain separate future increments so neither can silently expand
-the installer or background authority boundary.
+recorded managed clients. Homebrew distribution now has a reviewable
+[proposed PRD](homebrew-distribution-prd.md), architecture, and ADR; it remains
+unapproved until its separate tap and trust boundary receive an explicit
+founder decision. Automatic update installation remains a later, separate
+future increment so neither capability can silently expand installer or
+background authority.
 
 ## Parallel Client Integration Depth Track
 
