@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 read-only inventory implemented; later runtime components remain proposed.
+- Status: HRA-1 implemented; narrow HRA-2 npm lifecycle observations implemented.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -415,4 +415,8 @@ any later increment:
 HRA-1 is complete only while its inventory validates against the frozen schema,
 uses the frozen profile, reports every exclusion, preserves source bytes, and
 adds no process, network, analyzer, upload, deep-parser, decision, or execution
-authority. This ARD does not authorize HRA-2 or any later increment.
+authority. HRA-2 begins with a strict JSON parse followed by exact top-level
+`scripts` object/key recovery for a closed npm lifecycle-key set. It stores only
+the exact key token as evidence, never interprets the value, reports unsupported
+syntax, and remains subject to the same authority exclusions. Later ecosystems
+and HRA-3 require their own reviewed rule corpus and gates.
