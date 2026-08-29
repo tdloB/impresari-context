@@ -44,6 +44,14 @@ pub const CLAUDE_CODE_SCOPE: &str = "safe_mode_print";
 pub const CLAUDE_CODE_VERSION: &str = "2.1.241";
 /// The explicit programmatic lifecycle point used for one packet handoff.
 pub const CLAUDE_CODE_LIFECYCLE_POINT: &str = "prompt_start";
+/// Exact Cursor Agent client identity admitted for guided delivery.
+pub const CURSOR_AGENT_CLIENT: &str = "cursor_agent";
+/// Exact Cursor Agent lifecycle scope admitted for guided delivery.
+pub const CURSOR_AGENT_SCOPE: &str = "ask_mode_print";
+/// Exact Cursor Agent build admitted for guided delivery.
+pub const CURSOR_AGENT_VERSION: &str = "2026.08.25-3e8eec8";
+/// Exact Cursor Agent lifecycle point admitted for guided delivery.
+pub const CURSOR_AGENT_LIFECYCLE_POINT: &str = "prompt_start";
 
 /// Consumer policy for acquiring repository context.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -396,6 +404,10 @@ fn guided_delivery_identity_is_supported(intent: &GuidedDeliveryIntent) -> bool 
             && intent.scope == CLAUDE_CODE_SCOPE
             && intent.client_version == CLAUDE_CODE_VERSION
             && intent.lifecycle_point == CLAUDE_CODE_LIFECYCLE_POINT)
+        || (intent.client == CURSOR_AGENT_CLIENT
+            && intent.scope == CURSOR_AGENT_SCOPE
+            && intent.client_version == CURSOR_AGENT_VERSION
+            && intent.lifecycle_point == CURSOR_AGENT_LIFECYCLE_POINT)
 }
 
 fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
@@ -403,6 +415,7 @@ fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
         CODEX_APP_SERVER_CLIENT => "codex_app_server_packet_prepared",
         COPILOT_CLI_CLIENT => "copilot_cli_packet_prepared",
         CLAUDE_CODE_CLIENT => "claude_code_packet_prepared",
+        CURSOR_AGENT_CLIENT => "cursor_agent_packet_prepared",
         _ => "reference_packet_prepared",
     }
 }
