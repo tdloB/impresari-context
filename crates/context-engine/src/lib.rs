@@ -4105,6 +4105,7 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
             Some(StructuralLanguage::Cpp)
         }
         Some(extension) if extension.eq_ignore_ascii_case("rb") => Some(StructuralLanguage::Ruby),
+        Some(extension) if extension.eq_ignore_ascii_case("php") => Some(StructuralLanguage::Php),
         Some(extension) if extension.eq_ignore_ascii_case("scala") => {
             Some(StructuralLanguage::Scala)
         }
@@ -4193,6 +4194,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::C => "tree-sitter-c-0.24.2",
         StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
         StructuralLanguage::Ruby => "tree-sitter-ruby-0.23.1",
+        StructuralLanguage::Php => "tree-sitter-php-0.24.2",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -4716,6 +4718,18 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::Ruby),
             "tree-sitter-ruby-0.23.1"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_php() {
+        assert_eq!(
+            structural_language("src/Service.php"),
+            Some(StructuralLanguage::Php)
+        );
+        assert_eq!(
+            grammar_version(StructuralLanguage::Php),
+            "tree-sitter-php-0.24.2"
         );
     }
 

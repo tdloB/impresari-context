@@ -29,6 +29,7 @@ tree-sitter-javascript = { version = "=0.25.0", default-features = false }
 tree-sitter-kotlin-ng = { version = "=1.1.0", default-features = false }
 tree-sitter-json = { version = "=0.24.8", default-features = false }
 tree-sitter-python = { version = "=0.25.0", default-features = false }
+tree-sitter-php = { version = "=0.24.2", default-features = false }
 tree-sitter-rust = { version = "=0.24.2", default-features = false }
 tree-sitter-ruby = { version = "=0.23.1", default-features = false }
 tree-sitter-scala = { version = "=0.26.2", default-features = false }
