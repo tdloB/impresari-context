@@ -1,6 +1,6 @@
 # ADR-0033: Structural impact-planner admission
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #49
 - Date: 2026-08-24
 - Scope: First Phase 4 impact-evidence slice
 

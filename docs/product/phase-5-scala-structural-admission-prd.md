@@ -1,5 +1,7 @@
 # Phase 5 Scala Structural Admission PRD
 
+- Status: Accepted
+
 ## Outcome
 
 Add snapshot-bound structural evidence for Scala `.scala` files through the

@@ -1,6 +1,6 @@
 # ADR-0038: Explicit incremental structural updates
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #59
 - Date: 2026-08-25
 - Scope: Fifth Phase 4 impact-evidence slice
 

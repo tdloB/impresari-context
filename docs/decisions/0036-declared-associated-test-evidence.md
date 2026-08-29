@@ -1,6 +1,6 @@
 # ADR-0036: Declared associated-test evidence
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #57
 - Date: 2026-08-24
 - Scope: Third Phase 4 impact-evidence slice
 

@@ -16,7 +16,8 @@ tests, and maintenance rationale.
 
 ## Consequences
 
-The roadmap retains Swift, PHP, Ruby, C/C++, Scala, Dart, and constrained SQL
-as candidate directions without creating a promise, authority expansion, or
-implementation commitment. Phase 5 begins with a decision record, not parser
-code.
+Scala, Elixir, Clojure, and Haskell have since passed separate PRD/ADR and
+admission gates. The roadmap retains Swift, PHP, Ruby, C/C++, Dart, and
+constrained SQL as candidate directions without creating a promise, authority
+expansion, or implementation commitment. Another Phase 5 slice begins with
+new attributable demand evidence and a decision record, not parser code.

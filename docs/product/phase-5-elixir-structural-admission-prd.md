@@ -1,5 +1,7 @@
 # Phase 5 Elixir Structural Admission PRD
 
+- Status: Accepted
+
 ## Outcome
 
 Add snapshot-bound structural evidence for Elixir `.ex` and `.exs` files.

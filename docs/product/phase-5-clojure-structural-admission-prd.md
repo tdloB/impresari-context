@@ -1,5 +1,7 @@
 # Phase 5 Clojure Structural Admission PRD
 
+- Status: Accepted
+
 ## Outcome
 
 Add snapshot-bound structural evidence for Clojure `.clj`, `.cljs`, and

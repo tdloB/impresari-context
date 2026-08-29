@@ -1,6 +1,6 @@
 # ADR-0037: Repository-orientation packets
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #58
 - Date: 2026-08-24
 - Scope: Fourth Phase 4 impact-evidence slice
 

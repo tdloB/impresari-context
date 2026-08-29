@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: Repository-Orientation Packets
 
-- Status: Accepted for implementation after associated-test evidence acceptance
+- Status: Implemented and accepted after full hosted CI in PR #58
 - Date: 2026-08-24
 - Approved by: Founder (via the approved roadmap and autonomous delivery directive)
 - Roadmap role: Next bounded Phase 4 impact-evidence slice.

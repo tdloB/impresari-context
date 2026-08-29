@@ -1,6 +1,6 @@
 # Phase 4 structural-impact planner evidence
 
-- Status: Implementation candidate; full local release gate passed, hosted release gates pending
+- Status: Accepted after full local and hosted release gates passed in PR #49
 - Governing records: [Phase 4 structural-impact planner delivery record](../product/phase-4-structural-impact-planner-prd.md) and [ADR-0033](../decisions/0033-structural-impact-planner-admission.md)
 
 ## Implemented evidence
