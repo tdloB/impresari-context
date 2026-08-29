@@ -7,6 +7,7 @@ members = [
     "crates/context-cursor-agent",
     "crates/context-vscode-copilot",
     "crates/context-adapters",
+    "crates/context-admission",
     "crates/context-conformance",
     "crates/context-core",
     "crates/context-engine",

@@ -20,6 +20,7 @@
       "limitations": ["content was not executed"]
     }
   ],
-  "excluded_count": "0",
+  "exclusions": [{"reason": "policy_excluded", "count": "1"}],
+  "excluded_count": "1",
   "authority_added": false
 }

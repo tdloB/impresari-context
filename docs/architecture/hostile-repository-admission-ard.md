@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-0 contract freeze authorized; runtime components remain proposed.
+- Status: HRA-1 read-only inventory implemented; later runtime components remain proposed.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -390,13 +390,14 @@ The component sequence mirrors HRA-0 through HRA-5 in the PRD. Each increment
 must remain releasable behind a disabled capability flag and must not require
 Step 2 or Step 3 to preserve current Context behavior.
 
-Before any implementation:
+The HRA-0 prerequisites and HRA-1 inventory are complete. Before implementing
+any later increment:
 
 1. Accept ADR-0073.
 2. Update the security threat model and evaluation PRD.
 3. Approve exact schemas and resource ceilings.
 4. Approve the initial artifact/rule matrix and fixture provenance.
-5. Record an explicit founder implementation authorization.
+5. Record an explicit founder implementation authorization for that increment.
 
 ## Rollback And Failure-Domain Preservation
 
@@ -411,7 +412,7 @@ Before any implementation:
 
 ## Architecture Exit Criteria
 
-Step 1 is ready for implementation review only when the schemas, fixtures,
-resource profile, threat-model delta, policy truth tables, Windows recognition
-matrix, migration/rollback plan, and independent review plan are complete. This
-ARD does not itself authorize implementation.
+HRA-1 is complete only while its inventory validates against the frozen schema,
+uses the frozen profile, reports every exclusion, preserves source bytes, and
+adds no process, network, analyzer, upload, deep-parser, decision, or execution
+authority. This ARD does not authorize HRA-2 or any later increment.
