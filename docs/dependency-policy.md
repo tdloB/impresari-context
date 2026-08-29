@@ -28,6 +28,7 @@ scrutiny than test-only dependencies.
 | `tree-sitter` | 0.26.12 | `context-structural` worker only | `std`; defaults disabled; WASM disabled | MIT | Upstream 1.77; project Rust 1.96 gate required | Bounded concrete-syntax parsing behind the ADR-0010 process boundary |
 | `tree-sitter-c` | 0.24.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned C grammar; no compiler, preprocessor, or build authority |
 | `tree-sitter-c-sharp` | 0.23.5 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned C# grammar |
+| `tree-sitter-cpp` | 0.23.4 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned C++ grammar for unambiguous C++ extensions; no toolchain authority |
 | `tree-sitter-clojure-orchard` | 0.2.8 | `context-structural` worker only | Defaults disabled | CC0-1.0 | Project Rust 1.96 gate required | Pinned Clojure grammar compatible with the project Tree-sitter runtime |
 | `tree-sitter-elixir` | 0.3.5 | `context-structural` worker only | Defaults disabled | Apache-2.0 | Project Rust 1.96 gate required | Pinned Elixir grammar |
 | `tree-sitter-haskell` | 0.23.1 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned Haskell grammar |

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/C++/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -50,6 +50,8 @@ pub enum StructuralLanguage {
     CSharp,
     /// C source.
     C,
+    /// C++ source.
+    Cpp,
     /// Scala source.
     Scala,
     /// Elixir source.
@@ -1582,6 +1584,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
         StructuralLanguage::C => "tree-sitter-c-0.24.2",
+        StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -1610,6 +1613,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         StructuralLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
         StructuralLanguage::C => tree_sitter_c::LANGUAGE.into(),
+        StructuralLanguage::Cpp => tree_sitter_cpp::LANGUAGE.into(),
         StructuralLanguage::Scala => tree_sitter_scala::LANGUAGE.into(),
         StructuralLanguage::Elixir => tree_sitter_elixir::LANGUAGE.into(),
         StructuralLanguage::Clojure => tree_sitter_clojure_orchard::LANGUAGE.into(),
@@ -1753,10 +1757,15 @@ fn fact_for_node(
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
-        "function_definition" if request.language == StructuralLanguage::C => {
+        "function_definition"
+            if matches!(
+                request.language,
+                StructuralLanguage::C | StructuralLanguage::Cpp
+            ) =>
+        {
             let name = node
                 .child_by_field_name("declarator")
-                .and_then(c_declarator_identifier)
+                .and_then(declarator_identifier)
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
@@ -1767,7 +1776,10 @@ fn fact_for_node(
             (FactClass::Declaration, name, None)
         }
         "struct_specifier" | "union_specifier" | "enum_specifier"
-            if request.language == StructuralLanguage::C =>
+            if matches!(
+                request.language,
+                StructuralLanguage::C | StructuralLanguage::Cpp
+            ) =>
         {
             let name = node
                 .child_by_field_name("name")
@@ -1777,7 +1789,15 @@ fn fact_for_node(
         "type_definition" if request.language == StructuralLanguage::C => {
             let name = node
                 .child_by_field_name("declarator")
-                .and_then(c_declarator_identifier)
+                .and_then(declarator_identifier)
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "class_specifier" | "namespace_definition" | "alias_declaration"
+            if request.language == StructuralLanguage::Cpp =>
+        {
+            let name = node
+                .child_by_field_name("name")
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
@@ -1878,7 +1898,12 @@ fn fact_for_node(
             let module = csharp_using_module(node, source)?;
             (FactClass::Import, None, Some(module))
         }
-        "preproc_include" if request.language == StructuralLanguage::C => {
+        "preproc_include"
+            if matches!(
+                request.language,
+                StructuralLanguage::C | StructuralLanguage::Cpp
+            ) =>
+        {
             let module = node
                 .child_by_field_name("path")
                 .and_then(|value| text(value, source));
@@ -1963,13 +1988,19 @@ fn warnings(tree_has_error: bool, strict_json_valid: bool) -> Vec<String> {
     warnings
 }
 
-fn c_declarator_identifier(node: Node<'_>) -> Option<Node<'_>> {
-    if node.kind() == "identifier" || node.kind() == "type_identifier" {
+fn declarator_identifier(node: Node<'_>) -> Option<Node<'_>> {
+    if matches!(
+        node.kind(),
+        "identifier" | "type_identifier" | "field_identifier" | "operator_name" | "destructor_name"
+    ) {
         return Some(node);
+    }
+    if let Some(declarator) = node.child_by_field_name("declarator") {
+        return declarator_identifier(declarator);
     }
     let mut cursor = node.walk();
     node.named_children(&mut cursor)
-        .find_map(c_declarator_identifier)
+        .find_map(declarator_identifier)
 }
 
 fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>> {
@@ -2024,7 +2055,7 @@ fn is_declaration_name(node: Node<'_>) -> bool {
         if matches!(candidate.kind(), "function_definition" | "type_definition") {
             return candidate
                 .child_by_field_name("declarator")
-                .and_then(c_declarator_identifier)
+                .and_then(declarator_identifier)
                 .is_some_and(|name| name.id() == node.id());
         }
         ancestor = candidate.parent();
@@ -2287,6 +2318,7 @@ mod tests {
             StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
             StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
             StructuralLanguage::C => "tree-sitter-c-0.24.2",
+            StructuralLanguage::Cpp => "tree-sitter-cpp-0.23.4",
             StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
             StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
             StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -2876,6 +2908,50 @@ int run(Service *service) {
     fn reports_c_syntax_recovery_without_invoking_a_toolchain() {
         let source = b"int run( { return 1; }";
         let output = process_request(&request(source, StructuralLanguage::C)).expect("parse");
+        assert!(output.syntax_errors);
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
+    }
+
+    #[test]
+    fn extracts_bounded_cpp_declarations_includes_calls_and_references() {
+        let source = br#"#include <string>
+#include "service.hpp"
+
+namespace example {
+class Service {
+public:
+    int run(int value) { return helper(value); }
+private:
+    int helper(int value) { return value + 1; }
+};
+using ServiceAlias = Service;
+}
+"#;
+        let output = process_request(&request(source, StructuralLanguage::Cpp)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["example", "Service", "run", "helper", "ServiceAlias"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing C++ declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        for module in ["<string>", "\"service.hpp\""] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Import && fact.module.as_deref() == Some(module)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+    }
+
+    #[test]
+    fn reports_cpp_syntax_recovery_without_invoking_a_toolchain() {
+        let source = b"class Service { int run( { return 1; }";
+        let output = process_request(&request(source, StructuralLanguage::Cpp)).expect("parse");
         assert!(output.syntax_errors);
         assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
     }
