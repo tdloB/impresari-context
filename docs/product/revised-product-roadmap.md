@@ -39,6 +39,15 @@ It remains unapproved and separately gated on signing-root custody, scheduled
 background execution, and live-rehearsal authority so neither adoption feature
 can silently expand installer or background authority.
 
+## Observability and budget-control track
+
+A local real-time dashboard and narrowing-only budget-control layer have a
+reviewable [proposed PRD](local-dashboard-budget-control-prd.md), architecture,
+and ADR. The proposal is foreground, loopback-only, metadata-only, and unable
+to raise any governing hard limit. It remains unapproved. Remote, hosted,
+organization, billing, telemetry, and source-viewing surfaces remain outside
+the roadmap without a separate founder decision and external-data boundary.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
