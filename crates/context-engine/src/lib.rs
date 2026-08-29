@@ -4091,6 +4091,11 @@ fn structural_language(path: &str) -> Option<StructuralLanguage> {
             Some(StructuralLanguage::Kotlin)
         }
         Some(extension) if extension.eq_ignore_ascii_case("cs") => Some(StructuralLanguage::CSharp),
+        Some(extension)
+            if extension.eq_ignore_ascii_case("c") || extension.eq_ignore_ascii_case("h") =>
+        {
+            Some(StructuralLanguage::C)
+        }
         Some(extension) if extension.eq_ignore_ascii_case("scala") => {
             Some(StructuralLanguage::Scala)
         }
@@ -4176,6 +4181,7 @@ const fn grammar_version(language: StructuralLanguage) -> &'static str {
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+        StructuralLanguage::C => "tree-sitter-c-0.24.2",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -4653,6 +4659,17 @@ mod tests {
         assert_eq!(
             grammar_version(StructuralLanguage::CSharp),
             "tree-sitter-c-sharp-0.23.5"
+        );
+    }
+
+    #[test]
+    fn structural_language_recognizes_c_sources_and_headers() {
+        for path in ["src/service.c", "include/service.h"] {
+            assert_eq!(structural_language(path), Some(StructuralLanguage::C));
+        }
+        assert_eq!(
+            grammar_version(StructuralLanguage::C),
+            "tree-sitter-c-0.24.2"
         );
     }
 

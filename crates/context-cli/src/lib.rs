@@ -4648,9 +4648,9 @@ mod tests {
         assert_eq!(
             structural_extensions,
             std::collections::BTreeSet::from([
-                ".cjs", ".clj", ".cljc", ".cljs", ".cs", ".ex", ".exs", ".go", ".hs", ".java",
-                ".js", ".json", ".jsonc", ".jsx", ".kt", ".kts", ".lhs", ".mjs", ".py", ".rs",
-                ".scala", ".toml", ".ts", ".tsx", ".yaml", ".yml",
+                ".c", ".cjs", ".clj", ".cljc", ".cljs", ".cs", ".ex", ".exs", ".go", ".h", ".hs",
+                ".java", ".js", ".json", ".jsonc", ".jsx", ".kt", ".kts", ".lhs", ".mjs", ".py",
+                ".rs", ".scala", ".toml", ".ts", ".tsx", ".yaml", ".yml",
             ]),
             "the public manifest must match the shipped structural worker inventory"
         );
