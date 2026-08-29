@@ -1,6 +1,6 @@
 [package]
 name = "context-admission"
-description = "Evidence-only hostile-repository admission contracts and inventory"
+description = "Evidence-only hostile-repository inventory, observations, coverage, and assessment"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

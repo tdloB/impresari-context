@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 implemented; narrow HRA-2 npm and Compose observations implemented.
+- Status: HRA-1 and HRA-2 implemented; initial HRA-3 coverage planning and assessment assembly implemented.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -423,4 +423,9 @@ increment uses a deliberately limited lexical rule over four exact basenames,
 one canonical `services`/service/property indentation, and only
 `privileged: true`; block scalars, tabs, aliases, alternative scalar syntax,
 and ambiguous layouts are unsupported rather than heuristically parsed. Later ecosystems
-and HRA-3 require their own reviewed rule corpus and gates.
+and HRA-3 require their own reviewed rule corpus and gates. The first HRA-3
+slice groups exact artifact hashes by the inventory's analyzer capability IDs,
+marks every required analyzer unavailable because execution is absent, and
+assembles an immutable assessment only after recomputing coverage and checking
+snapshot, artifact, finding, and evidence bindings. External result envelopes
+remain a separate non-executing HRA-3 slice.

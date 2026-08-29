@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Evidence-only hostile-repository admission contracts and inventory."]
+#![doc = "Evidence-only hostile-repository inventory, observations, coverage, and assessment."]
 
 use std::{
     collections::BTreeMap,
@@ -230,6 +230,84 @@ pub struct ExecutionSurfaceObservations {
     pub authority_added: bool,
 }
 
+/// One deterministic HRA-3 analyzer requirement derived from HRA-1 inventory.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzerRequirement {
+    /// Stable identifier derived from the capability and artifact set.
+    pub requirement_id: String,
+    /// Closed analyzer capability requested by the inventory.
+    pub capability_id: String,
+    /// Exact, sorted artifact digests requiring the capability.
+    pub artifact_hashes: Vec<String>,
+    /// Stable rules explaining why the capability is required.
+    pub reason_rule_ids: Vec<String>,
+    /// Whether absence prevents a complete assessment.
+    pub mandatory: bool,
+    /// Minimum accepted external-result contract version.
+    pub minimum_contract_version: String,
+    /// Coverage lifecycle state; planning emits `unavailable` only.
+    pub state: String,
+    /// Stable, content-free explanation of the lifecycle state.
+    pub state_reason: String,
+}
+
+/// Canonical HRA-3 required-analysis plan with no analyzer execution authority.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzerCoverage {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Domain-separated identity of this exact ledger.
+    pub coverage_id: String,
+    /// Exact workspace snapshot identity.
+    pub workspace_snapshot: String,
+    /// Caller-supplied canonical UTC creation time.
+    pub generated_at: String,
+    /// Deterministically ordered analyzer requirements.
+    pub requirements: Vec<AnalyzerRequirement>,
+    /// Constant proof that planning adds no authority.
+    pub authority_added: bool,
+}
+
+/// Immutable HRA-3 assessment assembled only from validated local records.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct RepositorySecurityAssessment {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Domain-separated identity of the complete assessment payload.
+    pub assessment_id: String,
+    /// Exact workspace snapshot identity.
+    pub workspace_snapshot: String,
+    /// Frozen HRA profile digest.
+    pub profile_digest: String,
+    /// Exact HRA-1 inventory identity.
+    pub inventory_id: String,
+    /// Sorted exact HRA-2 finding identities.
+    pub finding_ids: Vec<String>,
+    /// Exact HRA-3 coverage identity.
+    pub coverage_id: String,
+    /// `complete` only when every admitted input and mandatory requirement is complete.
+    pub completeness: String,
+    /// Stable contradictions detected between supplied records.
+    pub conflicts: Vec<String>,
+    /// Stable reasons why the assessment is not complete.
+    pub unknowns: Vec<String>,
+    /// Stable source and observation exclusions.
+    pub exclusions: Vec<String>,
+    /// Always false; an assessment is not a safety claim.
+    pub safety_claimed: bool,
+    /// Always false; assessment cannot authorize ordinary-host execution.
+    pub ordinary_host_execution_authorized: bool,
+    /// Constant proof that assessment construction adds no authority.
+    pub authority_added: bool,
+}
+
 #[derive(Serialize)]
 struct FindingIdentity<'finding> {
     workspace_snapshot: &'finding str,
@@ -259,6 +337,39 @@ struct ArtifactIdentity<'artifact> {
     classification: &'artifact str,
     analyzer_requirements: &'artifact [String],
     limitations: &'artifact [String],
+}
+
+#[derive(Serialize)]
+struct CoverageIdentity<'coverage> {
+    workspace_snapshot: &'coverage str,
+    generated_at: &'coverage str,
+    requirements: &'coverage [AnalyzerRequirement],
+    authority_added: bool,
+}
+
+#[derive(Serialize)]
+struct RequirementIdentity<'requirement> {
+    capability_id: &'requirement str,
+    artifact_hashes: &'requirement [String],
+    reason_rule_ids: &'requirement [String],
+    mandatory: bool,
+    minimum_contract_version: &'static str,
+}
+
+#[derive(Serialize)]
+struct AssessmentIdentity<'assessment> {
+    workspace_snapshot: &'assessment str,
+    profile_digest: &'static str,
+    inventory_id: &'assessment str,
+    finding_ids: &'assessment [String],
+    coverage_id: &'assessment str,
+    completeness: &'assessment str,
+    conflicts: &'assessment [String],
+    unknowns: &'assessment [String],
+    exclusions: &'assessment [String],
+    safety_claimed: bool,
+    ordinary_host_execution_authorized: bool,
+    authority_added: bool,
 }
 
 #[derive(Serialize)]
@@ -331,10 +442,9 @@ pub fn observe_execution_surfaces(
     snapshot: &WorkspaceSnapshot,
     inventory: &SecurityArtifactInventory,
 ) -> Result<ExecutionSurfaceObservations, AdmissionError> {
+    validate_inventory_contract(inventory)?;
     if workspace.identity() != snapshot.workspace_identity
         || inventory.workspace_snapshot != snapshot.snapshot_id
-        || inventory.profile_digest != PROFILE_DIGEST
-        || inventory.authority_added
     {
         return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
     }
@@ -429,6 +539,247 @@ pub fn observe_execution_surfaces(
         truncated,
         authority_added: false,
     })
+}
+
+/// Plans mandatory analyzer coverage from exact HRA-1 artifact requirements.
+///
+/// Requirements are grouped by capability over sorted exact artifact hashes.
+/// The planner cannot run or locate analyzers, so every emitted requirement is
+/// explicitly `unavailable` with `analyzer-execution-not-authorized`.
+///
+/// # Errors
+///
+/// Returns a safe error for invalid timestamps, mismatched or authority-adding
+/// inventory input, serialization failure, or an unrepresentable resource state.
+pub fn plan_analyzer_coverage(
+    inventory: &SecurityArtifactInventory,
+    generated_at: &str,
+) -> Result<AnalyzerCoverage, AdmissionError> {
+    validate_utc_timestamp(generated_at)
+        .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?;
+    validate_inventory_contract(inventory)?;
+
+    let mut grouped = BTreeMap::<String, Vec<String>>::new();
+    for artifact in &inventory.artifacts {
+        for capability in &artifact.analyzer_requirements {
+            grouped
+                .entry(capability.clone())
+                .or_default()
+                .push(artifact.content_hash.clone());
+        }
+    }
+    if grouped.len() > 5000 {
+        return Err(AdmissionError::new(AdmissionErrorCode::ResourceLimit));
+    }
+
+    let mut requirements = Vec::with_capacity(grouped.len());
+    for (capability_id, mut artifact_hashes) in grouped {
+        artifact_hashes.sort();
+        artifact_hashes.dedup();
+        if artifact_hashes.is_empty() || artifact_hashes.len() > 256 {
+            return Err(AdmissionError::new(AdmissionErrorCode::ResourceLimit));
+        }
+        let reason_rule_ids = vec!["inventory-artifact-requires-analysis-v1".to_owned()];
+        let identity = RequirementIdentity {
+            capability_id: &capability_id,
+            artifact_hashes: &artifact_hashes,
+            reason_rule_ids: &reason_rule_ids,
+            mandatory: true,
+            minimum_contract_version: CONTRACT_VERSION,
+        };
+        let digest = structured_identity("analyzer-requirement", &identity)?;
+        requirements.push(AnalyzerRequirement {
+            requirement_id: format!("req_{}", &digest[7..39]),
+            capability_id,
+            artifact_hashes,
+            reason_rule_ids,
+            mandatory: true,
+            minimum_contract_version: CONTRACT_VERSION.to_owned(),
+            state: "unavailable".to_owned(),
+            state_reason: "analyzer-execution-not-authorized".to_owned(),
+        });
+    }
+    requirements.sort_by(|left, right| left.capability_id.cmp(&right.capability_id));
+    let identity = CoverageIdentity {
+        workspace_snapshot: &inventory.workspace_snapshot,
+        generated_at,
+        requirements: &requirements,
+        authority_added: false,
+    };
+    let coverage = AnalyzerCoverage {
+        schema_name: "analyzer-coverage".to_owned(),
+        schema_version: CONTRACT_VERSION.to_owned(),
+        coverage_id: structured_identity("analyzer-coverage", &identity)?,
+        workspace_snapshot: inventory.workspace_snapshot.clone(),
+        generated_at: generated_at.to_owned(),
+        requirements,
+        authority_added: false,
+    };
+    enforce_output_limit(&coverage)?;
+    Ok(coverage)
+}
+
+/// Assembles an immutable HRA-3 assessment without evaluating policy.
+///
+/// Exact identities are cross-checked before assembly. Missing or unavailable
+/// mandatory analysis, inventory omissions, and observation exclusions remain
+/// prominent and force `partial`; zero findings never implies safety.
+///
+/// # Errors
+///
+/// Returns a safe error when supplied records disagree, add authority, exceed
+/// frozen limits, or cannot be canonically serialized.
+pub fn build_repository_security_assessment(
+    inventory: &SecurityArtifactInventory,
+    observations: &ExecutionSurfaceObservations,
+    coverage: &AnalyzerCoverage,
+) -> Result<RepositorySecurityAssessment, AdmissionError> {
+    validate_assessment_inputs(inventory, observations, coverage)?;
+    let AssessmentComponents {
+        finding_ids,
+        completeness,
+        conflicts,
+        unknowns,
+        exclusions,
+    } = assessment_components(inventory, observations, coverage);
+    let identity = AssessmentIdentity {
+        workspace_snapshot: &inventory.workspace_snapshot,
+        profile_digest: PROFILE_DIGEST,
+        inventory_id: &inventory.inventory_id,
+        finding_ids: &finding_ids,
+        coverage_id: &coverage.coverage_id,
+        completeness: &completeness,
+        conflicts: &conflicts,
+        unknowns: &unknowns,
+        exclusions: &exclusions,
+        safety_claimed: false,
+        ordinary_host_execution_authorized: false,
+        authority_added: false,
+    };
+    let assessment = RepositorySecurityAssessment {
+        schema_name: "repository-security-assessment".to_owned(),
+        schema_version: CONTRACT_VERSION.to_owned(),
+        assessment_id: structured_identity("repository-security-assessment", &identity)?,
+        workspace_snapshot: inventory.workspace_snapshot.clone(),
+        profile_digest: PROFILE_DIGEST.to_owned(),
+        inventory_id: inventory.inventory_id.clone(),
+        finding_ids,
+        coverage_id: coverage.coverage_id.clone(),
+        completeness,
+        conflicts,
+        unknowns,
+        exclusions,
+        safety_claimed: false,
+        ordinary_host_execution_authorized: false,
+        authority_added: false,
+    };
+    enforce_output_limit(&assessment)?;
+    Ok(assessment)
+}
+
+struct AssessmentComponents {
+    finding_ids: Vec<String>,
+    completeness: String,
+    conflicts: Vec<String>,
+    unknowns: Vec<String>,
+    exclusions: Vec<String>,
+}
+
+fn validate_assessment_inputs(
+    inventory: &SecurityArtifactInventory,
+    observations: &ExecutionSurfaceObservations,
+    coverage: &AnalyzerCoverage,
+) -> Result<(), AdmissionError> {
+    validate_inventory_contract(inventory)?;
+    if observations.authority_added
+        || coverage.authority_added
+        || observations.workspace_snapshot != inventory.workspace_snapshot
+        || coverage.workspace_snapshot != inventory.workspace_snapshot
+        || coverage != &plan_analyzer_coverage(inventory, &coverage.generated_at)?
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    if observations.findings.len() > MAX_FINDINGS || observations.evidence.len() > MAX_FINDINGS {
+        return Err(AdmissionError::new(AdmissionErrorCode::ResourceLimit));
+    }
+    let artifact_hashes = inventory
+        .artifacts
+        .iter()
+        .map(|artifact| artifact.content_hash.as_str())
+        .collect::<std::collections::BTreeSet<_>>();
+    let finding_invalid = observations.findings.iter().any(|finding| {
+        finding.authority_added
+            || finding.workspace_snapshot != inventory.workspace_snapshot
+            || !artifact_hashes.contains(finding.artifact_hash.as_str())
+            || !observations
+                .evidence
+                .iter()
+                .any(|record| record.evidence_id == finding.evidence_id)
+    });
+    let evidence_invalid = observations.evidence.iter().any(|record| {
+        record.workspace_snapshot != inventory.workspace_snapshot
+            || !artifact_hashes.contains(record.artifact.content_hash.as_str())
+            || record.freshness != "current"
+            || record.trust != "untrusted_workspace_content"
+    });
+    if finding_invalid || evidence_invalid {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    Ok(())
+}
+
+fn assessment_components(
+    inventory: &SecurityArtifactInventory,
+    observations: &ExecutionSurfaceObservations,
+    coverage: &AnalyzerCoverage,
+) -> AssessmentComponents {
+    let mut finding_ids = observations
+        .findings
+        .iter()
+        .map(|finding| finding.finding_id.clone())
+        .collect::<Vec<_>>();
+    finding_ids.sort();
+    finding_ids.dedup();
+    let mut unknowns = Vec::new();
+    if inventory.completeness != "complete" {
+        unknowns.push("inventory-incomplete".to_owned());
+    }
+    if observations.truncated || !observations.exclusions.is_empty() {
+        unknowns.push("execution-surface-observations-incomplete".to_owned());
+    }
+    if coverage
+        .requirements
+        .iter()
+        .any(|requirement| requirement.mandatory && requirement.state != "completed")
+    {
+        unknowns.push("mandatory-analysis-incomplete".to_owned());
+    }
+    unknowns.sort();
+    unknowns.dedup();
+    let mut exclusions = inventory
+        .exclusions
+        .iter()
+        .map(|exclusion| format!("inventory:{}", exclusion.reason))
+        .chain(
+            observations
+                .exclusions
+                .iter()
+                .map(|exclusion| format!("execution-surface:{}", exclusion.reason)),
+        )
+        .collect::<Vec<_>>();
+    exclusions.sort();
+    exclusions.dedup();
+    AssessmentComponents {
+        finding_ids,
+        completeness: if unknowns.is_empty() {
+            "complete".to_owned()
+        } else {
+            "partial".to_owned()
+        },
+        conflicts: Vec::new(),
+        unknowns,
+        exclusions,
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -777,6 +1128,43 @@ fn make_observed_finding(
         ],
         authority_added: false,
     })
+}
+
+fn validate_inventory_contract(
+    inventory: &SecurityArtifactInventory,
+) -> Result<(), AdmissionError> {
+    if inventory.schema_name != "security-artifact-inventory"
+        || inventory.schema_version != CONTRACT_VERSION
+        || inventory.profile_digest != PROFILE_DIGEST
+        || inventory.authority_added
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    validate_utc_timestamp(&inventory.generated_at)
+        .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?;
+    let identity = InventoryIdentity {
+        workspace_snapshot: &inventory.workspace_snapshot,
+        profile_digest: PROFILE_DIGEST,
+        generated_at: &inventory.generated_at,
+        completeness: &inventory.completeness,
+        artifacts: &inventory.artifacts,
+        exclusions: &inventory.exclusions,
+        excluded_count: &inventory.excluded_count,
+        authority_added: false,
+    };
+    if inventory.inventory_id != structured_identity("security-artifact-inventory", &identity)? {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    enforce_output_limit(inventory)
+}
+
+fn enforce_output_limit<T: Serialize>(value: &T) -> Result<(), AdmissionError> {
+    let bytes = serde_json_canonicalizer::to_vec(value)
+        .map_err(|_| AdmissionError::new(AdmissionErrorCode::Serialization))?;
+    if bytes.len() > MAX_OUTPUT_BYTES {
+        return Err(AdmissionError::new(AdmissionErrorCode::ResourceLimit));
+    }
+    Ok(())
 }
 
 fn collect_artifacts(
@@ -1610,6 +1998,173 @@ mod tests {
                 .expect_err("stale source should fail")
                 .code(),
             AdmissionErrorCode::StaleSnapshot
+        );
+    }
+
+    #[test]
+    fn analyzer_coverage_is_grouped_deterministic_and_unavailable_by_default() {
+        let fixture = TestWorkspace::new();
+        fixture.write("scripts/first.ps1", b"synthetic one\n");
+        fixture.write("scripts/second.ps1", b"synthetic two\n");
+        fixture.write("bin/tool.exe", b"MZsynthetic\n");
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let coverage =
+            plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage plan");
+        let repeated = plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z")
+            .expect("repeated coverage plan");
+
+        assert_eq!(coverage, repeated);
+        assert!(!coverage.authority_added);
+        assert_eq!(coverage.requirements.len(), 2);
+        assert!(
+            coverage
+                .requirements
+                .windows(2)
+                .all(|pair| pair[0].capability_id < pair[1].capability_id)
+        );
+        let powershell = coverage
+            .requirements
+            .iter()
+            .find(|requirement| requirement.capability_id == "windows.powershell.static")
+            .expect("PowerShell requirement");
+        assert_eq!(powershell.artifact_hashes.len(), 2);
+        assert!(
+            powershell
+                .artifact_hashes
+                .windows(2)
+                .all(|pair| pair[0] < pair[1])
+        );
+        assert!(powershell.mandatory);
+        assert_eq!(powershell.state, "unavailable");
+        assert_eq!(powershell.state_reason, "analyzer-execution-not-authorized");
+
+        let root = repository_root();
+        let schema_root = root.join("schemas/v1");
+        let common = read_json(&schema_root.join("common.schema.json"));
+        let schema = read_json(&schema_root.join("analyzer-coverage.schema.json"));
+        let registry = Registry::new()
+            .add(common["$id"].as_str().expect("common id"), common.clone())
+            .expect("register common")
+            .prepare()
+            .expect("prepare registry");
+        let validator = jsonschema::draft202012::options()
+            .with_registry(&registry)
+            .build(&schema)
+            .expect("compile coverage schema");
+        assert!(validator.is_valid(&serde_json::to_value(coverage).expect("coverage value")));
+
+        let mut forged_inventory = inventory.clone();
+        forged_inventory.artifacts[0].analyzer_requirements = vec!["forged.capability".to_owned()];
+        assert_eq!(
+            plan_analyzer_coverage(&forged_inventory, "2026-08-29T13:01:00Z")
+                .expect_err("forged inventory must fail")
+                .code(),
+            AdmissionErrorCode::WorkspaceMismatch
+        );
+    }
+
+    #[test]
+    fn assessment_keeps_missing_mandatory_analysis_prominent_and_claims_no_safety() {
+        let fixture = TestWorkspace::new();
+        fixture.write("bin/tool.exe", b"MZsynthetic\n");
+        fixture.write(
+            "package.json",
+            br#"{"scripts":{"install":"untrusted value"}}"#,
+        );
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let observations =
+            observe_execution_surfaces(&workspace, &snapshot, &inventory).expect("observations");
+        let coverage =
+            plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
+        let assessment = build_repository_security_assessment(&inventory, &observations, &coverage)
+            .expect("assessment");
+        let repeated = build_repository_security_assessment(&inventory, &observations, &coverage)
+            .expect("repeated assessment");
+
+        assert_eq!(assessment, repeated);
+        assert_eq!(assessment.completeness, "partial");
+        assert_eq!(assessment.finding_ids.len(), 1);
+        assert!(
+            assessment
+                .unknowns
+                .contains(&"mandatory-analysis-incomplete".to_owned())
+        );
+        assert!(!assessment.safety_claimed);
+        assert!(!assessment.ordinary_host_execution_authorized);
+        assert!(!assessment.authority_added);
+
+        let root = repository_root();
+        let schema_root = root.join("schemas/v1");
+        let common = read_json(&schema_root.join("common.schema.json"));
+        let schema = read_json(&schema_root.join("repository-security-assessment.schema.json"));
+        let registry = Registry::new()
+            .add(common["$id"].as_str().expect("common id"), common.clone())
+            .expect("register common")
+            .prepare()
+            .expect("prepare registry");
+        let validator = jsonschema::draft202012::options()
+            .with_registry(&registry)
+            .build(&schema)
+            .expect("compile assessment schema");
+        assert!(validator.is_valid(&serde_json::to_value(assessment).expect("assessment value")));
+    }
+
+    #[test]
+    fn assessment_rejects_coverage_laundering_and_can_be_complete_without_requirements() {
+        let fixture = TestWorkspace::new();
+        fixture.write("src/lib.rs", b"pub fn inert() {}\n");
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let observations =
+            observe_execution_surfaces(&workspace, &snapshot, &inventory).expect("observations");
+        let coverage =
+            plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
+        assert!(coverage.requirements.is_empty());
+        let assessment = build_repository_security_assessment(&inventory, &observations, &coverage)
+            .expect("complete assessment");
+        assert_eq!(assessment.completeness, "complete");
+        assert!(assessment.unknowns.is_empty());
+
+        let hostile_fixture = TestWorkspace::new();
+        hostile_fixture.write("bin/tool.exe", b"MZsynthetic\n");
+        let hostile_workspace =
+            AuthorizedWorkspace::open(&hostile_fixture.root).expect("open hostile workspace");
+        let hostile_snapshot = hostile_workspace
+            .snapshot(policy())
+            .expect("hostile snapshot");
+        let hostile_inventory = build_security_artifact_inventory(
+            &hostile_workspace,
+            &hostile_snapshot,
+            "2026-08-29T13:00:00Z",
+        )
+        .expect("hostile inventory");
+        let hostile_observations =
+            observe_execution_surfaces(&hostile_workspace, &hostile_snapshot, &hostile_inventory)
+                .expect("hostile observations");
+        let mut laundered = plan_analyzer_coverage(&hostile_inventory, "2026-08-29T13:01:00Z")
+            .expect("hostile coverage");
+        laundered.requirements[0].state = "completed".to_owned();
+        laundered.requirements[0].state_reason = "synthetic-success".to_owned();
+        assert_eq!(
+            build_repository_security_assessment(
+                &hostile_inventory,
+                &hostile_observations,
+                &laundered,
+            )
+            .expect_err("tampered coverage must fail")
+            .code(),
+            AdmissionErrorCode::WorkspaceMismatch
         );
     }
 

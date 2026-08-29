@@ -137,6 +137,23 @@ comparison baseline.
   or inspect anchors, aliases, merges, profiles, generated configuration, or
   runtime behavior.
 
+### ADR-0073 HRA-3 coverage and assessment hard gates
+
+- Analyzer requirements are grouped deterministically by capability over
+  sorted, deduplicated exact artifact hashes and validate against the frozen
+  coverage schema.
+- This slice emits only `unavailable` mandatory requirements with
+  `analyzer-execution-not-authorized`; no analyzer is discovered or run.
+- Assessment assembly rejects forged inventory identities, altered coverage
+  states, mismatched snapshots, unknown artifact hashes, and missing evidence
+  references.
+- Inventory omissions, observation exclusions/truncation, and incomplete
+  mandatory analysis force `partial` completeness independently of finding
+  count.
+- Assessment output validates against the frozen schema, stays within the
+  frozen output ceiling, and fixes safety, ordinary-host execution, and added
+  authority to false.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.
