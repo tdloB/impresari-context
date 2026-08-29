@@ -1,12 +1,14 @@
-# ADR-0073 HRA-0/HRA-1/HRA-2/HRA-3 Traceability
+# ADR-0073 HRA-0/HRA-1/HRA-2/HRA-3/HRA-4 Traceability
 
-- Scope: static contracts, bounded read-only inventory, narrow exact-evidence observations, and non-executing coverage/assessment construction.
+- Scope: static contracts, bounded read-only inventory, narrow exact-evidence
+  observations, non-executing coverage/assessment construction, and pure
+  deterministic reference policy evaluation.
 - Authorization: founder-approved HRA-0 and separately approved HRA-1 on
   2026-08-29.
 - Runtime status: HRA-1 inventory, the HRA-2 npm lifecycle and canonical
-  Compose privilege corpora, and HRA-3 coverage/result/assessment construction
-  are implemented. ADR-0074 analyzer execution and ADR-0075
-  quarantine execution remain absent.
+  Compose privilege corpora, HRA-3 coverage/result/assessment construction,
+  and the HRA-4 pure reference evaluator are implemented. ADR-0074 analyzer
+  execution and ADR-0075 quarantine execution remain absent.
 
 | Requirement | Authoritative artifact | Verification |
 | --- | --- | --- |
@@ -25,6 +27,7 @@
 | Compose privilege observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-compose-privilege-rule-corpus.md` | Exact basename/layout/value corpus, exact key-token evidence, lookalike rejection, unsupported YAML cases, and no semantic/runtime inference |
 | Coverage and assessment construction | `crates/context-admission/src/lib.rs` and `docs/verification/hra-3-coverage-assessment-corpus.md` | Deterministic grouping, identity recomputation, schema validation, unavailable mandatory analysis, coverage-laundering rejection, immutable assessment identity, and no safety/authority claim |
 | Synthetic analyzer-result intake | `schemas/v1/analyzer-result-envelope.schema.json`, `crates/context-extensions/src/lib.rs`, and `crates/context-admission/src/lib.rs` | ADR-0013 bounded normalization, closed categorical payload, exact provenance/freshness/artifact binding, stale/mismatch/authority rejection, and untrusted-derived findings |
+| Reference admission evaluation | `crates/context-admission-policy/src/lib.rs` and `docs/verification/hra-4-reference-policy-corpus.md` | Exact immutable-input and policy-digest validation, four-state truth table, complete stable matched reasons, monotonic restriction, missing-analysis and exception denial, and no I/O or execution authority |
 
 ## Authority audit
 
@@ -39,3 +42,7 @@ capability. HRA-2 adds deterministic observed findings over already-admitted
 JSON and deliberately canonical Compose YAML only. HRA-3 planning, normalized
 synthetic result intake, and assembly add no analyzer discovery, command,
 network, policy, or execution surface.
+HRA-4 adds a separate pure consumer of those immutable records. Its dependency
+graph adds no workspace, process, transport, model, credential, or runtime
+adapter, and every decision fixes safety, ordinary-host execution, and added
+authority to false.

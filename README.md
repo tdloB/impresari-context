@@ -243,12 +243,13 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   controls, residual risks, and release-blocking security evidence.
 - [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
   accepted HRA-0 contracts, HRA-1 bounded read-only inventory, completed narrow
-  HRA-2 npm/Compose observations, and HRA-3 unavailable-by-default coverage,
-  bounded synthetic analyzer-result normalization, and immutable assessment
-  construction plus isolated-analysis and
-  disposable-quarantine designs; no
-  analyzer, networking, upload, deep-parser, policy-decision, or repository
-  execution implementation is authorized.
+  HRA-2 npm/Compose observations, HRA-3 unavailable-by-default coverage,
+  bounded synthetic analyzer-result normalization and immutable assessment
+  construction, and the HRA-4 pure deterministic reference evaluator plus
+  isolated-analysis and disposable-quarantine designs; no
+  analyzer, networking, upload, deep-parser, exception, approval, or repository
+  execution implementation is authorized; the evaluator can return only an
+  authority-neutral quarantine-stage eligibility classification.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

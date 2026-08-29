@@ -1,6 +1,6 @@
 # ADR-0073: Evidence-only hostile-repository admission
 
-- Status: Accepted; HRA-1 through HRA-3 implemented; HRA-4 not implemented
+- Status: Accepted; HRA-1 through HRA-4 implemented; HRA-5 release readiness remains
 - Date: 2026-08-26
 - Scope: Security artifact inventory, assessment, coverage, and deterministic
   stage-eligibility contracts
@@ -130,7 +130,10 @@ keys in a deliberately canonical Compose layout. Values remain uninterpreted
 and unretained. HRA-3 deterministically plans unavailable mandatory coverage,
 accepts only closed synthetic result payloads after ADR-0013 zero-capability
 normalization, and assembles immutable assessments. It does not discover or run
-analyzers. ADR-0074 and ADR-0075 remain proposed and independently gated.
+analyzers. HRA-4 evaluates immutable records in a separate pure library with no
+I/O, exception, approval, or execution authority; restrictive effects dominate
+and eligibility can name only a quarantine profile. ADR-0074 and ADR-0075
+remain proposed and independently gated.
 
 ## Review Triggers
 

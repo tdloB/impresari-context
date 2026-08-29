@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "policy_id": "policy_default01",
   "policy_version": "1.0.0",
-  "policy_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "policy_digest": "sha256:869ff18163d5a2105048c7b27a1478a53cbf79efcc838e93f99f9bee38e05124",
   "rules": [
     {
       "rule_id": "missing-analysis-is-incomplete",

@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-HRA-PRD-001 / 0.1.
-- Status: HRA-0 through HRA-3 implemented; HRA-4 not implemented.
+- Status: HRA-0 through HRA-4 implemented; HRA-5 release readiness remains.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 1 of 3.
@@ -421,6 +421,10 @@ HRA-3 deterministically derives unavailable mandatory coverage, accepts a
 closed synthetic analyzer-result payload only after ADR-0013 normalization,
 and assembles immutable assessments from identity-checked records. It does not
 discover or run analyzers.
+HRA-4 adds a separate pure reference evaluator over exact immutable assessment,
+coverage, finding, and policy records. Restrictive effects dominate, missing
+mandatory analysis fails to `analysis_incomplete`, eligibility requires one
+named quarantine profile, and no exception or approval input exists.
 Analyzers, network access, uploads, deep hostile-format parsing, repository
-execution, policy decisions, and quarantine execution remain outside this
+execution, quarantine execution, and final risk acceptance remain outside this
 increment.
