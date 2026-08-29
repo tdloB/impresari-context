@@ -99,6 +99,11 @@ one private child directory, clears the child environment, runs one ephemeral
 read-only/no-network App Server thread, denies every authority request, and
 removes the child directory on exit.
 
+The handshake includes the required `initialized` notification and an
+`account/read` preflight. If the isolated runtime is not authenticated, the
+adapter returns `codex_auth_unavailable` before creating a thread or submitting
+the packet. It never copies authentication state from another Codex home.
+
 The delivery envelope is capped at 524,288 canonical packet bytes. A timeout,
 version mismatch, unsupported protocol response, or client failure returns a
 visible `no_delivery` or `degraded` receipt; it never retries, falls back to a

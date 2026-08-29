@@ -1,18 +1,38 @@
 # CI-3b Codex guided-delivery verification
 
-- Status: local contract checks passed; live lifecycle safely degraded; no L3 admission
-- Observed: 2026-08-26
+- Status: local contract checks passed; authentication preflight safely declined delivery; no L3 admission
+- Observed: 2026-08-28
 - Governing records: [CI-3b PRD](../product/ci-3b-codex-guided-delivery-prd.md), [CI-3b ARD](../architecture/ci-3b-codex-guided-delivery-ard.md), and [ADR-0055](../decisions/0055-codex-ephemeral-guided-delivery.md)
 
 ## Local contract evidence
 
-`context-codex-app-server` prepares only the exact CI-3a Codex intent identity: `codex` / `app_server_ephemeral` / `0.149.0-alpha.4.1` / `turn_start`. Preview performs no client I/O. Its envelope contains the shared planner's exact canonical packet bytes in base64url form plus an untrusted-evidence notice. The serialized preview omits the internal byte buffer; apply derives the canonical bytes again and rejects any altered packet, envelope, receipt, plan, snapshot, workspace, protocol, or client binding before it creates a child process.
+`context-codex-app-server` prepares only the exact CI-3a Codex intent identity: `codex` / `app_server_ephemeral` / `0.150.0-alpha.8` / `turn_start`. Preview performs no client I/O. Its envelope contains the shared planner's exact canonical packet bytes in base64url form plus an untrusted-evidence notice. The serialized preview omits the internal byte buffer; apply derives the canonical bytes again and rejects any altered packet, envelope, receipt, plan, snapshot, workspace, protocol, or client binding before it creates a child process.
 
 The delivery packet ceiling is 524,288 bytes. This is a client-transport boundary, not a change to normal context-planner budgets; it ensures a base64-expanded envelope stays within the JSON-RPC line limit. The receipt always asserts a read-only sandbox, disabled tool network access, and no added authority.
 
 The tests cover exact envelope bytes, altered serialized previews, required `--apply`, preview identity mismatch, source immutability, authority-request cancellation, and degraded authority receipts. The JSON Schema fixture rejects a receipt that claims enabled network access.
 
-## Isolated live App Server smoke
+## Current isolated live App Server smoke
+
+The locally installed binary reported `codex-cli 0.150.0-alpha.8` on macOS
+aarch64. Generated schemas and official App Server documentation confirmed
+that clients must send `initialized` after the initialization response and
+that delivery succeeds only when the matching terminal turn status is
+`completed`. Both rules now have direct protocol tests.
+
+The isolated runtime returned `account: null` with
+`requiresOpenaiAuth: true` from `account/read`. Apply returned `no_delivery` /
+`codex_auth_unavailable` before thread creation and packet delivery. The normal
+Codex home was logged in, confirming that the isolation boundary—not packet
+construction—removed the required authentication. No credentials were
+inspected or copied. Source bytes remained unchanged and the temporary runtime
+was removed.
+
+This is narrower and more accurate than the earlier timeout. L3 now requires
+an explicit, reviewed authentication handoff compatible with an ephemeral
+runtime, followed by two successful live records.
+
+## Earlier isolated live App Server smoke (historical)
 
 The locally installed binary reported `codex-cli 0.149.0-alpha.4.1` on macOS aarch64. A one-file temporary workspace was snapshotted and previewed with an explicit `implementation` intent and an 8,192-byte hard planner budget. The reviewed packet was:
 
@@ -43,11 +63,12 @@ This proves bounded, fail-closed degradation and cleanup—not a successful deli
 cargo test -p context-codex-app-server
 cargo test -p context-cli --lib codex_delivery_preview_and_apply_preview_never_start_a_client_process
 cargo test -p context-conformance --test schema_conformance
+ruby scripts/rehearse-codex-guided-delivery.rb --runs 2
 ```
 
 ## Complete quality gate
 
-`./scripts/check.sh` passed locally on 2026-08-26. The gate includes the
+`./scripts/check.sh` passed locally on 2026-08-28. The gate includes the
 repository and security-boundary policies, workspace tests, schema and
 fixture conformance, deterministic identity vectors, SBOM validation,
 evaluation checks, shell syntax, Clippy with warnings denied, and doctests.

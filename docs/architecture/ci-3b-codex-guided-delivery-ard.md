@@ -1,7 +1,7 @@
 # CI-3b Codex Guided Delivery — Architecture Requirements and Design
 
-- Status: Implemented; L3 admission pending successful lifecycle evidence
-- Date: 2026-08-26
+- Status: Implemented; L3 admission pending explicit authentication design and lifecycle evidence
+- Date: 2026-08-28
 - Governing product record: [CI-3b Codex PRD](../product/ci-3b-codex-guided-delivery-prd.md)
 - Governing decision: [ADR-0055](../decisions/0055-codex-ephemeral-guided-delivery.md)
 
@@ -17,7 +17,7 @@ explicit intent -> CI-3a snapshot/consent/planner validation -> exact preview
      rederive canonical packet bytes -> verify all bindings -> isolated App Server child
                                                                |
                                                                v
-       initialize -> ephemeral read-only thread -> read-only/no-network turn -> receipt
+ initialize -> initialized -> auth preflight -> ephemeral read-only thread -> bounded turn
                                                                |
                                                                v
                  deny any authority request; terminate child; delete runtime directory
@@ -47,6 +47,9 @@ packet that crosses the boundary is the reviewed packet.
 6. Temporary directories are direct children of a verified non-symlink runtime
    parent and are removed on every return path. The adapter never deletes a
    caller-provided directory.
+7. `account/read` must confirm usable provider authentication before thread
+   creation. Authentication absence is `no_delivery`; the adapter does not
+   inspect, copy, inherit, persist, or refresh credentials.
 
 ## Degradation policy
 
@@ -58,8 +61,9 @@ falls back to a hook, or changes client configuration.
 
 ## Verification
 
-- Unit tests simulate delivery, identity mismatch, authority requests, and
-  serialized preview alteration.
+- Unit tests simulate delivery, identity mismatch, authority requests,
+  serialized preview alteration, the initialized notification, terminal turn
+  status, and unavailable authentication.
 - CLI tests prove preview and un-applied delivery do not start a client.
 - The live smoke uses an isolated temporary source workspace, cache, preview
   artifact, and runtime parent. It records only packet/plan/snapshot identities
