@@ -19,6 +19,10 @@ use context_codex_app_server::{
     CodexDeliveryError, CodexDeliveryPreparation, StdioCodexAppServerTransport,
     deliver_codex_preview, prepare_codex_delivery, rehydrate_codex_delivery_preview,
 };
+use context_copilot_cli::{
+    CopilotDeliveryError, CopilotDeliveryPreparation, StdioCopilotCliTransport,
+    deliver_copilot_preview, prepare_copilot_delivery, rehydrate_copilot_delivery_preview,
+};
 use context_core::{
     Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PolicySubject, PublicErrorCode,
     RecoveryAction, ResourceBudget, error_envelope,
@@ -69,6 +73,8 @@ Usage:\n\
   impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client delivery codex preview <workspace> <cache-root> <delivery-intent-json>\n\
   impresari-context [global-options] client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <authenticated-codex-home> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery copilot preview <workspace> <cache-root> <delivery-intent-json>\n\
+  impresari-context [global-options] client delivery copilot apply <delivery-preview-json> <runtime-parent> <copilot-binary> <authenticated-copilot-home> <github-auth-config> <expected-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -287,6 +293,17 @@ struct CodexDeliveryApplyPreview {
     client_io_performed: bool,
     apply_required: bool,
     preview: context_codex_app_server::CodexDeliveryPreview,
+}
+
+#[derive(Serialize)]
+struct CopilotDeliveryApplyPreview {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    state: &'static str,
+    expected_packet_id: String,
+    client_io_performed: bool,
+    apply_required: bool,
+    preview: context_copilot_cli::CopilotDeliveryPreview,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -657,6 +674,72 @@ fn dispatch(
             })?;
             let receipt = deliver_codex_preview(&preview, expected_packet_id, &transport);
             Output::new("client delivery codex apply", &receipt)
+        }
+        [
+            "client",
+            "delivery",
+            "copilot",
+            "preview",
+            root,
+            cache,
+            intent_path,
+        ] => {
+            let intent: GuidedDeliveryIntent =
+                read_json(Path::new(intent_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result =
+                prepare_copilot_delivery(&mut engine, intent).map_err(copilot_delivery_error)?;
+            Output::new("client delivery copilot preview", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "copilot",
+            "apply",
+            preview_path,
+            runtime_parent,
+            copilot_binary,
+            authenticated_copilot_home,
+            github_auth_config,
+            expected_packet_id,
+        ] => {
+            let result: CopilotDeliveryPreparation =
+                read_json(Path::new(preview_path), Capability::ContextBuild)?;
+            let CopilotDeliveryPreparation::Prepared(preview) = result else {
+                return Output::new("client delivery copilot apply", &result);
+            };
+            let preview =
+                rehydrate_copilot_delivery_preview(*preview).map_err(copilot_delivery_error)?;
+            if !options.apply {
+                return Output::new(
+                    "client delivery copilot apply preview",
+                    &CopilotDeliveryApplyPreview {
+                        schema_name: "copilot-cli-delivery-apply-preview",
+                        schema_version: "1.0.0",
+                        state: "apply_required",
+                        expected_packet_id: expected_packet_id.to_string(),
+                        client_io_performed: false,
+                        apply_required: true,
+                        preview,
+                    },
+                );
+            }
+            let runtime_parent = fs::canonicalize(runtime_parent).map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "Copilot delivery runtime parent is unavailable",
+                )
+            })?;
+            let transport = StdioCopilotCliTransport::new(
+                PathBuf::from(copilot_binary),
+                runtime_parent,
+                PathBuf::from(authenticated_copilot_home),
+                PathBuf::from(github_auth_config),
+            )
+            .map_err(copilot_delivery_error)?;
+            let receipt = deliver_copilot_preview(&preview, expected_packet_id, &transport);
+            Output::new("client delivery copilot apply", &receipt)
         }
         ["client", "kit", "render", client, binary, root, cache] => {
             let kit = managed_connection_kit(
@@ -3040,6 +3123,25 @@ fn codex_delivery_error(error: CodexDeliveryError) -> EngineError {
             Capability::ContextBuild,
             PublicErrorCode::InternalFailure,
             "Codex delivery packet serialization failed",
+        ),
+    }
+}
+
+fn copilot_delivery_error(error: CopilotDeliveryError) -> EngineError {
+    match error {
+        CopilotDeliveryError::Adapter(AdapterError::Engine(error)) => error,
+        CopilotDeliveryError::Adapter(AdapterError::IncompatibleContract)
+        | CopilotDeliveryError::InvalidConfiguration
+        | CopilotDeliveryError::InvalidPreview => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid Copilot delivery configuration",
+        ),
+        CopilotDeliveryError::Adapter(AdapterError::Serialization)
+        | CopilotDeliveryError::Serialization => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InternalFailure,
+            "Copilot delivery packet serialization failed",
         ),
     }
 }

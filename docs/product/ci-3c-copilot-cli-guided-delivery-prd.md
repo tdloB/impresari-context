@@ -23,9 +23,10 @@ URL permission, file permission, remote-control permission, or mutation grant.
   canonical packet identity, and hard budget.
 - Split preview and apply. Apply rehydrates the saved preview, re-verifies every
   binding, requires an expected packet ID and `--apply`, then starts the client.
-- Use a caller-named, canonical, non-symlinked authenticated `COPILOT_HOME` and
-  a separate disposable runtime directory. Impresari never reads, copies,
-  exports, or deletes credential state.
+- Use a caller-named, canonical, non-symlinked `COPILOT_HOME`, an explicitly
+  named GitHub CLI authentication directory used in place, and a separate
+  disposable runtime. Impresari never reads, copies, exports, or deletes
+  credential state.
 - Disable built-in MCP servers, remote control/export, auto-update, custom
   instructions, user questions, temporary-directory access, and every model
   tool. Retain only the provider network that Copilot itself requires.

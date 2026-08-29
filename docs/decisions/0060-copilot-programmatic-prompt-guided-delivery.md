@@ -21,9 +21,10 @@ remote control/export, and auto-update disabled. Provider network remains
 available only because the hosted Copilot model requires it. The adapter grants
 no URL or network-capable tool and passes no source or cache path.
 
-Authentication is owned by Copilot in a caller-supplied dedicated
-`COPILOT_HOME`. Impresari validates only the directory boundary; it never reads,
-copies, exports, or deletes credential state.
+Copilot state is held in a caller-supplied dedicated `COPILOT_HOME`; an explicit
+GitHub CLI authentication directory is selected in place. Impresari validates
+only those directory boundaries; it never reads, copies, exports, or deletes
+credential state.
 
 ## Consequences
 

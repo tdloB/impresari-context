@@ -33,10 +33,12 @@ explicit CI-3a intent -> deterministic packet preview -> operator review
    `--disable-builtin-mcps`, `--no-remote`, `--no-remote-export`,
    `--no-auto-update`, `--no-custom-instructions`, `--no-ask-user`,
    `--disallow-temp-dir`, an empty `--available-tools`, bounded credits, JSON
-   output, and the exact envelope as `--prompt`.
+   output, and the exact envelope through standard input so packet bytes never
+   enter the process argument vector.
 4. The current directory is a new empty runtime. No source workspace or cache
    path is passed to Copilot. The cleared child environment exposes only the
-   minimum process variables and the explicit authenticated `COPILOT_HOME`.
+   minimum process variables, the explicit `COPILOT_HOME`, and the explicit
+   GitHub CLI authentication directory used in place.
 5. Provider network remains available because it is intrinsic to the admitted
    hosted Copilot lifecycle. Tool and URL surfaces are absent; Impresari does
    not grant a network-capable tool.

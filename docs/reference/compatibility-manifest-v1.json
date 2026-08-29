@@ -25,6 +25,7 @@
     "docs/decisions/0055-codex-ephemeral-guided-delivery.md",
     "docs/decisions/0043-source-free-client-lifecycle-maintenance.md",
     "docs/verification/ci-4-copilot-cli-lifecycle-maintenance.md",
+    "docs/verification/ci-3c-copilot-cli-guided-delivery.md",
     "docs/dependency-policy.md",
     "crates/context-engine/src/lib.rs"
   ],
