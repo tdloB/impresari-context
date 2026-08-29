@@ -21,9 +21,10 @@ class ContractError < StandardError; end
 def load_manifest(path)
   document = JSON.parse(File.binread(path))
   required = %w[schema_name schema_version manifest_id client surface supported_versions supported_os supported_arch artifact evidence lifecycle safe_next_steps]
+  allowed = required + %w[delivery_contract]
   raise ContractError, "manifest has an unsupported shape" unless document.is_a?(Hash) && (required - document.keys).empty?
   raise ContractError, "manifest schema is unsupported" unless document["schema_name"] == "client-lifecycle-compatibility-manifest" && document["schema_version"] == "1.0.0"
-  raise ContractError, "manifest has unknown fields" unless (document.keys - required).empty?
+  raise ContractError, "manifest has unknown fields" unless (document.keys - allowed).empty?
   raise ContractError, "manifest lifecycle grants forbidden authority" unless document["lifecycle"] == {
     "health_check" => "explicit_read_only",
     "automatic_repair" => "denied",
@@ -35,6 +36,18 @@ def load_manifest(path)
   raise ContractError, "manifest artifact is malformed" unless artifact.is_a?(Hash) && %w[kind owned_relative_path ownership_marker sha256].all? { |key| artifact[key].is_a?(String) }
   raise ContractError, "manifest evidence is malformed" unless evidence.is_a?(Hash) && %w[record sha256 observed_at fresh_through].all? { |key| evidence[key].is_a?(String) }
   raise ContractError, "manifest identity is malformed" unless [artifact["sha256"], evidence["sha256"]].all? { |value| value.match?(/\A[0-9a-f]{64}\z/) }
+  if document.key?("delivery_contract")
+    delivery = document.fetch("delivery_contract")
+    raise ContractError, "manifest delivery contract is malformed" unless delivery == {
+      "level" => "L3",
+      "mode" => "ask",
+      "protocol_scope" => "code_chat_ask_prompt_stdin_context_v1",
+      "source_workspace_exposed" => false,
+      "provider_delivery_inferred" => false,
+      "operator_confirmation_required" => true,
+      "authority_added" => false,
+    }
+  end
   document
 rescue Errno::ENOENT, Errno::EACCES => error
   raise ContractError, "manifest unavailable: #{error.class}"
@@ -96,6 +109,7 @@ def assess(manifest_path, target_path, options)
     return receipt(manifest: manifest, manifest_bytes: manifest_bytes, options: options, status: "stale_evidence", reason: "evidence_window_expired", checks: checks + ["evidence_stale"])
   end
   checks << "evidence_current"
+  checks << "delivery_contract_bound" if manifest.key?("delivery_contract")
 
   target = Pathname.new(target_path)
   unless target.absolute?

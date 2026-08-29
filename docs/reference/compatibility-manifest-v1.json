@@ -29,6 +29,7 @@
     "docs/verification/ci-4-copilot-cli-lifecycle-maintenance.md",
     "docs/verification/ci-4-claude-code-lifecycle-maintenance.md",
     "docs/verification/ci-4-cursor-lifecycle-maintenance.md",
+    "docs/verification/ci-4-vscode-copilot-lifecycle-maintenance.md",
     "docs/verification/ci-3c-copilot-cli-guided-delivery.md",
     "docs/verification/ci-3e-cursor-guided-delivery.md",
     "docs/verification/ci-3f-vscode-copilot-guided-delivery.md",
@@ -255,6 +256,15 @@
         "client_version": "1.134.0",
         "os": "macos",
         "arch": "aarch64"
+      },
+      "lifecycle_maintenance": {
+        "level": "L4",
+        "manifest": "client-lifecycle/vscode-copilot-guidance-delivery-v1.json",
+        "scope": "native_guidance_v3_and_chat_cli_ask_l3",
+        "client_version": "1.134.0",
+        "os": "macos",
+        "arch": "aarch64",
+        "fresh_through": "2026-11-27"
       }
     },
     {

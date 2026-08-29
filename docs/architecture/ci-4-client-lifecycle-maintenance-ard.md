@@ -1,6 +1,6 @@
 # CI-4 Client Lifecycle Maintenance — Architecture Requirements and Design
 
-- Status: GitHub Copilot CLI, Claude Code, and Cursor scopes implemented
+- Status: GitHub Copilot CLI, Claude Code, Cursor, and VS Code Copilot scopes implemented
 - Date: 2026-08-25
 - Governing product record: [CI-4 PRD](../product/client-integration-l4-lifecycle-maintenance-prd.md)
 - Governing decision: [ADR-0043](../decisions/0043-source-free-client-lifecycle-maintenance.md)
@@ -91,6 +91,7 @@ spawn a client or shell, access a network, mutate an artifact, or retain a
 background process. The admitted manifests are
 `client-lifecycle/copilot-cli-native-guidance-v1.json` and
 `client-lifecycle/claude-code-native-guidance-v1.json`, and
-`client-lifecycle/cursor-native-guidance-v1.json`; independent repository gates
+`client-lifecycle/cursor-native-guidance-v1.json`, and
+`client-lifecycle/vscode-copilot-guidance-delivery-v1.json`; independent repository gates
 bind each exact artifact and evidence record by SHA-256 while sharing the same
 closed health-receipt contract.
