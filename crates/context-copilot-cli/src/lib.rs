@@ -32,7 +32,7 @@ const MAX_PROMPT_BYTES: usize = 786_432;
 const MAX_EVENT_LINE_BYTES: usize = 2_097_152;
 const MAX_EVENT_STREAM_BYTES: usize = 4_194_304;
 const MAX_STDERR_BYTES: usize = 16_384;
-const PROCESS_TIMEOUT: Duration = Duration::from_secs(60);
+const PROCESS_TIMEOUT: Duration = Duration::from_mins(1);
 
 /// Immutable prompt containing the exact reviewed context packet.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
