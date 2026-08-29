@@ -68,7 +68,7 @@ Usage:\n\
   impresari-context [global-options] client kit update <codex|claude|cursor|copilot|vscode> <old-mcp-binary> <old-workspace> <old-cache-root> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit remove <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client delivery codex preview <workspace> <cache-root> <delivery-intent-json>\n\
-  impresari-context [global-options] client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <authenticated-codex-home> <expected-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -612,6 +612,7 @@ fn dispatch(
             preview_path,
             runtime_parent,
             codex_binary,
+            authenticated_codex_home,
             expected_packet_id,
         ] => {
             let result: CodexDeliveryPreparation =
@@ -642,15 +643,18 @@ fn dispatch(
                     "Codex delivery cache root is unavailable",
                 )
             })?;
-            let transport =
-                StdioCodexAppServerTransport::new(PathBuf::from(codex_binary), runtime_parent)
-                    .map_err(|_| {
-                        synthetic_error(
-                            Capability::ContextBuild,
-                            PublicErrorCode::InvalidInput,
-                            "invalid Codex App Server configuration",
-                        )
-                    })?;
+            let transport = StdioCodexAppServerTransport::new(
+                PathBuf::from(codex_binary),
+                runtime_parent,
+                PathBuf::from(authenticated_codex_home),
+            )
+            .map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "invalid Codex App Server configuration",
+                )
+            })?;
             let receipt = deliver_codex_preview(&preview, expected_packet_id, &transport);
             Output::new("client delivery codex apply", &receipt)
         }
@@ -3356,6 +3360,11 @@ mod tests {
                 preview_path.display().to_string(),
                 input.0.display().to_string(),
                 nonexistent_binary.display().to_string(),
+                input
+                    .0
+                    .join("authenticated-codex-home")
+                    .display()
+                    .to_string(),
                 expected_packet_id,
             ],
             "codexapply",

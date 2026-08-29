@@ -25,7 +25,7 @@ use serde_json::{Value, json};
 use sha2::{Digest as _, Sha256};
 
 /// Version of the Codex-specific delivery receipt and envelope contract.
-pub const CODEX_DELIVERY_CONTRACT_VERSION: &str = "1.0.0";
+pub const CODEX_DELIVERY_CONTRACT_VERSION: &str = "1.1.0";
 /// Stable scope of the locally generated Codex App Server protocol subset.
 pub const CODEX_APP_SERVER_PROTOCOL_SCOPE: &str =
     "v1.initialize+initialized+v2.thread_start+v2.turn_start+v2.turn_completed";
@@ -158,6 +158,12 @@ pub struct CodexDeliveryReceipt {
     pub network_access_enabled: bool,
     /// Count of authority requests actively declined before termination.
     pub approval_requests_declined: u32,
+    /// Whether the operator-supplied authenticated Codex home was selected for client I/O.
+    pub authenticated_codex_home_used: bool,
+    /// Always false: Impresari never copies credential state into the runtime directory.
+    pub credential_state_copied: bool,
+    /// Always false: Impresari never deletes the operator-owned Codex home or credentials.
+    pub credential_state_deleted: bool,
     /// Always false: this adapter grants no source, process, network, or approval authority.
     pub authority_added: bool,
 }
@@ -362,6 +368,9 @@ fn delivery_receipt(
         read_only_sandbox: true,
         network_access_enabled: false,
         approval_requests_declined,
+        authenticated_codex_home_used: client_io_performed,
+        credential_state_copied: false,
+        credential_state_deleted: false,
         authority_added: false,
     }
 }
@@ -385,16 +394,24 @@ fn no_delivery_receipt(
 pub struct StdioCodexAppServerTransport {
     binary: PathBuf,
     runtime_parent: PathBuf,
+    authenticated_codex_home: PathBuf,
 }
 
 impl StdioCodexAppServerTransport {
-    /// Validates an absolute binary path and an absolute, caller-owned runtime parent.
+    /// Validates an absolute binary, runtime parent, and operator-authenticated Codex home.
     ///
     /// # Errors
     ///
     /// Returns a bounded configuration error before any child process starts.
-    pub fn new(binary: PathBuf, runtime_parent: PathBuf) -> Result<Self, CodexDeliveryError> {
-        if !binary.is_absolute() || !runtime_parent.is_absolute() {
+    pub fn new(
+        binary: PathBuf,
+        runtime_parent: PathBuf,
+        authenticated_codex_home: PathBuf,
+    ) -> Result<Self, CodexDeliveryError> {
+        if !binary.is_absolute()
+            || !runtime_parent.is_absolute()
+            || !authenticated_codex_home.is_absolute()
+        {
             return Err(CodexDeliveryError::InvalidConfiguration);
         }
         let binary =
@@ -402,9 +419,24 @@ impl StdioCodexAppServerTransport {
         if !binary.is_file() {
             return Err(CodexDeliveryError::InvalidConfiguration);
         }
+        let home_metadata = fs::symlink_metadata(&authenticated_codex_home)
+            .map_err(|_| CodexDeliveryError::InvalidConfiguration)?;
+        if home_metadata.file_type().is_symlink() || !home_metadata.is_dir() {
+            return Err(CodexDeliveryError::InvalidConfiguration);
+        }
+        let authenticated_codex_home = fs::canonicalize(authenticated_codex_home)
+            .map_err(|_| CodexDeliveryError::InvalidConfiguration)?;
+        let runtime_parent = fs::canonicalize(runtime_parent)
+            .map_err(|_| CodexDeliveryError::InvalidConfiguration)?;
+        if runtime_parent.starts_with(&authenticated_codex_home)
+            || authenticated_codex_home.starts_with(&runtime_parent)
+        {
+            return Err(CodexDeliveryError::InvalidConfiguration);
+        }
         Ok(Self {
             binary,
             runtime_parent,
+            authenticated_codex_home,
         })
     }
 }
@@ -416,16 +448,22 @@ impl CodexAppServerTransport for StdioCodexAppServerTransport {
                 reason_code: "codex_runtime_unavailable",
             };
         };
-        let version = match run_version(&self.binary, runtime.path()) {
-            Ok(version) => version,
-            Err(reason_code) => return TransportOutcome::NoDelivery { reason_code },
-        };
+        let version =
+            match run_version(&self.binary, runtime.path(), &self.authenticated_codex_home) {
+                Ok(version) => version,
+                Err(reason_code) => return TransportOutcome::NoDelivery { reason_code },
+            };
         if version != CODEX_APP_SERVER_VERSION {
             return TransportOutcome::NoDelivery {
                 reason_code: "unsupported_codex_version",
             };
         }
-        run_app_server(&self.binary, runtime.path(), envelope)
+        run_app_server(
+            &self.binary,
+            runtime.path(),
+            &self.authenticated_codex_home,
+            envelope,
+        )
     }
 }
 
@@ -498,8 +536,8 @@ impl Drop for RuntimeDirectory {
     }
 }
 
-fn run_version(binary: &Path, runtime: &Path) -> Result<String, &'static str> {
-    let mut command = isolated_command(binary, runtime);
+fn run_version(binary: &Path, runtime: &Path, codex_home: &Path) -> Result<String, &'static str> {
+    let mut command = isolated_command(binary, runtime, codex_home);
     command.arg("--version");
     let mut child = command.spawn().map_err(|_| "codex_binary_unavailable")?;
     let stdout = child.stdout.take().ok_or("codex_binary_unavailable")?;
@@ -525,9 +563,10 @@ fn run_version(binary: &Path, runtime: &Path) -> Result<String, &'static str> {
 fn run_app_server(
     binary: &Path,
     runtime: &Path,
+    codex_home: &Path,
     envelope: &CodexDeliveryEnvelope,
 ) -> TransportOutcome {
-    let mut command = isolated_command(binary, runtime);
+    let mut command = isolated_command(binary, runtime, codex_home);
     command.arg("app-server").arg("--stdio");
     let Ok(mut child) = command.spawn() else {
         return TransportOutcome::NoDelivery {
@@ -561,11 +600,11 @@ fn run_app_server(
     result
 }
 
-fn isolated_command(binary: &Path, runtime: &Path) -> Command {
+fn isolated_command(binary: &Path, runtime: &Path, codex_home: &Path) -> Command {
     let mut command = Command::new(binary);
     command
         .env_clear()
-        .env("CODEX_HOME", runtime)
+        .env("CODEX_HOME", codex_home)
         .current_dir(runtime)
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
@@ -1099,6 +1138,53 @@ mod tests {
                 .iter()
                 .all(|message| message["method"] != "turn/start")
         );
+    }
+
+    #[test]
+    fn transport_requires_a_separate_real_operator_codex_home() {
+        let runtime = TestRoot::new("runtime-parent");
+        let codex_home = TestRoot::new("authenticated-home");
+        let before = fs::read_dir(&codex_home.0).expect("read home").count();
+        let transport = StdioCodexAppServerTransport::new(
+            PathBuf::from("/bin/sh"),
+            runtime.0.clone(),
+            codex_home.0.clone(),
+        )
+        .expect("valid separate home");
+        assert_eq!(
+            transport.authenticated_codex_home,
+            fs::canonicalize(&codex_home.0).expect("canonical home")
+        );
+        assert_eq!(
+            fs::read_dir(&transport.authenticated_codex_home)
+                .expect("read home after")
+                .count(),
+            before
+        );
+        assert!(matches!(
+            StdioCodexAppServerTransport::new(
+                PathBuf::from("/bin/sh"),
+                runtime.0.clone(),
+                runtime.0.join("nested-home"),
+            ),
+            Err(CodexDeliveryError::InvalidConfiguration)
+        ));
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn transport_rejects_a_symlinked_codex_home() {
+        use std::os::unix::fs::symlink;
+
+        let runtime = TestRoot::new("runtime-symlink-parent");
+        let codex_home = TestRoot::new("authenticated-symlink-target");
+        let link_parent = TestRoot::new("authenticated-symlink-parent");
+        let link = link_parent.0.join("codex-home");
+        symlink(&codex_home.0, &link).expect("create home symlink");
+        assert!(matches!(
+            StdioCodexAppServerTransport::new(PathBuf::from("/bin/sh"), runtime.0.clone(), link,),
+            Err(CodexDeliveryError::InvalidConfiguration)
+        ));
     }
 
     #[test]
