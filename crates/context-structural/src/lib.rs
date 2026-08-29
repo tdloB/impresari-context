@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 #![forbid(unsafe_code)]
-#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
+#![doc = "Structural worker protocol and deterministic TypeScript/JavaScript/Python/Java/Kotlin/CSharp/C/Scala/Elixir/Clojure/Haskell/JSON/JSONC/TOML/YAML/Go extraction."]
 
 use std::{
     collections::{BTreeMap, BTreeSet, VecDeque},
@@ -48,6 +48,8 @@ pub enum StructuralLanguage {
     Kotlin,
     /// C# source.
     CSharp,
+    /// C source.
+    C,
     /// Scala source.
     Scala,
     /// Elixir source.
@@ -1579,6 +1581,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         StructuralLanguage::Java => "tree-sitter-java-0.23.5",
         StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
         StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+        StructuralLanguage::C => "tree-sitter-c-0.24.2",
         StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
         StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
         StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -1606,6 +1609,7 @@ fn language(language: StructuralLanguage) -> Language {
         StructuralLanguage::Java => tree_sitter_java::LANGUAGE.into(),
         StructuralLanguage::Kotlin => tree_sitter_kotlin_ng::LANGUAGE.into(),
         StructuralLanguage::CSharp => tree_sitter_c_sharp::LANGUAGE.into(),
+        StructuralLanguage::C => tree_sitter_c::LANGUAGE.into(),
         StructuralLanguage::Scala => tree_sitter_scala::LANGUAGE.into(),
         StructuralLanguage::Elixir => tree_sitter_elixir::LANGUAGE.into(),
         StructuralLanguage::Clojure => tree_sitter_clojure_orchard::LANGUAGE.into(),
@@ -1716,7 +1720,6 @@ fn fact_for_node(
         | "enum_definition"
         | "method_definition"
         | "abstract_method_signature"
-        | "function_definition"
         | "class_definition"
         | "method_declaration"
         | "constructor_declaration"
@@ -1747,6 +1750,34 @@ fn fact_for_node(
         "struct_item" | "enum_item" | "union_item" | "function_item" | "trait_item" => {
             let name = node
                 .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "function_definition" if request.language == StructuralLanguage::C => {
+            let name = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_identifier)
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "function_definition" => {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "struct_specifier" | "union_specifier" | "enum_specifier"
+            if request.language == StructuralLanguage::C =>
+        {
+            let name = node
+                .child_by_field_name("name")
+                .and_then(|value| text(value, source));
+            (FactClass::Declaration, name, None)
+        }
+        "type_definition" if request.language == StructuralLanguage::C => {
+            let name = node
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_identifier)
                 .and_then(|value| text(value, source));
             (FactClass::Declaration, name, None)
         }
@@ -1847,6 +1878,12 @@ fn fact_for_node(
             let module = csharp_using_module(node, source)?;
             (FactClass::Import, None, Some(module))
         }
+        "preproc_include" if request.language == StructuralLanguage::C => {
+            let module = node
+                .child_by_field_name("path")
+                .and_then(|value| text(value, source));
+            (FactClass::Import, None, module)
+        }
         "export_statement" => {
             let module = node
                 .child_by_field_name("source")
@@ -1926,6 +1963,15 @@ fn warnings(tree_has_error: bool, strict_json_valid: bool) -> Vec<String> {
     warnings
 }
 
+fn c_declarator_identifier(node: Node<'_>) -> Option<Node<'_>> {
+    if node.kind() == "identifier" || node.kind() == "type_identifier" {
+        return Some(node);
+    }
+    let mut cursor = node.walk();
+    node.named_children(&mut cursor)
+        .find_map(c_declarator_identifier)
+}
+
 fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>> {
     let mut cursor = node.walk();
     node.named_children(&mut cursor)
@@ -1933,7 +1979,7 @@ fn named_descendant<'tree>(node: Node<'tree>, kind: &str) -> Option<Node<'tree>>
 }
 
 fn is_declaration_name(node: Node<'_>) -> bool {
-    node.parent().is_some_and(|parent| {
+    let direct_name = node.parent().is_some_and(|parent| {
         ["name", "property"]
             .iter()
             .filter_map(|field| parent.child_by_field_name(field))
@@ -1965,8 +2011,25 @@ fn is_declaration_name(node: Node<'_>) -> bool {
                     | "trait_item"
                     | "assignment"
                     | "variable_declarator"
+                    | "struct_specifier"
+                    | "union_specifier"
+                    | "enum_specifier"
             )
-    })
+    });
+    if direct_name {
+        return true;
+    }
+    let mut ancestor = node.parent();
+    while let Some(candidate) = ancestor {
+        if matches!(candidate.kind(), "function_definition" | "type_definition") {
+            return candidate
+                .child_by_field_name("declarator")
+                .and_then(c_declarator_identifier)
+                .is_some_and(|name| name.id() == node.id());
+        }
+        ancestor = candidate.parent();
+    }
+    false
 }
 
 fn is_call_callee(node: Node<'_>) -> bool {
@@ -2223,6 +2286,7 @@ mod tests {
             StructuralLanguage::Java => "tree-sitter-java-0.23.5",
             StructuralLanguage::Kotlin => "tree-sitter-kotlin-ng-1.1.0",
             StructuralLanguage::CSharp => "tree-sitter-c-sharp-0.23.5",
+            StructuralLanguage::C => "tree-sitter-c-0.24.2",
             StructuralLanguage::Scala => "tree-sitter-scala-0.26.2",
             StructuralLanguage::Elixir => "tree-sitter-elixir-0.3.5",
             StructuralLanguage::Clojure => "tree-sitter-clojure-orchard-0.2.8",
@@ -2770,6 +2834,50 @@ run = helper
         assert!(output.facts.iter().any(|fact| {
             fact.class == FactClass::Import && fact.module.as_deref() == Some("Data.Text")
         }));
+    }
+
+    #[test]
+    fn extracts_bounded_c_declarations_includes_calls_and_references() {
+        let source = br#"#include <stdio.h>
+#include "service.h"
+
+typedef struct Service {
+    int value;
+} Service;
+
+static int helper(int value) { return value + 1; }
+
+int run(Service *service) {
+    return helper(service->value);
+}
+"#;
+        let output = process_request(&request(source, StructuralLanguage::C)).expect("parse");
+        assert!(!output.syntax_errors);
+        for name in ["Service", "helper", "run"] {
+            assert!(
+                output.facts.iter().any(|fact| {
+                    fact.class == FactClass::Declaration && fact.name.as_deref() == Some(name)
+                }),
+                "missing C declaration {name}; facts: {:#?}",
+                output.facts
+            );
+        }
+        for module in ["<stdio.h>", "\"service.h\""] {
+            assert!(output.facts.iter().any(|fact| {
+                fact.class == FactClass::Import && fact.module.as_deref() == Some(module)
+            }));
+        }
+        assert!(output.facts.iter().any(|fact| {
+            fact.class == FactClass::Call && fact.name.as_deref() == Some("helper")
+        }));
+    }
+
+    #[test]
+    fn reports_c_syntax_recovery_without_invoking_a_toolchain() {
+        let source = b"int run( { return 1; }";
+        let output = process_request(&request(source, StructuralLanguage::C)).expect("parse");
+        assert!(output.syntax_errors);
+        assert_eq!(output.warnings, vec!["syntax_recovery_present"]);
     }
 
     #[test]

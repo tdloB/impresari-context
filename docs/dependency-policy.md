@@ -26,6 +26,7 @@ scrutiny than test-only dependencies.
 | `serde_json_canonicalizer` | 0.3.2 | `context-core` | Defaults disabled | MIT | Verified by the project Rust 1.96 gate | RFC 8785 JCS bytes for identities and hard packet accounting |
 | `toml` | 1.1.4+spec-1.1.0 | `context-cli` | `parse`, `serde`, `std`; defaults disabled | MIT OR Apache-2.0 | Upstream Rust 1.85; project Rust 1.96 gate required | Strictly parse the user-supplied Codex local MCP configuration for read-only validation; no serializer, preserve-order, debug, fast-hash, network, or file-loading feature is enabled |
 | `tree-sitter` | 0.26.12 | `context-structural` worker only | `std`; defaults disabled; WASM disabled | MIT | Upstream 1.77; project Rust 1.96 gate required | Bounded concrete-syntax parsing behind the ADR-0010 process boundary |
+| `tree-sitter-c` | 0.24.2 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned C grammar; no compiler, preprocessor, or build authority |
 | `tree-sitter-c-sharp` | 0.23.5 | `context-structural` worker only | Defaults disabled | MIT | Project Rust 1.96 gate required | Pinned C# grammar |
 | `tree-sitter-clojure-orchard` | 0.2.8 | `context-structural` worker only | Defaults disabled | CC0-1.0 | Project Rust 1.96 gate required | Pinned Clojure grammar compatible with the project Tree-sitter runtime |
 | `tree-sitter-elixir` | 0.3.5 | `context-structural` worker only | Defaults disabled | Apache-2.0 | Project Rust 1.96 gate required | Pinned Elixir grammar |
