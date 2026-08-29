@@ -1,6 +1,6 @@
 # Impresari Context — CI-3b: Codex Guided-Delivery PRD
 
-- Status: Implemented; authenticated-home live admission evidence pending
+- Status: Complete; recorded-scope L3 admitted
 - Date: 2026-08-28
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -10,9 +10,10 @@
 ## Objective
 
 Provide a narrow, explicit Codex App Server delivery path for one already
-previewed deterministic context packet. The client process must receive no
-workspace root, cache path, credentials, configuration mutation, tool grant,
-network sandbox permission, or source-writing authority.
+previewed deterministic context packet. Impresari must receive no credential
+value and the client process must receive no workspace root, cache path, tool
+grant, network sandbox permission, or source-writing authority. Codex alone
+may manage authentication inside the explicit dedicated `CODEX_HOME`.
 
 ## Scope
 
@@ -37,7 +38,7 @@ network sandbox permission, or source-writing authority.
 
 - Discovery or copying of the normal Codex home, automatic handoff, hooks, background
   processes, packet retry/retention, model-output capture, source mutation,
-  repository code execution, or an L3 promotion.
+  repository code execution, or admission outside the recorded exact scope.
 
 ## Acceptance criteria
 
@@ -61,8 +62,7 @@ network sandbox permission, or source-writing authority.
 
 ## Reassessment checkpoint
 
-CI-3b does not alter L1/L2 classification. Promote Codex to L3 only after a
-repeatable successful lifecycle record under this exact version/OS scope and a
-fresh security/architecture review of an explicit authentication handoff.
-Otherwise retain the adapter as an experimental, explicit opt-in capability or
-remove it.
+The two successful authenticated-home lifecycle records satisfy the L3 gate
+only for Codex App Server `0.150.0-alpha.8` on the recorded macOS arm64 scope.
+Any client, version, protocol, platform, sandbox, authentication, or lifecycle
+change requires independent reassessment before the claim can move.

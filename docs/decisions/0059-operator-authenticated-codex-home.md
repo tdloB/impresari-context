@@ -1,6 +1,6 @@
 # ADR-0059: Operator-Authenticated Codex Home Boundary
 
-- Status: Accepted
+- Status: Accepted; recorded-scope L3 evidence complete
 - Date: 2026-08-28
 - Deciders: Impresari Context maintainer and founder
 - Related: [ADR-0055](0055-codex-ephemeral-guided-delivery.md),
@@ -31,5 +31,5 @@ source-free `account/read` result before creating an ephemeral thread.
   attempt. The source workspace and cache are never passed to App Server.
 - A missing, unauthenticated, symlinked, overlapping, or unsupported home
   fails before packet delivery.
-- L3 admission still requires two successful live completions with source
-  immutability, runtime cleanup, no granted authority, and bounded receipts.
+- Two successful live completions now record source immutability, runtime
+  cleanup, no granted authority, and bounded receipts for the exact scope.

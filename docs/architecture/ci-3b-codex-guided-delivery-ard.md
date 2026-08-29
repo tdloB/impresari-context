@@ -1,6 +1,6 @@
 # CI-3b Codex Guided Delivery — Architecture Requirements and Design
 
-- Status: Implemented; L3 admission pending live lifecycle evidence
+- Status: Implemented; recorded-scope L3 admitted
 - Date: 2026-08-28
 - Governing product record: [CI-3b Codex PRD](../product/ci-3b-codex-guided-delivery-prd.md)
 - Governing decision: [ADR-0055](../decisions/0055-codex-ephemeral-guided-delivery.md)
@@ -26,7 +26,8 @@ explicit intent -> CI-3a snapshot/consent/planner validation -> exact preview
 The saved preview is operator-controlled evidence, not server-side state. The
 apply command never reopens the workspace, planner, or cache; it consumes only
 the preview artifact, a caller-owned runtime parent, an absolute Codex binary,
-and an expected packet ID. This avoids duplicate audit events and ensures the
+an explicit dedicated authenticated Codex home, and an expected packet ID.
+This avoids duplicate audit events and ensures the
 packet that crosses the boundary is the reviewed packet.
 
 ## Invariants
@@ -69,3 +70,5 @@ falls back to a hook, or changes client configuration.
 - The live smoke uses an isolated temporary source workspace, cache, preview
   artifact, and runtime parent. It records only packet/plan/snapshot identities
   and receipt metadata; no source content, prompt, or model output is retained.
+- Two independent live smokes must complete with immutable source, empty
+  runtime parents, no authority, and no Impresari credential copy or deletion.
