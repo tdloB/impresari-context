@@ -8,11 +8,12 @@
     "schema_name", "schema_version", "outcome", "reason_code", "client", "scope",
     "client_version", "protocol_scope", "request_id", "event_id", "client_io_performed",
     "ephemeral_thread", "read_only_sandbox", "network_access_enabled",
-    "approval_requests_declined", "authority_added"
+    "approval_requests_declined", "authenticated_codex_home_used",
+    "credential_state_copied", "credential_state_deleted", "authority_added"
   ],
   "properties": {
     "schema_name": {"const": "codex-app-server-delivery-receipt"},
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "outcome": {"enum": ["delivered", "no_delivery", "degraded"]},
     "reason_code": {"type": "string", "minLength": 1, "maxLength": 128, "pattern": "^[a-z][a-z0-9_]*$"},
     "client": {"const": "codex"},
@@ -29,6 +30,9 @@
     "read_only_sandbox": {"const": true},
     "network_access_enabled": {"const": false},
     "approval_requests_declined": {"type": "integer"},
+    "authenticated_codex_home_used": {"type": "boolean"},
+    "credential_state_copied": {"const": false},
+    "credential_state_deleted": {"const": false},
     "authority_added": {"const": false}
   },
   "$defs": {
@@ -41,7 +45,7 @@
       ],
       "properties": {
         "schema_name": {"const": "codex-app-server-delivery-envelope"},
-        "schema_version": {"const": "1.0.0"},
+        "schema_version": {"const": "1.1.0"},
         "packet_id": {"$ref": "common.schema.json#/$defs/sha256"},
         "packet_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
         "packet_bytes_base64url": {"type": "string", "minLength": 1, "maxLength": 699052, "pattern": "^[A-Za-z0-9_-]+$"},
@@ -60,7 +64,7 @@
       ],
       "properties": {
         "schema_name": {"const": "guided-delivery-receipt"},
-        "schema_version": {"const": "1.0.0"},
+        "schema_version": {"const": "1.1.0"},
         "outcome": {"const": "prepared"},
         "reason_code": {"const": "codex_app_server_packet_prepared"},
         "client": {"const": "codex"},

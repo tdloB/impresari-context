@@ -18,18 +18,22 @@ FIXED_CUTOFF = "2026-08-01T00:00:00Z"
 FIXTURE = "authentication.rs"
 FIXTURE_BYTES = "pub fn authenticate() {}\n"
 
-options = { cli: DEFAULT_CLI, codex: DEFAULT_CODEX, runs: 2 }
+options = { cli: DEFAULT_CLI, codex: DEFAULT_CODEX, runs: 2, codex_home: nil }
 OptionParser.new do |parser|
   parser.banner = "Usage: scripts/rehearse-codex-guided-delivery.rb [options]"
   parser.on("--cli PATH", "Impresari Context CLI executable") { |value| options[:cli] = value }
   parser.on("--codex PATH", "Codex CLI executable") { |value| options[:codex] = value }
+  parser.on("--codex-home PATH", "Dedicated authenticated Codex home") { |value| options[:codex_home] = value }
   parser.on("--runs COUNT", Integer, "Successful runs required (default: 2)") { |value| options[:runs] = value }
 end.parse!
 
 abort("runs must be between 2 and 10") unless (2..10).cover?(options[:runs])
+abort("--codex-home is required") unless options[:codex_home]
 [options[:cli], options[:codex]].each do |path|
   abort("missing executable: #{path}") unless File.file?(path) && File.executable?(path)
 end
+abort("Codex home must be a real directory") unless File.directory?(options[:codex_home]) && !File.symlink?(options[:codex_home])
+options[:codex_home] = File.realpath(options[:codex_home])
 
 def run_json(*command)
   stdout, stderr, status = Open3.capture3(*command)
@@ -90,8 +94,11 @@ options[:runs].times do |index|
     packet_id = preview.fetch("value").fetch("delivery_envelope").fetch("packet_id")
     preview_path = File.join(artifacts, "preview.json")
     File.write(preview_path, JSON.generate(preview))
-    receipt = run_json(*common, "--apply", "client", "delivery", "codex", "apply", preview_path, runtime, options[:codex], packet_id)
+    receipt = run_json(*common, "--apply", "client", "delivery", "codex", "apply", preview_path, runtime, options[:codex], options[:codex_home], packet_id)
     abort("Codex delivery did not complete: #{JSON.generate(receipt)}") unless receipt["outcome"] == "delivered"
+    abort("receipt did not bind the dedicated Codex home") unless receipt["authenticated_codex_home_used"] == true
+    abort("receipt claimed credential copying") unless receipt["credential_state_copied"] == false
+    abort("receipt claimed credential deletion") unless receipt["credential_state_deleted"] == false
     abort("source changed during delivery") unless Digest::SHA256.file(fixture).hexdigest == source_before
     abort("runtime cleanup failed") unless Dir.children(runtime).empty?
     records << {
@@ -104,7 +111,10 @@ options[:runs].times do |index|
       "source_immutable" => true,
       "runtime_clean" => true,
       "authority_added" => receipt.fetch("authority_added"),
-      "approval_requests_declined" => receipt.fetch("approval_requests_declined")
+      "approval_requests_declined" => receipt.fetch("approval_requests_declined"),
+      "authenticated_codex_home_used" => receipt.fetch("authenticated_codex_home_used"),
+      "credential_state_copied" => receipt.fetch("credential_state_copied"),
+      "credential_state_deleted" => receipt.fetch("credential_state_deleted")
     }
   end
 end

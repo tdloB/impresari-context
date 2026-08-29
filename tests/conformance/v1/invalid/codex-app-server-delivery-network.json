@@ -1,6 +1,6 @@
 {
   "schema_name": "codex-app-server-delivery-receipt",
-  "schema_version": "1.0.0",
+  "schema_version": "1.1.0",
   "outcome": "delivered",
   "reason_code": "codex_app_server_turn_completed",
   "client": "codex",
@@ -14,5 +14,8 @@
   "read_only_sandbox": true,
   "network_access_enabled": true,
   "approval_requests_declined": 0,
+  "authenticated_codex_home_used": true,
+  "credential_state_copied": false,
+  "credential_state_deleted": false,
   "authority_added": false
 }

@@ -1,6 +1,6 @@
 # ADR-0055: Codex Ephemeral Guided Delivery
 
-- Status: Accepted for implementation; L3 admission remains pending
+- Status: Accepted; recorded-scope L3 admitted
 - Date: 2026-08-26
 - Deciders: Impresari Context maintainers
 - Related: [CI-3b PRD](../product/ci-3b-codex-guided-delivery-prd.md),
@@ -23,8 +23,8 @@ after the command. It has no fallback hook or automatic retry.
 The client must complete `initialize` plus `initialized`, and `account/read`
 must confirm usable provider authentication before thread creation. The
 adapter does not project credentials from the user's normal Codex home into
-the isolated runtime. An authenticated-host design requires a separate
-security decision before L3 admission.
+the isolated runtime. ADR-0059 governs the explicit authenticated-home
+boundary used for recorded-scope L3 admission.
 
 ## Consequences
 
@@ -32,8 +32,7 @@ security decision before L3 admission.
   previously recorded intent or reopen the source workspace.
 - A compatibility upgrade requires an exact version/schema/lifecycle review
   rather than accepting a broad Codex version range.
-- The adapter can document safe `no_delivery` and `degraded` outcomes before a
-  successful lifecycle completion exists. It must not claim Codex L3 admission
-  on that evidence alone.
+- Safe `no_delivery` and `degraded` outcomes never support admission on their
+  own; L3 rests on the two successful records in the CI-3b verification file.
 - The small packet ceiling is an intentional protocol safety boundary, not a
   general planner budget change.

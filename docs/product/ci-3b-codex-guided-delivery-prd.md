@@ -1,6 +1,6 @@
 # Impresari Context — CI-3b: Codex Guided-Delivery PRD
 
-- Status: Implemented; authentication-aware live lifecycle remains unadmitted
+- Status: Complete; recorded-scope L3 admitted
 - Date: 2026-08-28
 - Authority: Founder-approved client-integration roadmap and autonomous delivery directive
 - Governing roadmap: [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -10,9 +10,10 @@
 ## Objective
 
 Provide a narrow, explicit Codex App Server delivery path for one already
-previewed deterministic context packet. The client process must receive no
-workspace root, cache path, credentials, configuration mutation, tool grant,
-network sandbox permission, or source-writing authority.
+previewed deterministic context packet. Impresari must receive no credential
+value and the client process must receive no workspace root, cache path, tool
+grant, network sandbox permission, or source-writing authority. Codex alone
+may manage authentication inside the explicit dedicated `CODEX_HOME`.
 
 ## Scope
 
@@ -27,16 +28,17 @@ network sandbox permission, or source-writing authority.
   the exported preview artifact, re-derives canonical bytes, verifies every
   packet/plan/snapshot/receipt/envelope binding, and still requires `--apply`.
 - Start a direct child process in one guarded temporary directory, with a
-  cleared environment, temporary `CODEX_HOME`, temporary current directory,
+  cleared environment, explicit dedicated authenticated `CODEX_HOME`,
+  temporary current directory,
   ephemeral thread, read-only sandbox, and disabled tool-network access.
 - Deny every App Server authority request, return a visible bounded receipt,
   terminate the child, and delete the exact temporary runtime directory.
 
 ## Non-goals
 
-- Persistent Codex configuration, automatic handoff, hooks, background
+- Discovery or copying of the normal Codex home, automatic handoff, hooks, background
   processes, packet retry/retention, model-output capture, source mutation,
-  repository code execution, or an L3 promotion.
+  repository code execution, or admission outside the recorded exact scope.
 
 ## Acceptance criteria
 
@@ -47,9 +49,10 @@ network sandbox permission, or source-writing authority.
 - A mismatched, altered, stale, malformed, or unsupported preview fails before
   client I/O. A version mismatch or client failure returns `no_delivery`; an
   authority request or timeout returns `degraded` with a stable reason.
-- An isolated runtime without usable provider authentication returns
+- A supplied home without usable provider authentication returns
   `codex_auth_unavailable` before thread creation and packet delivery. The
-  adapter never copies credentials from another Codex home.
+  adapter never copies credentials from another Codex home. The supplied home
+  must be canonical, non-symlinked, and separate from the disposable runtime.
 - Tests prove exact-byte envelope encoding, serialized-preview rehydration,
   alteration rejection, no-client preview, no-authority delivery receipt, and
   fail-closed authority handling.
@@ -59,8 +62,7 @@ network sandbox permission, or source-writing authority.
 
 ## Reassessment checkpoint
 
-CI-3b does not alter L1/L2 classification. Promote Codex to L3 only after a
-repeatable successful lifecycle record under this exact version/OS scope and a
-fresh security/architecture review of an explicit authentication handoff.
-Otherwise retain the adapter as an experimental, explicit opt-in capability or
-remove it.
+The two successful authenticated-home lifecycle records satisfy the L3 gate
+only for Codex App Server `0.150.0-alpha.8` on the recorded macOS arm64 scope.
+Any client, version, protocol, platform, sandbox, authentication, or lifecycle
+change requires independent reassessment before the claim can move.

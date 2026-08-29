@@ -1,6 +1,6 @@
 # CI-3b Codex Guided Delivery — Architecture Requirements and Design
 
-- Status: Implemented; L3 admission pending explicit authentication design and lifecycle evidence
+- Status: Implemented; recorded-scope L3 admitted
 - Date: 2026-08-28
 - Governing product record: [CI-3b Codex PRD](../product/ci-3b-codex-guided-delivery-prd.md)
 - Governing decision: [ADR-0055](../decisions/0055-codex-ephemeral-guided-delivery.md)
@@ -26,7 +26,8 @@ explicit intent -> CI-3a snapshot/consent/planner validation -> exact preview
 The saved preview is operator-controlled evidence, not server-side state. The
 apply command never reopens the workspace, planner, or cache; it consumes only
 the preview artifact, a caller-owned runtime parent, an absolute Codex binary,
-and an expected packet ID. This avoids duplicate audit events and ensures the
+an explicit dedicated authenticated Codex home, and an expected packet ID.
+This avoids duplicate audit events and ensures the
 packet that crosses the boundary is the reviewed packet.
 
 ## Invariants
@@ -38,9 +39,9 @@ packet that crosses the boundary is the reviewed packet.
    and receipt fields must all agree before `Command::spawn`.
 3. The packet ceiling is 512 KiB. It limits base64-expanded user input below
    the JSON-RPC reader's 1 MiB line limit and bounds artifact parsing.
-4. The child uses no shell, no source root, no cache root, no persistent
-   `CODEX_HOME`, no inherited credentials/environment beyond `HOME` and
-   `PATH`, and no captured model content.
+4. The child uses no shell, source root, cache root, or captured model content.
+   Its environment contains only `HOME`, `PATH`, and the exact operator-supplied
+   dedicated `CODEX_HOME`; Impresari does not read or copy credential files.
 5. The App Server thread is ephemeral; its sandbox is read-only with tool
    network access disabled. Each incoming authority request is actively
    cancelled or denied, then the session fails closed.
@@ -49,7 +50,8 @@ packet that crosses the boundary is the reviewed packet.
    caller-provided directory.
 7. `account/read` must confirm usable provider authentication before thread
    creation. Authentication absence is `no_delivery`; the adapter does not
-   inspect, copy, inherit, persist, or refresh credentials.
+   inspect, copy, export, or delete credentials. The authenticated home must be
+   canonical, non-symlinked, and disjoint from the disposable runtime.
 
 ## Degradation policy
 
@@ -68,3 +70,5 @@ falls back to a hook, or changes client configuration.
 - The live smoke uses an isolated temporary source workspace, cache, preview
   artifact, and runtime parent. It records only packet/plan/snapshot identities
   and receipt metadata; no source content, prompt, or model output is retained.
+- Two independent live smokes must complete with immutable source, empty
+  runtime parents, no authority, and no Impresari credential copy or deletion.

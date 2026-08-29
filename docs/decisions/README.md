@@ -60,7 +60,8 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0052](0052-claude-disposable-local-scope-admission.md) | Admit Claude Code L1 through a disposable native local scope and bounded lifecycle smoke | Accepted for implementation |
 | [ADR-0053](0053-cursor-guarded-project-admission.md) | Admit Cursor L1 through a guarded disposable project and bounded Agent-mode lifecycle | Accepted for implementation |
 | [ADR-0054](0054-copilot-cli-trusted-project-admission.md) | Admit GitHub Copilot CLI L1 through an isolated trusted project and bounded prompt-mode lifecycle | Accepted for implementation |
-| [ADR-0055](0055-codex-ephemeral-guided-delivery.md) | Deliver only an explicitly previewed packet through an ephemeral, authority-denying Codex App Server thread | Accepted; L3 admission pending |
+| [ADR-0055](0055-codex-ephemeral-guided-delivery.md) | Deliver only an explicitly previewed packet through an ephemeral, authority-denying Codex App Server thread | Accepted; recorded-scope L3 admitted |
+| [ADR-0059](0059-operator-authenticated-codex-home.md) | Use only an explicit dedicated operator-authenticated Codex home for guided delivery | Accepted; recorded-scope L3 evidence complete |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
