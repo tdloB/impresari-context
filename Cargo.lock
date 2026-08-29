@@ -179,6 +179,7 @@ dependencies = [
  "context-codex-app-server",
  "context-copilot-cli",
  "context-core",
+ "context-cursor-agent",
  "context-engine",
  "context-mcp",
  "context-session",
@@ -237,6 +238,20 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_canonicalizer",
+ "sha2",
+]
+
+[[package]]
+name = "context-cursor-agent"
+version = "0.1.0"
+dependencies = [
+ "context-adapters",
+ "context-core",
+ "context-engine",
+ "context-store",
+ "context-workspace",
+ "serde",
+ "serde_json",
  "sha2",
 ]
 

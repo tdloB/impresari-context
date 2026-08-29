@@ -31,6 +31,10 @@ use context_core::{
     Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PolicySubject, PublicErrorCode,
     RecoveryAction, ResourceBudget, error_envelope,
 };
+use context_cursor_agent::{
+    CursorDeliveryError, CursorDeliveryPreparation, StdioCursorCliTransport,
+    deliver_cursor_preview, prepare_cursor_delivery, rehydrate_cursor_delivery_preview,
+};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
@@ -81,6 +85,8 @@ Usage:\n\
   impresari-context [global-options] client delivery copilot apply <delivery-preview-json> <runtime-parent> <copilot-binary> <authenticated-copilot-home> <github-auth-config> <expected-packet-id>\n\
   impresari-context [global-options] client delivery claude preview <workspace> <cache-root> <delivery-intent-json>\n\
   impresari-context [global-options] client delivery claude apply <delivery-preview-json> <runtime-parent> <claude-binary> <authenticated-user-home> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery cursor preview <workspace> <cache-root> <delivery-intent-json>\n\
+  impresari-context [global-options] client delivery cursor apply <delivery-preview-json> <runtime-parent> <cursor-binary> <authenticated-user-home> <expected-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -321,6 +327,17 @@ struct ClaudeDeliveryApplyPreview {
     client_io_performed: bool,
     apply_required: bool,
     preview: context_claude_code::ClaudeDeliveryPreview,
+}
+
+#[derive(Serialize)]
+struct CursorDeliveryApplyPreview {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    state: &'static str,
+    expected_packet_id: String,
+    client_io_performed: bool,
+    apply_required: bool,
+    preview: context_cursor_agent::CursorDeliveryPreview,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -821,6 +838,70 @@ fn dispatch(
             .map_err(claude_delivery_error)?;
             let receipt = deliver_claude_preview(&preview, expected_packet_id, &transport);
             Output::new("client delivery claude apply", &receipt)
+        }
+        [
+            "client",
+            "delivery",
+            "cursor",
+            "preview",
+            root,
+            cache,
+            intent_path,
+        ] => {
+            let intent: GuidedDeliveryIntent =
+                read_json(Path::new(intent_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result =
+                prepare_cursor_delivery(&mut engine, intent).map_err(cursor_delivery_error)?;
+            Output::new("client delivery cursor preview", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "cursor",
+            "apply",
+            preview_path,
+            runtime_parent,
+            cursor_binary,
+            authenticated_user_home,
+            expected_packet_id,
+        ] => {
+            let result: CursorDeliveryPreparation =
+                read_json(Path::new(preview_path), Capability::ContextBuild)?;
+            let CursorDeliveryPreparation::Prepared(preview) = result else {
+                return Output::new("client delivery cursor apply", &result);
+            };
+            let preview =
+                rehydrate_cursor_delivery_preview(*preview).map_err(cursor_delivery_error)?;
+            if !options.apply {
+                return Output::new(
+                    "client delivery cursor apply preview",
+                    &CursorDeliveryApplyPreview {
+                        schema_name: "cursor-agent-delivery-apply-preview",
+                        schema_version: "1.0.0",
+                        state: "apply_required",
+                        expected_packet_id: expected_packet_id.to_string(),
+                        client_io_performed: false,
+                        apply_required: true,
+                        preview,
+                    },
+                );
+            }
+            let runtime_parent = fs::canonicalize(runtime_parent).map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "Cursor delivery runtime parent is unavailable",
+                )
+            })?;
+            let transport = StdioCursorCliTransport::new(
+                PathBuf::from(cursor_binary),
+                runtime_parent,
+                PathBuf::from(authenticated_user_home),
+            )
+            .map_err(cursor_delivery_error)?;
+            let receipt = deliver_cursor_preview(&preview, expected_packet_id, &transport);
+            Output::new("client delivery cursor apply", &receipt)
         }
         ["client", "kit", "render", client, binary, root, cache] => {
             let kit = managed_connection_kit(
@@ -3242,6 +3323,25 @@ fn claude_delivery_error(error: ClaudeDeliveryError) -> EngineError {
             Capability::ContextBuild,
             PublicErrorCode::InternalFailure,
             "Claude delivery packet serialization failed",
+        ),
+    }
+}
+
+fn cursor_delivery_error(error: CursorDeliveryError) -> EngineError {
+    match error {
+        CursorDeliveryError::Adapter(AdapterError::Engine(error)) => error,
+        CursorDeliveryError::Adapter(AdapterError::IncompatibleContract)
+        | CursorDeliveryError::InvalidConfiguration
+        | CursorDeliveryError::InvalidPreview => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid Cursor delivery configuration",
+        ),
+        CursorDeliveryError::Adapter(AdapterError::Serialization)
+        | CursorDeliveryError::Serialization => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InternalFailure,
+            "Cursor delivery packet serialization failed",
         ),
     }
 }
