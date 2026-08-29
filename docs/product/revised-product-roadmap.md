@@ -66,11 +66,14 @@ complete with deterministic unavailable-by-default analyzer coverage planning,
 closed synthetic result intake through ADR-0013 normalization, and immutable
 assessment assembly. HRA-4 is complete as a separate pure deterministic
 evaluator with monotonic restriction, explicit incomplete-analysis handling,
-and no exception or ordinary-host authorization input. None of these components
+and no exception or ordinary-host authorization input. HRA-5 is complete with
+an exact-commit, three-platform candidate build and clean-install rehearsal;
+ADR-0073 Step 1 is complete. None of these components
 authorizes scanner execution, repository execution, artifact upload,
 threat-intelligence access, or VM/cloud provisioning. Each implementation
-increment remains gated by its proposed ADR and an explicit founder-approved
-threat model, platform, supply-chain, privacy, and release-evidence scope.
+Step 2 and Step 3 remain gated by their proposed ADRs and an explicit
+founder-approved threat model, platform, supply-chain, privacy, and
+release-evidence scope.
 
 ## Parallel Client Integration Depth Track
 

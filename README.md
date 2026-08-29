@@ -248,7 +248,8 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   accepted HRA-0 contracts, HRA-1 bounded read-only inventory, completed narrow
   HRA-2 npm/Compose observations, HRA-3 unavailable-by-default coverage,
   bounded synthetic analyzer-result normalization and immutable assessment
-  construction, and the HRA-4 pure deterministic reference evaluator plus
+  construction, the HRA-4 pure deterministic reference evaluator, and the
+  completed HRA-5 three-platform release-readiness evidence plus
   isolated-analysis and disposable-quarantine designs; no
   analyzer, networking, upload, deep-parser, exception, approval, or repository
   execution implementation is authorized; the evaluator can return only an

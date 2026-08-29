@@ -4,7 +4,8 @@
 
 - Product: Impresari Context.
 - PRD ID/version: IC-HRA-PRD-001 / 0.1.
-- Status: HRA-0 through HRA-4 implemented; HRA-5 release readiness remains.
+- Status: Step 1 complete (HRA-0 through HRA-5); Step 2 requires explicit
+  founder approval.
 - Date: 2026-08-26.
 - Owner: Aaron Boldt.
 - Sequence: Security expansion step 1 of 3.
@@ -323,8 +324,8 @@ plan uses local ClamAV/YARA data plus optional direct hash providers.
 
 ## Implementation Plan And Gates
 
-Implementation remains separately approval-gated. If authorized later, proceed
-in the following order.
+Step 1 proceeded through the following completed order. Step 2 remains
+separately approval-gated.
 
 ### HRA-0 — Freeze contracts and fixtures
 
@@ -425,6 +426,9 @@ HRA-4 adds a separate pure reference evaluator over exact immutable assessment,
 coverage, finding, and policy records. Restrictive effects dominate, missing
 mandatory analysis fails to `analysis_incomplete`, eligibility requires one
 named quarantine profile, and no exception or approval input exists.
+HRA-5 passed the exact-commit three-platform release-candidate matrix recorded
+in the [HRA-5 readiness record](../verification/hra-5-step1-release-readiness.md).
+Step 1 is complete.
 Analyzers, network access, uploads, deep hostile-format parsing, repository
 execution, quarantine execution, and final risk acceptance remain outside this
 increment.

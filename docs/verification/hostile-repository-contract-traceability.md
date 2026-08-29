@@ -1,4 +1,4 @@
-# ADR-0073 HRA-0/HRA-1/HRA-2/HRA-3/HRA-4 Traceability
+# ADR-0073 HRA-0/HRA-1/HRA-2/HRA-3/HRA-4/HRA-5 Traceability
 
 - Scope: static contracts, bounded read-only inventory, narrow exact-evidence
   observations, non-executing coverage/assessment construction, and pure
@@ -8,7 +8,8 @@
 - Runtime status: HRA-1 inventory, the HRA-2 npm lifecycle and canonical
   Compose privilege corpora, HRA-3 coverage/result/assessment construction,
   and the HRA-4 pure reference evaluator are implemented. ADR-0074 analyzer
-  execution and ADR-0075 quarantine execution remain absent.
+  execution and ADR-0075 quarantine execution remain absent. HRA-5 passed the
+  exact-commit three-platform release-candidate matrix.
 
 | Requirement | Authoritative artifact | Verification |
 | --- | --- | --- |
@@ -28,6 +29,7 @@
 | Coverage and assessment construction | `crates/context-admission/src/lib.rs` and `docs/verification/hra-3-coverage-assessment-corpus.md` | Deterministic grouping, identity recomputation, schema validation, unavailable mandatory analysis, coverage-laundering rejection, immutable assessment identity, and no safety/authority claim |
 | Synthetic analyzer-result intake | `schemas/v1/analyzer-result-envelope.schema.json`, `crates/context-extensions/src/lib.rs`, and `crates/context-admission/src/lib.rs` | ADR-0013 bounded normalization, closed categorical payload, exact provenance/freshness/artifact binding, stale/mismatch/authority rejection, and untrusted-derived findings |
 | Reference admission evaluation | `crates/context-admission-policy/src/lib.rs` and `docs/verification/hra-4-reference-policy-corpus.md` | Exact immutable-input and policy-digest validation, four-state truth table, complete stable matched reasons, monotonic restriction, missing-analysis and exception denial, and no I/O or execution authority |
+| Step 1 release readiness | `docs/verification/hra-5-step1-release-readiness.md` and `docs/verification/release-evidence.md` | Exact commit `12a46c1b9d934830450019470c3a74c9a1b47bf8`; run 33266846683 passed package and clean-install rehearsal on all three Tier A targets without publication |
 
 ## Authority audit
 
@@ -46,3 +48,6 @@ HRA-4 adds a separate pure consumer of those immutable records. Its dependency
 graph adds no workspace, process, transport, model, credential, or runtime
 adapter, and every decision fixes safety, ordinary-host execution, and added
 authority to false.
+HRA-5 adds only verification and public limitation evidence. Its workflow
+created temporary candidate artifacts and no tag, release, package publication,
+signature, credential use, analyzer execution, or quarantine authority.

@@ -5,6 +5,25 @@ replace release signing, clean-install testing, an owner decision to publish, or
 an independent review when ADR-0017 makes one mandatory. Automated and
 AI-assisted evidence is not an independent audit.
 
+## 2026-08-29 — ADR-0073 HRA-5 Step 1 candidate matrix
+
+- Candidate commit: `12a46c1b9d934830450019470c3a74c9a1b47bf8`.
+- Candidate rehearsal:
+  [GitHub Actions 33266846683](https://github.com/tdloB/impresari-context/actions/runs/33266846683),
+  successful on all three native targets.
+- Targets: `aarch64-apple-darwin`, `x86_64-unknown-linux-gnu`, and
+  `x86_64-pc-windows-msvc`.
+- Each target verified exact source identity, ran the complete repository gate,
+  built and checksummed the release archive, rehearsed a clean CLI and real MCP
+  initialization/tools exchange, confirmed tracked source immutability, and
+  uploaded only a seven-day candidate artifact.
+- The exact ordered six-tool MCP contract was checked from the packaged server.
+- The run created no tag, GitHub release, package publication, signature, or
+  release credential and makes no claim that a repository is safe, trusted,
+  clean, or malware-free.
+- This is release-readiness evidence for HRA-0 through HRA-4, not evidence that
+  ADR-0074 analyzer execution or ADR-0075 quarantine execution exists.
+
 ## 2026-08-23 UTC — `v0.1.0` published
 
 - Release:
