@@ -28,7 +28,7 @@ use sha2::{Digest as _, Sha256};
 pub const CODEX_DELIVERY_CONTRACT_VERSION: &str = "1.0.0";
 /// Stable scope of the locally generated Codex App Server protocol subset.
 pub const CODEX_APP_SERVER_PROTOCOL_SCOPE: &str =
-    "v1.initialize+v2.thread_start+v2.turn_start+v2.turn_completed";
+    "v1.initialize+initialized+v2.thread_start+v2.turn_start+v2.turn_completed";
 
 const MAX_PROTOCOL_LINE_BYTES: usize = 1_048_576;
 const MAX_DELIVERY_PACKET_BYTES: usize = 524_288;
@@ -694,9 +694,29 @@ fn drive_app_server(
     {
         return protocol_failure(approvals_declined);
     }
-    if send_request(
+    if send_notification(stdin, "initialized", &json!({})).is_err() {
+        return no_delivery("codex_protocol_write_failed");
+    }
+    if send_request(stdin, 2, "account/read", &json!({"refreshToken": false})).is_err() {
+        return no_delivery("codex_protocol_write_failed");
+    }
+    let Ok(account) = wait_for_response(
+        receiver,
         stdin,
         2,
+        HANDSHAKE_TIMEOUT,
+        &mut approvals_declined,
+    ) else {
+        return protocol_failure(approvals_declined);
+    };
+    if account.get("requiresOpenaiAuth").and_then(Value::as_bool) == Some(true)
+        && account.get("account").is_none_or(Value::is_null)
+    {
+        return no_delivery("codex_auth_unavailable");
+    }
+    if send_request(
+        stdin,
+        3,
         "thread/start",
         &json!({
             "ephemeral": true,
@@ -713,7 +733,7 @@ fn drive_app_server(
     let Ok(thread_start) = wait_for_response(
         receiver,
         stdin,
-        2,
+        3,
         HANDSHAKE_TIMEOUT,
         &mut approvals_declined,
     ) else {
@@ -729,7 +749,7 @@ fn drive_app_server(
     };
     if send_request(
         stdin,
-        3,
+        4,
         "turn/start",
         &json!({
             "threadId": thread_id,
@@ -747,21 +767,28 @@ fn drive_app_server(
             approval_requests_declined: approvals_declined,
         };
     }
-    if wait_for_response(
+    let Ok(turn_start) = wait_for_response(
         receiver,
         stdin,
-        3,
+        4,
         HANDSHAKE_TIMEOUT,
         &mut approvals_declined,
-    )
-    .is_err()
-    {
+    ) else {
         return protocol_failure(approvals_declined);
-    }
+    };
+    let Some(turn_id) = turn_start
+        .get("turn")
+        .and_then(|turn| turn.get("id"))
+        .and_then(Value::as_str)
+        .filter(|value| !value.is_empty())
+    else {
+        return protocol_failure(approvals_declined);
+    };
     match wait_for_completion(
         receiver,
         stdin,
         thread_id,
+        turn_id,
         TURN_TIMEOUT,
         &mut approvals_declined,
     ) {
@@ -785,6 +812,19 @@ fn send_request(
     serde_json::to_writer(
         &mut *output,
         &json!({"jsonrpc": "2.0", "id": id, "method": method, "params": params}),
+    )?;
+    output.write_all(b"\n")?;
+    output.flush()
+}
+
+fn send_notification(
+    output: &mut dyn Write,
+    method: &str,
+    params: &Value,
+) -> Result<(), io::Error> {
+    serde_json::to_writer(
+        &mut *output,
+        &json!({"jsonrpc": "2.0", "method": method, "params": params}),
     )?;
     output.write_all(b"\n")?;
     output.flush()
@@ -822,20 +862,27 @@ fn wait_for_completion(
     receiver: &Receiver<ProtocolFrame>,
     stdin: &mut dyn Write,
     thread_id: &str,
+    turn_id: &str,
     timeout: Duration,
     approvals_declined: &mut u32,
 ) -> Result<(), ProtocolFailure> {
     let deadline = Instant::now() + timeout;
     loop {
         let value = next_protocol_value(receiver, stdin, deadline, approvals_declined)?;
-        if value.get("method").and_then(Value::as_str) == Some("turn/completed")
-            && value
-                .get("params")
-                .and_then(|params| params.get("threadId"))
-                .and_then(Value::as_str)
-                == Some(thread_id)
-        {
-            return Ok(());
+        if value.get("method").and_then(Value::as_str) == Some("turn/completed") {
+            let params = value.get("params").ok_or(ProtocolFailure::Invalid)?;
+            if params.get("threadId").and_then(Value::as_str) != Some(thread_id) {
+                continue;
+            }
+            let turn = params.get("turn").ok_or(ProtocolFailure::Invalid)?;
+            if turn.get("id").and_then(Value::as_str) != Some(turn_id) {
+                continue;
+            }
+            return match turn.get("status").and_then(Value::as_str) {
+                Some("completed") => Ok(()),
+                Some("failed" | "interrupted") => Err(ProtocolFailure::Rejected),
+                _ => Err(ProtocolFailure::Invalid),
+            };
         }
     }
 }
@@ -986,6 +1033,72 @@ mod tests {
         let response: Value = serde_json::from_slice(&output).expect("valid response");
         assert_eq!(response["id"], 99);
         assert_eq!(response["result"]["decision"], "cancel");
+    }
+
+    #[test]
+    fn protocol_performs_initialized_handshake_and_accepts_only_completed_turn() {
+        let (sender, receiver) = mpsc::channel();
+        for value in [
+            json!({"jsonrpc": "2.0", "id": 1, "result": {}}),
+            json!({"jsonrpc": "2.0", "id": 2, "result": {"account": {"type": "chatgpt"}, "requiresOpenaiAuth": true}}),
+            json!({"jsonrpc": "2.0", "id": 3, "result": {"thread": {"id": "thread_ephemeral"}}}),
+            json!({"jsonrpc": "2.0", "id": 4, "result": {"turn": {"id": "turn_delivery", "status": "inProgress", "items": []}}}),
+            json!({"jsonrpc": "2.0", "method": "turn/completed", "params": {"threadId": "thread_ephemeral", "turn": {"id": "turn_delivery", "status": "completed", "items": []}}}),
+        ] {
+            sender
+                .send(ProtocolFrame::Value(value))
+                .expect("queue frame");
+        }
+        let envelope = CodexDeliveryEnvelope::new(
+            "sha256:packet".into(),
+            br#"{"packet":"evidence"}"#,
+            "inspect".into(),
+        );
+        let mut output = Vec::new();
+        let outcome = drive_app_server(&receiver, &mut output, &envelope);
+        assert!(matches!(outcome, TransportOutcome::Delivered { .. }));
+        let messages: Vec<Value> = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice(line).expect("valid protocol message"))
+            .collect();
+        assert_eq!(messages[1]["method"], "initialized");
+        assert!(messages[1].get("id").is_none());
+    }
+
+    #[test]
+    fn protocol_declines_delivery_before_turn_when_authentication_is_unavailable() {
+        let (sender, receiver) = mpsc::channel();
+        sender
+            .send(ProtocolFrame::Value(
+                json!({"jsonrpc": "2.0", "id": 1, "result": {}}),
+            ))
+            .expect("queue initialize response");
+        sender
+            .send(ProtocolFrame::Value(json!({"jsonrpc": "2.0", "id": 2, "result": {"account": null, "requiresOpenaiAuth": true}})))
+            .expect("queue account response");
+        let envelope = CodexDeliveryEnvelope::new(
+            "sha256:packet".into(),
+            br#"{"packet":"evidence"}"#,
+            "inspect".into(),
+        );
+        let mut output = Vec::new();
+        assert_eq!(
+            drive_app_server(&receiver, &mut output, &envelope),
+            TransportOutcome::NoDelivery {
+                reason_code: "codex_auth_unavailable"
+            }
+        );
+        let messages: Vec<Value> = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice(line).expect("valid protocol message"))
+            .collect();
+        assert!(
+            messages
+                .iter()
+                .all(|message| message["method"] != "turn/start")
+        );
     }
 
     #[test]

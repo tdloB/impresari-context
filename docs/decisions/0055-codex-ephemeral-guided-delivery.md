@@ -11,7 +11,7 @@
 ## Decision
 
 Admit a narrow experimental Codex App Server delivery adapter only for the
-generated-schema scope of Codex CLI `0.149.0-alpha.4.1` on macOS aarch64. The
+generated-schema scope of Codex CLI `0.150.0-alpha.8` on macOS aarch64. The
 adapter consumes a separately reviewed CI-3a preview, re-verifies its exact
 canonical packet bytes, and starts a direct, ephemeral, no-network,
 read-only App Server thread only under an explicit `--apply` action.
@@ -19,6 +19,12 @@ read-only App Server thread only under an explicit `--apply` action.
 All approval and authority requests are denied and the child is terminated.
 The adapter retains no model output, packet, runtime, or client configuration
 after the command. It has no fallback hook or automatic retry.
+
+The client must complete `initialize` plus `initialized`, and `account/read`
+must confirm usable provider authentication before thread creation. The
+adapter does not project credentials from the user's normal Codex home into
+the isolated runtime. An authenticated-host design requires a separate
+security decision before L3 admission.
 
 ## Consequences
 

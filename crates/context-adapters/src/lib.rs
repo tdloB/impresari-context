@@ -23,7 +23,7 @@ pub const CODEX_APP_SERVER_CLIENT: &str = "codex";
 /// Process-local, ephemeral App Server scope; this is not a desktop-thread attachment.
 pub const CODEX_APP_SERVER_SCOPE: &str = "app_server_ephemeral";
 /// Codex App Server version admitted by this release.
-pub const CODEX_APP_SERVER_VERSION: &str = "0.149.0-alpha.4.1";
+pub const CODEX_APP_SERVER_VERSION: &str = "0.150.0-alpha.8";
 /// The explicit App Server lifecycle point used for one packet handoff.
 pub const CODEX_APP_SERVER_LIFECYCLE_POINT: &str = "turn_start";
 
