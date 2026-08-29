@@ -1,6 +1,6 @@
 # Phase 5 C Structural Admission PRD
 
-- Status: Implemented; hosted acceptance pending
+- Status: Complete; hosted acceptance passed in PR 103
 
 ## Outcome
 
@@ -26,4 +26,3 @@ Add snapshot-bound structural evidence for C `.c` source files and `.h` headers.
 - Dependency policy, lockfile/SBOM inputs, compatibility manifest, repository
   policy checks, formatting, linting, tests, and hosted acceptance all pass.
 - No public C structural-support claim is made until hosted acceptance succeeds.
-

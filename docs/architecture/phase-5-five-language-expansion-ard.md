@@ -1,6 +1,6 @@
 # Phase 5 Five-Language Expansion — Architecture Requirements and Design
 
-- Status: Accepted for implementation
+- Status: Implemented; all five independent admissions accepted
 - Date: 2026-08-29
 - Product requirement: [Five-Language Expansion PRD](../product/phase-5-five-language-expansion-prd.md)
 - Decision: [ADR-0064](../decisions/0064-founder-approved-five-language-expansion.md)
