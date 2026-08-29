@@ -7,6 +7,15 @@ require "json"
 require "open3"
 require "tmpdir"
 
+EXPECTED_MCP_TOOLS = %w[
+  context_session_open
+  context_build
+  context_convention_exemplar_build
+  structure_incremental_update
+  context_packet_resolve
+  context_session_close
+].freeze
+
 archive = File.expand_path(ARGV.fetch(0) { abort "usage: rehearse-release.rb ARCHIVE" })
 checksum_path = "#{archive}.sha256"
 abort "missing archive or checksum" unless File.file?(archive) && File.file?(checksum_path)
@@ -52,7 +61,8 @@ Dir.mktmpdir("impresari-release-rehearsal-") do |directory|
   abort "MCP clean launch failed: #{live_stderr}" unless live_status.success?
   responses = live_stdout.lines.map { |line| JSON.parse(line) }
   abort "MCP clean launch returned unexpected response count" unless responses.length == 2
-  abort "MCP tools unavailable after initialization" unless responses.last.dig("result", "tools")&.length == 4
+  tool_names = responses.last.dig("result", "tools")&.map { |tool| tool.fetch("name") }
+  abort "MCP tools unavailable after initialization" unless tool_names == EXPECTED_MCP_TOOLS
 end
 
 puts "release candidate rehearsal passed: #{File.basename(archive)}"
