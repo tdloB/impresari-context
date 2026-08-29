@@ -62,8 +62,27 @@ dependency policy, and RustSec auditing.
 
 Download the published binaries and checksum files from the
 [`v0.1.0` release](https://github.com/tdloB/impresari-context/releases/tag/v0.1.0),
-or clone the public repository and build the current source tree with the
-standard Rust toolchain:
+or use the checksum-verifying installer on macOS ARM64 or Linux x86-64. Download
+and inspect the installer before running it:
+
+```text
+curl --fail --location --output impresari-install.sh \
+  https://raw.githubusercontent.com/tdloB/impresari-context/main/scripts/install.sh
+less impresari-install.sh
+sh impresari-install.sh --version v0.1.0
+```
+
+Beginning with the next release after `v0.1.0`, the same installer and its
+checksum are attached to each GitHub release and receive build provenance
+attestation. Use the installer attached to the version being installed.
+
+The script never selects `latest`, changes shell startup files, or overwrites
+an installed binary. Set `IMPRESARI_INSTALL_DIR` or pass `--install-dir` to
+choose a different destination. Other platforms can use the release archives
+directly.
+
+Alternatively, clone the public repository and build the current source tree
+with the standard Rust toolchain:
 
 ```text
 git clone https://github.com/tdloB/impresari-context.git
@@ -77,6 +96,29 @@ ordinary bugs and feature requests. Read [CONTRIBUTING.md](CONTRIBUTING.md)
 before proposing a change. Do not report a suspected vulnerability in a public
 issue; use the [private security advisory
 channel](https://github.com/tdloB/impresari-context/security/advisories/new).
+
+## First run
+
+The release keeps `impresari-context` and `impresari-context-mcp` together, so
+the CLI can preview a first-class connection without another binary-path
+argument:
+
+`quickstart` is a post-`v0.1.0` capability. It is available when building the
+current source tree and will be included in the next published release; it is
+not present in the existing `v0.1.0` binaries.
+
+```text
+impresari-context quickstart cursor \
+  /absolute/path/to/workspace \
+  /absolute/path/to/separate-cache \
+  /absolute/path/to/workspace/.cursor/mcp.json
+```
+
+Review the machine-readable receipt, then repeat the same command with
+`--apply`. Quickstart does not guess any of the three paths and does not trust,
+start, sign in to, enable, approve, or invoke the client. Its receipt lists the
+remaining client-controlled steps. The same command supports `codex`, `claude`,
+`cursor`, `copilot`, and `vscode` within their recorded scopes.
 
 ## Local CLI
 

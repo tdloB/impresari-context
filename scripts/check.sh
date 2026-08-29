@@ -18,6 +18,12 @@ ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
 ruby ./scripts/check-client-guidance-templates.rb
 ruby ./scripts/check-client-lifecycle.rb
+sh -n ./scripts/install.sh
+./scripts/install.sh --help >/dev/null
+if ./scripts/install.sh --version latest >/dev/null 2>&1; then
+    printf 'installer accepted an unpinned latest version\n' >&2
+    exit 1
+fi
 ruby -c ./scripts/rehearse-codex-app-server.rb
 ruby -c ./scripts/rehearse-claude-code.rb
 ruby -c ./scripts/rehearse-claude-native-local-scope.rb

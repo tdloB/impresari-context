@@ -60,6 +60,7 @@ Usage:\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
+  impresari-context [global-options] quickstart <codex|claude|cursor|copilot|vscode> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit render <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root>\n\
   impresari-context [global-options] client kit inspect <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit validate <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
@@ -228,6 +229,20 @@ struct ManagedConnectionOperation {
     planned_effect: &'static str,
     external_write_performed: bool,
     state: &'static str,
+    limitations: Vec<&'static str>,
+}
+
+#[derive(Serialize)]
+struct QuickstartReceipt {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    client: &'static str,
+    state: &'static str,
+    mcp_binary: String,
+    prerequisites: DoctorReport,
+    connection: ManagedConnectionOperation,
+    external_write_performed: bool,
+    next_steps: Vec<&'static str>,
     limitations: Vec<&'static str>,
 }
 
@@ -561,6 +576,18 @@ fn dispatch(
             )?;
             Output::new("handoff export", &result)
         }
+        ["quickstart", client, root, cache, target] => {
+            let mcp_binary = sibling_mcp_binary()?;
+            let receipt = quickstart_with_binary(
+                client,
+                &mcp_binary,
+                Path::new(root),
+                Path::new(cache),
+                Path::new(target),
+                options.apply,
+            )?;
+            Output::new("quickstart", &receipt)
+        }
         [
             "client",
             "delivery",
@@ -797,6 +824,66 @@ fn dispatch(
             "invalid command shape; use --help",
         )),
     }
+}
+
+fn sibling_mcp_binary() -> Result<PathBuf, EngineError> {
+    let executable = std::env::current_exe()
+        .map_err(|_| managed_config_error("quickstart could not locate the current executable"))?;
+    let parent = executable.parent().ok_or_else(|| {
+        managed_config_error("quickstart could not locate the release binary directory")
+    })?;
+    let name = if cfg!(windows) {
+        "impresari-context-mcp.exe"
+    } else {
+        "impresari-context-mcp"
+    };
+    canonical_regular_file(&parent.join(name)).map_err(|_| {
+        managed_config_error("quickstart requires impresari-context-mcp beside the CLI executable")
+    })
+}
+
+fn quickstart_with_binary(
+    client: &str,
+    mcp_binary: &Path,
+    workspace: &Path,
+    cache: &Path,
+    target: &Path,
+    apply: bool,
+) -> Result<QuickstartReceipt, EngineError> {
+    let prerequisites = doctor_inspect(workspace, cache)?;
+    let connection =
+        install_managed_connection(client, mcp_binary, workspace, cache, target, apply)?;
+    Ok(QuickstartReceipt {
+        schema_name: "quickstart-receipt",
+        schema_version: "1.0.0",
+        client: connection.client,
+        state: if apply {
+            "connection_installed"
+        } else {
+            "preview_ready"
+        },
+        mcp_binary: canonical_regular_file(mcp_binary)?.display().to_string(),
+        prerequisites,
+        external_write_performed: connection.external_write_performed,
+        connection,
+        next_steps: if apply {
+            vec![
+                "Open the named client and review its exact impresari-context server entry.",
+                "Complete any client-controlled trust, start, and tool-approval steps.",
+                "Use a bounded session open/build/resolve/close request to verify the live connection.",
+            ]
+        } else {
+            vec![
+                "Review the reported MCP binary, workspace, cache, target configuration, and owned entry.",
+                "Rerun the same command with --apply to install only that exact owned entry.",
+            ]
+        },
+        limitations: vec![
+            "Quickstart does not discover a workspace, cache, or client configuration path.",
+            "Quickstart does not trust, start, sign in to, enable, approve, or invoke a client.",
+            "Native guidance remains a separate opt-in client guidance operation.",
+        ],
+    })
 }
 
 fn doctor_inspect(workspace: &Path, cache: &Path) -> Result<DoctorReport, EngineError> {
@@ -3083,6 +3170,40 @@ mod tests {
         assert!(stderr.is_empty());
         let value = serde_json::from_slice(&stdout).expect("machine JSON");
         (code, value)
+    }
+
+    #[test]
+    fn quickstart_previews_then_installs_only_the_explicit_owned_entry() {
+        let workspace = TestRoot::new("quickstart-workspace");
+        let cache = TestRoot::new("quickstart-cache");
+        let binaries = TestRoot::new("quickstart-binaries");
+        let binary = binaries.0.join("impresari-context-mcp");
+        fs::write(&binary, b"fixture binary").expect("binary fixture");
+        mark_executable(&binary);
+        let source = workspace.0.join("source.ts");
+        fs::write(&source, b"export const stable = true;\n").expect("source fixture");
+        let source_before = fs::read(&source).expect("source before");
+        let config_parent = workspace.0.join(".cursor");
+        fs::create_dir(&config_parent).expect("config parent");
+        let target = config_parent.join("mcp.json");
+
+        let preview =
+            quickstart_with_binary("cursor", &binary, &workspace.0, &cache.0, &target, false)
+                .expect("quickstart preview");
+        assert_eq!(preview.schema_name, "quickstart-receipt");
+        assert_eq!(preview.state, "preview_ready");
+        assert!(!preview.external_write_performed);
+        assert!(!target.exists());
+
+        let applied =
+            quickstart_with_binary("cursor", &binary, &workspace.0, &cache.0, &target, true)
+                .expect("quickstart apply");
+        assert_eq!(applied.state, "connection_installed");
+        assert!(applied.external_write_performed);
+        let config = fs::read_to_string(&target).expect("installed configuration");
+        assert!(config.contains("impresari-context"));
+        assert!(config.contains("--workspace"));
+        assert_eq!(fs::read(&source).expect("source after"), source_before);
     }
 
     #[test]

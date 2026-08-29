@@ -45,6 +45,7 @@ returns `74`; success returns `0`.
 
 | Command | Inputs | Output |
 | --- | --- | --- |
+| `quickstart <client> <root> <cache-root> <config-file>` | Explicit supported client, workspace, separate cache, and configuration target; sibling packaged MCP binary | `quickstart-receipt`; preview unless `--apply` |
 | `workspace open <root> <cache-root>` | Authorized workspace and isolated cache paths | `workspace-handle` |
 | `snapshot build <root> <cache-root>` | Workspace and cache paths | `snapshot-status` |
 | `snapshot status <root> <cache-root> <expected-snapshot>` | Expected snapshot identity | `snapshot-status` with freshness comparison |
@@ -67,6 +68,19 @@ returns `74`; success returns `0`.
 The structural worker is never downloaded or discovered. The caller supplies
 its executable and SHA-256 identity. Numeric work is constrained by the
 engine's conservative default resource budget.
+
+### Quickstart
+
+`quickstart` is a thin composition of the existing metadata-only prerequisite
+doctor and L1 managed-connection install. It locates only an
+`impresari-context-mcp` executable beside the running CLI. It does not search
+`PATH`, discover or create a workspace/cache/configuration parent, or alter the
+existing client-specific configuration contract.
+
+Without `--apply`, it returns the exact planned owned entry and writes nothing.
+With `--apply`, it atomically installs only that entry and returns the
+client-controlled trust, start, approval, and live-verification steps. Native
+guidance remains a separate opt-in operation.
 
 ### Experimental Codex App Server guided delivery
 
