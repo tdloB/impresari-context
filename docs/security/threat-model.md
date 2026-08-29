@@ -269,6 +269,9 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-T-039 | MCP framing/lifecycle abuse | Client sends oversized, malformed, batched, duplicated, out-of-order, or hostile JSON-RPC messages | Local stdio only; bounded newline framing; strict schemas; lifecycle state machine; unique request IDs; fixed tools; stdout purity; fail-closed errors | Protocol and adversarial process tests | Launching host controls inherited environment and process identity |
 | SEC-T-040 | MCP authority confusion | Tool arguments or repository text attempt to select roots, grant access, orchestrate agents, or trigger execution | Roots fixed at process launch; thin delegation; constant no-authority results; no sampling/elicitation/network/execution; source treated as data | Equivalence, hostile-text, immutability, and capability tests | Authorized client may disclose returned evidence after receipt |
 | SEC-T-041 | Release candidate substitution | Artifact is built from unexpected source, altered after build, or mislabeled as published/trusted | Exact source SHA; locked build; package manifest; checksums; SBOM; pinned CI actions; read-only workflow permissions; manual publication | Native package/rehearsal workflow | CI platform compromise; SHA-256 is integrity, not publisher authentication |
+| SEC-T-042 | Hostile artifact classification spoofing | Extension, magic prefix, path, or declared platform attempts to trigger unsafe parsing or hide an execution surface | Regular-file boundary; bounded prefix only; extension/magic disagreement is explicit; closed artifact classes; no archive traversal or deep hostile-format parser in HRA-0 | HRA schema, malformed-contract, resource-profile, and cross-platform synthetic fixtures | Static classification can be incomplete or ambiguous and is not malware detection |
+| SEC-T-043 | Coverage laundering | Zero findings, unavailable analyzers, or stale results are presented as complete or safe | Coverage is canonical and separate from findings; closed lifecycle states; incomplete mandatory analysis cannot yield a safety claim | HRA coverage and assessment fixtures; later deterministic truth tables | An authorized consumer can ignore the assessment outside Context |
+| SEC-T-044 | Repository admission authority escalation | Repository text, analyzer output, policy data, or a model attempts to authorize host execution or claim safety | Closed policy fields and four decision states; `safety_claimed`, `ordinary_host_execution_authorized`, and `authority_added` fixed false; exceptions owned by an external authorized human | Invalid safety-claim and host-authority fixtures; schema conformance | Future quarantine eligibility still requires separate runtime and human gates |
 
 ### Future-scope threats
 
@@ -281,6 +284,8 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-F-005 | Hosted/multi-tenant mode | Tenant isolation, identity, secrets, encryption, regional/privacy obligations, abuse, availability, incident response |
 | SEC-F-006 | Durable memory | Approval, poisoning, retention, deletion, scope bleed, provenance, expiration, correction |
 | SEC-F-007 | Source mutation or execution | Command isolation, patch authority, approval, rollback, repository integrity, supply-chain consequences |
+| SEC-F-008 | Isolated analyzer runner | Process sandbox, parser/scanner supply chain, signature updates, output normalization, egress, credentials, licensing, retention, and crash containment under ADR-0074 |
+| SEC-F-009 | Disposable quarantine runner | VM provider, image provenance, host/guest boundary, networking, credentials, artifact transfer, observation, destruction proof, and Windows deferral under ADR-0075 |
 
 ## Security Requirements
 
@@ -304,6 +309,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | SEC-REQ-014 | Keep general extension loading and privileged grants absent while enforcing closed digest-pinned declarations and metadata-only quarantine for submitted output |
 | SEC-REQ-015 | Keep MCP local to bounded stdio, enforce lifecycle/framing/tool schemas, and grant no roots, network, model, execution, or orchestration authority |
 | SEC-REQ-016 | Build release candidates from exact commits with locked inputs, checksums, SBOM, native clean-install rehearsal, and no automatic publication |
+| SEC-REQ-017 | Keep hostile-repository admission evidence-only: closed schemas, fixed resource profile, canonical incomplete coverage, no safety claim, and no mutation, process, analyzer, network, upload, deep-parser, or ordinary-host authority |
 
 ## Verification Strategy
 
@@ -320,6 +326,7 @@ must not claim that automated detection finds every secret or sensitive datum.
 | Network-denied execution | Detect hidden telemetry, update checks, dependency network behavior |
 | Source mutation check | Byte/metadata/Git comparison before and after operations |
 | Supply-chain review | Locks, SBOM, licenses, advisories, pinned CI/toolchain, artifact provenance |
+| HRA-0 contract conformance | Full Draft 2020-12 validation, fixed-profile digest, original-synthetic fixture provenance, false-safety rejection, and ordinary-host-authority rejection |
 | Independent review | Threat model and release candidate reviewed by someone other than primary implementer when feasible |
 
 ## Security Release Gates

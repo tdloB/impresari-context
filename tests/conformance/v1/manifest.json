@@ -15,6 +15,13 @@
     {"fixture": "valid/native-read-fallback.json", "schema": "consumer-context-acquisition.schema.json#/$defs/fallbackDecision", "valid": true},
     {"fixture": "valid/extension-manifest.json", "schema": "extension-contract.schema.json", "valid": true},
     {"fixture": "valid/extension-quarantine.json", "schema": "extension-contract.schema.json#/$defs/quarantine", "valid": true},
+    {"fixture": "valid/security-artifact-inventory.json", "schema": "security-artifact-inventory.schema.json", "valid": true},
+    {"fixture": "valid/security-finding.json", "schema": "security-finding.schema.json", "valid": true},
+    {"fixture": "valid/analyzer-coverage.json", "schema": "analyzer-coverage.schema.json", "valid": true},
+    {"fixture": "valid/repository-security-assessment.json", "schema": "repository-security-assessment.schema.json", "valid": true},
+    {"fixture": "valid/repository-admission-policy.json", "schema": "repository-admission-policy.schema.json", "valid": true},
+    {"fixture": "valid/repository-admission-decision.json", "schema": "repository-admission-decision.schema.json", "valid": true},
+    {"fixture": "valid/hra-static-contract-profile.json", "schema": "hostile-repository-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/repository-map.json", "schema": "repository-map.schema.json", "valid": true},
     {"fixture": "valid/structural-graph.json", "schema": "structural-graph.schema.json", "valid": true},
     {"fixture": "valid/structural-query.json", "schema": "structural-query.schema.json", "valid": true},
@@ -29,6 +36,11 @@
     {"fixture": "invalid/guided-delivery-intent-unknown-field.json", "schema": "guided-delivery.schema.json", "valid": false},
     {"fixture": "invalid/guided-delivery-result-authority.json", "schema": "guided-delivery.schema.json#/$defs/result", "valid": false},
     {"fixture": "invalid/codex-app-server-delivery-network.json", "schema": "codex-app-server-delivery.schema.json", "valid": false},
-    {"fixture": "invalid/client-lifecycle-receipt-authority.json", "schema": "client-lifecycle-maintenance.schema.json#/$defs/receipt", "valid": false}
+    {"fixture": "invalid/client-lifecycle-receipt-authority.json", "schema": "client-lifecycle-maintenance.schema.json#/$defs/receipt", "valid": false},
+    {"fixture": "invalid/repository-security-assessment-safety-claim.json", "schema": "repository-security-assessment.schema.json", "valid": false},
+    {"fixture": "invalid/repository-admission-decision-host-authority.json", "schema": "repository-admission-decision.schema.json", "valid": false},
+    {"fixture": "invalid/security-finding-observed-without-evidence.json", "schema": "security-finding.schema.json", "valid": false},
+    {"fixture": "invalid/analyzer-coverage-completed-without-provenance.json", "schema": "analyzer-coverage.schema.json", "valid": false},
+    {"fixture": "invalid/repository-admission-decision-isolated-without-profile.json", "schema": "repository-admission-decision.schema.json", "valid": false}
   ]
 }

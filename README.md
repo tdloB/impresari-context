@@ -242,8 +242,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [Security Threat Model](docs/security/threat-model.md): trust zones, threats,
   controls, residual risks, and release-blocking security evidence.
 - [Hostile-repository security expansion](docs/product/hostile-repository-admission-prd.md):
-  proposed static admission, isolated analysis, and disposable-quarantine
-  designs; no runtime implementation is authorized by these records.
+  accepted HRA-0 static contract freeze plus proposed isolated-analysis and
+  disposable-quarantine designs; no runtime inventory, analyzer, networking,
+  upload, deep-parser, or execution implementation is authorized.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

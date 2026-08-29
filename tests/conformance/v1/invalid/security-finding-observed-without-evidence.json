@@ -1,0 +1,15 @@
+{
+  "schema_name": "security-finding",
+  "schema_version": "1.0.0",
+  "finding_id": "sha256:6666666666666666666666666666666666666666666666666666666666666666",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "artifact_hash": "sha256:5555555555555555555555555555555555555555555555555555555555555555",
+  "classification": "observed",
+  "category": "execution_surface",
+  "severity": "medium",
+  "confidence": "confirmed",
+  "method": "static-execution-surface-v1",
+  "trust": "untrusted_workspace_content",
+  "limitations": [],
+  "authority_added": false
+}

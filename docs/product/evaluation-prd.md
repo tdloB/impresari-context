@@ -45,6 +45,9 @@ comparison baseline.
     while adding no orchestration or filesystem authority?
 12. Do all adversarial extension envelopes fail into metadata-only quarantine,
     and do accepted envelopes remain explicitly untrusted derived data?
+13. Do hostile-repository admission contracts preserve incomplete coverage and
+    reject every safety or ordinary-host execution claim without invoking an
+    analyzer, parser, process, network, or upload capability?
 
 ### Slice C/D hard gates
 
@@ -64,6 +67,26 @@ comparison baseline.
   corpus.
 - Native release-candidate package build and clean-install smoke pass: 100% of
   Tier A targets before publication.
+
+### ADR-0073 HRA-0 hard gates
+
+- All seven HRA-0 contracts validate under the bundled full Draft 2020-12
+  validator and the dependency-free project-subset checker.
+- The frozen `hra-static-contract-v1` profile is byte-identical to its
+  conformance fixture and matches its committed SHA-256 sidecar.
+- Source mutation, process execution, analyzer execution, network access,
+  artifact upload, deep hostile-format parsing, and ordinary-host execution are
+  fixed to `false` in the profile.
+- Required analyzer coverage represents every lifecycle state independently of
+  finding count; unavailable mandatory analysis remains incomplete.
+- False safety claims and ordinary-host execution authority are rejected in
+  100% of declared negative fixtures.
+- Every HRA-0 fixture is original synthetic JSON with reviewed, digest-checked
+  provenance. No executable, malware, live signature, third-party source,
+  private source, or provider data is admitted.
+- HRA-0 results support contract claims only. Malware detection, repository
+  safety, analyzer isolation, and quarantine execution remain unscored and
+  unclaimed.
 
 ## Evaluation Principles
 
@@ -129,6 +152,9 @@ representative. The manifest must record why each repository is included.
   fetch pinned public revisions after explicit user execution.
 - Never commit private customer or user source.
 - Test queries, expected evidence, and labels must be original and reviewable.
+- HRA-0 security fixtures additionally require a committed per-file SHA-256,
+  origin, license, purpose, negative-content declaration, and automated digest
+  verification before they enter the conformance manifest.
 
 ## Task Taxonomy
 

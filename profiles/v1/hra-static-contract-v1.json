@@ -1,0 +1,29 @@
+{
+  "schema_name": "hostile-repository-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_name": "hra-static-contract-v1",
+  "profile_version": "1.0.0",
+  "authority": "context_core_read_only",
+  "limits": {
+    "files": "10000",
+    "workspace_bytes": "536870912",
+    "file_bytes": "16777216",
+    "classification_prefix_bytes": "4096",
+    "artifacts": "10000",
+    "findings": "1000",
+    "analyzer_requirements": "5000",
+    "output_bytes": "4194304",
+    "elapsed_ms": "30000",
+    "memory_bytes": "536870912",
+    "archive_traversal_depth": "0"
+  },
+  "capabilities": {
+    "source_mutation": false,
+    "process_execution": false,
+    "analyzer_execution": false,
+    "network": false,
+    "artifact_upload": false,
+    "deep_hostile_format_parsing": false,
+    "ordinary_host_execution": false
+  }
+}

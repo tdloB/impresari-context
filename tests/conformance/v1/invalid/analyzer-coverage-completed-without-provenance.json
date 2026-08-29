@@ -1,0 +1,20 @@
+{
+  "schema_name": "analyzer-coverage",
+  "schema_version": "1.0.0",
+  "coverage_id": "sha256:8888888888888888888888888888888888888888888888888888888888888888",
+  "workspace_snapshot": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "generated_at": "2026-08-29T12:00:00Z",
+  "requirements": [
+    {
+      "requirement_id": "req_clamav001",
+      "capability_id": "malware-signature-scan",
+      "artifact_hashes": ["sha256:5555555555555555555555555555555555555555555555555555555555555555"],
+      "reason_rule_ids": ["binary-artifact-requires-scan"],
+      "mandatory": true,
+      "minimum_contract_version": "1.0.0",
+      "state": "completed",
+      "state_reason": "analyzer-reported-complete"
+    }
+  ],
+  "authority_added": false
+}

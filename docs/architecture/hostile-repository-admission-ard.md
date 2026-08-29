@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: Proposed; architecture and implementation planning only.
+- Status: HRA-0 contract freeze authorized; runtime components remain proposed.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:

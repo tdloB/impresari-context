@@ -1,0 +1,19 @@
+{
+  "schema_name": "repository-admission-policy",
+  "schema_version": "1.0.0",
+  "policy_id": "policy_default01",
+  "policy_version": "1.0.0",
+  "policy_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "rules": [
+    {
+      "rule_id": "missing-analysis-is-incomplete",
+      "priority": "10",
+      "effect": "require_analysis",
+      "match_field": "coverage_state",
+      "match_values": ["failed", "stale", "unavailable"],
+      "reason_code": "mandatory-analysis-incomplete"
+    }
+  ],
+  "exception_authority": "authorized_human_outside_context_core",
+  "authority_added": false
+}
