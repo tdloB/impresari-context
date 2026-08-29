@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 and HRA-2 implemented; initial HRA-3 coverage planning and assessment assembly implemented.
+- Status: HRA-1 through HRA-3 implemented; HRA-4 remains absent.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -422,10 +422,12 @@ syntax, and remains subject to the same authority exclusions. The Compose
 increment uses a deliberately limited lexical rule over four exact basenames,
 one canonical `services`/service/property indentation, and only
 `privileged: true`; block scalars, tabs, aliases, alternative scalar syntax,
-and ambiguous layouts are unsupported rather than heuristically parsed. Later ecosystems
-and HRA-3 require their own reviewed rule corpus and gates. The first HRA-3
-slice groups exact artifact hashes by the inventory's analyzer capability IDs,
-marks every required analyzer unavailable because execution is absent, and
-assembles an immutable assessment only after recomputing coverage and checking
-snapshot, artifact, finding, and evidence bindings. External result envelopes
-remain a separate non-executing HRA-3 slice.
+and ambiguous layouts are unsupported rather than heuristically parsed. HRA-3
+groups exact artifact hashes by analyzer capability and marks requirements
+unavailable while execution is absent. Its completed result boundary accepts
+only ADR-0013-normalized analyzer output whose payload satisfies the closed
+analyzer-result schema. Exact snapshot, requirement, capability, artifact-set,
+analyzer-digest, ruleset, completion-time, freshness, and result-digest
+bindings are required. Only bounded categorical findings enter assessments as
+untrusted derived data; stale, mismatched, excessive, malformed, or
+authority-claiming envelopes fail closed.

@@ -4,8 +4,8 @@
 - Authorization: founder-approved HRA-0 and separately approved HRA-1 on
   2026-08-29.
 - Runtime status: HRA-1 inventory, the HRA-2 npm lifecycle and canonical
-  Compose privilege corpora, and initial HRA-3 coverage/assessment construction
-  are implemented. External analyzer-result normalization, ADR-0074 analyzers, and ADR-0075
+  Compose privilege corpora, and HRA-3 coverage/result/assessment construction
+  are implemented. ADR-0074 analyzer execution and ADR-0075
   quarantine execution remain absent.
 
 | Requirement | Authoritative artifact | Verification |
@@ -24,6 +24,7 @@
 | npm lifecycle observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-npm-lifecycle-rule-corpus.md` | Closed rule corpus, exact finding/evidence schema validation, false-positive cases, unsupported syntax, stale-source failure, command-value non-retention, and source immutability |
 | Compose privilege observations | `crates/context-admission/src/lib.rs` and `docs/verification/hra-2-compose-privilege-rule-corpus.md` | Exact basename/layout/value corpus, exact key-token evidence, lookalike rejection, unsupported YAML cases, and no semantic/runtime inference |
 | Coverage and assessment construction | `crates/context-admission/src/lib.rs` and `docs/verification/hra-3-coverage-assessment-corpus.md` | Deterministic grouping, identity recomputation, schema validation, unavailable mandatory analysis, coverage-laundering rejection, immutable assessment identity, and no safety/authority claim |
+| Synthetic analyzer-result intake | `schemas/v1/analyzer-result-envelope.schema.json`, `crates/context-extensions/src/lib.rs`, and `crates/context-admission/src/lib.rs` | ADR-0013 bounded normalization, closed categorical payload, exact provenance/freshness/artifact binding, stale/mismatch/authority rejection, and untrusted-derived findings |
 
 ## Authority audit
 
@@ -35,6 +36,6 @@ only the `context-admission` library crate and reuses the existing guarded
 read-only workspace capability. It adds no command, transport, provider,
 credential, parser dependency, finding, policy decision, or execution
 capability. HRA-2 adds deterministic observed findings over already-admitted
-JSON and deliberately canonical Compose YAML only. HRA-3 planning and assembly
-add no analyzer discovery, completed analyzer result, command, network, policy,
-or execution surface.
+JSON and deliberately canonical Compose YAML only. HRA-3 planning, normalized
+synthetic result intake, and assembly add no analyzer discovery, command,
+network, policy, or execution surface.

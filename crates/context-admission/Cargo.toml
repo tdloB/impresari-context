@@ -14,6 +14,7 @@ workspace = true
 [dependencies]
 base64 = { version = "=0.23.1", default-features = false, features = ["alloc"] }
 context-core = { version = "=0.1.0", path = "../context-core" }
+context-extensions = { version = "=0.1.0", path = "../context-extensions" }
 context-workspace = { version = "=0.1.0", path = "../context-workspace" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }

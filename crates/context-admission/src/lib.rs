@@ -14,6 +14,7 @@ use context_core::{
     EvidenceArtifact, EvidenceExcerpt, EvidenceExtraction, EvidencePath, EvidenceRecord,
     EvidenceSpan, validate_utc_timestamp,
 };
+use context_extensions::NormalizedExtensionOutput;
 use context_workspace::{
     ArtifactRecord, AuthorizedWorkspace, PathIdentity, SkipReason, WorkspaceErrorCode,
     WorkspaceSnapshot,
@@ -183,7 +184,8 @@ pub struct SecurityFinding {
     /// Exact artifact content digest.
     pub artifact_hash: String,
     /// Exact evidence identity.
-    pub evidence_id: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub evidence_id: Option<String>,
     /// Always `observed` in HRA-2.
     pub classification: String,
     /// Closed security-finding category.
@@ -194,6 +196,12 @@ pub struct SecurityFinding {
     pub confidence: String,
     /// Stable rule identifier.
     pub method: String,
+    /// Exact analyzer artifact digest for derived findings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub analyzer_identity: Option<String>,
+    /// Exact analyzer ruleset digest for derived findings.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ruleset_digest: Option<String>,
     /// Always untrusted workspace content.
     pub trust: String,
     /// Stable limitations that prohibit intent or safety inference.
@@ -250,6 +258,21 @@ pub struct AnalyzerRequirement {
     pub state: String,
     /// Stable, content-free explanation of the lifecycle state.
     pub state_reason: String,
+    /// Exact analyzer artifact digest for a completed requirement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub analyzer_identity: Option<String>,
+    /// Exact analyzer ruleset digest for a completed requirement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub ruleset_digest: Option<String>,
+    /// Canonical UTC completion time for a completed requirement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub completed_at: Option<String>,
+    /// Canonical UTC exclusive freshness ceiling for a completed requirement.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fresh_until: Option<String>,
+    /// Exact normalized extension-envelope digest.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub result_digest: Option<String>,
 }
 
 /// Canonical HRA-3 required-analysis plan with no analyzer execution authority.
@@ -269,6 +292,66 @@ pub struct AnalyzerCoverage {
     /// Deterministically ordered analyzer requirements.
     pub requirements: Vec<AnalyzerRequirement>,
     /// Constant proof that planning adds no authority.
+    pub authority_added: bool,
+}
+
+/// Closed untrusted payload accepted from ADR-0013 analyzer normalization.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzerResultEnvelope {
+    /// Payload contract name.
+    pub schema_name: String,
+    /// Payload contract version.
+    pub schema_version: String,
+    /// Exact workspace snapshot analyzed.
+    pub workspace_snapshot: String,
+    /// Exact planned requirement fulfilled.
+    pub requirement_id: String,
+    /// Exact planned capability fulfilled.
+    pub capability_id: String,
+    /// Complete, sorted exact artifact digest set analyzed.
+    pub artifact_hashes: Vec<String>,
+    /// Exact analyzer ruleset digest.
+    pub ruleset_digest: String,
+    /// Canonical UTC completion time.
+    pub completed_at: String,
+    /// Canonical UTC exclusive freshness ceiling.
+    pub fresh_until: String,
+    /// Bounded categorical findings; no raw detection text is admitted.
+    pub findings: Vec<AnalyzerEnvelopeFinding>,
+    /// Always false; analyzer output cannot claim safety.
+    pub safety_claimed: bool,
+    /// Always false; analyzer output cannot authorize ordinary-host execution.
+    pub ordinary_host_execution_authorized: bool,
+    /// Always false; normalization adds no authority.
+    pub authority_added: bool,
+}
+
+/// Closed categorical finding inside an untrusted analyzer envelope.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzerEnvelopeFinding {
+    /// Exact artifact digest from the requirement.
+    pub artifact_hash: String,
+    /// Closed security category.
+    pub category: String,
+    /// Closed severity.
+    pub severity: String,
+    /// Closed confidence.
+    pub confidence: String,
+    /// Bounded ruleset-local method identifier.
+    pub method: String,
+}
+
+/// Accepted analyzer result applied to immutable coverage and derived findings.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct AnalyzerResultApplication {
+    /// Updated immutable coverage ledger.
+    pub coverage: AnalyzerCoverage,
+    /// Deterministically ordered untrusted-derived findings.
+    pub findings: Vec<SecurityFinding>,
+    /// Always false; result application adds no authority.
     pub authority_added: bool,
 }
 
@@ -313,6 +396,16 @@ struct FindingIdentity<'finding> {
     workspace_snapshot: &'finding str,
     artifact_hash: &'finding str,
     evidence_id: &'finding str,
+    category: &'finding str,
+    method: &'finding str,
+}
+
+#[derive(Serialize)]
+struct DerivedFindingIdentity<'finding> {
+    workspace_snapshot: &'finding str,
+    artifact_hash: &'finding str,
+    analyzer_identity: &'finding str,
+    ruleset_digest: &'finding str,
     category: &'finding str,
     method: &'finding str,
 }
@@ -597,6 +690,11 @@ pub fn plan_analyzer_coverage(
             minimum_contract_version: CONTRACT_VERSION.to_owned(),
             state: "unavailable".to_owned(),
             state_reason: "analyzer-execution-not-authorized".to_owned(),
+            analyzer_identity: None,
+            ruleset_digest: None,
+            completed_at: None,
+            fresh_until: None,
+            result_digest: None,
         });
     }
     requirements.sort_by(|left, right| left.capability_id.cmp(&right.capability_id));
@@ -619,6 +717,91 @@ pub fn plan_analyzer_coverage(
     Ok(coverage)
 }
 
+/// Applies one already-normalized synthetic analyzer envelope to coverage.
+///
+/// The normalized ADR-0013 output remains untrusted derived data. This
+/// function accepts only a closed categorical payload, binds it to one exact
+/// planned requirement, verifies freshness at the caller-supplied time, and
+/// never invokes or discovers an analyzer.
+///
+/// # Errors
+///
+/// Returns a safe error for malformed, stale, excessive, mismatched,
+/// authority-claiming, or non-canonical input.
+pub fn apply_normalized_analyzer_result(
+    coverage: &AnalyzerCoverage,
+    normalized: &NormalizedExtensionOutput,
+    evaluated_at: &str,
+) -> Result<AnalyzerResultApplication, AdmissionError> {
+    validate_coverage_contract(coverage)?;
+    let evaluated_key = utc_order_key(evaluated_at)?;
+    if normalized.schema_name != "normalized-extension-output"
+        || normalized.schema_version != CONTRACT_VERSION
+        || normalized.trust != "untrusted_derived_data"
+        || normalized.authority_added
+        || !valid_sha256(&normalized.artifact_digest)
+        || !valid_sha256(&normalized.envelope_digest)
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    let envelope = serde_json::from_value::<AnalyzerResultEnvelope>(normalized.payload.clone())
+        .map_err(|_| AdmissionError::new(AdmissionErrorCode::Serialization))?;
+    validate_analyzer_envelope(&envelope, coverage, evaluated_key)?;
+
+    let requirement_index = coverage
+        .requirements
+        .iter()
+        .position(|requirement| requirement.requirement_id == envelope.requirement_id)
+        .ok_or_else(|| AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch))?;
+    let requirement = &coverage.requirements[requirement_index];
+    if requirement.state != "unavailable"
+        || requirement.capability_id != envelope.capability_id
+        || requirement.artifact_hashes != envelope.artifact_hashes
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+
+    let mut findings = envelope
+        .findings
+        .iter()
+        .map(|finding| {
+            make_derived_finding(
+                &coverage.workspace_snapshot,
+                finding,
+                &normalized.artifact_digest,
+                &envelope.ruleset_digest,
+            )
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    findings.sort_by(|left, right| left.finding_id.cmp(&right.finding_id));
+    if findings
+        .windows(2)
+        .any(|pair| pair[0].finding_id == pair[1].finding_id)
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+
+    let mut updated = coverage.clone();
+    let completed = &mut updated.requirements[requirement_index];
+    "completed".clone_into(&mut completed.state);
+    "normalized-analyzer-result-current".clone_into(&mut completed.state_reason);
+    completed.analyzer_identity = Some(normalized.artifact_digest.clone());
+    completed.ruleset_digest = Some(envelope.ruleset_digest);
+    completed.completed_at = Some(envelope.completed_at);
+    completed.fresh_until = Some(envelope.fresh_until);
+    completed.result_digest = Some(normalized.envelope_digest.clone());
+    evaluated_at.clone_into(&mut updated.generated_at);
+    updated.coverage_id = coverage_identity(&updated)?;
+    validate_coverage_contract(&updated)?;
+    let application = AnalyzerResultApplication {
+        coverage: updated,
+        findings,
+        authority_added: false,
+    };
+    enforce_output_limit(&application)?;
+    Ok(application)
+}
+
 /// Assembles an immutable HRA-3 assessment without evaluating policy.
 ///
 /// Exact identities are cross-checked before assembly. Missing or unavailable
@@ -633,15 +816,16 @@ pub fn build_repository_security_assessment(
     inventory: &SecurityArtifactInventory,
     observations: &ExecutionSurfaceObservations,
     coverage: &AnalyzerCoverage,
+    derived_findings: &[SecurityFinding],
 ) -> Result<RepositorySecurityAssessment, AdmissionError> {
-    validate_assessment_inputs(inventory, observations, coverage)?;
+    validate_assessment_inputs(inventory, observations, coverage, derived_findings)?;
     let AssessmentComponents {
         finding_ids,
         completeness,
         conflicts,
         unknowns,
         exclusions,
-    } = assessment_components(inventory, observations, coverage);
+    } = assessment_components(inventory, observations, coverage, derived_findings);
     let identity = AssessmentIdentity {
         workspace_snapshot: &inventory.workspace_snapshot,
         profile_digest: PROFILE_DIGEST,
@@ -685,21 +869,280 @@ struct AssessmentComponents {
     exclusions: Vec<String>,
 }
 
+type UtcOrderKey = (u16, u8, u8, u8, u8, u8, u32);
+
+fn utc_order_key(value: &str) -> Result<UtcOrderKey, AdmissionError> {
+    validate_utc_timestamp(value)
+        .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?;
+    let number = |range: std::ops::Range<usize>| {
+        value[range]
+            .parse::<u16>()
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))
+    };
+    let nanos = if value.len() == 20 {
+        0
+    } else {
+        let digits = &value[20..value.len() - 1];
+        let mut padded = digits.to_owned();
+        padded.extend(std::iter::repeat_n('0', 9 - digits.len()));
+        padded
+            .parse::<u32>()
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?
+    };
+    Ok((
+        number(0..4)?,
+        u8::try_from(number(5..7)?)
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?,
+        u8::try_from(number(8..10)?)
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?,
+        u8::try_from(number(11..13)?)
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?,
+        u8::try_from(number(14..16)?)
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?,
+        u8::try_from(number(17..19)?)
+            .map_err(|_| AdmissionError::new(AdmissionErrorCode::InvalidTimestamp))?,
+        nanos,
+    ))
+}
+
+fn validate_analyzer_envelope(
+    envelope: &AnalyzerResultEnvelope,
+    coverage: &AnalyzerCoverage,
+    evaluated_at: UtcOrderKey,
+) -> Result<(), AdmissionError> {
+    let completed = utc_order_key(&envelope.completed_at)?;
+    let fresh_until = utc_order_key(&envelope.fresh_until)?;
+    if envelope.schema_name != "analyzer-result-envelope"
+        || envelope.schema_version != CONTRACT_VERSION
+        || envelope.workspace_snapshot != coverage.workspace_snapshot
+        || envelope.safety_claimed
+        || envelope.ordinary_host_execution_authorized
+        || envelope.authority_added
+        || !valid_schema_name(&envelope.capability_id)
+        || !valid_sha256(&envelope.ruleset_digest)
+        || envelope.artifact_hashes.is_empty()
+        || envelope.artifact_hashes.len() > 256
+        || !strictly_sorted(&envelope.artifact_hashes)
+        || envelope
+            .artifact_hashes
+            .iter()
+            .any(|hash| !valid_sha256(hash))
+        || envelope.findings.len() > MAX_FINDINGS
+        || completed > evaluated_at
+        || evaluated_at >= fresh_until
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    if envelope.findings.iter().any(|finding| {
+        !envelope.artifact_hashes.contains(&finding.artifact_hash)
+            || !valid_schema_name(&finding.method)
+            || !matches!(
+                finding.category.as_str(),
+                "execution_surface"
+                    | "lifecycle_hook"
+                    | "code_download"
+                    | "credential_path"
+                    | "persistence"
+                    | "privilege"
+                    | "host_mount"
+                    | "network_reference"
+                    | "format_mismatch"
+                    | "analyzer_detection"
+                    | "unknown"
+            )
+            || !matches!(
+                finding.severity.as_str(),
+                "informational" | "low" | "medium" | "high" | "critical"
+            )
+            || !matches!(
+                finding.confidence.as_str(),
+                "confirmed" | "high" | "medium" | "low" | "unknown"
+            )
+    }) {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    Ok(())
+}
+
+fn make_derived_finding(
+    workspace_snapshot: &str,
+    finding: &AnalyzerEnvelopeFinding,
+    analyzer_identity: &str,
+    ruleset_digest: &str,
+) -> Result<SecurityFinding, AdmissionError> {
+    let identity = DerivedFindingIdentity {
+        workspace_snapshot,
+        artifact_hash: &finding.artifact_hash,
+        analyzer_identity,
+        ruleset_digest,
+        category: &finding.category,
+        method: &finding.method,
+    };
+    Ok(SecurityFinding {
+        schema_name: "security-finding".to_owned(),
+        schema_version: CONTRACT_VERSION.to_owned(),
+        finding_id: structured_identity("security-finding", &identity)?,
+        workspace_snapshot: workspace_snapshot.to_owned(),
+        artifact_hash: finding.artifact_hash.clone(),
+        evidence_id: None,
+        classification: "derived".to_owned(),
+        category: finding.category.clone(),
+        severity: finding.severity.clone(),
+        confidence: finding.confidence.clone(),
+        method: finding.method.clone(),
+        analyzer_identity: Some(analyzer_identity.to_owned()),
+        ruleset_digest: Some(ruleset_digest.to_owned()),
+        trust: "untrusted_derived_data".to_owned(),
+        limitations: vec![
+            "external_analyzer_output_is_untrusted_derived_data".to_owned(),
+            "derived_finding_does_not_establish_intent_or_safety".to_owned(),
+        ],
+        authority_added: false,
+    })
+}
+
+fn validate_coverage_contract(coverage: &AnalyzerCoverage) -> Result<(), AdmissionError> {
+    if coverage.schema_name != "analyzer-coverage"
+        || coverage.schema_version != CONTRACT_VERSION
+        || coverage.authority_added
+        || utc_order_key(&coverage.generated_at).is_err()
+        || !valid_sha256(&coverage.workspace_snapshot)
+        || coverage.requirements.len() > 5000
+        || !coverage
+            .requirements
+            .windows(2)
+            .all(|pair| pair[0].capability_id < pair[1].capability_id)
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    let generated_at = utc_order_key(&coverage.generated_at)?;
+    for requirement in &coverage.requirements {
+        validate_requirement(requirement, generated_at)?;
+    }
+    if coverage.coverage_id != coverage_identity(coverage)? {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    enforce_output_limit(coverage)
+}
+
+fn validate_requirement(
+    requirement: &AnalyzerRequirement,
+    generated_at: UtcOrderKey,
+) -> Result<(), AdmissionError> {
+    let static_identity = RequirementIdentity {
+        capability_id: &requirement.capability_id,
+        artifact_hashes: &requirement.artifact_hashes,
+        reason_rule_ids: &requirement.reason_rule_ids,
+        mandatory: requirement.mandatory,
+        minimum_contract_version: CONTRACT_VERSION,
+    };
+    let digest = structured_identity("analyzer-requirement", &static_identity)?;
+    let expected_id = format!("req_{}", &digest[7..39]);
+    let static_invalid = requirement.requirement_id != expected_id
+        || !valid_schema_name(&requirement.capability_id)
+        || requirement.minimum_contract_version != CONTRACT_VERSION
+        || !requirement.mandatory
+        || requirement.reason_rule_ids != ["inventory-artifact-requires-analysis-v1".to_owned()]
+        || requirement.artifact_hashes.is_empty()
+        || requirement.artifact_hashes.len() > 256
+        || !strictly_sorted(&requirement.artifact_hashes)
+        || requirement
+            .artifact_hashes
+            .iter()
+            .any(|hash| !valid_sha256(hash));
+    if static_invalid {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    match requirement.state.as_str() {
+        "unavailable"
+            if requirement.state_reason == "analyzer-execution-not-authorized"
+                && requirement.analyzer_identity.is_none()
+                && requirement.ruleset_digest.is_none()
+                && requirement.completed_at.is_none()
+                && requirement.fresh_until.is_none()
+                && requirement.result_digest.is_none() =>
+        {
+            Ok(())
+        }
+        "completed"
+            if requirement.state_reason == "normalized-analyzer-result-current"
+                && requirement
+                    .analyzer_identity
+                    .as_deref()
+                    .is_some_and(valid_sha256)
+                && requirement
+                    .ruleset_digest
+                    .as_deref()
+                    .is_some_and(valid_sha256)
+                && requirement
+                    .result_digest
+                    .as_deref()
+                    .is_some_and(valid_sha256) =>
+        {
+            let completed = utc_order_key(requirement.completed_at.as_deref().unwrap_or(""))?;
+            let fresh = utc_order_key(requirement.fresh_until.as_deref().unwrap_or(""))?;
+            if completed <= generated_at && generated_at < fresh {
+                Ok(())
+            } else {
+                Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch))
+            }
+        }
+        _ => Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch)),
+    }
+}
+
+fn coverage_identity(coverage: &AnalyzerCoverage) -> Result<String, AdmissionError> {
+    let identity = CoverageIdentity {
+        workspace_snapshot: &coverage.workspace_snapshot,
+        generated_at: &coverage.generated_at,
+        requirements: &coverage.requirements,
+        authority_added: false,
+    };
+    structured_identity("analyzer-coverage", &identity)
+}
+
+fn strictly_sorted(values: &[String]) -> bool {
+    values.windows(2).all(|pair| pair[0] < pair[1])
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+}
+
+fn valid_schema_name(value: &str) -> bool {
+    (1..=64).contains(&value.len())
+        && value.as_bytes()[0].is_ascii_lowercase()
+        && value.bytes().all(|byte| {
+            byte.is_ascii_lowercase() || byte.is_ascii_digit() || matches!(byte, b'.' | b'_' | b'-')
+        })
+}
+
 fn validate_assessment_inputs(
     inventory: &SecurityArtifactInventory,
     observations: &ExecutionSurfaceObservations,
     coverage: &AnalyzerCoverage,
+    derived_findings: &[SecurityFinding],
 ) -> Result<(), AdmissionError> {
     validate_inventory_contract(inventory)?;
+    validate_coverage_for_inventory(inventory, coverage)?;
     if observations.authority_added
         || coverage.authority_added
         || observations.workspace_snapshot != inventory.workspace_snapshot
         || coverage.workspace_snapshot != inventory.workspace_snapshot
-        || coverage != &plan_analyzer_coverage(inventory, &coverage.generated_at)?
     {
         return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
     }
-    if observations.findings.len() > MAX_FINDINGS || observations.evidence.len() > MAX_FINDINGS {
+    if observations
+        .findings
+        .len()
+        .saturating_add(derived_findings.len())
+        > MAX_FINDINGS
+        || observations.evidence.len() > MAX_FINDINGS
+    {
         return Err(AdmissionError::new(AdmissionErrorCode::ResourceLimit));
     }
     let artifact_hashes = inventory
@@ -711,10 +1154,12 @@ fn validate_assessment_inputs(
         finding.authority_added
             || finding.workspace_snapshot != inventory.workspace_snapshot
             || !artifact_hashes.contains(finding.artifact_hash.as_str())
-            || !observations
-                .evidence
-                .iter()
-                .any(|record| record.evidence_id == finding.evidence_id)
+            || finding.evidence_id.as_ref().is_none_or(|evidence_id| {
+                !observations
+                    .evidence
+                    .iter()
+                    .any(|record| &record.evidence_id == evidence_id)
+            })
     });
     let evidence_invalid = observations.evidence.iter().any(|record| {
         record.workspace_snapshot != inventory.workspace_snapshot
@@ -722,7 +1167,65 @@ fn validate_assessment_inputs(
             || record.freshness != "current"
             || record.trust != "untrusted_workspace_content"
     });
-    if finding_invalid || evidence_invalid {
+    let derived_invalid = derived_findings.iter().any(|finding| {
+        let Some(analyzer_identity) = finding.analyzer_identity.as_deref() else {
+            return true;
+        };
+        let Some(ruleset_digest) = finding.ruleset_digest.as_deref() else {
+            return true;
+        };
+        let identity = DerivedFindingIdentity {
+            workspace_snapshot: &finding.workspace_snapshot,
+            artifact_hash: &finding.artifact_hash,
+            analyzer_identity,
+            ruleset_digest,
+            category: &finding.category,
+            method: &finding.method,
+        };
+        let identity_invalid = match structured_identity("security-finding", &identity) {
+            Ok(expected) => expected != finding.finding_id,
+            Err(_) => true,
+        };
+        finding.authority_added
+            || finding.workspace_snapshot != inventory.workspace_snapshot
+            || finding.classification != "derived"
+            || finding.evidence_id.is_some()
+            || finding.trust != "untrusted_derived_data"
+            || !artifact_hashes.contains(finding.artifact_hash.as_str())
+            || identity_invalid
+            || !coverage.requirements.iter().any(|requirement| {
+                requirement.state == "completed"
+                    && requirement.artifact_hashes.contains(&finding.artifact_hash)
+                    && requirement.analyzer_identity.as_deref() == Some(analyzer_identity)
+                    && requirement.ruleset_digest.as_deref() == Some(ruleset_digest)
+            })
+    });
+    if finding_invalid || evidence_invalid || derived_invalid {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    Ok(())
+}
+
+fn validate_coverage_for_inventory(
+    inventory: &SecurityArtifactInventory,
+    coverage: &AnalyzerCoverage,
+) -> Result<(), AdmissionError> {
+    validate_coverage_contract(coverage)?;
+    let planned = plan_analyzer_coverage(inventory, &coverage.generated_at)?;
+    if planned.requirements.len() != coverage.requirements.len()
+        || planned
+            .requirements
+            .iter()
+            .zip(&coverage.requirements)
+            .any(|(expected, actual)| {
+                expected.requirement_id != actual.requirement_id
+                    || expected.capability_id != actual.capability_id
+                    || expected.artifact_hashes != actual.artifact_hashes
+                    || expected.reason_rule_ids != actual.reason_rule_ids
+                    || expected.mandatory != actual.mandatory
+                    || expected.minimum_contract_version != actual.minimum_contract_version
+            })
+    {
         return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
     }
     Ok(())
@@ -732,10 +1235,12 @@ fn assessment_components(
     inventory: &SecurityArtifactInventory,
     observations: &ExecutionSurfaceObservations,
     coverage: &AnalyzerCoverage,
+    derived_findings: &[SecurityFinding],
 ) -> AssessmentComponents {
     let mut finding_ids = observations
         .findings
         .iter()
+        .chain(derived_findings)
         .map(|finding| finding.finding_id.clone())
         .collect::<Vec<_>>();
     finding_ids.sort();
@@ -1115,12 +1620,14 @@ fn make_observed_finding(
         finding_id: structured_identity("security-finding", &payload)?,
         workspace_snapshot: snapshot.snapshot_id.clone(),
         artifact_hash: artifact.content_hash.clone(),
-        evidence_id: evidence.evidence_id.clone(),
+        evidence_id: Some(evidence.evidence_id.clone()),
         classification: "observed".to_owned(),
         category: category.to_owned(),
         severity: severity.to_owned(),
         confidence: "confirmed".to_owned(),
         method: rule.to_owned(),
+        analyzer_identity: None,
+        ruleset_digest: None,
         trust: "untrusted_workspace_content".to_owned(),
         limitations: vec![
             "declaration_value_not_interpreted_or_executed".to_owned(),
@@ -1577,6 +2084,10 @@ mod tests {
         sync::atomic::{AtomicU64, Ordering},
     };
 
+    use context_extensions::{
+        CapabilityRequest, ExtensionKind, ExtensionManifest, ExtensionOutput, ExtensionPolicy,
+        NormalizationVerdict, RequestedCapabilities, normalize_output,
+    };
     use context_workspace::DiscoveryPolicy;
     use jsonschema::Registry;
     use serde_json::Value;
@@ -1645,6 +2156,56 @@ mod tests {
 
     fn read_json(path: &Path) -> Value {
         serde_json::from_slice(&fs::read(path).expect("read JSON")).expect("valid JSON")
+    }
+
+    fn normalize_synthetic_analyzer(envelope: AnalyzerResultEnvelope) -> NormalizedExtensionOutput {
+        let manifest = ExtensionManifest {
+            schema_name: "extension-manifest".to_owned(),
+            schema_version: CONTRACT_VERSION.to_owned(),
+            extension_id: "synthetic.analyzer".to_owned(),
+            extension_version: CONTRACT_VERSION.to_owned(),
+            publisher: "original-synthetic".to_owned(),
+            artifact_digest:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
+            engine_contract: CONTRACT_VERSION.to_owned(),
+            kind: ExtensionKind::Analyzer,
+            requested_capabilities: RequestedCapabilities {
+                workspace_read_scopes: Vec::new(),
+                cache_read: CapabilityRequest::Denied,
+                cache_write: CapabilityRequest::Denied,
+                process: CapabilityRequest::Denied,
+                network_destinations: Vec::new(),
+                environment_keys: Vec::new(),
+                model: CapabilityRequest::Denied,
+            },
+            max_output_bytes: "4096".to_owned(),
+            deterministic: true,
+            model_dependent: false,
+            data_retention: "none".to_owned(),
+            output_fields: vec!["analyzer_result".to_owned()],
+        };
+        let decision = ExtensionPolicy::new(vec![manifest.artifact_digest.clone()])
+            .expect("pin policy")
+            .decide(&manifest)
+            .expect("zero-capability decision");
+        let output = ExtensionOutput {
+            schema_name: "extension-output".to_owned(),
+            schema_version: CONTRACT_VERSION.to_owned(),
+            extension_id: manifest.extension_id.clone(),
+            extension_version: manifest.extension_version.clone(),
+            artifact_digest: manifest.artifact_digest.clone(),
+            kind: ExtensionKind::Analyzer,
+            output_fields: vec!["analyzer_result".to_owned()],
+            payload: serde_json::to_value(envelope).expect("envelope value"),
+            claims_exact_source_authority: false,
+        };
+        let bytes = serde_json::to_vec(&output).expect("extension output");
+        let NormalizationVerdict::Accepted(normalized) =
+            normalize_output(&manifest, &decision, &bytes)
+        else {
+            panic!("ADR-0013 normalization should accept synthetic output")
+        };
+        normalized
     }
 
     #[test]
@@ -2084,10 +2645,12 @@ mod tests {
             observe_execution_surfaces(&workspace, &snapshot, &inventory).expect("observations");
         let coverage =
             plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
-        let assessment = build_repository_security_assessment(&inventory, &observations, &coverage)
-            .expect("assessment");
-        let repeated = build_repository_security_assessment(&inventory, &observations, &coverage)
-            .expect("repeated assessment");
+        let assessment =
+            build_repository_security_assessment(&inventory, &observations, &coverage, &[])
+                .expect("assessment");
+        let repeated =
+            build_repository_security_assessment(&inventory, &observations, &coverage, &[])
+                .expect("repeated assessment");
 
         assert_eq!(assessment, repeated);
         assert_eq!(assessment.completeness, "partial");
@@ -2131,8 +2694,9 @@ mod tests {
         let coverage =
             plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
         assert!(coverage.requirements.is_empty());
-        let assessment = build_repository_security_assessment(&inventory, &observations, &coverage)
-            .expect("complete assessment");
+        let assessment =
+            build_repository_security_assessment(&inventory, &observations, &coverage, &[])
+                .expect("complete assessment");
         assert_eq!(assessment.completeness, "complete");
         assert!(assessment.unknowns.is_empty());
 
@@ -2161,10 +2725,152 @@ mod tests {
                 &hostile_inventory,
                 &hostile_observations,
                 &laundered,
+                &[],
             )
             .expect_err("tampered coverage must fail")
             .code(),
             AdmissionErrorCode::WorkspaceMismatch
+        );
+    }
+
+    #[test]
+    fn normalized_analyzer_result_completes_exact_coverage_and_assessment() {
+        let fixture = TestWorkspace::new();
+        fixture.write("bin/tool.exe", b"MZsynthetic\n");
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let observations =
+            observe_execution_surfaces(&workspace, &snapshot, &inventory).expect("observations");
+        let coverage =
+            plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
+        let requirement = coverage.requirements[0].clone();
+        let ruleset = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let envelope = AnalyzerResultEnvelope {
+            schema_name: "analyzer-result-envelope".to_owned(),
+            schema_version: CONTRACT_VERSION.to_owned(),
+            workspace_snapshot: coverage.workspace_snapshot.clone(),
+            requirement_id: requirement.requirement_id,
+            capability_id: requirement.capability_id,
+            artifact_hashes: requirement.artifact_hashes.clone(),
+            ruleset_digest: ruleset.to_owned(),
+            completed_at: "2026-08-29T13:02:00Z".to_owned(),
+            fresh_until: "2026-08-29T14:00:00Z".to_owned(),
+            findings: vec![AnalyzerEnvelopeFinding {
+                artifact_hash: requirement.artifact_hashes[0].clone(),
+                category: "analyzer_detection".to_owned(),
+                severity: "high".to_owned(),
+                confidence: "confirmed".to_owned(),
+                method: "synthetic-signature-v1".to_owned(),
+            }],
+            safety_claimed: false,
+            ordinary_host_execution_authorized: false,
+            authority_added: false,
+        };
+        let normalized = normalize_synthetic_analyzer(envelope);
+        let application =
+            apply_normalized_analyzer_result(&coverage, &normalized, "2026-08-29T13:03:00Z")
+                .expect("apply normalized result");
+
+        assert_eq!(application.coverage.requirements[0].state, "completed");
+        assert_eq!(
+            application.coverage.requirements[0]
+                .analyzer_identity
+                .as_deref(),
+            Some(normalized.artifact_digest.as_str())
+        );
+        assert_eq!(application.findings.len(), 1);
+        assert_eq!(application.findings[0].classification, "derived");
+        assert_eq!(application.findings[0].trust, "untrusted_derived_data");
+        assert!(!application.authority_added);
+        let assessment = build_repository_security_assessment(
+            &inventory,
+            &observations,
+            &application.coverage,
+            &application.findings,
+        )
+        .expect("assessment with analyzer result");
+        assert_eq!(assessment.completeness, "complete");
+        assert_eq!(
+            assessment.finding_ids,
+            [application.findings[0].finding_id.clone()]
+        );
+        assert!(!assessment.safety_claimed);
+    }
+
+    #[test]
+    fn stale_mismatched_and_authority_claiming_analyzer_envelopes_fail_closed() {
+        let fixture = TestWorkspace::new();
+        fixture.write("bin/tool.exe", b"MZsynthetic\n");
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let coverage =
+            plan_analyzer_coverage(&inventory, "2026-08-29T13:01:00Z").expect("coverage");
+        let requirement = &coverage.requirements[0];
+        let base_payload = serde_json::json!({
+            "schema_name": "analyzer-result-envelope",
+            "schema_version": "1.0.0",
+            "workspace_snapshot": coverage.workspace_snapshot,
+            "requirement_id": requirement.requirement_id,
+            "capability_id": requirement.capability_id,
+            "artifact_hashes": requirement.artifact_hashes,
+            "ruleset_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            "completed_at": "2026-08-29T13:02:00Z",
+            "fresh_until": "2026-08-29T13:03:00Z",
+            "findings": [],
+            "safety_claimed": false,
+            "ordinary_host_execution_authorized": false,
+            "authority_added": false
+        });
+        let normalized = |payload| NormalizedExtensionOutput {
+            schema_name: "normalized-extension-output".to_owned(),
+            schema_version: CONTRACT_VERSION.to_owned(),
+            extension_id: "synthetic.analyzer".to_owned(),
+            artifact_digest:
+                "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".to_owned(),
+            envelope_digest:
+                "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc".to_owned(),
+            trust: "untrusted_derived_data".to_owned(),
+            payload,
+            authority_added: false,
+        };
+        assert!(
+            apply_normalized_analyzer_result(
+                &coverage,
+                &normalized(base_payload.clone()),
+                "2026-08-29T13:03:00Z",
+            )
+            .is_err(),
+            "fresh_until is exclusive"
+        );
+
+        let mut mismatched = base_payload.clone();
+        mismatched["artifact_hashes"] = serde_json::json!([
+            "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        ]);
+        assert!(
+            apply_normalized_analyzer_result(
+                &coverage,
+                &normalized(mismatched),
+                "2026-08-29T13:02:30Z",
+            )
+            .is_err()
+        );
+
+        let mut authority = base_payload;
+        authority["authority_added"] = serde_json::Value::Bool(true);
+        assert!(
+            apply_normalized_analyzer_result(
+                &coverage,
+                &normalized(authority),
+                "2026-08-29T13:02:30Z",
+            )
+            .is_err()
         );
     }
 

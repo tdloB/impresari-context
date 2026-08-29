@@ -61,9 +61,10 @@ is hash-only and explicit. ADR-0073 HRA-0 contract freezing and HRA-1 bounded,
 read-only artifact inventory are implemented with closed schemas, a fixed
 authority-denying resource profile, explicit exclusions, and original-synthetic
 fixture provenance. HRA-2 is complete with closed npm lifecycle and canonical
-Compose privileged-service corpora plus exact key-token evidence. HRA-3 is in
-progress with deterministic unavailable-by-default analyzer coverage planning
-and immutable assessment assembly. None of these records authorizes scanner execution,
+Compose privileged-service corpora plus exact key-token evidence. HRA-3 is
+complete with deterministic unavailable-by-default analyzer coverage planning,
+closed synthetic result intake through ADR-0013 normalization, and immutable
+assessment assembly. None of these records authorizes scanner execution,
 repository execution, artifact upload, threat-intelligence access, or VM/cloud
 provisioning. Each implementation increment remains gated by its proposed ADR
 and an explicit founder-approved threat model, platform, supply-chain, privacy,
