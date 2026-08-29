@@ -13,16 +13,19 @@ fi
 
 # ADR-0010 permits one fixed argv-based launch site for the pinned structural
 # worker. ADR-0055 adds one separate fixed argv-based Codex App Server launch
-# site for an explicit, ephemeral, authority-denying delivery attempt. No other
-# production module may acquire child-process authority.
+# site for an explicit, ephemeral, authority-denying delivery attempt. ADR-0060
+# adds the equivalent exact-version, zero-tool Copilot prompt launch site. No
+# other production module may acquire child-process authority.
 process_sites=$(grep -n -E 'std::process::Command|Command::new' $production_sources || true)
 expected_structural_site='crates/context-structural/src/lib.rs:'
 expected_codex_site='crates/context-codex-app-server/src/lib.rs:'
-if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 2 ] ||
+expected_copilot_site='crates/context-copilot-cli/src/lib.rs:'
+if [ "$(printf '%s\n' "$process_sites" | sed '/^$/d' | wc -l | tr -d ' ')" -ne 3 ] ||
    ! printf '%s\n' "$process_sites" | grep -q "^$expected_structural_site" ||
-   ! printf '%s\n' "$process_sites" | grep -q "^$expected_codex_site"; then
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_codex_site" ||
+   ! printf '%s\n' "$process_sites" | grep -q "^$expected_copilot_site"; then
     printf '%s\n' "$process_sites" >&2
-    printf 'unexpected production child-process authority outside ADR-0010 and ADR-0055 launch sites\n' >&2
+    printf 'unexpected production child-process authority outside ADR-0010, ADR-0055, and ADR-0060 launch sites\n' >&2
     exit 1
 fi
 

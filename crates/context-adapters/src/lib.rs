@@ -27,6 +27,15 @@ pub const CODEX_APP_SERVER_VERSION: &str = "0.150.0-alpha.8";
 /// The explicit App Server lifecycle point used for one packet handoff.
 pub const CODEX_APP_SERVER_LIFECYCLE_POINT: &str = "turn_start";
 
+/// Exact GitHub Copilot CLI client identity admitted for the CI-3c adapter.
+pub const COPILOT_CLI_CLIENT: &str = "github_copilot_cli";
+/// Non-interactive prompt scope; this is not an interactive or VS Code session.
+pub const COPILOT_CLI_SCOPE: &str = "programmatic_prompt";
+/// GitHub Copilot CLI version admitted by this release.
+pub const COPILOT_CLI_VERSION: &str = "1.0.80";
+/// The explicit programmatic lifecycle point used for one packet handoff.
+pub const COPILOT_CLI_LIFECYCLE_POINT: &str = "prompt_start";
+
 /// Consumer policy for acquiring repository context.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -370,13 +379,17 @@ fn guided_delivery_identity_is_supported(intent: &GuidedDeliveryIntent) -> bool 
             && intent.scope == CODEX_APP_SERVER_SCOPE
             && intent.client_version == CODEX_APP_SERVER_VERSION
             && intent.lifecycle_point == CODEX_APP_SERVER_LIFECYCLE_POINT)
+        || (intent.client == COPILOT_CLI_CLIENT
+            && intent.scope == COPILOT_CLI_SCOPE
+            && intent.client_version == COPILOT_CLI_VERSION
+            && intent.lifecycle_point == COPILOT_CLI_LIFECYCLE_POINT)
 }
 
 fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
-    if intent.client == CODEX_APP_SERVER_CLIENT {
-        "codex_app_server_packet_prepared"
-    } else {
-        "reference_packet_prepared"
+    match intent.client.as_str() {
+        CODEX_APP_SERVER_CLIENT => "codex_app_server_packet_prepared",
+        COPILOT_CLI_CLIENT => "copilot_cli_packet_prepared",
+        _ => "reference_packet_prepared",
     }
 }
 
