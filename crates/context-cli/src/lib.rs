@@ -15,6 +15,10 @@ use std::{
 };
 
 use context_adapters::{AdapterError, GuidedDeliveryIntent};
+use context_claude_code::{
+    ClaudeDeliveryError, ClaudeDeliveryPreparation, StdioClaudeCliTransport,
+    deliver_claude_preview, prepare_claude_delivery, rehydrate_claude_delivery_preview,
+};
 use context_codex_app_server::{
     CodexDeliveryError, CodexDeliveryPreparation, StdioCodexAppServerTransport,
     deliver_codex_preview, prepare_codex_delivery, rehydrate_codex_delivery_preview,
@@ -75,6 +79,8 @@ Usage:\n\
   impresari-context [global-options] client delivery codex apply <delivery-preview-json> <runtime-parent> <codex-binary> <authenticated-codex-home> <expected-packet-id>\n\
   impresari-context [global-options] client delivery copilot preview <workspace> <cache-root> <delivery-intent-json>\n\
   impresari-context [global-options] client delivery copilot apply <delivery-preview-json> <runtime-parent> <copilot-binary> <authenticated-copilot-home> <github-auth-config> <expected-packet-id>\n\
+  impresari-context [global-options] client delivery claude preview <workspace> <cache-root> <delivery-intent-json>\n\
+  impresari-context [global-options] client delivery claude apply <delivery-preview-json> <runtime-parent> <claude-binary> <authenticated-user-home> <expected-packet-id>\n\
   impresari-context [global-options] client guidance render <codex|claude|cursor|copilot>\n\
   impresari-context [global-options] client guidance inspect <codex|claude|cursor|copilot> <project-root>\n\
   impresari-context [global-options] client guidance validate <codex|claude|cursor|copilot> <project-root>\n\
@@ -304,6 +310,17 @@ struct CopilotDeliveryApplyPreview {
     client_io_performed: bool,
     apply_required: bool,
     preview: context_copilot_cli::CopilotDeliveryPreview,
+}
+
+#[derive(Serialize)]
+struct ClaudeDeliveryApplyPreview {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    state: &'static str,
+    expected_packet_id: String,
+    client_io_performed: bool,
+    apply_required: bool,
+    preview: context_claude_code::ClaudeDeliveryPreview,
 }
 
 #[allow(clippy::too_many_lines)]
@@ -740,6 +757,70 @@ fn dispatch(
             .map_err(copilot_delivery_error)?;
             let receipt = deliver_copilot_preview(&preview, expected_packet_id, &transport);
             Output::new("client delivery copilot apply", &receipt)
+        }
+        [
+            "client",
+            "delivery",
+            "claude",
+            "preview",
+            root,
+            cache,
+            intent_path,
+        ] => {
+            let intent: GuidedDeliveryIntent =
+                read_json(Path::new(intent_path), Capability::ContextBuild)?;
+            let (mut engine, _) = prepared_engine(root, cache, options, contexts)?;
+            let result =
+                prepare_claude_delivery(&mut engine, intent).map_err(claude_delivery_error)?;
+            Output::new("client delivery claude preview", &result)
+        }
+        [
+            "client",
+            "delivery",
+            "claude",
+            "apply",
+            preview_path,
+            runtime_parent,
+            claude_binary,
+            authenticated_user_home,
+            expected_packet_id,
+        ] => {
+            let result: ClaudeDeliveryPreparation =
+                read_json(Path::new(preview_path), Capability::ContextBuild)?;
+            let ClaudeDeliveryPreparation::Prepared(preview) = result else {
+                return Output::new("client delivery claude apply", &result);
+            };
+            let preview =
+                rehydrate_claude_delivery_preview(*preview).map_err(claude_delivery_error)?;
+            if !options.apply {
+                return Output::new(
+                    "client delivery claude apply preview",
+                    &ClaudeDeliveryApplyPreview {
+                        schema_name: "claude-code-delivery-apply-preview",
+                        schema_version: "1.0.0",
+                        state: "apply_required",
+                        expected_packet_id: expected_packet_id.to_string(),
+                        client_io_performed: false,
+                        apply_required: true,
+                        preview,
+                    },
+                );
+            }
+            let runtime_parent = fs::canonicalize(runtime_parent).map_err(|_| {
+                synthetic_error(
+                    Capability::ContextBuild,
+                    PublicErrorCode::InvalidInput,
+                    "Claude delivery runtime parent is unavailable",
+                )
+            })?;
+            let transport = StdioClaudeCliTransport::new(
+                PathBuf::from(claude_binary),
+                runtime_parent,
+                PathBuf::from(authenticated_user_home),
+            )
+            .map_err(claude_delivery_error)?;
+            let receipt = deliver_claude_preview(&preview, expected_packet_id, &transport);
+            Output::new("client delivery claude apply", &receipt)
         }
         ["client", "kit", "render", client, binary, root, cache] => {
             let kit = managed_connection_kit(
@@ -3142,6 +3223,25 @@ fn copilot_delivery_error(error: CopilotDeliveryError) -> EngineError {
             Capability::ContextBuild,
             PublicErrorCode::InternalFailure,
             "Copilot delivery packet serialization failed",
+        ),
+    }
+}
+
+fn claude_delivery_error(error: ClaudeDeliveryError) -> EngineError {
+    match error {
+        ClaudeDeliveryError::Adapter(AdapterError::Engine(error)) => error,
+        ClaudeDeliveryError::Adapter(AdapterError::IncompatibleContract)
+        | ClaudeDeliveryError::InvalidConfiguration
+        | ClaudeDeliveryError::InvalidPreview => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InvalidInput,
+            "invalid Claude delivery configuration",
+        ),
+        ClaudeDeliveryError::Adapter(AdapterError::Serialization)
+        | ClaudeDeliveryError::Serialization => synthetic_error(
+            Capability::ContextBuild,
+            PublicErrorCode::InternalFailure,
+            "Claude delivery packet serialization failed",
         ),
     }
 }

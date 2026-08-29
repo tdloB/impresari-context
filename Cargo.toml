@@ -3,6 +3,7 @@ members = [
     "crates/context-cli",
     "crates/context-codex-app-server",
     "crates/context-copilot-cli",
+    "crates/context-claude-code",
     "crates/context-adapters",
     "crates/context-conformance",
     "crates/context-core",

@@ -36,6 +36,15 @@ pub const COPILOT_CLI_VERSION: &str = "1.0.80";
 /// The explicit programmatic lifecycle point used for one packet handoff.
 pub const COPILOT_CLI_LIFECYCLE_POINT: &str = "prompt_start";
 
+/// Exact Claude Code client identity admitted for the CI-3d adapter.
+pub const CLAUDE_CODE_CLIENT: &str = "claude_code";
+/// Safe-mode non-interactive scope; this is not an interactive Claude session.
+pub const CLAUDE_CODE_SCOPE: &str = "safe_mode_print";
+/// Claude Code version admitted by this release.
+pub const CLAUDE_CODE_VERSION: &str = "2.1.241";
+/// The explicit programmatic lifecycle point used for one packet handoff.
+pub const CLAUDE_CODE_LIFECYCLE_POINT: &str = "prompt_start";
+
 /// Consumer policy for acquiring repository context.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -383,12 +392,17 @@ fn guided_delivery_identity_is_supported(intent: &GuidedDeliveryIntent) -> bool 
             && intent.scope == COPILOT_CLI_SCOPE
             && intent.client_version == COPILOT_CLI_VERSION
             && intent.lifecycle_point == COPILOT_CLI_LIFECYCLE_POINT)
+        || (intent.client == CLAUDE_CODE_CLIENT
+            && intent.scope == CLAUDE_CODE_SCOPE
+            && intent.client_version == CLAUDE_CODE_VERSION
+            && intent.lifecycle_point == CLAUDE_CODE_LIFECYCLE_POINT)
 }
 
 fn prepared_reason_code(intent: &GuidedDeliveryIntent) -> &'static str {
     match intent.client.as_str() {
         CODEX_APP_SERVER_CLIENT => "codex_app_server_packet_prepared",
         COPILOT_CLI_CLIENT => "copilot_cli_packet_prepared",
+        CLAUDE_CODE_CLIENT => "claude_code_packet_prepared",
         _ => "reference_packet_prepared",
     }
 }
