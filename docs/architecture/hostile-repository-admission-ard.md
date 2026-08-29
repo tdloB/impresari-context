@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 implemented; narrow HRA-2 npm lifecycle observations implemented.
+- Status: HRA-1 implemented; narrow HRA-2 npm and Compose observations implemented.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -418,5 +418,9 @@ adds no process, network, analyzer, upload, deep-parser, decision, or execution
 authority. HRA-2 begins with a strict JSON parse followed by exact top-level
 `scripts` object/key recovery for a closed npm lifecycle-key set. It stores only
 the exact key token as evidence, never interprets the value, reports unsupported
-syntax, and remains subject to the same authority exclusions. Later ecosystems
+syntax, and remains subject to the same authority exclusions. The Compose
+increment uses a deliberately limited lexical rule over four exact basenames,
+one canonical `services`/service/property indentation, and only
+`privileged: true`; block scalars, tabs, aliases, alternative scalar syntax,
+and ambiguous layouts are unsupported rather than heuristically parsed. Later ecosystems
 and HRA-3 require their own reviewed rule corpus and gates.

@@ -313,11 +313,12 @@ pub fn build_security_artifact_inventory(
     finalize_inventory(snapshot, generated_at, artifacts, exclusions)
 }
 
-/// Emits narrow HRA-2 package lifecycle observations from an HRA-1 inventory.
+/// Emits narrow HRA-2 execution-surface observations from an HRA-1 inventory.
 ///
-/// Only a strict `package.json` top-level `scripts` object is inspected. The
-/// implementation recognizes a closed set of lifecycle keys, records only the
-/// exact key token as evidence, and never interprets or executes its value.
+/// Only a strict `package.json` top-level `scripts` object and a deliberately
+/// limited canonical Compose service layout are inspected. The implementation
+/// recognizes closed keys, records only the exact key token as evidence, and
+/// never interprets or executes repository-controlled values.
 /// Unsupported syntax is explicit. No process, network, analyzer, upload,
 /// policy, deep-parser, or repository-execution capability is used.
 ///
@@ -343,9 +344,13 @@ pub fn observe_execution_surfaces(
     let mut exclusions = Vec::new();
     let mut truncated = false;
     for artifact in &inventory.artifacts {
-        if !is_package_json(&artifact.path) {
+        let candidate = if is_package_json(&artifact.path) {
+            SurfaceCandidate::PackageJson
+        } else if is_compose_yaml(&artifact.path) {
+            SurfaceCandidate::ComposeYaml
+        } else {
             continue;
-        }
+        };
         let snapshot_artifact = snapshot
             .artifacts
             .iter()
@@ -367,7 +372,7 @@ pub fn observe_execution_surfaces(
             return Err(AdmissionError::new(AdmissionErrorCode::StaleSnapshot));
         }
 
-        let spans = match package_lifecycle_spans(&exact.bytes) {
+        let spans = match candidate.spans(&exact.bytes) {
             Ok(spans) => spans,
             Err(reason) => {
                 exclusions.push(ExecutionSurfaceExclusion {
@@ -377,14 +382,26 @@ pub fn observe_execution_surfaces(
                 continue;
             }
         };
-        for (rule, start, end) in spans {
+        for surface in spans {
             if findings.len() >= MAX_FINDINGS {
                 truncated = true;
                 break;
             }
-            let record =
-                make_observed_evidence(snapshot, snapshot_artifact, &exact.bytes, start, end)?;
-            let finding = make_lifecycle_finding(snapshot, snapshot_artifact, &record, rule)?;
+            let record = make_observed_evidence(
+                snapshot,
+                snapshot_artifact,
+                &exact.bytes,
+                surface.start,
+                surface.end,
+            )?;
+            let finding = make_observed_finding(
+                snapshot,
+                snapshot_artifact,
+                &record,
+                surface.rule,
+                surface.category,
+                surface.severity,
+            )?;
             evidence.push(record);
             findings.push(finding);
         }
@@ -414,6 +431,29 @@ pub fn observe_execution_surfaces(
     })
 }
 
+#[derive(Clone, Copy)]
+enum SurfaceCandidate {
+    PackageJson,
+    ComposeYaml,
+}
+
+impl SurfaceCandidate {
+    fn spans(self, bytes: &[u8]) -> Result<Vec<SurfaceMatch>, &'static str> {
+        match self {
+            Self::PackageJson => package_lifecycle_spans(bytes),
+            Self::ComposeYaml => compose_privilege_spans(bytes),
+        }
+    }
+}
+
+struct SurfaceMatch {
+    rule: &'static str,
+    category: &'static str,
+    severity: &'static str,
+    start: usize,
+    end: usize,
+}
+
 const LIFECYCLE_RULES: [(&str, &str); 8] = [
     ("preinstall", "npm-preinstall-v1"),
     ("install", "npm-install-v1"),
@@ -429,9 +469,14 @@ fn is_package_json(path: &InventoryPath) -> bool {
     path.display_path.replace('\\', "/").rsplit('/').next() == Some("package.json")
 }
 
-fn package_lifecycle_spans(
-    bytes: &[u8],
-) -> Result<Vec<(&'static str, usize, usize)>, &'static str> {
+fn is_compose_yaml(path: &InventoryPath) -> bool {
+    matches!(
+        path.display_path.replace('\\', "/").rsplit('/').next(),
+        Some("compose.yaml" | "compose.yml" | "docker-compose.yaml" | "docker-compose.yml")
+    )
+}
+
+fn package_lifecycle_spans(bytes: &[u8]) -> Result<Vec<SurfaceMatch>, &'static str> {
     let value: serde_json::Value = serde_json::from_slice(bytes).map_err(|_| "invalid_json")?;
     let root = value.as_object().ok_or("root_not_object")?;
     let Some(scripts) = root.get("scripts") else {
@@ -455,10 +500,96 @@ fn package_lifecycle_spans(
             return Err("lifecycle_key_ambiguous");
         }
         let (start, end) = matches[0];
-        spans.push((rule, object_start + start, object_start + end));
+        spans.push(SurfaceMatch {
+            rule,
+            category: "lifecycle_hook",
+            severity: "informational",
+            start: object_start + start,
+            end: object_start + end,
+        });
     }
-    spans.sort_by_key(|(_, start, _)| *start);
+    spans.sort_by_key(|surface| surface.start);
     Ok(spans)
+}
+
+fn compose_privilege_spans(bytes: &[u8]) -> Result<Vec<SurfaceMatch>, &'static str> {
+    std::str::from_utf8(bytes).map_err(|_| "compose_non_utf8")?;
+    if bytes.contains(&b'\t') {
+        return Err("compose_tabs_unsupported");
+    }
+    let mut services_seen = false;
+    let mut service_active = false;
+    let mut findings = Vec::new();
+    let mut offset = 0_usize;
+    for raw_line in bytes.split_inclusive(|byte| *byte == b'\n') {
+        let line = raw_line.strip_suffix(b"\n").unwrap_or(raw_line);
+        let line = line.strip_suffix(b"\r").unwrap_or(line);
+        let trimmed = trim_ascii(line);
+        if matches!(trimmed.last(), Some(b'|' | b'>'))
+            || trimmed.ends_with(b"|-")
+            || trimmed.ends_with(b"|+")
+            || trimmed.ends_with(b">-")
+            || trimmed.ends_with(b">+")
+        {
+            return Err("compose_block_scalar_unsupported");
+        }
+        if trimmed.contains(&b'&')
+            || trimmed.starts_with(b"*")
+            || trimmed.starts_with(b"<<:")
+            || trimmed.contains(&b'{')
+            || trimmed.contains(&b'[')
+        {
+            return Err("compose_complex_yaml_unsupported");
+        }
+        if trimmed.is_empty() || trimmed.starts_with(b"#") {
+            offset += raw_line.len();
+            continue;
+        }
+        let indent = line.len() - line.trim_ascii_start().len();
+        if indent == 0 {
+            service_active = false;
+            if trimmed == b"services:" {
+                if services_seen {
+                    return Err("compose_services_ambiguous");
+                }
+                services_seen = true;
+            }
+        } else if services_seen && indent == 2 && is_simple_yaml_mapping_key(trimmed) {
+            service_active = true;
+        } else if services_seen && service_active && indent == 4 {
+            if trimmed == b"privileged: true" {
+                let key_start = offset + indent;
+                findings.push(SurfaceMatch {
+                    rule: "compose-privileged-true-v1",
+                    category: "privilege",
+                    severity: "medium",
+                    start: key_start,
+                    end: key_start + "privileged".len(),
+                });
+            } else if trimmed.starts_with(b"privileged:") {
+                return Err("compose_privileged_syntax_unsupported");
+            }
+        }
+        offset += raw_line.len();
+    }
+    if !services_seen {
+        return Err("compose_services_not_canonical");
+    }
+    Ok(findings)
+}
+
+fn trim_ascii(bytes: &[u8]) -> &[u8] {
+    bytes.trim_ascii_start().trim_ascii_end()
+}
+
+fn is_simple_yaml_mapping_key(line: &[u8]) -> bool {
+    let Some(key) = line.strip_suffix(b":") else {
+        return false;
+    };
+    !key.is_empty()
+        && key
+            .iter()
+            .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'-' | b'.'))
 }
 
 fn top_level_json_object_field(bytes: &[u8], key: &[u8]) -> Option<(usize, usize)> {
@@ -612,17 +743,19 @@ fn make_observed_evidence(
     })
 }
 
-fn make_lifecycle_finding(
+fn make_observed_finding(
     snapshot: &WorkspaceSnapshot,
     artifact: &ArtifactRecord,
     evidence: &EvidenceRecord,
     rule: &str,
+    category: &str,
+    severity: &str,
 ) -> Result<SecurityFinding, AdmissionError> {
     let payload = FindingIdentity {
         workspace_snapshot: &snapshot.snapshot_id,
         artifact_hash: &artifact.content_hash,
         evidence_id: &evidence.evidence_id,
-        category: "lifecycle_hook",
+        category,
         method: rule,
     };
     Ok(SecurityFinding {
@@ -633,8 +766,8 @@ fn make_lifecycle_finding(
         artifact_hash: artifact.content_hash.clone(),
         evidence_id: evidence.evidence_id.clone(),
         classification: "observed".to_owned(),
-        category: "lifecycle_hook".to_owned(),
-        severity: "informational".to_owned(),
+        category: category.to_owned(),
+        severity: severity.to_owned(),
         confidence: "confirmed".to_owned(),
         method: rule.to_owned(),
         trust: "untrusted_workspace_content".to_owned(),
@@ -1379,6 +1512,75 @@ mod tests {
                 .expect("compile frozen schema");
             assert!(validator.is_valid(&value), "{schema_name} should validate");
         }
+    }
+
+    #[test]
+    fn compose_privilege_observation_requires_the_canonical_service_layout() {
+        let fixture = TestWorkspace::new();
+        fixture.write(
+            "compose.yaml",
+            b"services:\n  web:\n    image: synthetic\n    privileged: true\n    labels:\n      privileged: true\nprivileged: true\n",
+        );
+        fixture.write(
+            "nested/docker-compose.yml",
+            b"services:\n  worker:\n    privileged: false\n",
+        );
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let observed = observe_execution_surfaces(&workspace, &snapshot, &inventory)
+            .expect("compose observations");
+
+        assert_eq!(observed.findings.len(), 1);
+        let finding = &observed.findings[0];
+        assert_eq!(finding.method, "compose-privileged-true-v1");
+        assert_eq!(finding.category, "privilege");
+        assert_eq!(finding.severity, "medium");
+        let exact = URL_SAFE_NO_PAD
+            .decode(&observed.evidence[0].excerpt.bytes_base64url)
+            .expect("decode evidence");
+        assert_eq!(exact, b"privileged");
+        assert_eq!(
+            observed.exclusions,
+            [ExecutionSurfaceExclusion {
+                path: artifact(&inventory, "nested/docker-compose.yml")
+                    .path
+                    .clone(),
+                reason: "compose_privileged_syntax_unsupported".to_owned(),
+            }]
+        );
+    }
+
+    #[test]
+    fn compose_ambiguous_yaml_constructs_are_explicitly_unsupported() {
+        let fixture = TestWorkspace::new();
+        fixture.write(
+            "compose.yml",
+            b"services:\n  web:\n    description: |\n      privileged: true\n",
+        );
+        fixture.write("other/docker-compose.yaml", b"version: synthetic\n");
+        fixture.write(
+            "complex/docker-compose.yml",
+            b"services:\n  web: &shared\n    privileged: true\n",
+        );
+        let workspace = AuthorizedWorkspace::open(&fixture.root).expect("open workspace");
+        let snapshot = workspace.snapshot(policy()).expect("snapshot");
+        let inventory =
+            build_security_artifact_inventory(&workspace, &snapshot, "2026-08-29T13:00:00Z")
+                .expect("inventory");
+        let observed = observe_execution_surfaces(&workspace, &snapshot, &inventory)
+            .expect("explicit compose exclusions");
+        let reasons = observed
+            .exclusions
+            .iter()
+            .map(|exclusion| exclusion.reason.as_str())
+            .collect::<Vec<_>>();
+        assert!(reasons.contains(&"compose_block_scalar_unsupported"));
+        assert!(reasons.contains(&"compose_services_not_canonical"));
+        assert!(reasons.contains(&"compose_complex_yaml_unsupported"));
+        assert!(observed.findings.is_empty());
     }
 
     #[test]

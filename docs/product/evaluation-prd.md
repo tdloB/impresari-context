@@ -121,6 +121,22 @@ comparison baseline.
 - Repeated input is deterministic; source immutability and the HRA-1 no-authority
   gates remain passing.
 
+### ADR-0073 HRA-2 Compose privilege hard gates
+
+- Only `compose.yaml`, `compose.yml`, `docker-compose.yaml`, and
+  `docker-compose.yml` are candidates.
+- Only an exact `privileged: true` property at four-space indentation beneath a
+  simple two-space service key under one top-level `services:` key produces a
+  `medium`, `confirmed`, observed `privilege` finding.
+- The evidence span contains exactly `privileged`; image names, service names,
+  values, comments, and unrelated repository content are not retained.
+- Top-level or deeper lookalikes do not match. Tabs, block scalars, duplicate
+  services, missing canonical services, non-UTF-8, and alternative privileged
+  scalar syntax are explicit unsupported cases.
+- The lexical rule does not validate complete Compose semantics, infer intent,
+  or inspect anchors, aliases, merges, profiles, generated configuration, or
+  runtime behavior.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

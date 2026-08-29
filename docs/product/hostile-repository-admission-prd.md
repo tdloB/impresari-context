@@ -413,8 +413,10 @@ Gate: explicit founder approval before Step 2 implementation begins.
 The founder authorized HRA-0 contract freezing and, after reviewing that
 evidence, separately authorized HRA-1 on 2026-08-29. The standing roadmap
 directive and confirmed HRA-2 boundary permit narrow execution-surface
-observations without a repeated approval ceremony. The initial HRA-2 corpus is
-limited to exact npm lifecycle keys under a strict top-level `scripts` object.
+observations without a repeated approval ceremony. The implemented HRA-2
+corpora are limited to exact npm lifecycle keys under a strict top-level
+`scripts` object and exact `privileged: true` keys at the canonical Compose
+service-property indentation.
 Analyzers, network access, uploads, deep hostile-format parsing, repository
 execution, policy decisions, and quarantine execution remain outside this
 increment.
