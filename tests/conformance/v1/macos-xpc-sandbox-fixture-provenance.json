@@ -10,6 +10,6 @@
   "network_or_provider_data_used": false,
   "cases": [
     {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "da799dd0b91ac40b28cb8bea4f72beba832ab7203adcf193713a611fa101dccc", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS XPC feasibility evidence"},
-    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "b7971851c8da172a4896917501f10bf5a4033181eb3558101cc80430d75d5806", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with incomplete native gates"}
+    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "f4586926b5e29d0ca6d6dca5c83170687beb8bd410c6750f910c249559e14e5a", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with incomplete native gates"}
   ]
 }
