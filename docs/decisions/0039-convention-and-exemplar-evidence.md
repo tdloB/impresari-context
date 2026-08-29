@@ -1,6 +1,6 @@
 # ADR-0039: Caller-declared convention and exemplar evidence
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #60
 - Date: 2026-08-25
 - Scope: Final Phase 4 impact-evidence slice
 

@@ -1,6 +1,6 @@
 # Impresari Context — Phase 5: Demand-Led Language Expansion PRD
 
-- Status: Approved; not started
+- Status: In progress; Scala, Elixir, Clojure, and Haskell admitted
 - Date: 2026-08-23
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 
@@ -9,10 +9,16 @@
 Expand language support only where adopter demand and measured evaluation
 evidence justify the parser, resolver, and maintenance cost.
 
-## Candidate languages
+## Admitted languages
 
-Swift, PHP, Ruby, C/C++, Scala, Dart, and SQL under a deliberately constrained
-structural model.
+Scala, Elixir, Clojure, and Haskell have passed their bounded structural
+admission gates. Their individual PRDs and ADRs remain the claim boundaries.
+
+## Remaining candidate languages
+
+Swift, PHP, Ruby, C/C++, Dart, and SQL under a deliberately constrained
+structural model. No remaining candidate is selected without new attributable
+demand evidence.
 
 ## Admission requirements
 

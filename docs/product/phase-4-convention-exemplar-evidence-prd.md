@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Convention and Exemplar Evidence Delivery Record
 
-- Status: Proposed for implementation
+- Status: Implemented and accepted after full hosted CI in PR #60
 - Date: 2026-08-25
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 - Related ADR: [ADR-0039](../decisions/0039-convention-and-exemplar-evidence.md)

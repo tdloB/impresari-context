@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: Structural Impact Planner
 
-- Status: Approved for implementation after the Phase 4 language admissions
+- Status: Implemented and accepted after full hosted CI in PR #49
 - Date: 2026-08-24
 - Approved by: Founder (via the approved Phase 4 roadmap)
 - Roadmap role: First impact-evidence slice after Java, Kotlin, and C# admission.

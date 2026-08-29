@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Incremental Structural Updates Delivery Record
 
-- Status: Proposed for implementation
+- Status: Implemented and accepted after full hosted CI in PR #59
 - Date: 2026-08-25
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 - Related ADR: [ADR-0038](../decisions/0038-incremental-structural-updates.md)

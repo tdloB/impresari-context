@@ -1,6 +1,6 @@
 # Impresari Context — Phase 4 Delivery Record: Declared Associated-Test Evidence
 
-- Status: Accepted for implementation after declared change-set packet acceptance
+- Status: Implemented and accepted after full hosted CI in PR #57
 - Date: 2026-08-24
 - Approved by: Founder (via the approved Phase 4 roadmap and autonomous delivery directive)
 - Roadmap role: Next bounded impact-evidence slice.

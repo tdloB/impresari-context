@@ -1,5 +1,7 @@
 # Phase 5 Haskell Structural Admission PRD
 
+- Status: Accepted
+
 ## Outcome
 
 Add snapshot-bound structural evidence for Haskell `.hs` and `.lhs` files.

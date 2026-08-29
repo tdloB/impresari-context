@@ -1,6 +1,6 @@
 # ADR-0034: Declared change-set packets
 
-- Status: Accepted for implementation
+- Status: Accepted and implemented in PR #56
 - Date: 2026-08-24
 - Scope: Second Phase 4 impact-evidence slice
 
