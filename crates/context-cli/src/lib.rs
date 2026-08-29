@@ -4650,8 +4650,8 @@ mod tests {
             std::collections::BTreeSet::from([
                 ".c", ".cc", ".cjs", ".clj", ".cljc", ".cljs", ".cpp", ".cs", ".cxx", ".ex",
                 ".exs", ".go", ".h", ".hh", ".hpp", ".hs", ".hxx", ".java", ".js", ".json",
-                ".jsonc", ".jsx", ".kt", ".kts", ".lhs", ".mjs", ".py", ".rs", ".scala", ".toml",
-                ".ts", ".tsx", ".yaml", ".yml",
+                ".jsonc", ".jsx", ".kt", ".kts", ".lhs", ".mjs", ".py", ".rb", ".rs", ".scala",
+                ".toml", ".ts", ".tsx", ".yaml", ".yml",
             ]),
             "the public manifest must match the shipped structural worker inventory"
         );
