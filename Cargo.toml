@@ -8,6 +8,7 @@ members = [
     "crates/context-vscode-copilot",
     "crates/context-adapters",
     "crates/context-admission",
+    "crates/context-admission-policy",
     "crates/context-conformance",
     "crates/context-core",
     "crates/context-engine",

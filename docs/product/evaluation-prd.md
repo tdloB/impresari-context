@@ -164,6 +164,22 @@ comparison baseline.
   analyzer/ruleset digests, constant limitations, and untrusted-derived trust;
   raw analyzer text is not admitted.
 
+### ADR-0073 HRA-4 reference evaluator hard gates
+
+- The evaluator is a separate pure library and has no filesystem, process,
+  network, model, credential, exception, approval, or repository capability.
+- Exact assessment, coverage, finding-set, and policy identities must agree;
+  altered or authority-claiming records fail closed.
+- Identical immutable inputs produce the same canonical decision identity and
+  the same priority-ordered complete matched-rule list.
+- Effect precedence is monotonic toward restriction: `blocked`, then
+  `manual_review_required`, then `analysis_incomplete`, then
+  `isolated_execution_eligible`.
+- Missing mandatory coverage prevents eligibility even without a matching
+  `require_analysis` rule. Multiple eligibility profiles deny eligibility.
+- The only eligibility target is one named quarantine profile; safety and
+  ordinary-host authority remain false.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

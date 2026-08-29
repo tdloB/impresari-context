@@ -4,7 +4,7 @@
 
 - Product: Impresari Context.
 - ARD ID/version: IC-HRA-ARD-001 / 0.1.
-- Status: HRA-1 through HRA-3 implemented; HRA-4 remains absent.
+- Status: HRA-1 through HRA-4 implemented; HRA-5 release readiness remains.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 1 of 3.
 - Related records:
@@ -431,3 +431,11 @@ analyzer-digest, ruleset, completion-time, freshness, and result-digest
 bindings are required. Only bounded categorical findings enter assessments as
 untrusted derived data; stale, mismatched, excessive, malformed, or
 authority-claiming envelopes fail closed.
+HRA-4 is a separate library with no I/O or runtime capabilities. It validates
+exact assessment, coverage, finding, and policy identities; evaluates only
+closed fields; orders matched reasons canonically; and applies the fixed
+restriction order `blocked` > `manual_review_required` >
+`analysis_incomplete` > `isolated_execution_eligible`. Incomplete mandatory
+coverage overrides eligibility, conflicting quarantine profiles deny
+eligibility, and the API contains no exception, approval, credential, model,
+or ordinary-host authorization input.

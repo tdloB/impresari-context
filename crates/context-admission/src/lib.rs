@@ -861,6 +861,165 @@ pub fn build_repository_security_assessment(
     Ok(assessment)
 }
 
+/// Validates one immutable HRA-3 coverage record without accessing a workspace.
+///
+/// # Errors
+///
+/// Returns a safe error when the record is malformed, non-canonical,
+/// authority-claiming, stale at its recorded generation time, or has an
+/// incorrect identity.
+pub fn validate_analyzer_coverage(coverage: &AnalyzerCoverage) -> Result<(), AdmissionError> {
+    validate_coverage_contract(coverage)
+}
+
+/// Validates one immutable HRA-3 assessment without evaluating policy.
+///
+/// # Errors
+///
+/// Returns a safe error when the record is malformed, non-canonical,
+/// authority-claiming, or has an incorrect identity.
+pub fn validate_repository_security_assessment(
+    assessment: &RepositorySecurityAssessment,
+) -> Result<(), AdmissionError> {
+    if assessment.schema_name != "repository-security-assessment"
+        || assessment.schema_version != CONTRACT_VERSION
+        || !valid_sha256(&assessment.assessment_id)
+        || !valid_sha256(&assessment.workspace_snapshot)
+        || assessment.profile_digest != PROFILE_DIGEST
+        || !valid_sha256(&assessment.inventory_id)
+        || !valid_sha256(&assessment.coverage_id)
+        || !matches!(assessment.completeness.as_str(), "complete" | "partial")
+        || !strictly_sorted(&assessment.finding_ids)
+        || !strictly_sorted(&assessment.conflicts)
+        || !strictly_sorted(&assessment.unknowns)
+        || !strictly_sorted(&assessment.exclusions)
+        || assessment.safety_claimed
+        || assessment.ordinary_host_execution_authorized
+        || assessment.authority_added
+        || (assessment.completeness == "complete"
+            && (!assessment.conflicts.is_empty() || !assessment.unknowns.is_empty()))
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    let identity = AssessmentIdentity {
+        workspace_snapshot: &assessment.workspace_snapshot,
+        profile_digest: PROFILE_DIGEST,
+        inventory_id: &assessment.inventory_id,
+        finding_ids: &assessment.finding_ids,
+        coverage_id: &assessment.coverage_id,
+        completeness: &assessment.completeness,
+        conflicts: &assessment.conflicts,
+        unknowns: &assessment.unknowns,
+        exclusions: &assessment.exclusions,
+        safety_claimed: false,
+        ordinary_host_execution_authorized: false,
+        authority_added: false,
+    };
+    if structured_identity("repository-security-assessment", &identity)? != assessment.assessment_id
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    Ok(())
+}
+
+/// Validates one finding for use by an authority-neutral policy consumer.
+///
+/// Current runtime output admits only exact observed findings and normalized
+/// analyzer-derived findings. Other schema-reserved classifications fail
+/// closed until their identity construction is implemented.
+///
+/// # Errors
+///
+/// Returns a safe error for malformed, unsupported, mismatched, or
+/// authority-claiming records.
+pub fn validate_security_finding(finding: &SecurityFinding) -> Result<(), AdmissionError> {
+    if finding.schema_name != "security-finding"
+        || finding.schema_version != CONTRACT_VERSION
+        || !valid_sha256(&finding.finding_id)
+        || !valid_sha256(&finding.workspace_snapshot)
+        || !valid_sha256(&finding.artifact_hash)
+        || finding.authority_added
+        || !matches!(
+            finding.category.as_str(),
+            "execution_surface"
+                | "lifecycle_hook"
+                | "code_download"
+                | "credential_path"
+                | "persistence"
+                | "privilege"
+                | "host_mount"
+                | "network_reference"
+                | "format_mismatch"
+                | "analyzer_detection"
+                | "unknown"
+        )
+        || !matches!(
+            finding.severity.as_str(),
+            "informational" | "low" | "medium" | "high" | "critical"
+        )
+        || !matches!(
+            finding.confidence.as_str(),
+            "confirmed" | "high" | "medium" | "low" | "unknown"
+        )
+        || !valid_schema_name(&finding.method)
+    {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    let expected = match finding.classification.as_str() {
+        "observed"
+            if finding.trust == "untrusted_workspace_content"
+                && finding.analyzer_identity.is_none()
+                && finding.ruleset_digest.is_none() =>
+        {
+            let evidence_id = finding
+                .evidence_id
+                .as_deref()
+                .ok_or_else(|| AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch))?;
+            if !valid_sha256(evidence_id) {
+                return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+            }
+            structured_identity(
+                "security-finding",
+                &FindingIdentity {
+                    workspace_snapshot: &finding.workspace_snapshot,
+                    artifact_hash: &finding.artifact_hash,
+                    evidence_id,
+                    category: &finding.category,
+                    method: &finding.method,
+                },
+            )?
+        }
+        "derived" if finding.trust == "untrusted_derived_data" && finding.evidence_id.is_none() => {
+            let analyzer_identity = finding
+                .analyzer_identity
+                .as_deref()
+                .filter(|value| valid_sha256(value))
+                .ok_or_else(|| AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch))?;
+            let ruleset_digest = finding
+                .ruleset_digest
+                .as_deref()
+                .filter(|value| valid_sha256(value))
+                .ok_or_else(|| AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch))?;
+            structured_identity(
+                "security-finding",
+                &DerivedFindingIdentity {
+                    workspace_snapshot: &finding.workspace_snapshot,
+                    artifact_hash: &finding.artifact_hash,
+                    analyzer_identity,
+                    ruleset_digest,
+                    category: &finding.category,
+                    method: &finding.method,
+                },
+            )?
+        }
+        _ => return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch)),
+    };
+    if expected != finding.finding_id {
+        return Err(AdmissionError::new(AdmissionErrorCode::WorkspaceMismatch));
+    }
+    Ok(())
+}
+
 struct AssessmentComponents {
     finding_ids: Vec<String>,
     completeness: String,

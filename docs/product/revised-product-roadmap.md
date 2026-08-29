@@ -64,11 +64,13 @@ fixture provenance. HRA-2 is complete with closed npm lifecycle and canonical
 Compose privileged-service corpora plus exact key-token evidence. HRA-3 is
 complete with deterministic unavailable-by-default analyzer coverage planning,
 closed synthetic result intake through ADR-0013 normalization, and immutable
-assessment assembly. None of these records authorizes scanner execution,
-repository execution, artifact upload, threat-intelligence access, or VM/cloud
-provisioning. Each implementation increment remains gated by its proposed ADR
-and an explicit founder-approved threat model, platform, supply-chain, privacy,
-and release-evidence scope.
+assessment assembly. HRA-4 is complete as a separate pure deterministic
+evaluator with monotonic restriction, explicit incomplete-analysis handling,
+and no exception or ordinary-host authorization input. None of these components
+authorizes scanner execution, repository execution, artifact upload,
+threat-intelligence access, or VM/cloud provisioning. Each implementation
+increment remains gated by its proposed ADR and an explicit founder-approved
+threat model, platform, supply-chain, privacy, and release-evidence scope.
 
 ## Parallel Client Integration Depth Track
 
