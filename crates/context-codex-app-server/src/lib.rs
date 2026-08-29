@@ -1144,9 +1144,10 @@ mod tests {
     fn transport_requires_a_separate_real_operator_codex_home() {
         let runtime = TestRoot::new("runtime-parent");
         let codex_home = TestRoot::new("authenticated-home");
+        let test_binary = std::env::current_exe().expect("current test binary");
         let before = fs::read_dir(&codex_home.0).expect("read home").count();
         let transport = StdioCodexAppServerTransport::new(
-            PathBuf::from("/bin/sh"),
+            test_binary.clone(),
             runtime.0.clone(),
             codex_home.0.clone(),
         )
@@ -1163,7 +1164,7 @@ mod tests {
         );
         assert!(matches!(
             StdioCodexAppServerTransport::new(
-                PathBuf::from("/bin/sh"),
+                test_binary,
                 runtime.0.clone(),
                 runtime.0.join("nested-home"),
             ),
