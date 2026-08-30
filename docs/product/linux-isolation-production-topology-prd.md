@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Accepted; source-free feasibility contract and read-only rootless host preflight implemented
+- Status: Accepted; rootless exact-host synthetic rehearsal passed on the admitted hosted matrix
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -102,9 +102,12 @@ The topology decision and bounded rootless host-observation slice are complete.
 The observer reads only fixed Linux platform metadata and returns a closed
 eligibility receipt. It does not launch a process, contact D-Bus, mutate a
 service or cgroup, record raw paths, request privilege, or inspect workspace
-source. The source-free transient-user-unit synthetic rehearsal is implemented
-only for preflight-ready ephemeral hosted targets and is awaiting exact-host
-results. It uses one collected foreground user service and the existing
-complete composite; preflight-ineligible hosts skip without fallback. Production
-admission, real analyzers, repository input, automatic repair, privileged
-fallback, and persistent service installation remain closed.
+source. The source-free transient-user-unit synthetic rehearsal passed on all
+three preflight-ready hosted targets: Ubuntu 24.04 x86_64, Ubuntu 24.04 arm64,
+and Ubuntu 26.04 x86_64. It used one collected foreground user service and the
+existing complete composite. Ubuntu 22.04 x86_64 remained ineligible and
+skipped without attempting a unit or fallback. These are exact-host synthetic
+candidate results, not production admission. The externally managed profile,
+release and lifecycle gates, real analyzers, repository input, automatic
+repair, privileged fallback, and persistent service installation remain
+closed.

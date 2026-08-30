@@ -58,8 +58,24 @@ ruby scripts/check-linux-rootless-user-manager-rehearsal.rb
 
 ## Next Gate
 
-Hosted evidence must now reproduce the candidate on each preflight-ready target.
-Passing is exact-host candidate evidence only. Production support still needs a
-frozen rootless maintenance/release matrix, clean install/upgrade/logout/login/
-rollback/uninstall lifecycle evidence, and independent handling of the selected
-externally managed profile. IAR-2 and real analyzers remain closed.
+PR 138 run `33294099301` reproduced the candidate on every preflight-ready
+target without sudo, a privileged service, or a persistent unit:
+
+- Ubuntu 24.04 x86_64, kernel `6.17.0-1022-azure`, job `99210693873`:
+  `candidate_passed`; transient unit created and collected; composite receipt
+  `d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c`;
+- Ubuntu 24.04 arm64, kernel `6.17.0-1022-azure`, job `99210693845`:
+  `candidate_passed`; transient unit created and collected; composite receipt
+  `7633048a5dfb5f0172efe4dbdf925ba51aa5adfa9b435a273091e3fb3c27731d`;
+- Ubuntu 26.04 x86_64, kernel `7.0.0-1012-azure`, job `99210693871`:
+  `candidate_passed`; transient unit created and collected; composite receipt
+  `0daae8d668a69b7cc4637796a7fab497e44776e86586ae522ba17d6b1da85ffb`;
+- Ubuntu 22.04 x86_64, kernel `6.8.0-1064-azure`, job `99210693750`:
+  `skipped_preflight`; no unit was attempted or created because CPU delegation
+  was unavailable.
+
+These are exact-host rootless synthetic candidates only. Production support
+still needs a frozen rootless maintenance/release matrix, clean install,
+upgrade, logout/login, rollback, and uninstall lifecycle evidence, plus
+independent admission of the selected externally managed profile. IAR-2 and
+real analyzers remain closed.
