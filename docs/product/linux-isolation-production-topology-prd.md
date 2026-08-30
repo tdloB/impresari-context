@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Accepted; rootless candidate passed and external live rehearsal implemented
+- Status: Accepted; both selected profiles have independent exact-host synthetic candidates
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -113,7 +113,9 @@ configurable slots, descriptor leakage, and every production authority rejected.
 The live external rehearsal is now implemented in a dedicated ephemeral hosted
 job: one operator-created transient service supplies descriptor slot 3, the
 unprivileged receiver revalidates the boundary, and the complete synthetic
-corpus plus both descendant and service cleanup must pass together. Hosted
-evidence is pending. Release and lifecycle gates, real analyzers, repository
-input, automatic repair, privileged fallback inside Impresari, and persistent
-service installation remain closed.
+corpus plus both descendant and service cleanup must pass together. PR 140 run
+`33295514984` passed that complete gate on Ubuntu 24.04 x86_64, kernel
+`6.17.0-1022-azure`. The rootless and externally managed profiles now have
+independent exact-host synthetic candidate evidence. Release and lifecycle
+gates, real analyzers, repository input, automatic repair, privileged fallback
+inside Impresari, and persistent service installation remain closed.

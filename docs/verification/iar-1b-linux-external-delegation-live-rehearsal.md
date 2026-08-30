@@ -58,3 +58,24 @@ The live script is restricted to ephemeral GitHub-hosted Linux and cannot run a
 real analyzer or use repository-derived input. A pass remains exact-host
 synthetic candidate evidence; production, package publication, and IAR-2 stay
 closed until lifecycle and maintenance gates pass.
+
+## Hosted Evidence
+
+PR 140 run `33295514984`, job `99214382834`, passed on Ubuntu 24.04 x86_64,
+kernel `6.17.0-1022-azure`:
+
+- the provisioner service was created and collected;
+- operator privilege was used only for that ephemeral service and Impresari
+  privilege use remained false;
+- descriptor slot 3 was received, verified as a directory, and marked
+  close-on-exec without accepting or recording a raw path;
+- unified cgroup v2, ownership, process containment, exclusive descendants,
+  writability, and CPU/memory/pids delegation all revalidated true;
+- the complete composite passed with receipt identity
+  `d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c`;
+- delegated descendants were removed; and
+- production, real analyzers, and privileged installation remained false.
+
+This independently establishes the selected external profile as an exact-host
+synthetic candidate. It does not convert operator provisioning into an
+Impresari privilege requirement or admit production.
