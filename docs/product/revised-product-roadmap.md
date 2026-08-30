@@ -186,10 +186,15 @@ ADR-0078 now frames that decision. The recommended first production-feasibility
 topology uses only an existing systemd user-manager delegation, with a separate
 explicit profile for administrator/orchestrator-provided delegated subtrees.
 Automatic sudo/pkexec fallback, a privileged daemon, and an administrator-
-installed unit are excluded from the first slice. This is proposed, not yet
-accepted: the founder must choose whether the intentionally narrow rootless-
-first coverage is preferable to the broader but privileged installation
-surface before implementation continues.
+installed unit are excluded from the first slice. The founder accepted this
+rootless-plus-externally-managed direction on 2026-08-30. The administrator-
+provisioned profile remains deferred unless measured unsupported attempts exceed
+10% and that profile would recover at least half. The closed topology policy and
+source-free evaluator now exercise both selected profiles and deterministically
+reject unavailable, unsupported, insufficient, invalid, and privileged-service
+paths without host discovery or authority. The next checkpoint is bounded
+source-free host preflight on independently pinned targets followed by the full
+synthetic confinement corpus; production and IAR-2 remain closed.
 
 ## Parallel Client Integration Depth Track
 

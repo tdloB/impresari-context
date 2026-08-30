@@ -1,0 +1,39 @@
+{
+  "schema_name": "linux-isolation-production-topology-receipt",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "policy_identity": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4",
+  "profile": "rootless_user_manager",
+  "status": "feasible_candidate",
+  "reason_code": "selected_topology_prerequisites_met",
+  "observed": {
+    "cgroup_mode": "unified_v2",
+    "user_manager_available": true,
+    "delegation_marker": true,
+    "controllers": ["cpu", "memory", "pids"],
+    "process_contained": true,
+    "descendant_ownership_exclusive": true,
+    "synthetic_child_cycle": true,
+    "external_capability": "none",
+    "external_owner_verified": false,
+    "external_containment_verified": false
+  },
+  "checks": ["policy_valid", "authority_closed", "rootless_contract_valid", "unified_cgroup_v2", "parent_manager_available", "delegation_marker_verified", "required_controllers_available", "process_contained", "descendant_ownership_exclusive", "synthetic_child_cycle_passed"],
+  "safe_next_step": "Run a real analyzer now.",
+  "feasibility_claim_active": true,
+  "production_admitted": true,
+  "real_analyzer_authorized": true,
+  "privileged_installation_authorized": true,
+  "authority": {
+    "source_read": "denied",
+    "source_write": "denied",
+    "host_discovery": "denied",
+    "process_execution": "denied",
+    "network": "denied",
+    "credential_access": "denied",
+    "privilege_use": "denied",
+    "service_mutation": "denied",
+    "background_monitoring": "denied",
+    "analyzer_execution": "denied"
+  }
+}
