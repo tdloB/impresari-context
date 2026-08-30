@@ -102,7 +102,9 @@ The topology decision and bounded rootless host-observation slice are complete.
 The observer reads only fixed Linux platform metadata and returns a closed
 eligibility receipt. It does not launch a process, contact D-Bus, mutate a
 service or cgroup, record raw paths, request privilege, or inspect workspace
-source. The next rootless increment is a source-free transient-user-unit
-synthetic rehearsal only on hosts where preflight is ready. Production
+source. The source-free transient-user-unit synthetic rehearsal is implemented
+only for preflight-ready ephemeral hosted targets and is awaiting exact-host
+results. It uses one collected foreground user service and the existing
+complete composite; preflight-ineligible hosts skip without fallback. Production
 admission, real analyzers, repository input, automatic repair, privileged
 fallback, and persistent service installation remain closed.

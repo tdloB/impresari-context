@@ -1,7 +1,7 @@
 {
   "schema_name": "linux-isolation-fixture-provenance",
   "schema_version": "1.0.0",
-  "reviewed_at": "2026-08-30T20:00:00Z",
+  "reviewed_at": "2026-08-30T21:00:00Z",
   "review_status": "approved_original_synthetic_only",
   "contains_executable_artifacts": false,
   "contains_malware_or_live_signatures": false,
@@ -26,6 +26,8 @@
     {"path": "valid/linux-isolation-production-topology-receipt.json", "sha256": "2c41e489610866438eef97c9e209846aa89b3fa686ba6e3dc676032211d0dce4", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free rootless topology feasibility candidate with all production and analyzer authority closed"},
     {"path": "invalid/linux-isolation-production-topology-overclaim.json", "sha256": "6e53746ac0132e2e64b73d4bf158e485d35816874ef5d910db9b3ca16565cc8e", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject topology feasibility evidence that attempts to authorize production, analyzers, or privileged installation"},
     {"path": "valid/linux-rootless-host-preflight-ready.json", "sha256": "da514a8b56c5aa5f4169f391d4a61f11b1caaa99ca18e163bb9380e780ed6251", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "bounded ready-state host preflight with synthetic execution and every production authority closed"},
-    {"path": "invalid/linux-rootless-host-preflight-overclaim.json", "sha256": "cb3f22c29c09c589d973d1ea659248e7ac1cdd752faeda4e14db6918c1f474a9", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject host preflight evidence that attempts to claim OS confinement or authorize production and analyzers"}
+    {"path": "invalid/linux-rootless-host-preflight-overclaim.json", "sha256": "cb3f22c29c09c589d973d1ea659248e7ac1cdd752faeda4e14db6918c1f474a9", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject host preflight evidence that attempts to claim OS confinement or authorize production and analyzers"},
+    {"path": "valid/linux-rootless-user-manager-rehearsal-candidate.json", "sha256": "e9464f9103f04b2c0610a3e3d81cc4bfb48ade2d5e024491890ac688ea2d96a5", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "closed exact-host candidate receipt for a complete synthetic composite below one transient rootless user unit"},
+    {"path": "invalid/linux-rootless-user-manager-rehearsal-overclaim.json", "sha256": "be607fbe51dbe6cc376b3ab9990f5f51aa7380b8d7d129f7ac4290d6d4a79fc4", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject rootless rehearsal evidence with persistent-service, cleanup, production, or real-analyzer overclaims"}
   ]
 }
