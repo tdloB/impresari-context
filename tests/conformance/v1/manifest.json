@@ -34,6 +34,7 @@
     {"fixture": "valid/iar-linux-synthetic-profile.json", "schema": "linux-isolation-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/linux-isolation-feasibility-unsupported.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
     {"fixture": "valid/linux-isolation-feasibility-candidate.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
+    {"fixture": "valid/linux-isolation-feasibility-arm64-candidate.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
     {"fixture": "valid/iar-linux-cgroup-synthetic-profile.json", "schema": "linux-cgroup-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/linux-cgroup-feasibility-candidate.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},

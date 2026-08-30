@@ -58,12 +58,21 @@ single-service composition and does not reinterpret the earlier receipt.
 
 ## Independent architecture checkpoint
 
-The next candidate is GitHub's standard ephemeral `ubuntu-24.04-arm` runner.
+The next candidate used GitHub's standard ephemeral `ubuntu-24.04-arm` runner.
 The probe has a separately architecture-pinned AArch64 audit identity and
 default-deny syscall filter; it does not reuse or treat the x86_64 filter as
 portable evidence. The dedicated job runs only the original-synthetic primitive
-and single-service composite checkpoints. Its result remains pending and cannot
-inherit the x86_64 pass.
+and single-service composite checkpoints. It did not inherit the x86_64 pass.
+
+PR 132 job `99198568879` passed on kernel `6.17.0-1022-azure`, architecture
+`aarch64`, and Landlock ABI 7. The exact checkpoint summary was:
+
+```text
+Linux composite IAR-1B feasibility: result=candidate_passed kernel=6.17.0-1022-azure arch=aarch64 Landlock ABI=7
+```
+
+The result independently admits that exact arm64 candidate only. It does not
+broaden either architecture to other kernels or distributions.
 
 Runner availability is grounded in GitHub's current
 [hosted-runner documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job).
