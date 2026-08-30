@@ -63,7 +63,7 @@ if id -nG "$username" | tr ' ' '\n' | grep -Eq '^(sudo|wheel)$'; then
   exit 4
 fi
 /usr/bin/loginctl disable-linger "$username" >/dev/null 2>&1 || true
-[[ "$(/usr/bin/loginctl show-user "$username" --property=Linger --value)" == no ]] || exit 4
+[[ ! -e "/var/lib/systemd/linger/$username" ]] || exit 4
 
 bundle="$home_dir/bundle"
 mkdir -p -- "$bundle" "$home_dir/.local/bin" "$home_dir/.ssh"
