@@ -67,8 +67,9 @@ AI-assisted evidence is not an independent audit.
 - Independent human security and release review was not an open `v0.1.0`
   blocker. The post-v0.1.0 external-client, authentication-reference, and child-
   process boundaries now satisfy ADR-0017's earlier-review trigger. ADR-0083
-  makes an attributable independent human report mandatory for the proposed
-  v0.2.0 scope.
+  makes an attributable independent human report mandatory before the proposed
+  v0.2.0 tag or publication. ADR-0084 backlogs reviewer engagement until the
+  final release candidate is frozen; ordinary roadmap development may continue.
 
 ## Current release status
 
@@ -76,9 +77,10 @@ There is no open `v0.1.0` publication gate. Future releases still require an
 exact-commit hosted native matrix, clean-install evidence, checksums,
 provenance attestations, reviewed release notes, and explicit owner
 authorization. The provenance policy and implementation are recorded in
-ADR-0016. The proposed v0.2.0 feature release remains
-`manual_review_required`; no tag or publication is authorized by review
-readiness work.
+ADR-0016. The proposed v0.2.0 feature release remains review-gated. The current
+scheduling state permits continued development but no tag or publication; the
+prepared scope must be refreshed against the final candidate before review
+admission.
 
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 

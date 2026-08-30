@@ -6,6 +6,10 @@ Provide an attributable independent human reviewer with a complete, exact, and
 bounded assessment package for the next feature release, then admit the review
 gate only from a report bound to the reviewed product commit.
 
+ADR-0084 schedules reviewer engagement after the final v0.2.0 product candidate
+is frozen. Ongoing roadmap development is not blocked; tagging and publication
+remain blocked until the refreshed candidate review is admitted.
+
 ## Requirements
 
 1. Pin the intended version, product commit, boundary triggers, review areas,
@@ -23,6 +27,9 @@ gate only from a report bound to the reviewed product commit.
    authorization false even after the review gate is satisfied.
 6. Re-run normal release-candidate, packaging, provenance, and owner gates after
    review; do not infer them from the report.
+7. Preserve the prepared scope as historical planning evidence, require a new
+   exact scope after intervening product changes, and never treat the prepared
+   commit as review coverage for a descendant release.
 
 ## Non-goals
 
@@ -43,3 +50,6 @@ gate only from a report bound to the reviewed product commit.
 - Conformance rejects a manual-review receipt that claims admission or
   publication authority.
 - The complete repository gate runs the new evaluator check.
+- A separate backlog receipt proves that roadmap development may continue while
+  review admission, tagging, publication, production support, and real-analyzer
+  authorization remain false.

@@ -1,9 +1,9 @@
 # ADR-0083: v0.2 Independent Security Review Gate
 
-- Status: Accepted for review preparation; manual review required
+- Status: Accepted; release gate retained, scheduling amended by ADR-0084
 - Date: 2026-08-30
 - Deciders: Founder and maintainers
-- Related: ADR-0015, ADR-0017, ADR-0074, ADR-0082
+- Related: ADR-0015, ADR-0017, ADR-0074, ADR-0082, ADR-0084
 
 ## Context
 
@@ -52,3 +52,8 @@ production support, or authorize real analyzers.
   non-independent review, and blocking findings.
 - Publication remains a separate owner and GitHub release-environment action.
 - Existing v0.1.0 artifacts and claims are unchanged.
+
+ADR-0084 subsequently backlogs reviewer engagement until the final v0.2.0
+release-candidate scope is frozen. That scheduling change does not waive this
+gate: roadmap development may continue, but no v0.2.0 tag or publication may
+occur until a refreshed exact-source review is admitted.

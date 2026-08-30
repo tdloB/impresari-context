@@ -42,6 +42,7 @@ jobs:
             echo "CHANGELOG.md still marks $version as unreleased" >&2
             exit 2
           fi
+          ruby scripts/enforce-v0-2-independent-review-release-gate.rb "$RELEASE_TAG" "$SOURCE_SHA"
           printf 'version=%s\n' "$version" >> "$GITHUB_OUTPUT"
 
   package:

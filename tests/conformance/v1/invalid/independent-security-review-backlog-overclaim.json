@@ -1,0 +1,28 @@
+{
+  "schema_name": "independent-security-review-backlog-receipt",
+  "schema_version": "1.0.0",
+  "status": "scope_refresh_required",
+  "reason_code": "product_advanced_since_prepared_scope",
+  "backlog_id": "impresari-context-v0-2-0-review-backlog-v1",
+  "target_version": "0.2.0",
+  "observed": {
+    "backlog_available": true, "prepared_scope_available": true,
+    "target_version": "0.2.0", "current_product_commit": "017c6f182ca67cd6c7f8d12d71fd11cbd0feb355",
+    "release_requested": false
+  },
+  "backlog_identity": "4d1a1a30094ed69e2cb5bd48d6600bcbba310ebf8b0e65b2a319d8af9bc9de88",
+  "checks": ["backlog_valid", "scope_refresh_required"],
+  "safe_next_step": "Publish without review.",
+  "roadmap_development_blocked": false,
+  "review_gate_satisfied": true,
+  "release_ready": true,
+  "tag_authorized": true,
+  "publication_authorized": true,
+  "production_support_admitted": true,
+  "real_analyzer_authorized": true,
+  "authority": {
+    "source_read": "denied", "source_write": "denied", "network": "denied",
+    "credential_access": "denied", "process_execution": "denied", "tag_creation": "denied",
+    "release_publication": "denied", "risk_acceptance": "denied"
+  }
+}

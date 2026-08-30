@@ -16,6 +16,77 @@
       },
       "additionalProperties": false
     },
+    "backlog": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "backlog_id", "target_version", "decision", "decision_date", "prepared_scope_sha256", "prepared_product_source_commit", "refresh_triggers", "review_requirement", "claim", "safe_next_step"],
+      "properties": {
+        "schema_name": {"const": "independent-security-review-backlog"},
+        "schema_version": {"const": "1.0.0"},
+        "backlog_id": {"const": "impresari-context-v0-2-0-review-backlog-v1"},
+        "target_version": {"const": "0.2.0"},
+        "decision": {"const": "deferred_to_release_candidate"},
+        "decision_date": {"const": "2026-08-30"},
+        "prepared_scope_sha256": {"$ref": "#/$defs/sha256"},
+        "prepared_product_source_commit": {"$ref": "#/$defs/commit"},
+        "refresh_triggers": {
+          "type": "array", "minItems": 5, "maxItems": 5, "uniqueItems": true,
+          "items": {"enum": ["production_source_changed", "runtime_schema_changed", "packaged_workflow_changed", "security_policy_changed", "required_artifact_changed"]}
+        },
+        "review_requirement": {
+          "type": "object",
+          "required": ["mandatory_before_tag", "mandatory_before_publication", "development_may_continue", "prepared_scope_may_not_admit_changed_source"],
+          "properties": {
+            "mandatory_before_tag": {"const": true}, "mandatory_before_publication": {"const": true},
+            "development_may_continue": {"const": true}, "prepared_scope_may_not_admit_changed_source": {"const": true}
+          },
+          "additionalProperties": false
+        },
+        "claim": {
+          "type": "object",
+          "required": ["roadmap_development_blocked", "review_gate_satisfied", "release_ready", "tag_authorized", "publication_authorized", "production_support_admitted", "real_analyzer_authorized"],
+          "properties": {
+            "roadmap_development_blocked": {"const": false}, "review_gate_satisfied": {"const": false},
+            "release_ready": {"const": false}, "tag_authorized": {"const": false},
+            "publication_authorized": {"const": false}, "production_support_admitted": {"const": false},
+            "real_analyzer_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 400}
+      },
+      "additionalProperties": false
+    },
+    "backlogReceipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "status", "reason_code", "backlog_id", "target_version", "observed", "backlog_identity", "checks", "safe_next_step", "roadmap_development_blocked", "review_gate_satisfied", "release_ready", "tag_authorized", "publication_authorized", "production_support_admitted", "real_analyzer_authorized", "authority"],
+      "properties": {
+        "schema_name": {"const": "independent-security-review-backlog-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "status": {"enum": ["development_continues", "scope_refresh_required", "review_required_before_release", "missing_evidence", "changed", "unsupported"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "backlog_id": {"const": "impresari-context-v0-2-0-review-backlog-v1"},
+        "target_version": {"const": "0.2.0"},
+        "observed": {
+          "type": "object",
+          "required": ["backlog_available", "prepared_scope_available", "target_version", "current_product_commit", "release_requested"],
+          "properties": {
+            "backlog_available": {"type": "boolean"}, "prepared_scope_available": {"type": "boolean"},
+            "target_version": {"type": "string", "maxLength": 40},
+            "current_product_commit": {"type": "string", "maxLength": 40},
+            "release_requested": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "backlog_identity": {"$ref": "#/$defs/sha256"},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 400},
+        "roadmap_development_blocked": {"const": false}, "review_gate_satisfied": {"const": false},
+        "release_ready": {"const": false}, "tag_authorized": {"const": false},
+        "publication_authorized": {"const": false}, "production_support_admitted": {"const": false},
+        "real_analyzer_authorized": {"const": false}, "authority": {"$ref": "#/$defs/authority"}
+      },
+      "additionalProperties": false
+    },
     "scope": {
       "type": "object",
       "required": ["schema_name", "schema_version", "scope_id", "target_version", "product_source_commit", "status", "triggered_boundaries", "review_areas", "required_artifacts", "reviewer_requirements", "finding_policy", "claim", "safe_next_step"],

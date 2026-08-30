@@ -5,7 +5,8 @@
 - Document ID/version: IC-SEC-001 / 0.1.
 - Status: Founder-approved security design baseline; implementation evidence
   remains required. ADR-0017 governs independent review for `v0.1.0`; its
-  earlier-review trigger is active for the proposed v0.2.0 scope under ADR-0083.
+  earlier-review trigger is active for the proposed v0.2.0 scope under ADR-0083;
+  ADR-0084 defers engagement until candidate freeze without waiving the gate.
 - Date: 2026-08-20.
 - Initial scope: Slice A — Verifiable Local Context MVP plus the authorized
   Slice B structural-worker boundary in ADR-0010.
