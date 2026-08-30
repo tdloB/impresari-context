@@ -79,6 +79,13 @@ The candidate remains `partial`, with `os_confined` and
 - the complete Tier A escape and mutation corpus; and
 - evidence on every macOS version and architecture the release claims.
 
+The subsequent Tier A checkpoint found material failures before those release
+gates: a service could write multiple individually legal files beyond any
+aggregate job-disk ceiling, and a fresh service process could read a synthetic
+marker retained by the preceding job. Signing, notarization, and packaging
+cannot correct those runtime properties. The selected topology therefore stays
+at IAR-1A and is not advanced to production signing as an IAR-1B backend.
+
 No real analyzer, repository artifact, production signing credential,
 notarization submission, release upload, or Homebrew publication was used.
 

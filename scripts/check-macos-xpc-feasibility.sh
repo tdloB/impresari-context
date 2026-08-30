@@ -205,6 +205,86 @@ if ! jq -e \
 fi
 wait_for_process_exit "$profile_service_pid"
 
+aggregate_receipt="$output_root/aggregate-disk.json"
+aggregate_errors="$output_root/aggregate-disk.stderr"
+run_probe aggregate_disk "$aggregate_receipt" "$aggregate_errors" 1
+aggregate_service_pid=$(validate_preparation "$aggregate_errors" aggregate_disk)
+if ! jq -e '
+  .schema_name == "macos-xpc-tier-a-probe-receipt" and
+  .schema_version == "1.0.0" and
+  .probe_mode == "aggregate_disk" and
+  (.service_process_id > 1) and
+  (.aggregate_bytes_written >= 0 and .aggregate_bytes_written <= 9437184) and
+  (.aggregate_disk_bound_verified == (.aggregate_bytes_written <= 8388608)) and
+  .cross_job_marker_observed == false and
+  .cross_job_isolation_verified == false and
+  .cleanup_verified == true and
+  .os_confined == false and
+  .production_admitted == false and
+  .source_retained == false and
+  .authority_added == false
+' "$aggregate_receipt" >/dev/null; then
+  echo "aggregate disk feasibility evidence was not reproduced" >&2
+  exit 20
+fi
+aggregate_summary=$(jq -r '
+  "aggregate disk evidence: \(.aggregate_bytes_written) bytes; bound_verified=\(.aggregate_disk_bound_verified)"
+' "$aggregate_receipt")
+printf '%s\n' "$aggregate_summary"
+wait_for_process_exit "$aggregate_service_pid"
+
+cross_job_seed_receipt="$output_root/cross-job-seed.json"
+cross_job_seed_errors="$output_root/cross-job-seed.stderr"
+run_probe cross_job_seed "$cross_job_seed_receipt" "$cross_job_seed_errors" 1
+cross_job_seed_pid=$(validate_preparation "$cross_job_seed_errors" cross_job_seed)
+if ! jq -e '
+  .schema_name == "macos-xpc-tier-a-probe-receipt" and
+  .schema_version == "1.0.0" and
+  .probe_mode == "cross_job_seed" and
+  (.service_process_id > 1) and
+  .aggregate_bytes_written == 0 and
+  .aggregate_disk_bound_verified == false and
+  .cross_job_marker_observed == false and
+  .cross_job_isolation_verified == false and
+  .cleanup_verified == false and
+  .os_confined == false and
+  .production_admitted == false and
+  .source_retained == true and
+  .authority_added == false
+' "$cross_job_seed_receipt" >/dev/null; then
+  echo "cross-job seed was not retained for the synthetic escape probe" >&2
+  exit 21
+fi
+wait_for_process_exit "$cross_job_seed_pid"
+
+cross_job_observe_receipt="$output_root/cross-job-observe.json"
+cross_job_observe_errors="$output_root/cross-job-observe.stderr"
+run_probe cross_job_observe "$cross_job_observe_receipt" "$cross_job_observe_errors" 1
+cross_job_observe_pid=$(validate_preparation "$cross_job_observe_errors" cross_job_observe)
+if [ "$cross_job_observe_pid" = "$cross_job_seed_pid" ]; then
+  echo "cross-job probe did not cross an XPC service process boundary" >&2
+  exit 22
+fi
+if ! jq -e '
+  .schema_name == "macos-xpc-tier-a-probe-receipt" and
+  .schema_version == "1.0.0" and
+  .probe_mode == "cross_job_observe" and
+  (.service_process_id > 1) and
+  .aggregate_bytes_written == 0 and
+  .aggregate_disk_bound_verified == false and
+  .cross_job_marker_observed == true and
+  .cross_job_isolation_verified == false and
+  .cleanup_verified == true and
+  .os_confined == false and
+  .production_admitted == false and
+  .source_retained == false and
+  .authority_added == false
+' "$cross_job_observe_receipt" >/dev/null; then
+  echo "cross-job persistence feasibility evidence was not reproduced" >&2
+  exit 23
+fi
+wait_for_process_exit "$cross_job_observe_pid"
+
 cpu_receipt="$output_root/cpu-limit.json"
 cpu_errors="$output_root/cpu-limit.stderr"
 run_probe cpu_limit "$cpu_receipt" "$cpu_errors" 1
@@ -313,4 +393,4 @@ case "$service_entitlements" in
 esac
 
 trap - EXIT HUP INT TERM
-echo "macOS App Sandbox XPC hybrid resource and lifecycle feasibility passed"
+echo "macOS App Sandbox XPC hybrid feasibility evidence completed; candidate remains partial"

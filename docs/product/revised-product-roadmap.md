@@ -101,6 +101,14 @@ signing/notarization, cask lifecycle, clean-machine Gatekeeper, the full Tier A
 corpus, and every claimed macOS host pass. No privileged daemon, private API,
 persistent service, or VM fallback is added.
 
+The first decisive Tier A probes then found material gaps in that exact
+topology: multiple individually legal files exceeded any aggregate job-disk
+ceiling, and a fresh XPC service process read a synthetic marker retained by a
+preceding job. The candidate remains useful defense-in-depth, and ADR-0076
+Option C remains the packaging choice, but macOS XPC is not advanced to
+Developer ID rehearsal as an IAR-1B backend. The next OS-confinement feasibility
+increment moves to Linux while macOS remains IAR-1A.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

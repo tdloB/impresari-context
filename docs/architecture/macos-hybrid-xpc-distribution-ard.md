@@ -95,4 +95,8 @@ must not assume their artifacts or acceptance gates are interchangeable.
 5. Clean-machine Gatekeeper and supported-macOS matrix.
 6. Reviewed tap update and explicit release publication.
 
-Stages 3 through 6 cannot be inferred from the successful ad hoc prototype.
+Stages 3 through 6 cannot be inferred from the ad hoc prototype. The subsequent
+Tier A checkpoint found aggregate-disk and cross-job-container isolation
+failures, so stages 3 through 6 are not pursued as IAR-1B admission gates for
+this exact runtime topology. Option C remains the packaging architecture for a
+future admitted macOS backend or defense-in-depth distribution.

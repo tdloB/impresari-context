@@ -2,7 +2,7 @@
 
 - Date: 2026-08-29
 - Decision: ADR-0074
-- Prototype: `iar-macos-xpc-hybrid-feasibility-v3`
+- Prototype: `iar-macos-xpc-hybrid-feasibility-v4`
 - Result: Partial; not production-admitted
 
 ## Scope
@@ -72,9 +72,17 @@ network authority, analyzer execution, unknown fields, mismatched identity,
 partial readiness, retained source, and premature confinement or production
 claims.
 
+The first decisive Tier A probes then demonstrated two remaining escapes. Nine
+separately closed 1 MiB files exceeded the effective 8 MiB per-file limit in
+aggregate, and a fresh XPC service process read a synthetic marker left by the
+preceding service process in the shared service container. Both probes cleaned
+up their synthetic files after recording the result. The detailed checkpoint
+is [IAR-1B macOS Tier A checkpoint](iar-1b-macos-tier-a-checkpoint.md).
+
 ## Unresolved gates
 
-This prototype does not establish the full Tier A escape and mutation corpus,
+This prototype fails the aggregate-disk and cross-job-isolation portions of the
+Tier A corpus and does not establish the remaining complete corpus,
 production signing/notarization, packaging, clean-machine behavior, or
 multi-host compatibility. Its device, CPU, address-space-growth, process-count,
 descendant, descriptor, file-size, crash/relaunch, exact-target timeout, and
@@ -92,15 +100,14 @@ notarization credential was inspected or used.
 
 ## Decision consequence
 
-The subsequent
+The
 [resource and lifecycle decision](iar-1b-macos-resource-lifecycle-decision.md)
-corrects the earlier all-in-one assumption and selects the hybrid architecture
-for continued feasibility. The App Sandbox/XPC layer supplies access
-confinement, the in-service harness applies irreversible resource limits, and
-the Rust supervisor owns exact-target wall-time termination and cleanup.
-ADR-0076 selects one CLI-compatible Homebrew cask as the intended release
-topology. The candidate remains partial and does not yet admit macOS or open
-IAR-2 YARA execution.
+corrected the earlier all-in-one assumption and selected the hybrid architecture
+for continued feasibility. The decisive Tier A checkpoint now shows that exact
+topology is insufficient for IAR-1B without another confinement layer. ADR-0076
+still selects one CLI-compatible Homebrew cask as the intended packaging
+topology, but packaging cannot convert the failed runtime boundaries into an
+admission. macOS remains IAR-1A and IAR-2 YARA execution stays closed.
 
 ## Reproduction
 

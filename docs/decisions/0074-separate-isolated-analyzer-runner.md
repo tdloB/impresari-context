@@ -158,6 +158,15 @@ notarization, ADR-0076 cask lifecycle, clean-machine Gatekeeper, the full Tier A
 corpus, and multi-host evidence remain mandatory. Privileged launch daemons,
 private APIs, persistent services, and VMs remain outside this decision.
 
+The subsequent Tier A checkpoint materially fails the selected macOS topology:
+the service can exceed a job-wide temporary-disk ceiling through multiple
+individually legal files, and a fresh service process can read a synthetic
+marker retained by the preceding job in the shared service container. Signing,
+notarization, and cask packaging cannot correct these runtime properties.
+macOS therefore remains at IAR-1A; the XPC design is retained as
+defense-in-depth and a future reconsideration point, while IAR-1B feasibility
+advances independently on Linux.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

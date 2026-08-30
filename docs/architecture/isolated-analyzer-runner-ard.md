@@ -131,6 +131,13 @@ the full Tier A corpus, OS-managed removal, and multi-host evidence remain hard
 gates. No privileged daemon, private API, persistent service, or VM is
 introduced.
 
+The decisive Tier A follow-up demonstrates that the selected unprivileged XPC
+topology has no hard aggregate per-job disk quota and reuses the service
+container across fresh service processes. These are runtime isolation failures,
+not packaging failures. The macOS candidate is therefore not advanced to
+Developer ID or cask rehearsal as an IAR-1B backend. ADR-0076 remains the
+packaging topology if a future macOS confinement layer is admitted.
+
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
 Windows candidate composes AppContainer or a restricted token, explicit staged-

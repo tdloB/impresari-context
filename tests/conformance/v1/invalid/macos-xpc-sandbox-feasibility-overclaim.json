@@ -1,7 +1,7 @@
 {
   "schema_name": "macos-xpc-sandbox-feasibility",
-  "schema_version": "1.2.0",
-  "prototype_id": "iar-macos-xpc-hybrid-feasibility-v3",
+  "schema_version": "1.3.0",
+  "prototype_id": "iar-macos-xpc-hybrid-feasibility-v4",
   "observed_host": {
     "operating_system": "macos",
     "version": "26.5.1",
@@ -27,6 +27,8 @@
     "memory_limit": false,
     "process_count_limit": false,
     "descendant_containment": false,
+    "aggregate_disk_bound": false,
+    "cross_job_isolation": false,
     "bounded_request": true,
     "bounded_reply": true,
     "source_free_launch_contract": true,

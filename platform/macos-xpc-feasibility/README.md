@@ -17,3 +17,10 @@ Passing this prototype does not admit a production macOS analyzer backend or
 set `os_confined` to true. Developer ID signing/notarization, ADR-0076 cask
 lifecycle, clean-machine Gatekeeper, the complete Tier A corpus, OS-managed
 container removal, and multi-host maintenance gates remain mandatory.
+
+The Tier A checkpoint also reproduces two material limitations: no hard
+aggregate temporary-disk ceiling across multiple legal files, and persistence
+of a synthetic marker across fresh XPC service processes. The harness asserts
+those negative results so they cannot be accidentally reported as passing
+confinement. See
+`docs/verification/iar-1b-macos-tier-a-checkpoint.md`.

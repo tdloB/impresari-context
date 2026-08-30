@@ -64,6 +64,13 @@ background service.
 - Release automation can sign and notarize without printing, exporting, or
   placing Developer ID credentials in source, artifacts, logs, or caches.
 
+The Tier A checkpoint found aggregate-disk and cross-job-container isolation
+failures in the current XPC runtime. This PRD still defines the selected Option
+C packaging topology, but completing it cannot by itself admit that runtime at
+IAR-1B. Production signing and publication remain deferred until a qualifying
+macOS confinement layer exists or the package is explicitly scoped only to the
+IAR-1A/defense-in-depth claim.
+
 ## Publication gate
 
 The design is accepted, but no supported cask claim or release publication is
