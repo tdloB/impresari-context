@@ -74,10 +74,10 @@ abort("withdrawal fixture drift") unless withdrawal == JSON.parse(WITHDRAWAL_FIX
 if RbConfig::CONFIG.fetch("host_os").include?("linux")
   collector_stdout, collector_stderr, collector_status = Open3.capture3(
     {"GITHUB_ACTIONS" => "true", "RUNNER_ENVIRONMENT" => "github-hosted"},
+    "bash", "-c", 'exec 3</dev/null; exec "$@"', "withdrawal-collector",
     RbConfig.ruby, COLLECTOR.to_s,
     "--package-receipt", PACKAGE_FIXTURE.to_s,
     "--external-receipt", EXTERNAL_FIXTURE.to_s,
-    3 => File::NULL,
   )
   abort("executable withdrawal collector did not return its closed withdrawal status: #{collector_stderr}") unless
     collector_status.success?
