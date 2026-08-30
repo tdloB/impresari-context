@@ -151,6 +151,12 @@ It does not admit Linux broadly, enable a real analyzer, or open IAR-2; the next
 roadmap checkpoint is independent kernel and architecture coverage without
 weakening any Tier A gate.
 
+The first independent architecture increment targets GitHub's standard
+ephemeral `ubuntu-24.04-arm` runner. Its AArch64 seccomp audit identity and
+syscall filter are separately pinned, and a dedicated synthetic-only job must
+reproduce both the ordinary primitive receipt and the one-service composite.
+It cannot inherit the x86_64 result; hosted evidence is pending.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
