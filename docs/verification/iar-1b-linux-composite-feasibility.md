@@ -76,3 +76,17 @@ broaden either architecture to other kernels or distributions.
 
 Runner availability is grounded in GitHub's current
 [hosted-runner documentation](https://docs.github.com/en/actions/how-tos/write-workflows/choose-where-workflows-run/choose-the-runner-for-a-job).
+
+## Independent kernel checkpoint
+
+The next held-out matrix uses native standard `ubuntu-22.04` and
+`ubuntu-26.04` runners. GitHub's current image records identify materially
+different 6.8 and 7.0 Azure kernel lines. Each matrix invocation runs the
+original-synthetic primitive and composite checkpoints and creates exactly one
+temporary delegated service. Neither result may inherit the Ubuntu 24.04
+candidate, and no container or userspace-only version change counts as kernel
+diversity.
+
+Hosted results are pending. The target rationale is grounded in GitHub's
+current [Ubuntu 22.04 image record](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)
+and [Ubuntu 26.04 image record](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md).

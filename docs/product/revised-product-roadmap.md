@@ -164,6 +164,13 @@ independent exact-host composite candidates on this one Azure kernel line.
 Broader Linux and IAR-2 remain closed until a materially independent kernel
 target passes and the production support scope is frozen.
 
+The held-out kernel matrix now targets native GitHub-hosted Ubuntu 22.04 and
+26.04 images, whose current records expose materially different 6.8 and 7.0
+Azure kernel lines. Each invocation retains the one-transient-service ceiling
+and must produce its own source-free receipt. Hosted evidence is pending; a
+userspace or container-version difference alone is not accepted as kernel
+diversity.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

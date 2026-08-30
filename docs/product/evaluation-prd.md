@@ -308,6 +308,12 @@ PR 132 job `99198568879` independently passed the AArch64 composite on kernel
 `6.17.0-1022-azure` with Landlock ABI 7. Architecture coverage is now native on
 x86_64 and arm64, while kernel diversity and production admission remain open.
 
+The next held-out kernel units are the native `ubuntu-22.04` and
+`ubuntu-26.04` standard runners. Their current image records identify 6.8 and
+7.0 Azure kernel lines. Each must independently pass the same primitive and
+single-service composite receipt; an Ubuntu userspace in a container atop the
+already admitted kernel would not count.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.
