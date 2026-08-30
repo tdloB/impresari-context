@@ -20,10 +20,11 @@ profiles. Share all common package and cleanup rules, while retaining one
 profile-specific reentry phase: logout/login for rootless and operator relaunch
 for external delegation.
 
-The package boundary is CLI plus first-party worker only. It installs no
-service unit, authorization policy, privileged helper, or background repair
-component. Every changed prerequisite withdraws the claim; no automatic sudo,
-repair, IAR-1A downgrade, or persistent service is permitted.
+The package boundary is the three existing release binaries only: CLI, local
+MCP server, and first-party structural worker. It installs no service unit,
+authorization policy, privileged helper, or background repair component. Every
+changed prerequisite withdraws the claim; no automatic sudo, repair, IAR-1A
+downgrade, or persistent service is permitted.
 
 ## Rationale
 

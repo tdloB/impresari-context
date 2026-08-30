@@ -107,7 +107,8 @@ decision.
 ## Packaging Consequences
 
 The rootless profile adds no privileged package component. A Linux
-formula/package may install only the CLI and first-party worker; runtime
+formula/package may install only the CLI, local MCP server, and first-party
+structural worker; runtime
 support is conditional on an already-valid user delegation. The externally
 managed profile adds documentation and a closed integration contract. An
 administrator-provisioned profile would be a separate privileged package slice

@@ -45,10 +45,11 @@ Every passing phase requires:
 
 ## Package Boundary
 
-The initial Linux package contains only the CLI and first-party worker. It
-installs no service unit, authorization policy, privileged helper, updater, or
-background monitor. The external operator contract is documentation, not a
-package-installed control plane.
+The initial Linux package contains only the three existing release binaries:
+CLI, local MCP server, and first-party structural worker. It installs no service
+unit, authorization policy, privileged helper, updater, or background monitor.
+The external operator contract is documentation, not a package-installed
+control plane.
 
 ## Acceptance Gates
 

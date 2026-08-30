@@ -10,7 +10,7 @@
     "automatic_repair": "denied"
   },
   "package_scope": {
-    "artifacts": ["cli", "first_party_worker"],
+    "artifacts": ["cli", "mcp_server", "structural_worker"],
     "service_unit": "absent",
     "authorization_policy": "absent",
     "external_operator_contract": "documentation_only"

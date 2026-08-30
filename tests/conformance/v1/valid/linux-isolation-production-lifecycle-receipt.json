@@ -2,7 +2,7 @@
   "schema_name": "linux-isolation-production-lifecycle-receipt",
   "schema_version": "1.0.0",
   "policy_id": "linux-iar-1b-production-lifecycle-v1",
-  "policy_identity": "31eb73d3774d05caaec62d833e27f946fde3377430a6ea3ebe9855b3f2e93449",
+  "policy_identity": "09b9f2e256cd848eaad832d697f356ff28cccfbda3de2d96733c328e8a218094",
   "observation_identity": "22fc397301b5e260c6a418581dff8c46b853fda66d4e91001b9cba176ef199f0",
   "profile": "rootless_user_manager",
   "status": "lifecycle_candidate",

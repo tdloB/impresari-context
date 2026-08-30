@@ -72,7 +72,7 @@
           "type": "object",
           "required": ["artifacts", "service_unit", "authorization_policy", "external_operator_contract"],
           "properties": {
-            "artifacts": {"const": ["cli", "first_party_worker"]},
+            "artifacts": {"const": ["cli", "mcp_server", "structural_worker"]},
             "service_unit": {"const": "absent"},
             "authorization_policy": {"const": "absent"},
             "external_operator_contract": {"const": "documentation_only"}

@@ -56,7 +56,7 @@ EXPECTED_POLICY = {
     "automatic_repair" => "denied",
   },
   "package_scope" => {
-    "artifacts" => %w[cli first_party_worker],
+    "artifacts" => %w[cli mcp_server structural_worker],
     "service_unit" => "absent",
     "authorization_policy" => "absent",
     "external_operator_contract" => "documentation_only",
