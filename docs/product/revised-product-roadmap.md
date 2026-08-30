@@ -249,7 +249,13 @@ job `99220559617`, passed the exact merged-source rehearsal. C returned
 logout/login phase still unobserved. The following checkpoint composes the exact
 C package receipt with fresh topology, cancellation, crash, and withdrawal
 evidence without weakening the accepted A+C authority boundary. A continues on
-its separate genuine-login-session evidence path.
+its separate genuine-login-session evidence path. ADR-0081 now implements that
+C composition as one exact-source release-candidate sequence: one accepted
+temporary operator service, fresh topology and original-synthetic interruption
+and crash evidence, explicit post-collection missing-capability withdrawal, and
+closed SHA-linked composition. Its first exact hosted pass remains the next
+checkpoint. Production, real analyzers, privilege, persistence, and automatic
+repair remain closed.
 
 ## Parallel Client Integration Depth Track
 

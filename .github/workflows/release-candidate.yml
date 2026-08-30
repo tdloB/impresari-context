@@ -87,6 +87,37 @@ jobs:
             abort "external package candidate missing" unless external["status"] == "package_lifecycle_candidate" && external["reentry_evidence"] == "operator_relaunch_verified"
             abort "package rehearsal overclaimed" unless [rootless, external].all? { |receipt| receipt.fetch("claims").values.none? }
           ' "$reports_dir/rootless_user_manager.json" "$reports_dir/externally_managed.json"
+      - name: Compose externally managed lifecycle evidence
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          reports_dir="dist/linux-package-lifecycle"
+          package_receipt="$reports_dir/externally_managed.json"
+          external_receipt="target/iar-linux-external-live/receipt.json"
+          composite_receipt="target/iar-linux-composite-feasibility/receipt.json"
+          withdrawal_receipt="$reports_dir/external_health_withdrawal.json"
+          composition_receipt="$reports_dir/external_composition.json"
+          ./scripts/linux-external-delegation-live-rehearsal.sh
+          ruby scripts/linux-external-health-withdrawal.rb \
+            --package-receipt "$package_receipt" \
+            --external-receipt "$external_receipt" \
+            3<&- > "$withdrawal_receipt"
+          ruby scripts/linux-external-lifecycle-compose.rb \
+            --expected-source-sha "$SOURCE_SHA" \
+            --package-receipt "$package_receipt" \
+            --external-receipt "$external_receipt" \
+            --composite-receipt "$composite_receipt" \
+            --withdrawal-receipt "$withdrawal_receipt" \
+            > "$composition_receipt"
+          cp "$external_receipt" "$reports_dir/external_live.json"
+          cp "$composite_receipt" "$reports_dir/external_composite.json"
+          ruby -rjson -e '
+            receipt = JSON.parse(File.read(ARGV.fetch(0)))
+            abort "external lifecycle candidate missing" unless receipt["status"] == "lifecycle_candidate" && receipt["health_withdrawal_verified"] == true
+            abort "external lifecycle overclaimed" unless %w[production_admitted real_analyzer_authorized release_packaging_authorized privileged_installation_authorized persistent_service_authorized].none? { |claim| receipt.fetch(claim) }
+          ' "$composition_receipt"
       - name: Confirm tracked workspace unchanged
         shell: bash
         run: test -z "$(git status --short --untracked-files=no)"

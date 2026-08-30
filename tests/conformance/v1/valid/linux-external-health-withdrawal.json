@@ -1,0 +1,27 @@
+{
+  "schema_name": "linux-external-health-withdrawal",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "profile": "externally_managed",
+  "package_receipt_identity": "76d1556a4fc795ae5a6e1651c179c6406c66bc4e56f5c0e31d4c23cebc579db0",
+  "external_receipt_identity": "e3383329b73ec4132c7aecfe6f381d0ab65ad5d882f67e92871593dfb3a07047",
+  "changed_prerequisite": "inherited_delegation_capability_unavailable",
+  "capability_descriptor": 3,
+  "capability_available": false,
+  "topology_revalidated": false,
+  "claim_withdrawn": true,
+  "clean_state": {
+    "persistent_service_absent": true,
+    "privileged_policy_absent": true,
+    "stale_cgroup_absent": true,
+    "descendants_absent": true,
+    "staged_source_absent": true
+  },
+  "status": "withdrawn",
+  "reason_code": "external_capability_absent_claim_withdrawn",
+  "safe_next_step": "Retain this explicit withdrawal evidence; any later candidate requires a newly supplied and revalidated external capability.",
+  "production_admitted": false,
+  "real_analyzer_authorized": false,
+  "privileged_installation_authorized": false,
+  "persistent_service_authorized": false
+}

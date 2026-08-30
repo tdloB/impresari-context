@@ -272,6 +272,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.
+- [IAR-1B Linux external lifecycle composition](docs/verification/iar-1b-linux-external-lifecycle-composition.md):
+  the exact C package, topology, interruption, crash, cleanup, and explicit
+  post-collection health-withdrawal composition contract.
 - [macOS hybrid XPC distribution](docs/product/macos-hybrid-xpc-distribution-prd.md):
   the accepted Option C target—one signed/notarized cask with CLI compatibility—
   and the evidence required before it becomes a supported release path.

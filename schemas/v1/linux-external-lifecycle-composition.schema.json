@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-external-lifecycle-composition.schema.json",
+  "title": "Linux externally managed lifecycle evidence composition",
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "sourceCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "cleanState": {
+      "type": "object",
+      "required": ["persistent_service_absent", "privileged_policy_absent", "stale_cgroup_absent", "descendants_absent", "staged_source_absent"],
+      "properties": {
+        "persistent_service_absent": {"const": true},
+        "privileged_policy_absent": {"const": true},
+        "stale_cgroup_absent": {"const": true},
+        "descendants_absent": {"const": true},
+        "staged_source_absent": {"const": true}
+      },
+      "additionalProperties": false
+    },
+    "withdrawal": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "profile", "package_receipt_identity", "external_receipt_identity", "changed_prerequisite", "capability_descriptor", "capability_available", "topology_revalidated", "claim_withdrawn", "clean_state", "status", "reason_code", "safe_next_step", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "persistent_service_authorized"],
+      "properties": {
+        "schema_name": {"const": "linux-external-health-withdrawal"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+        "profile": {"const": "externally_managed"},
+        "package_receipt_identity": {"$ref": "#/$defs/sha256"},
+        "external_receipt_identity": {"$ref": "#/$defs/sha256"},
+        "changed_prerequisite": {"const": "inherited_delegation_capability_unavailable"},
+        "capability_descriptor": {"const": 3},
+        "capability_available": {"type": "boolean"},
+        "topology_revalidated": {"type": "boolean"},
+        "claim_withdrawn": {"type": "boolean"},
+        "clean_state": {"$ref": "#/$defs/cleanState"},
+        "status": {"enum": ["withdrawn", "withdrawal_failed"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "production_admitted": {"const": false},
+        "real_analyzer_authorized": {"const": false},
+        "privileged_installation_authorized": {"const": false},
+        "persistent_service_authorized": {"const": false}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "withdrawn"}}, "required": ["status"]},
+          "then": {"properties": {"capability_available": {"const": false}, "topology_revalidated": {"const": false}, "claim_withdrawn": {"const": true}, "reason_code": {"const": "external_capability_absent_claim_withdrawn"}}}
+        },
+        {
+          "if": {"properties": {"status": {"const": "withdrawal_failed"}}, "required": ["status"]},
+          "then": {"properties": {"claim_withdrawn": {"const": false}}}
+        }
+      ],
+      "additionalProperties": false
+    }
+  },
+  "type": "object",
+  "required": ["schema_name", "schema_version", "policy_id", "profile", "expected_source_commit", "observed_host", "package", "external", "interruption", "withdrawal", "phases", "status", "reason_code", "safe_next_step", "lifecycle_candidate_active", "health_withdrawal_verified", "production_admitted", "real_analyzer_authorized", "release_packaging_authorized", "privileged_installation_authorized", "persistent_service_authorized"],
+  "properties": {
+    "schema_name": {"const": "linux-external-lifecycle-composition"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+    "profile": {"const": "externally_managed"},
+    "expected_source_commit": {"$ref": "#/$defs/sourceCommit"},
+    "observed_host": {
+      "type": "object",
+      "required": ["operating_system", "kernel_release", "architecture"],
+      "properties": {
+        "operating_system": {"const": "linux"},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]{1,128}$"},
+        "architecture": {"enum": ["x86_64", "aarch64"]}
+      },
+      "additionalProperties": false
+    },
+    "package": {
+      "type": "object",
+      "required": ["receipt_identity", "archive_identity", "manifest_identity", "source_commit", "status", "scope_verified", "clean_state_verified"],
+      "properties": {
+        "receipt_identity": {"$ref": "#/$defs/sha256"},
+        "archive_identity": {"$ref": "#/$defs/sha256"},
+        "manifest_identity": {"$ref": "#/$defs/sha256"},
+        "source_commit": {"$ref": "#/$defs/sourceCommit"},
+        "status": {"enum": ["package_lifecycle_candidate", "package_lifecycle_partial"]},
+        "scope_verified": {"type": "boolean"},
+        "clean_state_verified": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "external": {
+      "type": "object",
+      "required": ["receipt_identity", "composite_identity", "status", "os_confined", "provisioner_collected", "operator_privilege_used", "impresari_privilege_used", "persistent"],
+      "properties": {
+        "receipt_identity": {"$ref": "#/$defs/sha256"},
+        "composite_identity": {"$ref": "#/$defs/sha256"},
+        "status": {"enum": ["candidate_passed", "capability_failed", "revalidation_failed", "composite_failed", "cleanup_failed", "provisioner_cleanup_failed"]},
+        "os_confined": {"type": "boolean"},
+        "provisioner_collected": {"type": "boolean"},
+        "operator_privilege_used": {"const": true},
+        "impresari_privilege_used": {"const": false},
+        "persistent": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "interruption": {
+      "type": "object",
+      "required": ["receipt_identity", "result", "exact_cgroup_kill", "cgroup_empty_after_job", "timeout", "crash_relaunch", "cleanup"],
+      "properties": {
+        "receipt_identity": {"$ref": "#/$defs/sha256"},
+        "result": {"enum": ["candidate_passed", "failed"]},
+        "exact_cgroup_kill": {"type": "boolean"},
+        "cgroup_empty_after_job": {"type": "boolean"},
+        "timeout": {"type": "boolean"},
+        "crash_relaunch": {"type": "boolean"},
+        "cleanup": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "withdrawal": {
+      "type": "object",
+      "required": ["receipt_identity", "prior_external_receipt_identity", "status", "capability_available", "topology_revalidated", "claim_withdrawn", "clean_state_verified"],
+      "properties": {
+        "receipt_identity": {"$ref": "#/$defs/sha256"},
+        "prior_external_receipt_identity": {"$ref": "#/$defs/sha256"},
+        "status": {"enum": ["withdrawn", "withdrawal_failed"]},
+        "capability_available": {"type": "boolean"},
+        "topology_revalidated": {"type": "boolean"},
+        "claim_withdrawn": {"type": "boolean"},
+        "clean_state_verified": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "phases": {"const": ["clean_install", "upgrade", "rollback", "operator_relaunch", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]},
+    "status": {"enum": ["lifecycle_candidate", "identity_mismatch", "package_failed", "external_failed", "interruption_failed", "withdrawal_failed"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+    "lifecycle_candidate_active": {"type": "boolean"},
+    "health_withdrawal_verified": {"type": "boolean"},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "release_packaging_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "persistent_service_authorized": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "lifecycle_candidate"}}, "required": ["status"]},
+      "then": {"properties": {"reason_code": {"const": "exact_external_lifecycle_evidence_composed"}, "lifecycle_candidate_active": {"const": true}, "health_withdrawal_verified": {"const": true}, "package": {"properties": {"scope_verified": {"const": true}, "clean_state_verified": {"const": true}}}, "external": {"properties": {"os_confined": {"const": true}, "provisioner_collected": {"const": true}}}, "interruption": {"properties": {"exact_cgroup_kill": {"const": true}, "cgroup_empty_after_job": {"const": true}, "timeout": {"const": true}, "crash_relaunch": {"const": true}, "cleanup": {"const": true}}}, "withdrawal": {"properties": {"capability_available": {"const": false}, "topology_revalidated": {"const": false}, "claim_withdrawn": {"const": true}, "clean_state_verified": {"const": true}}}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["identity_mismatch", "package_failed", "external_failed", "interruption_failed", "withdrawal_failed"]}}, "required": ["status"]},
+      "then": {"properties": {"lifecycle_candidate_active": {"const": false}}}
+    }
+  ],
+  "additionalProperties": false
+}
