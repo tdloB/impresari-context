@@ -261,6 +261,23 @@ marker retained by its predecessor. `aggregate_disk_bound` and
 `cross_job_isolation` remain false. The candidate cannot progress to IAR-1B by
 signing or packaging alone.
 
+The first Linux checkpoint freezes the `iar-linux-synthetic-v1` profile and a
+closed source-free receipt. Its primitive suite must verify effective
+`no_new_privs`, one exact read-only Landlock input, external-file, credential,
+device, and path-write denial, an architecture-pinned default-deny seccomp
+filter, network and descendant denial, and unrelated-descriptor closure. The
+profile grants zero writable path-backed filesystem because cgroup v2 is not a
+portable aggregate storage quota. CPU, memory, process count, exact
+`cgroup.kill`, empty-state, bounded-output, timeout, crash/relaunch, cleanup,
+and cross-job checks remain false until a delegated cgroup v2 leaf passes the
+native suite. Missing delegation or controllers produces `unsupported`; CI
+success only establishes an honest measurement.
+
+The first hosted Ubuntu 24.04 run observed kernel `6.17.0-1022-azure`,
+`x86_64`, and Landlock ABI 7. Its primitive suite passed, but the job cgroup
+was not delegated. The receipt therefore returned `unsupported` with
+`os_confined=false`; this is valid fail-closed evidence, not an IAR-1B pass.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-isolation-resource-profile.schema.json",
+  "title": "ADR-0074 Linux synthetic isolation resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "linux-isolation-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-linux-synthetic-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobs", "artifacts", "artifact_bytes", "total_artifact_bytes", "output_bytes", "stderr_bytes", "writable_filesystem_bytes", "file_descriptors", "cpu_seconds", "cpu_quota_us", "cpu_period_us", "memory_bytes", "processes", "elapsed_ms"],
+      "properties": {
+        "jobs": {"const": "1"},
+        "artifacts": {"const": "64"},
+        "artifact_bytes": {"const": "1048576"},
+        "total_artifact_bytes": {"const": "4194304"},
+        "output_bytes": {"const": "262144"},
+        "stderr_bytes": {"const": "16384"},
+        "writable_filesystem_bytes": {"const": "0"},
+        "file_descriptors": {"const": "32"},
+        "cpu_seconds": {"const": "30"},
+        "cpu_quota_us": {"const": "100000"},
+        "cpu_period_us": {"const": "100000"},
+        "memory_bytes": {"const": "134217728"},
+        "processes": {"const": "1"},
+        "elapsed_ms": {"const": "60000"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["no_new_privs", "landlock_minimum_abi", "seccomp_default_deny", "architecture_pinned_filter", "unrelated_descriptors_closed", "delegated_cgroup_v2", "cgroup_kill_required", "read_only_staged_input", "writable_filesystem", "network_authorized", "credentials_authorized", "device_access_authorized", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "no_new_privs": {"const": true},
+        "landlock_minimum_abi": {"const": "1"},
+        "seccomp_default_deny": {"const": true},
+        "architecture_pinned_filter": {"const": true},
+        "unrelated_descriptors_closed": {"const": true},
+        "delegated_cgroup_v2": {"const": true},
+        "cgroup_kill_required": {"const": true},
+        "read_only_staged_input": {"const": true},
+        "writable_filesystem": {"const": false},
+        "network_authorized": {"const": false},
+        "credentials_authorized": {"const": false},
+        "device_access_authorized": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

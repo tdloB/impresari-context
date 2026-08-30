@@ -31,6 +31,8 @@
     {"fixture": "valid/iar-macos-xpc-hybrid-profile.json", "schema": "macos-xpc-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/macos-xpc-launch-request.json", "schema": "macos-xpc-launch.schema.json", "valid": true},
     {"fixture": "valid/macos-xpc-launch-preparation.json", "schema": "macos-xpc-launch.schema.json#/$defs/preparation", "valid": true},
+    {"fixture": "valid/iar-linux-synthetic-profile.json", "schema": "linux-isolation-resource-profile.schema.json", "valid": true},
+    {"fixture": "valid/linux-isolation-feasibility-unsupported.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
     {"fixture": "valid/analyzer-execution-manifest.json", "schema": "analyzer-execution-manifest.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-request.json", "schema": "analyzer-runner-request.schema.json", "valid": true},
@@ -66,6 +68,7 @@
     {"fixture": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "schema": "macos-xpc-sandbox-feasibility.schema.json", "valid": false},
     {"fixture": "invalid/macos-xpc-launch-request-workspace-path.json", "schema": "macos-xpc-launch.schema.json", "valid": false},
     {"fixture": "invalid/macos-xpc-launch-request-profile-overflow.json", "schema": "macos-xpc-launch.schema.json", "valid": false},
-    {"fixture": "invalid/macos-xpc-launch-preparation-overclaim.json", "schema": "macos-xpc-launch.schema.json#/$defs/preparation", "valid": false}
+    {"fixture": "invalid/macos-xpc-launch-preparation-overclaim.json", "schema": "macos-xpc-launch.schema.json#/$defs/preparation", "valid": false},
+    {"fixture": "invalid/linux-isolation-feasibility-overclaim.json", "schema": "linux-isolation-feasibility.schema.json", "valid": false}
   ]
 }

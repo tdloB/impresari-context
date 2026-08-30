@@ -15,6 +15,8 @@
     {"name": "macos-xpc-sandbox-feasibility", "path": "macos-xpc-sandbox-feasibility.schema.json", "identity_object_kind": null},
     {"name": "macos-xpc-resource-profile", "path": "macos-xpc-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "macos-xpc-launch", "path": "macos-xpc-launch.schema.json", "identity_object_kind": null},
+    {"name": "linux-isolation-resource-profile", "path": "linux-isolation-resource-profile.schema.json", "identity_object_kind": null},
+    {"name": "linux-isolation-feasibility", "path": "linux-isolation-feasibility.schema.json", "identity_object_kind": null},
     {"name": "analyzer-runner-capability", "path": "analyzer-runner-capability.schema.json", "identity_object_kind": null},
     {"name": "analyzer-execution-manifest", "path": "analyzer-execution-manifest.schema.json", "identity_object_kind": "analyzer-execution-manifest"},
     {"name": "analyzer-runner-request", "path": "analyzer-runner-request.schema.json", "identity_object_kind": "analyzer-runner-request"},

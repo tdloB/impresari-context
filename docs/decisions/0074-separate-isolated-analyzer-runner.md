@@ -167,6 +167,16 @@ macOS therefore remains at IAR-1A; the XPC design is retained as
 defense-in-depth and a future reconsideration point, while IAR-1B feasibility
 advances independently on Linux.
 
+The first Linux feasibility increment freezes `iar-linux-synthetic-v1` and a
+closed receipt. It corrects the assumption that cgroup v2 can enforce aggregate
+file-storage bytes: the candidate instead permits read-only staged input and
+zero writable path-backed filesystem, with bounded pipes for output. A
+test-only native probe may establish `no_new_privs`, Landlock, seccomp,
+descriptor, network, descendant, and zero-write evidence. It cannot admit the
+backend until a delegated cgroup v2 leaf passes the complete resource and
+lifecycle suite. Absence of delegation or any required primitive remains an
+explicit unsupported state.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

@@ -1,0 +1,39 @@
+{
+  "schema_name": "linux-isolation-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-linux-synthetic-v1",
+  "profile_version": "1.0.0",
+  "limits": {
+    "jobs": "1",
+    "artifacts": "64",
+    "artifact_bytes": "1048576",
+    "total_artifact_bytes": "4194304",
+    "output_bytes": "262144",
+    "stderr_bytes": "16384",
+    "writable_filesystem_bytes": "0",
+    "file_descriptors": "32",
+    "cpu_seconds": "30",
+    "cpu_quota_us": "100000",
+    "cpu_period_us": "100000",
+    "memory_bytes": "134217728",
+    "processes": "1",
+    "elapsed_ms": "60000"
+  },
+  "controls": {
+    "no_new_privs": true,
+    "landlock_minimum_abi": "1",
+    "seccomp_default_deny": true,
+    "architecture_pinned_filter": true,
+    "unrelated_descriptors_closed": true,
+    "delegated_cgroup_v2": true,
+    "cgroup_kill_required": true,
+    "read_only_staged_input": true,
+    "writable_filesystem": false,
+    "network_authorized": false,
+    "credentials_authorized": false,
+    "device_access_authorized": false,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

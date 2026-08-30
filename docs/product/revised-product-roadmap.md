@@ -109,6 +109,17 @@ Option C remains the packaging choice, but macOS XPC is not advanced to
 Developer ID rehearsal as an IAR-1B backend. The next OS-confinement feasibility
 increment moves to Linux while macOS remains IAR-1A.
 
+The Linux increment freezes `iar-linux-synthetic-v1` with read-only staged
+input, zero writable path-backed filesystem, bounded output pipes,
+`no_new_privs`, version-negotiated Landlock, architecture-pinned default-deny
+seccomp, descriptor closure, and a required delegated cgroup v2 leaf. The first
+native checkpoint is synthetic-only. On GitHub-hosted Ubuntu 24.04 kernel
+`6.17.0-1022-azure`, the primitive suite passed with Landlock ABI 7, but the
+job cgroup was not delegated, so the closed receipt returned `unsupported` and
+kept `os_confined=false`. IAR-1B remains open until the complete delegated-
+cgroup resource and lifecycle corpus passes. A green measurement job is not
+itself an admission claim.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
