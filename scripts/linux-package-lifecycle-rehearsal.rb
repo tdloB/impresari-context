@@ -159,9 +159,18 @@ end
 
 def verify_cli_relaunch!(install_dir, home)
   output, status = Open3.capture2e({ "HOME" => home }, File.join(install_dir, "impresari-context"))
-  raise RehearsalError, "operator relaunch failed" unless status.success?
+  unless status.exited? && status.exitstatus == 1
+    raise RehearsalError, "operator relaunch did not return the safe usage status"
+  end
   line = output.lines.find { |candidate| candidate.lstrip.start_with?("{") }
-  JSON.parse(line || raise(RehearsalError, "operator relaunch emitted no machine JSON"))
+  document = JSON.parse(line || raise(RehearsalError, "operator relaunch emitted no machine JSON"))
+  safe_failure = document["schema_name"] == "error-envelope" &&
+    document["schema_version"] == "1.0.0" &&
+    document["code"] == "invalid_input" &&
+    document["retryable"] == false &&
+    document["partial_result"] == false &&
+    document["recovery_action"] == "none"
+  raise RehearsalError, "operator relaunch did not return the safe machine usage envelope" unless safe_failure
 rescue JSON::ParserError
   raise RehearsalError, "operator relaunch emitted invalid machine JSON"
 end

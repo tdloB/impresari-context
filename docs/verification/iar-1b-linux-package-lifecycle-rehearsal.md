@@ -29,7 +29,8 @@ builds and packages the exact selected workflow commit, and invokes
 All installs occur inside one automatically removed temporary directory.
 
 Both profiles verify clean install, exact candidate replacement, exact baseline
-rollback, and removal. C also verifies a foreground operator relaunch. A emits
+rollback, and removal. C also verifies a foreground operator relaunch through
+the CLI's exact exit-1 machine-readable safe usage envelope. A emits
 `package_lifecycle_partial` with `real_login_session_required`; the workflow does
 not claim a process restart as logout/login evidence.
 
