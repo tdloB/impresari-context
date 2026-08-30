@@ -107,7 +107,10 @@ module LinuxRootlessHostPreflight
   def fixed_read(path, limit)
     return nil unless File.file?(path) && !File.symlink?(path)
 
-    File.binread(path, limit + 1).then { |value| value.bytesize > limit ? nil : value }
+    value = File.binread(path, limit + 1)
+    return "" if value.nil?
+
+    value.bytesize > limit ? nil : value
   rescue Errno::EACCES, Errno::ENOENT, Errno::ENOTDIR, Errno::EISDIR
     nil
   end

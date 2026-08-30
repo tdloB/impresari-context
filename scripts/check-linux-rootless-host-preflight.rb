@@ -5,12 +5,19 @@ require "json"
 require "open3"
 require "pathname"
 require "rbconfig"
+require "tmpdir"
 require_relative "lib/linux_rootless_host_preflight"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
 POLICY = ROOT.join("linux-isolation/linux-iar-1b-production-topology-v1.json")
 FIXTURE = ROOT.join("tests/conformance/v1/valid/linux-rootless-host-preflight-ready.json")
 IDENTITY = LinuxRootlessHostPreflight.policy_identity(POLICY)
+
+Dir.mktmpdir("impresari-rootless-preflight-") do |directory|
+  empty = File.join(directory, "empty")
+  File.write(empty, "")
+  abort("empty platform file was not handled") unless LinuxRootlessHostPreflight.fixed_read(empty, 16) == ""
+end
 
 def observation(overrides = {})
   LinuxRootlessHostPreflight.base_observation.merge(
