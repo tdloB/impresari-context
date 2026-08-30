@@ -19,6 +19,7 @@
     {"name": "linux-isolation-feasibility", "path": "linux-isolation-feasibility.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-maintenance", "path": "linux-isolation-maintenance.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-production-topology", "path": "linux-isolation-production-topology.schema.json", "identity_object_kind": null},
+    {"name": "linux-rootless-host-preflight", "path": "linux-rootless-host-preflight.schema.json", "identity_object_kind": null},
     {"name": "linux-cgroup-resource-profile", "path": "linux-cgroup-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "linux-cgroup-feasibility", "path": "linux-cgroup-feasibility.schema.json", "identity_object_kind": null},
     {"name": "analyzer-runner-capability", "path": "analyzer-runner-capability.schema.json", "identity_object_kind": null},

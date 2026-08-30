@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-rootless-host-preflight.schema.json",
+  "title": "Linux rootless user-manager host preflight receipt",
+  "type": "object",
+  "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "profile", "status", "reason_code", "observed", "checks", "safe_next_step", "preflight_candidate_active", "synthetic_child_cycle_executed", "os_confined", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "authority"],
+  "properties": {
+    "schema_name": {"const": "linux-rootless-host-preflight"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+    "policy_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile": {"const": "rootless_user_manager"},
+    "status": {"enum": ["ready_for_synthetic_rehearsal", "unavailable", "unsupported", "insufficient_delegation", "invalid_host_state"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+    "observed": {
+      "type": "object",
+      "required": ["platform", "kernel_release", "cgroup_mode", "current_membership_valid", "user_manager_cgroup_present", "user_manager_transport_present", "user_manager_process_present", "delegation_write_marker", "controllers", "enabled_controllers", "raw_cgroup_path_recorded"],
+      "properties": {
+        "platform": {"enum": ["linux", "other"]},
+        "kernel_release": {"type": "string", "pattern": "^(?:not_observed|[A-Za-z0-9._+-]{1,128})$"},
+        "cgroup_mode": {"enum": ["unified_v2", "legacy_or_hybrid", "unavailable"]},
+        "current_membership_valid": {"type": "boolean"},
+        "user_manager_cgroup_present": {"type": "boolean"},
+        "user_manager_transport_present": {"type": "boolean"},
+        "user_manager_process_present": {"type": "boolean"},
+        "delegation_write_marker": {"type": "boolean"},
+        "controllers": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["cpu", "memory", "pids"]}
+        },
+        "enabled_controllers": {
+          "type": "array",
+          "maxItems": 3,
+          "uniqueItems": true,
+          "items": {"enum": ["cpu", "memory", "pids"]}
+        },
+        "raw_cgroup_path_recorded": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 20,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}
+    },
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+    "preflight_candidate_active": {"type": "boolean"},
+    "synthetic_child_cycle_executed": {"const": false},
+    "os_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "authority": {
+      "type": "object",
+      "required": ["policy_read", "host_metadata_read", "workspace_source_read", "source_write", "process_execution", "network", "credential_access", "privilege_use", "service_mutation", "background_monitoring", "analyzer_execution"],
+      "properties": {
+        "policy_read": {"const": "fixed_bundled_policy"},
+        "host_metadata_read": {"const": "fixed_linux_platform_files"},
+        "workspace_source_read": {"const": "denied"},
+        "source_write": {"const": "denied"},
+        "process_execution": {"const": "denied"},
+        "network": {"const": "denied"},
+        "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"},
+        "service_mutation": {"const": "denied"},
+        "background_monitoring": {"const": "denied"},
+        "analyzer_execution": {"const": "denied"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "ready_for_synthetic_rehearsal"}}, "required": ["status"]},
+      "then": {"properties": {"preflight_candidate_active": {"const": true}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["unavailable", "unsupported", "insufficient_delegation", "invalid_host_state"]}}, "required": ["status"]},
+      "then": {"properties": {"preflight_candidate_active": {"const": false}}}
+    }
+  ],
+  "additionalProperties": false
+}

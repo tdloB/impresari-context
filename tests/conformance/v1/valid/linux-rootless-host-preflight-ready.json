@@ -1,0 +1,43 @@
+{
+  "schema_name": "linux-rootless-host-preflight",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "policy_identity": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4",
+  "profile": "rootless_user_manager",
+  "status": "ready_for_synthetic_rehearsal",
+  "reason_code": "rootless_prerequisites_observed",
+  "observed": {
+    "platform": "linux",
+    "kernel_release": "6.17.0-synthetic",
+    "cgroup_mode": "unified_v2",
+    "current_membership_valid": true,
+    "user_manager_cgroup_present": true,
+    "user_manager_transport_present": true,
+    "user_manager_process_present": true,
+    "delegation_write_marker": true,
+    "controllers": ["cpu", "memory", "pids"],
+    "enabled_controllers": [],
+    "raw_cgroup_path_recorded": false
+  },
+  "checks": ["policy_identity_bound", "authority_closed", "raw_cgroup_path_suppressed", "unified_cgroup_v2", "current_cgroup_membership_valid", "existing_user_manager_observed", "required_controllers_available", "delegation_write_marker_observed", "synthetic_child_cycle_pending"],
+  "safe_next_step": "Run only the source-free transient-user-unit synthetic rehearsal; do not launch a real analyzer or admit production.",
+  "preflight_candidate_active": true,
+  "synthetic_child_cycle_executed": false,
+  "os_confined": false,
+  "production_admitted": false,
+  "real_analyzer_authorized": false,
+  "privileged_installation_authorized": false,
+  "authority": {
+    "policy_read": "fixed_bundled_policy",
+    "host_metadata_read": "fixed_linux_platform_files",
+    "workspace_source_read": "denied",
+    "source_write": "denied",
+    "process_execution": "denied",
+    "network": "denied",
+    "credential_access": "denied",
+    "privilege_use": "denied",
+    "service_mutation": "denied",
+    "background_monitoring": "denied",
+    "analyzer_execution": "denied"
+  }
+}

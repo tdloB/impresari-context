@@ -656,6 +656,7 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
                         | "linux-isolation-feasibility.schema.json"
                         | "linux-isolation-maintenance.schema.json"
                         | "linux-isolation-production-topology.schema.json"
+                        | "linux-rootless-host-preflight.schema.json"
                         | "linux-cgroup-resource-profile.schema.json"
                         | "linux-cgroup-feasibility.schema.json"
                 )
