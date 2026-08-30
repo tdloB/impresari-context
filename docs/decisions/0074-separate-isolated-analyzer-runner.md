@@ -197,6 +197,11 @@ receipt may set `os_confined=true` only for the exact observed
 kernel/architecture candidate; production admission and real analyzer
 execution remain false pending additional independently admitted targets.
 
+PR 131 job `99197119262` passed that composition on hosted Ubuntu 24.04 kernel
+`6.17.0-1022-azure`, x86_64, with Landlock ABI 7. The result advances only that
+exact observed candidate to `os_confined=true`; it does not admit a production
+Linux backend or authorize a real analyzer.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

@@ -1,6 +1,6 @@
 # IAR-1B Linux composite feasibility checkpoint
 
-- Status: implemented; hosted evidence pending
+- Status: exact-host candidate passed; broader Linux admission pending
 - Scope: exact-host, source-free ADR-0074 candidate only
 - Profile: `iar-linux-synthetic-v1`
 
@@ -41,3 +41,17 @@ kernel and architecture candidate. It always keeps
 `authority_added=false`. It does not execute or admit YARA, ClamAV, or any real
 analyzer. Additional independently admitted kernel and architecture evidence
 remains required before Linux is a production backend or IAR-2 opens.
+
+## Hosted evidence
+
+PR 131 job `99197119262` passed on the GitHub-hosted Ubuntu 24.04 image with
+kernel `6.17.0-1022-azure`, architecture `x86_64`, and Landlock ABI 7. The exact
+checkpoint summary was:
+
+```text
+Linux composite IAR-1B feasibility: result=candidate_passed kernel=6.17.0-1022-azure arch=x86_64 Landlock ABI=7
+```
+
+The ordinary, nondelegated primitive step in the same job continued to return
+`unsupported`; the candidate pass came only from the explicitly delegated
+single-service composition and does not reinterpret the earlier receipt.
