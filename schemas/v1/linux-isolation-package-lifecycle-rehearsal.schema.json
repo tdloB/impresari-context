@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-isolation-package-lifecycle-rehearsal.schema.json",
+  "title": "Linux isolation package lifecycle rehearsal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "policy_id", "profile", "host", "baseline", "candidate", "package_scope", "phases", "reentry_evidence", "excluded_lifecycle_evidence", "clean_state", "status", "safe_next_step", "claims"],
+  "properties": {
+    "schema_name": {"const": "linux-isolation-package-lifecycle-rehearsal"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+    "profile": {"enum": ["rootless_user_manager", "externally_managed"]},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "architecture", "environment"],
+      "properties": {
+        "operating_system": {"const": "linux"},
+        "architecture": {"type": "string", "pattern": "^[A-Za-z0-9._-]{1,32}$"},
+        "environment": {"enum": ["github-hosted", "local"]}
+      }
+    },
+    "baseline": {"$ref": "#/$defs/packageIdentity"},
+    "candidate": {"$ref": "#/$defs/packageIdentity"},
+    "package_scope": {"const": ["impresari-context", "impresari-context-mcp", "impresari-context-structural-worker"]},
+    "phases": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {"$ref": "#/$defs/phase"}
+    },
+    "reentry_evidence": {"enum": ["real_login_session_required", "operator_relaunch_verified"]},
+    "excluded_lifecycle_evidence": {"const": ["cancellation", "crash_recovery", "health_withdrawal", "topology_revalidation"]},
+    "clean_state": {
+      "const": {
+        "installed_service_unit_absent": true,
+        "authorization_policy_absent": true,
+        "unexpected_package_files_absent": true,
+        "staged_source_absent": true
+      }
+    },
+    "status": {"enum": ["package_lifecycle_candidate", "package_lifecycle_partial"]},
+    "safe_next_step": {"enum": [
+      "Compose this exact package evidence with fresh external topology, cancellation, crash, and withdrawal evidence; production remains closed.",
+      "Obtain a genuine fresh login-session reentry plus topology, cancellation, crash, and withdrawal evidence; do not substitute a process restart."
+    ]},
+    "claims": {
+      "const": {
+        "full_lifecycle_admitted": false,
+        "production_admitted": false,
+        "real_analyzer_authorized": false,
+        "privileged_installation_authorized": false,
+        "persistent_service_authorized": false
+      }
+    }
+  },
+  "$defs": {
+    "packageIdentity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive_sha256", "manifest_sha256", "project_version", "source_commit"],
+      "properties": {
+        "archive_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "manifest_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "project_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([+-][0-9A-Za-z.-]+)?$"},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"}
+      }
+    },
+    "phase": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["phase", "outcome"],
+      "properties": {
+        "phase": {"enum": ["clean_install", "upgrade", "rollback", "logout_login", "operator_relaunch", "uninstall"]},
+        "outcome": {"enum": ["passed", "not_observed"]}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"profile": {"const": "rootless_user_manager"}}},
+      "then": {"properties": {
+        "phases": {"const": [
+          {"phase": "clean_install", "outcome": "passed"},
+          {"phase": "upgrade", "outcome": "passed"},
+          {"phase": "rollback", "outcome": "passed"},
+          {"phase": "logout_login", "outcome": "not_observed"},
+          {"phase": "uninstall", "outcome": "passed"}
+        ]},
+        "reentry_evidence": {"const": "real_login_session_required"},
+        "status": {"const": "package_lifecycle_partial"},
+        "safe_next_step": {"const": "Obtain a genuine fresh login-session reentry plus topology, cancellation, crash, and withdrawal evidence; do not substitute a process restart."}
+      }}
+    },
+    {
+      "if": {"properties": {"profile": {"const": "externally_managed"}}},
+      "then": {"properties": {
+        "phases": {"const": [
+          {"phase": "clean_install", "outcome": "passed"},
+          {"phase": "upgrade", "outcome": "passed"},
+          {"phase": "rollback", "outcome": "passed"},
+          {"phase": "operator_relaunch", "outcome": "passed"},
+          {"phase": "uninstall", "outcome": "passed"}
+        ]},
+        "reentry_evidence": {"const": "operator_relaunch_verified"},
+        "status": {"const": "package_lifecycle_candidate"},
+        "safe_next_step": {"const": "Compose this exact package evidence with fresh external topology, cancellation, crash, and withdrawal evidence; production remains closed."}
+      }}
+    }
+  ]
+}

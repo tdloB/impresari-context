@@ -1,0 +1,23 @@
+{
+  "schema_name": "linux-isolation-package-lifecycle-rehearsal",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "profile": "externally_managed",
+  "host": {"operating_system": "linux", "architecture": "x86_64", "environment": "github-hosted"},
+  "baseline": {"archive_sha256": "1111111111111111111111111111111111111111111111111111111111111111", "manifest_sha256": "2222222222222222222222222222222222222222222222222222222222222222", "project_version": "0.1.0", "source_commit": "3333333333333333333333333333333333333333"},
+  "candidate": {"archive_sha256": "4444444444444444444444444444444444444444444444444444444444444444", "manifest_sha256": "5555555555555555555555555555555555555555555555555555555555555555", "project_version": "0.1.0", "source_commit": "6666666666666666666666666666666666666666"},
+  "package_scope": ["impresari-context", "impresari-context-mcp", "impresari-context-structural-worker"],
+  "phases": [
+    {"phase": "clean_install", "outcome": "passed"},
+    {"phase": "upgrade", "outcome": "passed"},
+    {"phase": "rollback", "outcome": "passed"},
+    {"phase": "operator_relaunch", "outcome": "passed"},
+    {"phase": "uninstall", "outcome": "passed"}
+  ],
+  "reentry_evidence": "operator_relaunch_verified",
+  "excluded_lifecycle_evidence": ["cancellation", "crash_recovery", "health_withdrawal", "topology_revalidation"],
+  "clean_state": {"installed_service_unit_absent": true, "authorization_policy_absent": true, "unexpected_package_files_absent": true, "staged_source_absent": true},
+  "status": "package_lifecycle_candidate",
+  "safe_next_step": "Compose this exact package evidence with fresh external topology, cancellation, crash, and withdrawal evidence; production remains closed.",
+  "claims": {"full_lifecycle_admitted": false, "production_admitted": false, "real_analyzer_authorized": false, "privileged_installation_authorized": false, "persistent_service_authorized": false}
+}

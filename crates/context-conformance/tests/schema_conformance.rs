@@ -661,6 +661,7 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
                         | "linux-external-delegation-capability.schema.json"
                         | "linux-external-delegation-live-rehearsal.schema.json"
                         | "linux-isolation-production-lifecycle.schema.json"
+                        | "linux-isolation-package-lifecycle-rehearsal.schema.json"
                         | "linux-cgroup-resource-profile.schema.json"
                         | "linux-cgroup-feasibility.schema.json"
                 )

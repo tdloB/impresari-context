@@ -84,3 +84,15 @@ state. Automatic repair and application-only fallback are prohibited.
 The evaluator is a short foreground Ruby process over two bounded JSON files.
 It spawns no children and writes no persistent state. The existing synthetic
 worker resource profile remains separate and is not executed by this contract.
+
+## Package Collector Boundary
+
+ADR-0080 adds a separate Linux-only collector. The workflow supplies two public,
+checksum-paired package archives; the collector never downloads them. It safely
+extracts bounded regular files, verifies closed manifests and the three-binary
+scope, and mutates only an automatically removed temporary prefix. The only
+child execution is the installed CLI for the C-profile operator-relaunch check.
+It invokes no service manager, privilege mechanism, repository code, analyzer,
+or background process. Its receipt cannot satisfy the full lifecycle evaluator
+without separately bound topology, interruption, withdrawal, and A-profile
+login-session evidence.
