@@ -1,0 +1,26 @@
+{
+  "schema_name": "independent-security-review-scope",
+  "schema_version": "1.0.0",
+  "scope_id": "impresari-context-v0-2-0-review-v1",
+  "target_version": "0.2.0",
+  "product_source_commit": "1ed4500a6d3ac4a0d375c62f1c208ba8ddf98d51",
+  "status": "manual_review_required",
+  "triggered_boundaries": ["external_service_delivery_via_client_process", "authentication_configuration_reference", "child_process_supervision", "os_isolation_candidate"],
+  "review_areas": ["workspace_and_cache_isolation", "untrusted_repository_input", "parser_worker_process_boundary", "external_client_delivery_and_consent", "credential_reference_and_redaction", "configuration_install_update_remove", "analyzer_supervisor_and_linux_isolation", "release_supply_chain_and_claim_accuracy"],
+  "required_artifacts": ["docs/security/threat-model.md", "docs/security/residual-risks.md", "docs/boundaries.md", "docs/product/client-integration-roadmap.md", "docs/product/isolated-analyzer-runner-prd.md", "docs/architecture/isolated-analyzer-runner-ard.md", "docs/decisions/0017-v0.1-release-assurance-policy.md", "docs/decisions/0074-separate-isolated-analyzer-runner.md", "docs/decisions/0082-linux-external-production-support-admission.md", "docs/reference/compatibility-matrix.md", "docs/verification/release-evidence.md", "SECURITY.md"],
+  "reviewer_requirements": {
+    "human": true, "independent_of_implementation": true, "security_experience_required": true,
+    "conflict_disclosure_required": true, "ai_assistance_may_not_be_the_reviewer": true,
+    "attributable_report_required": true
+  },
+  "finding_policy": {
+    "critical_open_allowed": false, "high_open_allowed": false,
+    "medium_open_requires_owner_disposition": true, "low_open_requires_documentation": true,
+    "unknown_severity_allowed": false
+  },
+  "claim": {
+    "review_gate_satisfied": false, "release_ready": false, "publication_authorized": false,
+    "production_support_admitted": false, "real_analyzer_authorized": false
+  },
+  "safe_next_step": "Give the exact source commit and reviewer brief to an attributable independent human security reviewer; record the returned report identity and finding dispositions in a reviewed follow-up."
+}

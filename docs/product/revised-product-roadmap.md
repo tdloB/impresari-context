@@ -276,6 +276,18 @@ scope, and IAR-2 stays closed. The next release checkpoint is version selection,
 publication of the exact or freshly revalidated source, and post-publication
 admission evidence.
 
+ADR-0083 now applies ADR-0017's earlier-review trigger to the proposed v0.2.0
+feature release. The exact product baseline, eight required security-review
+areas, reviewer independence requirements, finding policy, reviewer brief, and
+source-free readiness receipt are frozen. The current state is
+`manual_review_required`; automated or AI-assisted checks cannot satisfy it,
+and even a future admitted report cannot create a tag, publish a release, accept
+risk, activate Linux production support, or authorize a real analyzer. The next
+manual artifact is an attributable independent human report bound to the exact
+product commit. After findings are remediated or dispositioned under the frozen
+policy, the roadmap resumes with a fresh exact-source candidate, v0.2.0 release
+metadata, owner publication approval, and post-publication ADR-0082 admission.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

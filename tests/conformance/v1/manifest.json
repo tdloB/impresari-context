@@ -54,6 +54,8 @@
     {"fixture": "valid/linux-external-lifecycle-composition.json", "schema": "linux-external-lifecycle-composition.schema.json", "valid": true},
     {"fixture": "valid/linux-external-production-support-manifest.json", "schema": "linux-external-production-support-admission.schema.json#/$defs/manifest", "valid": true},
     {"fixture": "valid/linux-external-production-support-receipt.json", "schema": "linux-external-production-support-admission.schema.json#/$defs/receipt", "valid": true},
+    {"fixture": "valid/independent-security-review-scope.json", "schema": "independent-security-review.schema.json#/$defs/scope", "valid": true},
+    {"fixture": "valid/independent-security-review-receipt.json", "schema": "independent-security-review.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/iar-linux-cgroup-synthetic-profile.json", "schema": "linux-cgroup-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/linux-cgroup-feasibility-candidate.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
@@ -103,6 +105,7 @@
     {"fixture": "invalid/linux-isolation-package-lifecycle-overclaim.json", "schema": "linux-isolation-package-lifecycle-rehearsal.schema.json", "valid": false},
     {"fixture": "invalid/linux-external-lifecycle-composition-overclaim.json", "schema": "linux-external-lifecycle-composition.schema.json", "valid": false},
     {"fixture": "invalid/linux-external-production-support-overclaim.json", "schema": "linux-external-production-support-admission.schema.json#/$defs/receipt", "valid": false},
+    {"fixture": "invalid/independent-security-review-overclaim.json", "schema": "independent-security-review.schema.json#/$defs/receipt", "valid": false},
     {"fixture": "invalid/linux-cgroup-feasibility-overclaim.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": false}
   ]
 }

@@ -64,9 +64,11 @@ AI-assisted evidence is not an independent audit.
 
 ## Deferred assurance targets
 
-- Independent human security and release review before `v1.0.0`, or earlier if
-  a qualifying trust-boundary expansion triggers ADR-0017. This is encouraged
-  but is not an open `v0.1.0` release blocker.
+- Independent human security and release review was not an open `v0.1.0`
+  blocker. The post-v0.1.0 external-client, authentication-reference, and child-
+  process boundaries now satisfy ADR-0017's earlier-review trigger. ADR-0083
+  makes an attributable independent human report mandatory for the proposed
+  v0.2.0 scope.
 
 ## Current release status
 
@@ -74,7 +76,9 @@ There is no open `v0.1.0` publication gate. Future releases still require an
 exact-commit hosted native matrix, clean-install evidence, checksums,
 provenance attestations, reviewed release notes, and explicit owner
 authorization. The provenance policy and implementation are recorded in
-ADR-0016. Independent human review remains the deferred assurance target above.
+ADR-0016. The proposed v0.2.0 feature release remains
+`manual_review_required`; no tag or publication is authorized by review
+readiness work.
 
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
