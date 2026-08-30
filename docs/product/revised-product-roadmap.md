@@ -42,12 +42,16 @@ can silently expand installer or background authority.
 
 ## Observability and budget-control track
 
-A local real-time dashboard and narrowing-only budget-control layer have a
-reviewable [proposed PRD](local-dashboard-budget-control-prd.md), architecture,
-and ADR. The proposal is foreground, loopback-only, metadata-only, and unable
-to raise any governing hard limit. It remains unapproved. Remote, hosted,
-organization, billing, telemetry, and source-viewing surfaces remain outside
-the roadmap without a separate founder decision and external-data boundary.
+A local real-time dashboard and narrowing-only budget-control layer are
+accepted under [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md).
+The DBC-1 foundation freezes closed policy/decision/snapshot schemas, a pure
+field-wise-minimum evaluator, metadata-only audit projection, bounded
+aggregates, and a concurrent read-only audit view. Exact-owned policy lifecycle,
+runtime composition, the foreground loopback HTTP/SSE surface, and the complete
+synthetic browser rehearsal remain staged next steps. No current release claims
+dashboard availability. Remote, hosted, organization, billing, telemetry, and
+source-viewing surfaces remain outside the roadmap without a separate founder
+decision and external-data boundary.
 
 ## Hostile-repository security expansion track
 

@@ -1,0 +1,32 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/effective-budget-decision.schema.json",
+  "title": "Effective narrowing-only budget decision",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "decision_id", "requested_budget", "outcome", "reason_codes", "evaluated_at"],
+  "properties": {
+    "schema_name": {"const": "effective-budget-decision"},
+    "schema_version": {"const": "1.0.0"},
+    "decision_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "local_policy_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "requested_budget": {"$ref": "resource-budget.schema.json"},
+    "effective_budget": {"$ref": "resource-budget.schema.json"},
+    "outcome": {"type": "string", "enum": ["allow", "limit", "deny"]},
+    "matched_rule_id": {"type": "string", "pattern": "^[a-z][a-z0-9_-]{0,63}$"},
+    "reason_codes": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]{0,63}$"}
+    },
+    "evaluated_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"enum": ["allow", "limit"]}}, "required": ["outcome"]},
+      "then": {"required": ["effective_budget"]}
+    }
+  ]
+}

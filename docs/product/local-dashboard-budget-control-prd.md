@@ -1,6 +1,6 @@
 # Impresari Context — Local real-time dashboard and budget control PRD
 
-- Status: Proposed; founder approval required before implementation
+- Status: Accepted; contract foundation implemented, loopback delivery pending
 - Date: 2026-08-29
 - Authority: Future observability and control increment
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
@@ -25,7 +25,7 @@ budget-policy change, apply an exact owned policy, verify its fingerprint and
 effective ceilings, restore the prior policy, and close the server. Closing the
 server ends all dashboard access and background work.
 
-## Proposed scope
+## Accepted scope
 
 - A source-free `dashboard serve` command bound only to loopback on an
   operating-system-selected port, foreground by default, with no remote mode.
@@ -121,8 +121,25 @@ server ends all dashboard access and background work.
 - A live local rehearsal uses only synthetic audit metadata and a disposable
   policy store, then proves exact shutdown and removal.
 
+## Implementation sequence
+
+1. **DBC-1 contract foundation (implemented):** closed policy, effective-
+   decision, and dashboard-snapshot schemas; canonical narrowing evaluator;
+   metadata-only audit projection; bounded aggregates; and a concurrent
+   read-only audit-store view that withholds malformed rows.
+2. **DBC-2 exact-owned policy lifecycle:** preview/apply/remove/rollback,
+   optimistic concurrency, durable ownership, and runtime engine composition.
+3. **DBC-3 foreground loopback delivery:** ephemeral capability bootstrap,
+   bundled immutable UI, strict HTTP boundary, bounded live stream, and exact
+   shutdown.
+4. **DBC-4 native rehearsal:** synthetic metadata only, disposable policy
+   state, browser security/adversarial checks, and source-secrecy evidence.
+
+Each step must preserve the authority ceiling established by the preceding
+step. A contract or local test pass is not a dashboard-availability claim.
+
 ## Manual boundary
 
-Implementation requires explicit founder acceptance of ADR-0072. Any future
+The founder accepted ADR-0072 on 2026-08-30. Any future
 remote, hosted, organization, billing, telemetry, or source-viewing capability
 requires a separate decision, threat-model update, and external-data approval.

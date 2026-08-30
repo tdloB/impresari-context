@@ -70,7 +70,7 @@ impl Error for CoreError {
 }
 
 /// Public engine capability.
-#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[derive(Clone, Copy, Debug, Deserialize, Eq, Ord, PartialEq, PartialOrd, Serialize)]
 pub enum Capability {
     /// Open one explicitly approved workspace.
     #[serde(rename = "workspace.open")]

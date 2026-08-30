@@ -1,0 +1,30 @@
+{
+  "schema_name": "dashboard-snapshot",
+  "schema_version": "1.0.0",
+  "stream_sequence": "1",
+  "records": [
+    {
+      "schema_name": "dashboard-record",
+      "schema_version": "1.0.0",
+      "event_id": "evt_dashboard01",
+      "occurred_at": "2026-08-30T01:00:00Z",
+      "capability": "context.build",
+      "outcome": "allowed",
+      "policy_decision": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "limits": {
+        "unit_kind": "utf8_bytes", "requested": "8192", "hard": true,
+        "max_evidence_items": "16", "max_files": "32", "max_excerpt_bytes_per_item": "512",
+        "max_matches": "64", "max_traversal_depth": "8", "max_elapsed_ms": "5000",
+        "max_memory_bytes": "8388608",
+        "policy_profile": "sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+      },
+      "duration_ms": "7",
+      "engine_version": "0.1.0",
+      "workspace_identity_present": false,
+      "snapshot_identity_present": false,
+      "query": "password"
+    }
+  ],
+  "aggregates": [],
+  "unavailable_rows": "0"
+}
