@@ -243,9 +243,13 @@ implements the independently hosted package-only rehearsal against the
 published v0.1.0 Linux baseline and an exact-source release candidate for both
 selected profiles. It proves install, replacement, rollback, and removal for A
 and C, plus operator relaunch for C. A remains explicitly partial until a real
-logout/login boundary is observed. The following checkpoint composes these
-package receipts with fresh topology, cancellation, crash, and withdrawal
-evidence without weakening the accepted A+C authority boundary.
+logout/login boundary is observed. Release-candidate run `33297882070`, Linux
+job `99220559617`, passed the exact merged-source rehearsal. C returned
+`package_lifecycle_candidate`; A returned `package_lifecycle_partial` with its
+logout/login phase still unobserved. The following checkpoint composes the exact
+C package receipt with fresh topology, cancellation, crash, and withdrawal
+evidence without weakening the accepted A+C authority boundary. A continues on
+its separate genuine-login-session evidence path.
 
 ## Parallel Client Integration Depth Track
 

@@ -42,7 +42,35 @@ distinct-archive requirements, both profile claim ceilings, and Linux-only
 synthetic package execution. Contract checks accept both bounded receipts and
 reject a full-lifecycle or production overclaim.
 
-The first exact hosted run will be recorded after this workflow change reaches
-`main`. Until that run passes and its evidence is composed with the remaining
-topology, cancellation, crash, withdrawal, and real A-profile login-session
-gates, full lifecycle and production remain closed.
+## Hosted Evidence
+
+Release-candidate run `33297882070`, Linux job `99220559617`, passed from exact
+merged source `9d3e5de6fc09b57447c2798ea1bf09ee481229d0` on the GitHub-hosted
+Ubuntu x86_64 runner. The macOS and Windows package jobs in the same workflow
+also passed their complete repository, build, package, clean-install, and
+artifact-upload gates.
+
+The Linux candidate archive was
+`6c7121b457462194906323b4763416ccaaf425ab6c54fe049fc07cf85405fe68`.
+It was distinct from the checksum-verified v0.1.0 baseline archive
+`5b3c71025128e847d8a336f33a6938afaccb105b71a6ec0b30f0fb8c814049b3`.
+Both receipts bound the exact three-binary package scope and left service-unit,
+authorization-policy, unexpected-package-file, and staged-source state absent.
+
+- A receipt identity
+  `fc85fdc66b51ea62d8441601a09efd69c5024ebccd8eca2ea60b339de8f0baba`
+  returned `package_lifecycle_partial`. Install, upgrade, rollback, and uninstall
+  passed; `logout_login` remained `not_observed` with
+  `real_login_session_required`.
+- C receipt identity
+  `5c23d69982f486963dbd4570a0ecb2a57bbdb989a275ff720656f067441754e0`
+  returned `package_lifecycle_candidate`. Install, upgrade, rollback, exact safe
+  CLI operator relaunch, and uninstall passed.
+
+Every authority claim remained false. These receipts do not contain or imply
+topology revalidation, cancellation, crash recovery, health withdrawal, full
+lifecycle admission, production admission, real-analyzer authority, privileged
+installation, or a persistent service. The next C-profile checkpoint composes
+this exact package receipt with fresh external-topology, cancellation, crash,
+and health-withdrawal evidence. A remains partial until a genuine fresh login
+session supplies its separate reentry evidence.
