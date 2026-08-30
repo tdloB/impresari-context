@@ -36,6 +36,7 @@ home_dir="/home/$username"
 controller_root="$output_dir/controller"
 sshd_pid=""
 created_user=false
+created_sshd_runtime=false
 
 cleanup_host() {
   set +e
@@ -46,6 +47,9 @@ cleanup_host() {
   /usr/bin/loginctl terminate-user "$username" 2>/dev/null
   if [[ "$created_user" == true ]]; then
     /usr/sbin/userdel -r "$username" 2>/dev/null
+  fi
+  if [[ "$created_sshd_runtime" == true ]]; then
+    rmdir -- /run/sshd 2>/dev/null
   fi
   rm -rf -- "$home_dir" "$controller_root"
 }
@@ -144,6 +148,11 @@ Subsystem sftp internal-sftp
 EOF
 
 system_ssh_before=$({ /usr/bin/systemctl show ssh.service --property=LoadState,ActiveState,SubState,FragmentPath 2>/dev/null || true; } | sha256sum | awk '{print $1}')
+if [[ ! -e /run/sshd ]]; then
+  install -d -m 0755 -o root -g root /run/sshd
+  created_sshd_runtime=true
+fi
+[[ -d /run/sshd && ! -L /run/sshd && "$(stat -c '%U:%G:%a' /run/sshd)" == root:root:755 ]] || exit 5
 /usr/sbin/sshd -D -e -f "$controller_root/sshd_config" 2>"$controller_root/sshd.log" &
 sshd_pid=$!
 sleep 0.5
@@ -174,6 +183,10 @@ sshd_pid=""
 /usr/bin/loginctl terminate-user "$username" 2>/dev/null || true
 /usr/sbin/userdel -r "$username"
 created_user=false
+if [[ "$created_sshd_runtime" == true ]]; then
+  rmdir -- /run/sshd
+  created_sshd_runtime=false
+fi
 rm -rf -- "$home_dir" "$controller_root"
 system_ssh_after=$({ /usr/bin/systemctl show ssh.service --property=LoadState,ActiveState,SubState,FragmentPath 2>/dev/null || true; } | sha256sum | awk '{print $1}')
 
