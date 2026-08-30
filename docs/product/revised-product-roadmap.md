@@ -136,6 +136,14 @@ source-free composite: one atomically placed worker must reproduce the primitive
 and resource/lifecycle boundaries together. A component pass alone does not
 advance Linux to IAR-1B.
 
+That composite is now implemented as a replacement for the standalone
+delegated-cgroup CI step, preserving the authorization ceiling of one ephemeral
+`Delegate=yes` service. It applies the frozen `iar-linux-synthetic-v1` limits
+before atomic worker placement, runs the primitive boundary inside that exact
+worker, and repeats the source-free resource/lifecycle corpus below the same
+delegation. Hosted evidence is pending; until it passes, the recorded Linux
+posture remains the two non-composable component receipts.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

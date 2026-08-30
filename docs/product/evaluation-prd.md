@@ -287,6 +287,13 @@ crash/relaunch, cleanup, and cross-job checks using atomic
 `resource_lifecycle_confined=true`; overall `os_confined` and production
 admission remain false pending source-free composition and multi-host evidence.
 
+The composition checkpoint is scored only from one receipt produced inside one
+transient delegation. It must show that the profile was applied before atomic
+worker placement, the worker itself reproduced the primitive suite, and the
+resource/lifecycle corpus passed in the same delegated service. The standalone
+component receipts remain historical evidence and cannot be combined after the
+fact to manufacture a pass.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

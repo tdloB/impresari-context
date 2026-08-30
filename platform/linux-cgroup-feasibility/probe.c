@@ -61,7 +61,7 @@ static void run_worker(const enum worker_mode mode) {
         _exit(denied ? 0 : 21);
     }
     if (mode == WORKER_MEMORY) {
-        const size_t length = 64U * 1024U * 1024U;
+        const size_t length = 256U * 1024U * 1024U;
         volatile unsigned char *const bytes = malloc(length);
         if (bytes == NULL) _exit(22);
         for (size_t offset = 0; offset < length; offset += 4096U) {

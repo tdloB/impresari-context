@@ -365,6 +365,15 @@ placement rather than a racy fork-and-move sequence. A component pass proves
 resource and lifecycle enforcement only and leaves overall `os_confined`, real
 analyzer execution, and production admission false.
 
+The next Linux gate is a single-run composition, not an inference across the
+two component receipts. Exactly one synthetic worker must be born atomically
+inside a leaf carrying the frozen CPU, memory, and process limits and must then
+reproduce every primitive denial before exiting. The same delegated service
+must also pass exact kill, empty-state, bounded-output, timeout,
+crash/relaunch, cleanup, and cross-job checks. An exact-host candidate pass may
+set `os_confined=true`; it still sets `production_admitted=false` and does not
+authorize YARA until the required target matrix is independently admitted.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.

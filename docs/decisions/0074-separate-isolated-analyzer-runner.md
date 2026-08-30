@@ -186,6 +186,17 @@ closed receipt can claim only the resource/lifecycle component; it fixes
 overall OS confinement and production admission false until composed with the
 primitive checkpoint and repeated on every claimed Linux target.
 
+The accepted composition checkpoint replaces the standalone delegated-cgroup
+CI step rather than creating a second privileged setup. The same one transient
+service applies the frozen `iar-linux-synthetic-v1` limits, atomically creates
+one source-free worker inside its job leaf, and requires that worker to install
+and reproduce the `no_new_privs`, Landlock, seccomp, descriptor, network,
+descendant, and zero-write boundary. The remainder of the original-synthetic
+resource and lifecycle corpus runs below the same delegation. A complete
+receipt may set `os_confined=true` only for the exact observed
+kernel/architecture candidate; production admission and real analyzer
+execution remain false pending additional independently admitted targets.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

@@ -223,6 +223,8 @@ jq -n \
       cgroup_empty_verification: $cgroup_empty_verification
     },
     checks: {
+      atomic_cgroup_placement: false,
+      resource_profile_applied: false,
       no_new_privs_effective: $no_new_privs_effective,
       landlock_read_only_input: $landlock_read_only_input,
       external_filesystem_denial: $external_filesystem_denial,

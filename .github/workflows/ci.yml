@@ -88,10 +88,10 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
-      - name: Run Linux delegated-cgroup resource and lifecycle check
+      - name: Run Linux composite IAR-1B feasibility check
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash
-        run: ./scripts/check-linux-cgroup-feasibility.sh
+        run: ./scripts/check-linux-composite-feasibility.sh
       - name: Record bounded platform evidence
         shell: bash
         env:

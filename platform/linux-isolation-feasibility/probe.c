@@ -7,7 +7,9 @@
 #include <linux/filter.h>
 #include <linux/landlock.h>
 #include <linux/magic.h>
+#include <linux/sched.h>
 #include <linux/seccomp.h>
+#include <signal.h>
 #include <stddef.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -20,6 +22,7 @@
 #include <sys/statfs.h>
 #include <sys/syscall.h>
 #include <sys/utsname.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #ifndef SYS_landlock_create_ruleset
@@ -30,6 +33,12 @@
 #endif
 #ifndef SYS_landlock_restrict_self
 #define SYS_landlock_restrict_self 446
+#endif
+#ifndef CLONE_INTO_CGROUP
+#define CLONE_INTO_CGROUP 0x200000000ULL
+#endif
+#ifndef SYS_clone3
+#define SYS_clone3 435
 #endif
 
 #if defined(__x86_64__)
@@ -448,6 +457,45 @@ static void run_primitive_probe(const int argument_count,
     _exit(passed ? 0 : 25);
 }
 
+static int run_composite_probe(const int argument_count,
+                               char *const arguments[]) {
+    if (argument_count != 8) {
+        return 30;
+    }
+    const int cgroup_fd =
+        open(arguments[2], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    if (cgroup_fd < 0) {
+        return 31;
+    }
+    const struct clone_args clone_arguments = {
+        .flags = CLONE_INTO_CGROUP,
+        .exit_signal = SIGCHLD,
+        .cgroup = (uint64_t)cgroup_fd,
+    };
+    const pid_t worker =
+        (pid_t)syscall(SYS_clone3, &clone_arguments, sizeof(clone_arguments));
+    if (worker < 0) {
+        (void)close(cgroup_fd);
+        return 32;
+    }
+    if (worker == 0) {
+        (void)close(cgroup_fd);
+        char *primitive_arguments[] = {
+            arguments[0], "primitive", arguments[3], arguments[4],
+            arguments[5], arguments[6], arguments[7],
+        };
+        run_primitive_probe(7, primitive_arguments);
+    }
+    (void)close(cgroup_fd);
+    int status = 0;
+    while (waitpid(worker, &status, 0) < 0) {
+        if (errno != EINTR) {
+            return 33;
+        }
+    }
+    return WIFEXITED(status) ? WEXITSTATUS(status) : 34;
+}
+
 int main(const int argument_count, char *const arguments[]) {
     if (argument_count == 2 && strcmp(arguments[1], "capabilities") == 0) {
         print_capabilities();
@@ -456,6 +504,9 @@ int main(const int argument_count, char *const arguments[]) {
     if (argument_count >= 2 && strcmp(arguments[1], "primitive") == 0) {
         run_primitive_probe(argument_count, arguments);
         return 0;
+    }
+    if (argument_count >= 2 && strcmp(arguments[1], "composite") == 0) {
+        return run_composite_probe(argument_count, arguments);
     }
     return 2;
 }

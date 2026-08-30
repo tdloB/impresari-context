@@ -45,8 +45,10 @@
     "checks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["no_new_privs_effective", "landlock_read_only_input", "external_filesystem_denial", "credential_denial", "device_denial", "network_denial", "unrelated_descriptors_closed", "descendant_denial", "zero_writable_filesystem", "cpu_limit", "memory_limit", "process_count_limit", "exact_cgroup_kill", "cgroup_empty_after_job", "bounded_output", "timeout", "crash_relaunch", "cleanup", "cross_job_isolation"],
+      "required": ["atomic_cgroup_placement", "resource_profile_applied", "no_new_privs_effective", "landlock_read_only_input", "external_filesystem_denial", "credential_denial", "device_denial", "network_denial", "unrelated_descriptors_closed", "descendant_denial", "zero_writable_filesystem", "cpu_limit", "memory_limit", "process_count_limit", "exact_cgroup_kill", "cgroup_empty_after_job", "bounded_output", "timeout", "crash_relaunch", "cleanup", "cross_job_isolation"],
       "properties": {
+        "atomic_cgroup_placement": {"type": "boolean"},
+        "resource_profile_applied": {"type": "boolean"},
         "no_new_privs_effective": {"type": "boolean"},
         "landlock_read_only_input": {"type": "boolean"},
         "external_filesystem_denial": {"type": "boolean"},
@@ -117,6 +119,8 @@
           },
           "checks": {
             "properties": {
+              "atomic_cgroup_placement": {"const": true},
+              "resource_profile_applied": {"const": true},
               "no_new_privs_effective": {"const": true},
               "landlock_read_only_input": {"const": true},
               "external_filesystem_denial": {"const": true},
@@ -138,6 +142,7 @@
               "cross_job_isolation": {"const": true}
             }
           },
+          "limitations": {"const": ["single-host-evidence", "synthetic-probe-no-analysis"]},
           "os_confined": {"const": true}
         }
       }
