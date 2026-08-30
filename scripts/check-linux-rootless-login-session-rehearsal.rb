@@ -22,6 +22,8 @@ abort("login-session composer contains network access") if source.match?(/Net::H
 observer_source = OBSERVER.read
 abort("session observer accepts a raw command") if observer_source.match?(/--command|Shellwords|system\(|spawn\(|exec\(/)
 abort("session observer contains network access") if observer_source.match?(/Net::HTTP|TCPSocket|UDPSocket|\bcurl\b|\bwget\b/)
+abort("session observer does not resolve the runtime path from logind") unless observer_source.include?('"--property=RuntimePath"')
+abort("session observer trusts a caller-supplied runtime path") if observer_source.include?('ENV.fetch("XDG_RUNTIME_DIR"')
 live_source = LIVE.read
 abort("live rehearsal mutates the system SSH service") if live_source.match?(/systemctl\s+(?:start|stop|restart|enable|disable)\s+(?:ssh|sshd)/)
 abort("live rehearsal enables lingering") if live_source.include?("enable-linger")

@@ -53,8 +53,14 @@ begin
 
   session_id = ENV.fetch("XDG_SESSION_ID", "")
   raise ObservationError, "PAM/logind session identity is unavailable" unless session_id.match?(/\A[0-9A-Za-z_.-]{1,64}\z/)
-  runtime = ENV.fetch("XDG_RUNTIME_DIR", "")
-  raise ObservationError, "user runtime directory is unavailable" unless runtime == "/run/user/#{Process.uid}" && File.directory?(runtime)
+  runtime, runtime_error, runtime_status = Open3.capture3(
+    "/usr/bin/loginctl", "show-user", Process.uid.to_s, "--property=RuntimePath", "--value"
+  )
+  raise ObservationError, "logind runtime lookup failed: #{runtime_error.lines.first}" unless runtime_status.success?
+  runtime = runtime.strip
+  raise ObservationError, "logind runtime directory is unavailable" unless
+    runtime == "/run/user/#{Process.uid}" && File.directory?(runtime) && !File.symlink?(runtime)
+  ENV["XDG_RUNTIME_DIR"] = runtime
 
   manager_id, manager_error, manager_status = Open3.capture3(
     "/usr/bin/systemctl", "show", "user@#{Process.uid}.service", "--property=InvocationID", "--value"
