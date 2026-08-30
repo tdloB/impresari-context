@@ -209,6 +209,12 @@ PR 133 jobs `99200027090` and `99200027056` then passed x86_64 on held-out
 and kernel-diversity evidence. Production admission remains false pending an
 exact support, freshness, withdrawal, and maintenance contract.
 
+ADR-0077 supplies that candidate-only maintenance contract. It scopes current
+candidate evidence to the exact Ubuntu 24.04 x86_64 and arm64 targets, retains
+the Ubuntu 22.04 and 26.04 results as diversity-only evidence, and withdraws the
+claim on expiry, drift, missing evidence, or unavailability. This does not
+admit production, authorize a real analyzer, or open IAR-2.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

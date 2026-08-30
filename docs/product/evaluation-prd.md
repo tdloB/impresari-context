@@ -234,6 +234,12 @@ comparison baseline.
   artifact participates in IAR-1B admission.
 - IAR-2 remains closed until every platform claimed for YARA has passed IAR-1B.
 
+ADR-0077 adds a closed candidate-maintenance gate: exact evidence expires, and
+missing evidence, unavailable targets, host identity drift, or bound-artifact
+drift withdraws the candidate claim. The foreground evaluator receives only
+explicit observations, performs no host discovery or execution, and fixes
+production and real-analyzer admission false.
+
 The first macOS App Sandbox/XPC synthetic candidate records a `partial` result.
 It passes identity, bounded transport, entitlement, external-filesystem,
 credential-canary, synthetic-device, unrelated-process, and live loopback

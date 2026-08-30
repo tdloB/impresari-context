@@ -374,6 +374,12 @@ crash/relaunch, cleanup, and cross-job checks. An exact-host candidate pass may
 set `os_confined=true`; it still sets `production_admitted=false` and does not
 authorize YARA until the required target matrix is independently admitted.
 
+ADR-0077 maintains the resulting candidate corpus with exact digests,
+expiration, and fail-closed withdrawal. Ubuntu 24.04 x86_64 and arm64 form the
+initial candidate scope; held-out Ubuntu 22.04 and 26.04 receipts are diversity
+evidence only. This satisfies maintenance for the candidate claim, not the
+separate production-support or IAR-2 gates.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.

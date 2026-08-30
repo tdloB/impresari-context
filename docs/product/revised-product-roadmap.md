@@ -173,6 +173,15 @@ receipt. Kernel and architecture diversity are now demonstrated for the
 candidate; production admission remains closed until an exact support,
 freshness, withdrawal, and release-maintenance contract is frozen.
 
+ADR-0077 now freezes that candidate maintenance contract. The released manifest
+admits only the exact Ubuntu 24.04 x86_64 and arm64 evidence as candidate scope;
+the Ubuntu 22.04 and 26.04 receipts remain kernel-diversity-only. A source-free
+foreground evaluator returns deterministic compatible, stale, changed, missing,
+unsupported, and unavailable states and withdraws the candidate claim on every
+non-compatible state. It performs no host discovery or execution and always
+keeps production and real-analyzer admission false. The next checkpoint is an
+explicit production-support decision; IAR-2 remains closed.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

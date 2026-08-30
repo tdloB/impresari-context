@@ -1,0 +1,69 @@
+{
+  "schema_name": "linux-isolation-candidate-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "linux-iar-1b-conformance-v1",
+  "backend": "landlock-seccomp-cgroup-v2",
+  "claim": {
+    "level": "IAR-1B",
+    "candidate_only": true,
+    "broad_linux_support": false,
+    "production_admitted": false,
+    "real_analyzer_authorized": false
+  },
+  "bindings": {
+    "profile_id": "iar-linux-synthetic-v1",
+    "profile_sha256": "67d04cc852f9167fe4389d6038638f92a36fc4254bd9183591a782d9944fe19d",
+    "probe_path": "platform/linux-isolation-feasibility/probe.c",
+    "probe_sha256": "6bfb14a78caf15530d7236051965ea604ba55940b83fd3d9a61d86f84fe0694d",
+    "composite_check_path": "scripts/check-linux-composite-feasibility.sh",
+    "composite_check_sha256": "1cb408fa0e625eae236fc6406ef5ccaaa1b984ee3bb98956ee07dac919f11533"
+  },
+  "targets": [
+    {
+      "target_id": "ubuntu-24-04-x86-64",
+      "classification": "candidate_scope",
+      "runner_label": "ubuntu-24.04",
+      "runner_image_version": "20260823.283.1",
+      "os_release": "24.04",
+      "kernel_release": "6.17.0-1022-azure",
+      "architecture": "x86_64",
+      "landlock_abi": "7",
+      "evidence": {
+        "pull_request": "131",
+        "job_id": "99197119262",
+        "observed_at": "2026-08-30",
+        "fresh_through": "2026-09-13",
+        "receipt_fixture": "tests/conformance/v1/valid/linux-isolation-feasibility-candidate.json",
+        "receipt_sha256": "9f7158ba367679d169693cbbc585bfa147536b200467e4170bb8086f138b3485"
+      }
+    }
+  ],
+  "maintenance": {
+    "health_check": "explicit_source_free",
+    "host_discovery": "denied",
+    "automatic_repair": "denied",
+    "background_monitoring": "denied",
+    "privilege_use": "denied",
+    "service_mutation": "denied",
+    "analyzer_execution": "denied",
+    "production_admission": "denied",
+    "withdraw_on": [
+      "evidence_expired",
+      "evidence_missing",
+      "target_unavailable",
+      "runner_image_changed",
+      "kernel_changed",
+      "architecture_changed",
+      "landlock_abi_changed",
+      "bound_artifact_changed"
+    ]
+  },
+  "safe_next_steps": {
+    "compatible_candidate": "Retain the narrow candidate claim only.",
+    "stale_evidence": "Withdraw the candidate claim and rerun the synthetic composite.",
+    "changed": "Withdraw the candidate claim and review the changed identity.",
+    "missing_evidence": "Withdraw the candidate claim until exact evidence is restored.",
+    "unsupported": "Do not extend the candidate claim.",
+    "unavailable": "Withdraw the candidate claim until the target is reverified."
+  }
+}

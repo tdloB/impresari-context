@@ -654,6 +654,7 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
                 Some(
                     "linux-isolation-resource-profile.schema.json"
                         | "linux-isolation-feasibility.schema.json"
+                        | "linux-isolation-maintenance.schema.json"
                         | "linux-cgroup-resource-profile.schema.json"
                         | "linux-cgroup-feasibility.schema.json"
                 )

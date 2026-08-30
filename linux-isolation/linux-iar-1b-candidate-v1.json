@@ -1,0 +1,123 @@
+{
+  "schema_name": "linux-isolation-candidate-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "linux-iar-1b-candidate-v1",
+  "backend": "landlock-seccomp-cgroup-v2",
+  "claim": {
+    "level": "IAR-1B",
+    "candidate_only": true,
+    "broad_linux_support": false,
+    "production_admitted": false,
+    "real_analyzer_authorized": false
+  },
+  "bindings": {
+    "profile_id": "iar-linux-synthetic-v1",
+    "profile_sha256": "67d04cc852f9167fe4389d6038638f92a36fc4254bd9183591a782d9944fe19d",
+    "probe_path": "platform/linux-isolation-feasibility/probe.c",
+    "probe_sha256": "6bfb14a78caf15530d7236051965ea604ba55940b83fd3d9a61d86f84fe0694d",
+    "composite_check_path": "scripts/check-linux-composite-feasibility.sh",
+    "composite_check_sha256": "1cb408fa0e625eae236fc6406ef5ccaaa1b984ee3bb98956ee07dac919f11533"
+  },
+  "targets": [
+    {
+      "target_id": "ubuntu-24-04-x86-64",
+      "classification": "candidate_scope",
+      "runner_label": "ubuntu-24.04",
+      "runner_image_version": "20260823.283.1",
+      "os_release": "24.04",
+      "kernel_release": "6.17.0-1022-azure",
+      "architecture": "x86_64",
+      "landlock_abi": "7",
+      "evidence": {
+        "pull_request": "131",
+        "job_id": "99197119262",
+        "observed_at": "2026-08-30",
+        "fresh_through": "2026-09-13",
+        "receipt_fixture": "tests/conformance/v1/valid/linux-isolation-feasibility-candidate.json",
+        "receipt_sha256": "9f7158ba367679d169693cbbc585bfa147536b200467e4170bb8086f138b3485"
+      }
+    },
+    {
+      "target_id": "ubuntu-24-04-aarch64",
+      "classification": "candidate_scope",
+      "runner_label": "ubuntu-24.04-arm",
+      "runner_image_version": "20260823.101.1",
+      "os_release": "24.04",
+      "kernel_release": "6.17.0-1022-azure",
+      "architecture": "aarch64",
+      "landlock_abi": "7",
+      "evidence": {
+        "pull_request": "132",
+        "job_id": "99198568879",
+        "observed_at": "2026-08-30",
+        "fresh_through": "2026-09-13",
+        "receipt_fixture": "tests/conformance/v1/valid/linux-isolation-feasibility-arm64-candidate.json",
+        "receipt_sha256": "6318ad89b2b18f1a07e397a3e0aceda85df4ab29748164895793b319c6d18752"
+      }
+    },
+    {
+      "target_id": "ubuntu-22-04-x86-64",
+      "classification": "kernel_diversity_only",
+      "runner_label": "ubuntu-22.04",
+      "runner_image_version": "20260824.273.3",
+      "os_release": "22.04",
+      "kernel_release": "6.8.0-1064-azure",
+      "architecture": "x86_64",
+      "landlock_abi": "4",
+      "evidence": {
+        "pull_request": "133",
+        "job_id": "99200027090",
+        "observed_at": "2026-08-30",
+        "fresh_through": "2026-09-13",
+        "receipt_fixture": "tests/conformance/v1/valid/linux-isolation-feasibility-ubuntu22-candidate.json",
+        "receipt_sha256": "e50bbe98fe4e40d2b6c2113132f24917ba9969066b7c024cdd7b48d40466d2de"
+      }
+    },
+    {
+      "target_id": "ubuntu-26-04-x86-64",
+      "classification": "kernel_diversity_only",
+      "runner_label": "ubuntu-26.04",
+      "runner_image_version": "20260824.116.1",
+      "os_release": "26.04",
+      "kernel_release": "7.0.0-1012-azure",
+      "architecture": "x86_64",
+      "landlock_abi": "8",
+      "evidence": {
+        "pull_request": "133",
+        "job_id": "99200027056",
+        "observed_at": "2026-08-30",
+        "fresh_through": "2026-09-13",
+        "receipt_fixture": "tests/conformance/v1/valid/linux-isolation-feasibility-ubuntu26-candidate.json",
+        "receipt_sha256": "9659be84ae600a0f394bea2242fd7aafd8ffa4faf0f879b4d1f77ba7fb015130"
+      }
+    }
+  ],
+  "maintenance": {
+    "health_check": "explicit_source_free",
+    "host_discovery": "denied",
+    "automatic_repair": "denied",
+    "background_monitoring": "denied",
+    "privilege_use": "denied",
+    "service_mutation": "denied",
+    "analyzer_execution": "denied",
+    "production_admission": "denied",
+    "withdraw_on": [
+      "evidence_expired",
+      "evidence_missing",
+      "target_unavailable",
+      "runner_image_changed",
+      "kernel_changed",
+      "architecture_changed",
+      "landlock_abi_changed",
+      "bound_artifact_changed"
+    ]
+  },
+  "safe_next_steps": {
+    "compatible_candidate": "Retain the narrow candidate claim; production admission and real-analyzer execution remain closed.",
+    "stale_evidence": "Withdraw the candidate claim and rerun the source-free synthetic composite on the exact target before review.",
+    "changed": "Withdraw the candidate claim and review the changed host or bound artifact before new synthetic evidence is admitted.",
+    "missing_evidence": "Withdraw the candidate claim until the exact evidence receipt is restored and its digest is verified.",
+    "unsupported": "Do not extend the candidate claim; establish a separately reviewed target and fresh synthetic evidence first.",
+    "unavailable": "Withdraw the candidate claim for this target until it is available and reverified with the synthetic composite."
+  }
+}
