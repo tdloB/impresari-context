@@ -93,19 +93,35 @@
       "properties": {
         "schema_name": {"const": "independent-security-review-scope"},
         "schema_version": {"const": "1.0.0"},
-        "scope_id": {"const": "impresari-context-v0-2-0-review-v1"},
+        "scope_id": {"enum": ["impresari-context-v0-2-0-review-v1", "impresari-context-v0-2-0-candidate-review-v1"]},
         "target_version": {"const": "0.2.0"},
         "product_source_commit": {"$ref": "#/$defs/commit"},
         "status": {"enum": ["manual_review_required", "review_recorded"]},
         "triggered_boundaries": {
-          "type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true,
-          "items": {"enum": ["external_service_delivery_via_client_process", "authentication_configuration_reference", "child_process_supervision", "os_isolation_candidate"]}
+          "type": "array", "minItems": 4, "maxItems": 6, "uniqueItems": true,
+          "items": {"enum": ["external_service_delivery_via_client_process", "authentication_configuration_reference", "child_process_supervision", "os_isolation_candidate", "local_browser_dashboard_boundary", "release_candidate_supply_chain"]}
         },
         "review_areas": {
-          "type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true,
-          "items": {"enum": ["workspace_and_cache_isolation", "untrusted_repository_input", "parser_worker_process_boundary", "external_client_delivery_and_consent", "credential_reference_and_redaction", "configuration_install_update_remove", "analyzer_supervisor_and_linux_isolation", "release_supply_chain_and_claim_accuracy"]}
+          "type": "array", "minItems": 8, "maxItems": 10, "uniqueItems": true,
+          "items": {"enum": ["workspace_and_cache_isolation", "untrusted_repository_input", "parser_worker_process_boundary", "external_client_delivery_and_consent", "credential_reference_and_redaction", "configuration_install_update_remove", "analyzer_supervisor_and_linux_isolation", "local_dashboard_and_budget_policy", "release_supply_chain_and_claim_accuracy"]}
         },
-        "required_artifacts": {"type": "array", "minItems": 12, "maxItems": 12, "uniqueItems": true, "items": {"type": "string", "pattern": "^(?:docs/[A-Za-z0-9._/-]+\\.md|SECURITY\\.md)$"}},
+        "required_artifacts": {"type": "array", "minItems": 12, "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "pattern": "^(?:docs/[A-Za-z0-9._/-]+\\.md|SECURITY\\.md)$"}},
+        "candidate_evidence": {"$ref": "#/$defs/candidateEvidence"},
+        "release_controls": {
+          "type": "array", "minItems": 3, "maxItems": 12, "uniqueItems": true,
+          "items": {
+            "type": "object", "required": ["path", "sha256"],
+            "properties": {
+              "path": {"type": "string", "pattern": "^(?:\\.github/workflows/[A-Za-z0-9._/-]+\\.yml|schemas/v1/[A-Za-z0-9._/-]+\\.json|scripts/[A-Za-z0-9._/-]+\\.rb)$"},
+              "sha256": {"$ref": "#/$defs/sha256"}
+            },
+            "additionalProperties": false
+          }
+        },
+        "allowed_descendant_paths": {
+          "type": "array", "minItems": 1, "maxItems": 40, "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^(?:\\.github/workflows/[A-Za-z0-9._/-]+\\.yml|CHANGELOG\\.md|docs/[A-Za-z0-9._/-]+\\.md|release-review/[A-Za-z0-9._/-]+\\.json|schemas/v1/[A-Za-z0-9._/-]+\\.json|scripts/[A-Za-z0-9._/-]+\\.rb|tests/conformance/v1/[A-Za-z0-9._/-]+\\.json)$"}
+        },
         "reviewer_requirements": {
           "type": "object",
           "required": ["human", "independent_of_implementation", "security_experience_required", "conflict_disclosure_required", "ai_assistance_may_not_be_the_reviewer", "attributable_report_required"],
@@ -153,6 +169,7 @@
         "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 400}
       },
       "allOf": [
+        {"if": {"properties": {"scope_id": {"const": "impresari-context-v0-2-0-candidate-review-v1"}}}, "then": {"required": ["candidate_evidence", "release_controls", "allowed_descendant_paths"]}},
         {"if": {"properties": {"status": {"const": "manual_review_required"}}}, "then": {"properties": {"claim": {"properties": {"review_gate_satisfied": {"const": false}}}}}},
         {"if": {"properties": {"status": {"const": "review_recorded"}}}, "then": {"required": ["report"], "properties": {"claim": {"properties": {"review_gate_satisfied": {"const": true}}}}}}
       ],
@@ -165,7 +182,7 @@
         "schema_name": {"const": "independent-security-review-receipt"}, "schema_version": {"const": "1.0.0"},
         "status": {"enum": ["manual_review_required", "review_admitted", "changed", "missing_evidence", "invalid_review", "unsupported"]},
         "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
-        "scope_id": {"const": "impresari-context-v0-2-0-review-v1"}, "target_version": {"const": "0.2.0"},
+        "scope_id": {"enum": ["impresari-context-v0-2-0-review-v1", "impresari-context-v0-2-0-candidate-review-v1"]}, "target_version": {"const": "0.2.0"},
         "observed": {
           "type": "object",
           "required": ["scope_available", "report_available", "reviewer_independent", "target_version", "product_source_commit", "report_sha256", "critical_open", "high_open"],
@@ -188,6 +205,67 @@
         {"if": {"properties": {"status": {"const": "review_admitted"}}}, "then": {"properties": {"review_gate_satisfied": {"const": true}}}},
         {"if": {"properties": {"status": {"enum": ["manual_review_required", "changed", "missing_evidence", "invalid_review", "unsupported"]}}}, "then": {"properties": {"review_gate_satisfied": {"const": false}}}}
       ],
+      "additionalProperties": false
+    },
+    "candidateEvidence": {
+      "type": "object",
+      "required": ["workflow_run_id", "workflow_url", "status", "source_commit", "completed_at", "artifacts"],
+      "properties": {
+        "workflow_run_id": {"const": 33323269945},
+        "workflow_url": {"const": "https://github.com/tdloB/impresari-context/actions/runs/33323269945"},
+        "status": {"const": "success"},
+        "source_commit": {"const": "1a9923c0e5d671581f6b7da3bc4248b604971d63"},
+        "completed_at": {"const": "2026-08-30T16:54:25Z"},
+        "artifacts": {
+          "type": "array", "minItems": 3, "maxItems": 3,
+          "items": {
+            "type": "object",
+            "required": ["artifact_id", "target", "name", "workflow_artifact_sha256", "archive_sha256", "manifest_sha256", "expires_at"],
+            "properties": {
+              "artifact_id": {"type": "integer"},
+              "target": {"enum": ["aarch64-apple-darwin", "x86_64-unknown-linux-gnu", "x86_64-pc-windows-msvc"]},
+              "name": {"type": "string", "pattern": "^impresari-context-0\\.2\\.0-[a-z0-9_-]+$"},
+              "workflow_artifact_sha256": {"$ref": "#/$defs/sha256"},
+              "archive_sha256": {"$ref": "#/$defs/sha256"},
+              "manifest_sha256": {"$ref": "#/$defs/sha256"},
+              "expires_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"}
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "reviewRecord": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "scope_id", "target_version", "scope_identity", "product_source_commit", "status", "reviewer_reference", "independence_statement", "conflict_disclosure", "report_sha256", "reviewed_at", "critical_open", "high_open", "unknown_open", "medium_dispositions_complete", "low_documentation_complete", "claim", "safe_next_step"],
+      "properties": {
+        "schema_name": {"const": "independent-security-review-record"},
+        "schema_version": {"const": "1.0.0"},
+        "scope_id": {"const": "impresari-context-v0-2-0-candidate-review-v1"},
+        "target_version": {"const": "0.2.0"},
+        "scope_identity": {"$ref": "#/$defs/sha256"},
+        "product_source_commit": {"const": "1a9923c0e5d671581f6b7da3bc4248b604971d63"},
+        "status": {"const": "review_recorded"},
+        "reviewer_reference": {"type": "string", "minLength": 1, "maxLength": 200},
+        "independence_statement": {"type": "string", "minLength": 1, "maxLength": 500},
+        "conflict_disclosure": {"type": "string", "minLength": 1, "maxLength": 500},
+        "report_sha256": {"$ref": "#/$defs/sha256"},
+        "reviewed_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "critical_open": {"const": 0}, "high_open": {"const": 0}, "unknown_open": {"const": 0},
+        "medium_dispositions_complete": {"const": true}, "low_documentation_complete": {"const": true},
+        "claim": {
+          "type": "object",
+          "required": ["review_gate_satisfied", "release_ready", "publication_authorized", "production_support_admitted", "real_analyzer_authorized"],
+          "properties": {
+            "review_gate_satisfied": {"const": true}, "release_ready": {"const": false},
+            "publication_authorized": {"const": false}, "production_support_admitted": {"const": false},
+            "real_analyzer_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 400}
+      },
       "additionalProperties": false
     }
   }

@@ -11,6 +11,13 @@ Automated scanners and AI-assisted review provide useful evidence, but they are
 not equivalent to an independent audit and do not satisfy a mandatory review
 trigger when one applies.
 
+That earlier trigger now applies to the proposed v0.2.0 release under ADR-0083.
+The final candidate handoff is
+`docs/verification/v0-2-independent-security-review-candidate-brief.md`, bound
+to product commit `1a9923c0e5d671581f6b7da3bc4248b604971d63` and the immutable
+candidate scope. The older prepared scope remains planning history and must not
+be used as review coverage for this candidate.
+
 ## Reviewer qualification
 
 The reviewer should be able to demonstrate practical experience reviewing

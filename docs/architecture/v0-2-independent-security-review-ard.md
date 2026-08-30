@@ -14,6 +14,12 @@
   scheduling decision without mutating the prepared review scope.
 - `independent-security-review-backlog.rb` evaluates scheduling metadata only;
   it cannot admit a review or authorize a release.
+- `v0.2.0-independent-review-candidate-scope.json` freezes the final product
+  commit, exact native candidate run and package identities, release-control
+  hashes, and allowed post-freeze metadata paths.
+- `v0.2.0-independent-review-record.json` is intentionally absent until the
+  attributable human report exists. It records bounded report metadata without
+  mutating the candidate scope.
 
 ## Binding model
 
@@ -28,6 +34,13 @@ artifact, or a private report whose digest and bounded public summary are
 recorded. Sensitive exploit details need not be published. The attributable
 reviewer reference, exact reviewed commit, finding counts, dispositions, and
 report SHA-256 are mandatory.
+
+The final candidate uses a separate review record rather than changing the
+scope from pending to admitted. The record must name the candidate scope digest
+and product commit. The release gate hashes the scope, validates the record,
+verifies that the final tag descends from the product commit, rejects every
+changed path outside the scope's exact metadata allowlist, and re-hashes the
+pinned release workflow, gate, and schema.
 
 ## State machine
 
@@ -47,6 +60,11 @@ reviewer must assess the delta or repeat the review. The final tag may descend
 from the reviewed commit only through transparently enumerated review evidence,
 version, changelog, and release-record changes that do not alter product
 behavior. The pre-publication gate must verify that path list explicitly.
+
+The scope-freeze PR itself is a descendant of the product commit and contains
+review/release metadata only. Its exact changed paths are enumerated by the
+candidate scope. Controls capable of admitting a release are additionally
+hash-pinned so an allowlisted filename cannot conceal a later control change.
 
 ## Backlog scheduling
 

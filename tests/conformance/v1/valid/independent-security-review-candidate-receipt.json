@@ -1,0 +1,36 @@
+{
+  "schema_name": "independent-security-review-receipt",
+  "schema_version": "1.0.0",
+  "status": "manual_review_required",
+  "reason_code": "attributable_independent_report_not_recorded",
+  "scope_id": "impresari-context-v0-2-0-candidate-review-v1",
+  "target_version": "0.2.0",
+  "observed": {
+    "scope_available": true,
+    "report_available": false,
+    "reviewer_independent": false,
+    "target_version": "0.2.0",
+    "product_source_commit": "1a9923c0e5d671581f6b7da3bc4248b604971d63",
+    "report_sha256": "",
+    "critical_open": 0,
+    "high_open": 0
+  },
+  "scope_identity": "aa96ad705335d86948ad61810c39f06e5901faf1b0e9ab2e7f437d17f1acd9d3",
+  "checks": ["scope_valid", "scope_identity_pinned", "target_version_exact", "scope_available", "product_source_exact", "manual_review_required"],
+  "safe_next_step": "Give the exact candidate commit, scope identity, reviewer brief, and candidate evidence to an attributable independent human security reviewer; record the returned report identity and finding dispositions separately.",
+  "review_gate_satisfied": false,
+  "release_ready": false,
+  "publication_authorized": false,
+  "production_support_admitted": false,
+  "real_analyzer_authorized": false,
+  "authority": {
+    "source_read": "denied",
+    "source_write": "denied",
+    "network": "denied",
+    "credential_access": "denied",
+    "process_execution": "denied",
+    "tag_creation": "denied",
+    "release_publication": "denied",
+    "risk_acceptance": "denied"
+  }
+}

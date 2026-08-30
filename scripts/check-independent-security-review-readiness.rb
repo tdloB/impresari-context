@@ -1,6 +1,7 @@
 #!/usr/bin/env ruby
 # SPDX-License-Identifier: Apache-2.0
 
+require "digest"
 require "json"
 require "open3"
 require "pathname"
@@ -9,8 +10,9 @@ require "tmpdir"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
 CHECKER = ROOT.join("scripts/independent-security-review-readiness.rb")
-SCOPE = ROOT.join("release-review/v0.2.0-independent-review-scope.json")
-SCOPE_FIXTURE = ROOT.join("tests/conformance/v1/valid/independent-security-review-scope.json")
+SCOPE = ROOT.join("release-review/v0.2.0-independent-review-candidate-scope.json")
+SCOPE_FIXTURE = ROOT.join("tests/conformance/v1/valid/independent-security-review-candidate-scope.json")
+PRODUCT_SOURCE_COMMIT = "1a9923c0e5d671581f6b7da3bc4248b604971d63"
 
 scope_document = JSON.parse(SCOPE.read)
 scope_fixture = JSON.parse(SCOPE_FIXTURE.read)
@@ -21,11 +23,16 @@ artifacts.each do |relative|
   path = ROOT.join(relative)
   abort("required review artifact is missing: #{relative}") unless path.file? && !path.symlink?
 end
+scope_document.fetch("release_controls").each do |control|
+  path = ROOT.join(control.fetch("path"))
+  abort("release control is missing: #{control.fetch('path')}") unless path.file? && !path.symlink?
+  abort("release control identity drifted: #{control.fetch('path')}") unless Digest::SHA256.file(path).hexdigest == control.fetch("sha256")
+end
 
 def run_check(overrides = {})
   options = {
     scope: SCOPE, scope_available: true, report_available: false, reviewer_independent: false,
-    target_version: "0.2.0", product_source_commit: "1ed4500a6d3ac4a0d375c62f1c208ba8ddf98d51",
+    target_version: "0.2.0", product_source_commit: PRODUCT_SOURCE_COMMIT,
     report_sha256: "", critical_open: 0, high_open: 0,
   }.merge(overrides)
   command = [
@@ -69,7 +76,7 @@ Dir.mktmpdir("impresari-review-readiness-") do |directory|
   command = [
     RbConfig.ruby, CHECKER.to_s, "--scope", changed.to_s, "--scope-available", "yes",
     "--report-available", "no", "--reviewer-independent", "no", "--target-version", "0.2.0",
-    "--product-source-commit", "1ed4500a6d3ac4a0d375c62f1c208ba8ddf98d51",
+    "--product-source-commit", PRODUCT_SOURCE_COMMIT,
     "--report-sha256", "", "--critical-open", "0", "--high-open", "0",
   ]
   _stdout, stderr, status = Open3.capture3(*command)
