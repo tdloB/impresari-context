@@ -196,6 +196,17 @@ paths without host discovery or authority. The next checkpoint is bounded
 source-free host preflight on independently pinned targets followed by the full
 synthetic confinement corpus; production and IAR-2 remain closed.
 
+The first rootless host slice now implements that bounded preflight. It reads
+only fixed Linux kernel, cgroup v2, and existing per-user systemd-manager
+metadata; records no raw cgroup path or user identity; and performs no process
+launch, D-Bus call, service/cgroup mutation, network access, privilege request,
+or repair. Its deterministic receipt distinguishes ready-for-rehearsal,
+unavailable, unsupported, insufficient-delegation, and invalid-host states while
+keeping `os_confined=false`, production false, and real analyzers closed. The
+next rootless checkpoint is the no-sudo foreground transient-user-unit synthetic
+corpus on preflight-ready targets. The externally managed profile remains an
+independent later checkpoint.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

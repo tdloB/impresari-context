@@ -17,6 +17,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Record no-sudo rootless host preflight
+        shell: bash
+        run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux primitive feasibility check
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
@@ -36,6 +39,9 @@ jobs:
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Record no-sudo rootless host preflight
+        shell: bash
+        run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux primitive feasibility check
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
@@ -122,6 +128,10 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
+      - name: Record no-sudo rootless host preflight
+        if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
+        shell: bash
+        run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux composite IAR-1B feasibility check
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash

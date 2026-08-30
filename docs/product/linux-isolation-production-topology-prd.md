@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Accepted; source-free feasibility contract implemented
+- Status: Accepted; source-free feasibility contract and read-only rootless host preflight implemented
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -98,8 +98,11 @@ surprise.
 
 ## Current Boundary
 
-The topology decision is complete. The next increment is limited to
-source-free contracts and synthetic feasibility evaluation for the two selected
-profiles. Production admission, real analyzers, repository input, host
-discovery, automatic repair, privilege use, and persistent service installation
-remain closed.
+The topology decision and bounded rootless host-observation slice are complete.
+The observer reads only fixed Linux platform metadata and returns a closed
+eligibility receipt. It does not launch a process, contact D-Bus, mutate a
+service or cgroup, record raw paths, request privilege, or inspect workspace
+source. The next rootless increment is a source-free transient-user-unit
+synthetic rehearsal only on hosts where preflight is ready. Production
+admission, real analyzers, repository input, automatic repair, privileged
+fallback, and persistent service installation remain closed.

@@ -57,6 +57,12 @@ Any failure returns a non-feasible state such as `unsupported`, `unavailable`,
 packages, start the system user manager, change login policy, contact D-Bus
 outside the selected user manager, or request privilege.
 
+The first implemented host slice is read-only. It reads only fixed procfs,
+cgroupfs, and local user-manager transport identities; suppresses raw cgroup
+paths from receipts; and never invokes `systemctl`, `systemd-run`, D-Bus, sudo,
+or a worker. `ready_for_synthetic_rehearsal` is therefore eligibility evidence,
+not proof of the synthetic child cycle, OS confinement, or production support.
+
 ## Selected External Delegation Profile
 
 The externally managed profile accepts an inherited directory/file-descriptor
