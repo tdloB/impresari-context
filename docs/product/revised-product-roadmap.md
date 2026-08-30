@@ -207,6 +207,22 @@ next rootless checkpoint is the no-sudo foreground transient-user-unit synthetic
 corpus on preflight-ready targets. The externally managed profile remains an
 independent later checkpoint.
 
+PR 137 run `33293552482` then recorded the first live rootless matrix. Hosted
+Ubuntu 24.04 x86_64 and arm64 plus Ubuntu 26.04 x86_64 were ready for rehearsal;
+Ubuntu 22.04 x86_64 failed closed because its user manager exposed memory and
+pids but not CPU. The no-sudo rehearsal is now implemented for ready targets:
+one foreground transient user service receives only CPU/memory/pids delegation,
+runs the frozen original-synthetic composite, and must be collected afterward.
+The Ubuntu 22.04 path skips without a system unit or privileged fallback. Hosted
+PR 138 run `33294099301` then passed the complete rootless synthetic rehearsal
+on Ubuntu 24.04 x86_64 and arm64 plus Ubuntu 26.04 x86_64. Each ready target
+created and collected one transient user service without sudo, privilege, or
+persistence. Ubuntu 22.04 again skipped before launch because CPU delegation
+was unavailable. These are exact-host synthetic candidates only; production,
+the external profile, and IAR-2 stay closed. The next checkpoint freezes and
+tests the inherited-capability contract for the selected externally managed
+profile before production lifecycle work.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

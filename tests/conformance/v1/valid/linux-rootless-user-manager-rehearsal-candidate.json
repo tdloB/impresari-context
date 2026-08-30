@@ -1,0 +1,20 @@
+{
+  "schema_name": "linux-rootless-user-manager-rehearsal",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "policy_identity": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4",
+  "profile": "rootless_user_manager",
+  "status": "candidate_passed",
+  "reason_code": "rootless_synthetic_corpus_passed",
+  "observed_host": {"operating_system": "linux", "kernel_release": "6.17.0-synthetic", "architecture": "x86_64"},
+  "preflight": {"status": "ready_for_synthetic_rehearsal", "receipt_identity": "b52f3ef3c602d2bfb1e824533da3a8fc5ce0961fb6a72811edc0f3ab5f82db80", "raw_cgroup_path_recorded": false},
+  "transient_user_unit": {"attempted": true, "created": true, "manager": "existing_user_manager_only", "delegated_controllers": ["cpu", "memory", "pids"], "sudo_used": false, "privileged_service_used": false, "persistent": false, "unit_name_recorded": false, "collected": true},
+  "composite": {"executed": true, "result": "candidate_passed", "receipt_identity": "913a55a5b8fe1613bc59fbcb00973157b3253400b8f09b904ac5a38713b8df2e", "source_kind": "original_synthetic_only", "real_analyzer_used": false},
+  "safe_next_step": "Retain this exact-host rootless synthetic candidate; do not admit production or run a real analyzer until release and maintenance gates pass.",
+  "rootless_candidate_active": true,
+  "os_confined": true,
+  "production_admitted": false,
+  "real_analyzer_authorized": false,
+  "privileged_installation_authorized": false,
+  "authority": {"policy_read": "fixed_bundled_policy", "host_metadata_read": "fixed_linux_platform_files", "bundled_synthetic_source_read": "fixed_rehearsal_only", "workspace_source_read": "denied", "source_write": "synthetic_target_only", "process_execution": "fixed_synthetic_rehearsal_only", "user_manager_request": "one_transient_unit_only", "service_mutation": "transient_user_unit_only", "cgroup_mutation": "delegated_descendants_only", "network": "denied", "credential_access": "denied", "privilege_use": "denied", "persistent_service": "denied", "analyzer_execution": "denied"}
+}

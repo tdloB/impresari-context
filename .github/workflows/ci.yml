@@ -20,6 +20,11 @@ jobs:
       - name: Record no-sudo rootless host preflight
         shell: bash
         run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Run no-sudo rootless user-manager rehearsal
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: ruby ./scripts/linux-rootless-user-manager-rehearsal.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux primitive feasibility check
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
@@ -42,6 +47,11 @@ jobs:
       - name: Record no-sudo rootless host preflight
         shell: bash
         run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Run no-sudo rootless user-manager rehearsal
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: ruby ./scripts/linux-rootless-user-manager-rehearsal.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux primitive feasibility check
         shell: bash
         run: ./scripts/check-linux-isolation-feasibility.sh
@@ -132,6 +142,12 @@ jobs:
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash
         run: ruby ./scripts/linux-rootless-host-preflight.rb | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Run no-sudo rootless user-manager rehearsal
+        if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: ruby ./scripts/linux-rootless-user-manager-rehearsal.rb | tee -a "$GITHUB_STEP_SUMMARY"
       - name: Run Linux composite IAR-1B feasibility check
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash

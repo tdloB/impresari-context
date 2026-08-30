@@ -1,0 +1,150 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-rootless-user-manager-rehearsal.schema.json",
+  "title": "Linux rootless user-manager synthetic rehearsal receipt",
+  "type": "object",
+  "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "profile", "status", "reason_code", "observed_host", "preflight", "transient_user_unit", "composite", "safe_next_step", "rootless_candidate_active", "os_confined", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "authority"],
+  "properties": {
+    "schema_name": {"const": "linux-rootless-user-manager-rehearsal"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+    "policy_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "profile": {"const": "rootless_user_manager"},
+    "status": {"enum": ["candidate_passed", "skipped_preflight", "launch_failed", "composite_failed", "cleanup_failed"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+    "observed_host": {
+      "type": "object",
+      "required": ["operating_system", "kernel_release", "architecture"],
+      "properties": {
+        "operating_system": {"enum": ["linux", "other"]},
+        "kernel_release": {"type": "string", "pattern": "^(?:not_observed|[A-Za-z0-9._+-]{1,128})$"},
+        "architecture": {"enum": ["x86_64", "aarch64", "other"]}
+      },
+      "additionalProperties": false
+    },
+    "preflight": {
+      "type": "object",
+      "required": ["status", "receipt_identity", "raw_cgroup_path_recorded"],
+      "properties": {
+        "status": {"enum": ["ready_for_synthetic_rehearsal", "unavailable", "unsupported", "insufficient_delegation", "invalid_host_state"]},
+        "receipt_identity": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "raw_cgroup_path_recorded": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "transient_user_unit": {
+      "type": "object",
+      "required": ["attempted", "created", "manager", "delegated_controllers", "sudo_used", "privileged_service_used", "persistent", "unit_name_recorded", "collected"],
+      "properties": {
+        "attempted": {"type": "boolean"},
+        "created": {"type": "boolean"},
+        "manager": {"const": "existing_user_manager_only"},
+        "delegated_controllers": {"const": ["cpu", "memory", "pids"]},
+        "sudo_used": {"const": false},
+        "privileged_service_used": {"const": false},
+        "persistent": {"const": false},
+        "unit_name_recorded": {"const": false},
+        "collected": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "composite": {
+      "type": "object",
+      "required": ["executed", "result", "receipt_identity", "source_kind", "real_analyzer_used"],
+      "properties": {
+        "executed": {"type": "boolean"},
+        "result": {"enum": ["not_executed", "candidate_passed", "failed"]},
+        "receipt_identity": {"type": "string", "pattern": "^(?:not_executed|[0-9a-f]{64})$"},
+        "source_kind": {"const": "original_synthetic_only"},
+        "real_analyzer_used": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+    "rootless_candidate_active": {"type": "boolean"},
+    "os_confined": {"type": "boolean"},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "authority": {
+      "type": "object",
+      "required": ["policy_read", "host_metadata_read", "bundled_synthetic_source_read", "workspace_source_read", "source_write", "process_execution", "user_manager_request", "service_mutation", "cgroup_mutation", "network", "credential_access", "privilege_use", "persistent_service", "analyzer_execution"],
+      "properties": {
+        "policy_read": {"const": "fixed_bundled_policy"},
+        "host_metadata_read": {"const": "fixed_linux_platform_files"},
+        "bundled_synthetic_source_read": {"const": "fixed_rehearsal_only"},
+        "workspace_source_read": {"const": "denied"},
+        "source_write": {"const": "synthetic_target_only"},
+        "process_execution": {"const": "fixed_synthetic_rehearsal_only"},
+        "user_manager_request": {"const": "one_transient_unit_only"},
+        "service_mutation": {"const": "transient_user_unit_only"},
+        "cgroup_mutation": {"const": "delegated_descendants_only"},
+        "network": {"const": "denied"},
+        "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"},
+        "persistent_service": {"const": "denied"},
+        "analyzer_execution": {"const": "denied"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "candidate_passed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "rootless_candidate_active": {"const": true},
+          "os_confined": {"const": true},
+          "preflight": {"properties": {"status": {"const": "ready_for_synthetic_rehearsal"}}},
+          "transient_user_unit": {"properties": {"attempted": {"const": true}, "created": {"const": true}, "collected": {"const": true}}},
+          "composite": {"properties": {"executed": {"const": true}, "result": {"const": "candidate_passed"}, "receipt_identity": {"pattern": "^[0-9a-f]{64}$"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["skipped_preflight", "launch_failed", "composite_failed", "cleanup_failed"]}}, "required": ["status"]},
+      "then": {"properties": {"rootless_candidate_active": {"const": false}, "os_confined": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "skipped_preflight"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "preflight": {"properties": {"status": {"enum": ["unavailable", "unsupported", "insufficient_delegation", "invalid_host_state"]}}},
+          "transient_user_unit": {"properties": {"attempted": {"const": false}, "created": {"const": false}, "collected": {"const": false}}},
+          "composite": {"properties": {"executed": {"const": false}, "result": {"const": "not_executed"}, "receipt_identity": {"const": "not_executed"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "launch_failed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "preflight": {"properties": {"status": {"const": "ready_for_synthetic_rehearsal"}}},
+          "transient_user_unit": {"properties": {"attempted": {"const": true}, "created": {"const": false}}},
+          "composite": {"properties": {"executed": {"const": false}, "result": {"const": "not_executed"}, "receipt_identity": {"const": "not_executed"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "composite_failed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "preflight": {"properties": {"status": {"const": "ready_for_synthetic_rehearsal"}}},
+          "transient_user_unit": {"properties": {"attempted": {"const": true}, "created": {"const": true}}},
+          "composite": {"properties": {"executed": {"const": true}, "result": {"const": "failed"}, "receipt_identity": {"pattern": "^[0-9a-f]{64}$"}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "cleanup_failed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "preflight": {"properties": {"status": {"const": "ready_for_synthetic_rehearsal"}}},
+          "transient_user_unit": {"properties": {"attempted": {"const": true}, "created": {"const": true}, "collected": {"const": false}}},
+          "composite": {"properties": {"executed": {"const": true}, "result": {"const": "candidate_passed"}, "receipt_identity": {"pattern": "^[0-9a-f]{64}$"}}}
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

@@ -63,6 +63,14 @@ paths from receipts; and never invokes `systemctl`, `systemd-run`, D-Bus, sudo,
 or a worker. `ready_for_synthetic_rehearsal` is therefore eligibility evidence,
 not proof of the synthetic child cycle, OS confinement, or production support.
 
+The next rootless slice uses that ready state to request exactly one foreground
+transient service from the existing user manager. Its `Delegate=` list is
+limited to CPU, memory, and pids; it runs only the frozen original-synthetic
+composite; and `--wait --pipe --collect` binds completion and removal to the
+foreground invocation. The launcher verifies the exact unit becomes
+`not-found`. No system-manager call, sudo, persistent unit, raw cgroup path,
+repository-derived input, or real analyzer is permitted.
+
 ## Selected External Delegation Profile
 
 The externally managed profile accepts an inherited directory/file-descriptor
