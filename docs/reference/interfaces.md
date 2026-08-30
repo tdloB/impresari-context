@@ -163,6 +163,33 @@ and no environment, input-variable, remote, or sandbox configuration. It does
 not launch VS Code, trust or enable a server, inspect a user profile, or claim
 the client is first-class.
 
+## Foreground local dashboard
+
+Start one source-free metadata dashboard with two existing, explicit,
+disjoint roots:
+
+```text
+impresari-context dashboard serve <audit-cache-root> <policy-state-root>
+```
+
+The command writes exactly one `dashboard-ready` JSON record before entering
+the foreground loop. Its `bootstrap_url` contains a one-use 256-bit capability
+in the URL fragment; open it manually in a local browser. The server binds an
+operating-system-selected port on verified loopback only, serves compiled
+assets, exchanges the fragment for a process-local HttpOnly cookie, and ends on
+the authenticated UI shutdown action or process termination. It never opens a
+browser, listens remotely, daemonizes, reads source or packets, makes an
+outbound request, or permits a budget increase.
+
+Policy apply, remove, and rollback are preview-first. The browser must return
+the exact preview receipt ID plus the current policy identity and revision for
+the write to proceed. Stale state, altered drafts, replayed bootstrap tokens,
+wrong Host/Origin, missing CSRF, malformed HTTP/JSON, or incompatible stores
+fail with closed, source-free errors.
+
+DBC-3 is implemented in the current source tree. Native-browser adversarial
+and source-canary rehearsal remains the separate DBC-4 release-admission gate.
+
 ## Local MCP process
 
 Launch the single-client child process with fixed authority:

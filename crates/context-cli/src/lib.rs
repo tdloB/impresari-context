@@ -36,6 +36,9 @@ use context_cursor_agent::{
     deliver_cursor_preview, prepare_cursor_delivery, rehydrate_cursor_delivery_preview,
 };
 use context_dashboard::{DashboardError, DashboardErrorCode, LocalBudgetPolicy, PolicyStore};
+use context_dashboard_server::{
+    DashboardServer, DashboardServerConfig, DashboardServerError, DashboardServerErrorCode,
+};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
@@ -82,6 +85,7 @@ Usage:\n\
   impresari-context [global-options] budget policy apply <state-root> <policy-json> <expected-policy-id|absent> <expected-revision|absent>\n\
   impresari-context [global-options] budget policy remove <state-root> <expected-policy-id> <expected-revision>\n\
   impresari-context [global-options] budget policy rollback <state-root> <expected-policy-id|absent> <expected-revision|absent>\n\
+  impresari-context [global-options] dashboard serve <audit-cache-root> <policy-state-root>\n\
   impresari-context [global-options] quickstart <codex|claude|cursor|copilot|vscode> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit render <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root>\n\
   impresari-context [global-options] client kit inspect <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
@@ -171,6 +175,18 @@ pub fn execute(arguments: &[String], stdout: &mut dyn Write, stderr: &mut dyn Wr
             return emit_parse_error(stdout, stderr, &message);
         }
     };
+    if options.command.len() == 4
+        && options.command[0] == "dashboard"
+        && options.command[1] == "serve"
+    {
+        return serve_dashboard(
+            &options.command[2],
+            &options.command[3],
+            options.human,
+            stdout,
+            stderr,
+        );
+    }
     let mut contexts = ContextSequence {
         next: 0,
         seed: options.id_seed.clone(),
@@ -197,6 +213,63 @@ pub fn execute(arguments: &[String], stdout: &mut dyn Write, stderr: &mut dyn Wr
             1
         }
     }
+}
+
+fn serve_dashboard(
+    audit_root: &str,
+    policy_root: &str,
+    human: bool,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    let (server, ready) = match DashboardServer::bind(DashboardServerConfig::local(
+        PathBuf::from(audit_root),
+        PathBuf::from(policy_root),
+    )) {
+        Ok(bound) => bound,
+        Err(error) => return emit_dashboard_server_error(error, human, stdout, stderr),
+    };
+    if write_json(stdout, &ready)
+        .and_then(|()| stdout.flush())
+        .is_err()
+    {
+        return 74;
+    }
+    if human {
+        let _ = writeln!(
+            stderr,
+            "local metadata dashboard ready; open the bootstrap_url in this terminal's browser session"
+        );
+    }
+    match server.run() {
+        Ok(()) => 0,
+        Err(error) => {
+            let error = dashboard_server_cli_error(error);
+            if write_json(stdout, error.envelope()).is_err() {
+                return 74;
+            }
+            if human {
+                let _ = writeln!(stderr, "{}", error.envelope().message);
+            }
+            1
+        }
+    }
+}
+
+fn emit_dashboard_server_error(
+    error: DashboardServerError,
+    human: bool,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
+    let error = dashboard_server_cli_error(error);
+    if write_json(stdout, error.envelope()).is_err() {
+        return 74;
+    }
+    if human {
+        let _ = writeln!(stderr, "{}", error.envelope().message);
+    }
+    1
 }
 
 struct Output {
@@ -3496,6 +3569,36 @@ fn dashboard_cli_error(error: DashboardError) -> EngineError {
     synthetic_error(Capability::ContextBuild, code, message)
 }
 
+fn dashboard_server_cli_error(error: DashboardServerError) -> EngineError {
+    let (code, message) = match error.code() {
+        DashboardServerErrorCode::InvalidConfiguration | DashboardServerErrorCode::Protocol => (
+            PublicErrorCode::InvalidInput,
+            "invalid local dashboard server request",
+        ),
+        DashboardServerErrorCode::BindFailure => (
+            PublicErrorCode::InternalFailure,
+            "local dashboard loopback bind failed",
+        ),
+        DashboardServerErrorCode::AuditUnavailable => (
+            PublicErrorCode::IncompatibleCache,
+            "local dashboard audit metadata is unavailable",
+        ),
+        DashboardServerErrorCode::PolicyUnavailable => (
+            PublicErrorCode::StaleState,
+            "local dashboard policy state is unavailable",
+        ),
+        DashboardServerErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "local dashboard resource limit exceeded",
+        ),
+        DashboardServerErrorCode::InternalFailure => (
+            PublicErrorCode::InternalFailure,
+            "local dashboard operation failed",
+        ),
+    };
+    synthetic_error(Capability::ContextBuild, code, message)
+}
+
 fn codex_delivery_error(error: CodexDeliveryError) -> EngineError {
     match error {
         CodexDeliveryError::Adapter(AdapterError::Engine(error)) => error,
@@ -4660,6 +4763,28 @@ mod tests {
         assert_eq!(envelope.code, PublicErrorCode::InvalidInput);
         assert_eq!(timestamp(0), "1970-01-01T00:00:00Z");
         assert_eq!(timestamp(1_704_067_200), "2024-01-01T00:00:00Z");
+    }
+
+    #[test]
+    fn dashboard_startup_failure_is_source_free_and_does_not_create_roots() {
+        let root = TestRoot::new("dashboard-startup");
+        let audit = root.0.join("missing-audit");
+        let policy = root.0.join("missing-policy");
+        let (code, envelope) = invoke(
+            &[
+                "dashboard".into(),
+                "serve".into(),
+                audit.to_string_lossy().into_owned(),
+                policy.to_string_lossy().into_owned(),
+            ],
+            "dasherror",
+        );
+        assert_eq!(code, 1);
+        assert_eq!(envelope["code"], "incompatible_cache");
+        let encoded = serde_json::to_string(&envelope).expect("error JSON");
+        assert!(!encoded.contains(root.0.to_string_lossy().as_ref()));
+        assert!(!audit.exists());
+        assert!(!policy.exists());
     }
 
     #[test]

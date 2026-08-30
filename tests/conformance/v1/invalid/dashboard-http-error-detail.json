@@ -1,0 +1,6 @@
+{
+  "schema_name": "dashboard-http-error",
+  "schema_version": "1.0.0",
+  "code": "request_rejected",
+  "detail": "/Users/operator/private/repository"
+}

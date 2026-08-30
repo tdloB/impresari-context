@@ -1,6 +1,6 @@
 # Local real-time dashboard and budget control architecture
 
-- Status: Accepted; staged implementation
+- Status: Accepted; foreground loopback delivery implemented, native rehearsal pending
 - Date: 2026-08-29
 - Governing PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Governing decision: [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md)
@@ -131,7 +131,8 @@ closed public contracts, safe metadata projection, deterministic bounded
 aggregates, and concurrent read-only audit view before any HTTP listener or
 policy write exists. DBC-2 implements the exact-owned atomic policy lifecycle,
 admission-time reload, effective-budget enforcement, and audit composition.
-DBC-3 adds the foreground loopback server only after those
-boundaries pass independently. DBC-4 records the complete synthetic local
+DBC-3 adds the isolated std-only foreground loopback server, bundled assets,
+one-use fragment bootstrap, exact preview-bound mutation routes, bounded SSE,
+and explicit shutdown after those boundaries pass independently. DBC-4 records the complete synthetic local
 rehearsal. A future remote or hosted mode cannot be added by extending this
 local server; it requires an independent architecture and decision record.

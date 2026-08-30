@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/dashboard-ready.schema.json",
+  "title": "Foreground loopback dashboard readiness",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "origin", "bootstrap_url", "asset_sha256"],
+  "properties": {
+    "schema_name": {"const": "dashboard-ready"},
+    "schema_version": {"const": "1.0.0"},
+    "origin": {
+      "type": "string",
+      "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[1-9][0-9]{0,4}$",
+      "maxLength": 64
+    },
+    "bootstrap_url": {
+      "type": "string",
+      "pattern": "^http://(127\\.0\\.0\\.1|\\[::1\\]):[1-9][0-9]{0,4}/#[a-f0-9]{64}$",
+      "maxLength": 130
+    },
+    "asset_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+  }
+}

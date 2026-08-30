@@ -230,6 +230,7 @@ dependencies = [
  "context-core",
  "context-cursor-agent",
  "context-dashboard",
+ "context-dashboard-server",
  "context-engine",
  "context-mcp",
  "context-session",
@@ -315,6 +316,19 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_json_canonicalizer",
+ "sha2",
+]
+
+[[package]]
+name = "context-dashboard-server"
+version = "0.1.0"
+dependencies = [
+ "context-core",
+ "context-dashboard",
+ "context-store",
+ "getrandom",
+ "serde",
+ "serde_json",
  "sha2",
 ]
 

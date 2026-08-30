@@ -1,6 +1,6 @@
 # ADR-0072: Use a loopback metadata dashboard and narrowing-only budget policy
 
-- Status: Accepted; staged implementation
+- Status: Accepted; DBC-1 through DBC-3 implemented, DBC-4 pending
 - Date: 2026-08-29
 - Related PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Related architecture: [Local dashboard and budget control ARD](../architecture/local-dashboard-budget-control-ard.md)
