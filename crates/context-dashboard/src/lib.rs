@@ -7,7 +7,7 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
     fmt,
-    fs::{self, File, OpenOptions},
+    fs::{self, OpenOptions},
     io::Write as _,
     path::{Path, PathBuf},
     sync::atomic::{AtomicU64, Ordering},
@@ -15,7 +15,7 @@ use std::{
 };
 
 #[cfg(unix)]
-use std::os::unix::fs::PermissionsExt;
+use std::{fs::File, os::unix::fs::PermissionsExt};
 
 use context_core::{
     AuditEvent, AuditOutcome, Capability, ResourceBudget, validate_audit_event,
@@ -1404,10 +1404,23 @@ fn reject_symlink(path: &Path) -> Result<(), DashboardError> {
     Ok(())
 }
 
+#[cfg(unix)]
 fn sync_directory(path: &Path) -> Result<(), DashboardError> {
     File::open(path)
         .and_then(|file| file.sync_all())
         .map_err(storage_error)
+}
+
+#[cfg(not(unix))]
+fn sync_directory(path: &Path) -> Result<(), DashboardError> {
+    // Rust's safe standard-library API cannot open a Windows directory for a
+    // metadata flush. The staged file itself is synced before the same-volume
+    // atomic rename, and the directory is still revalidated here.
+    if fs::metadata(path).map_err(storage_error)?.is_dir() {
+        Ok(())
+    } else {
+        Err(DashboardError::new(DashboardErrorCode::StorageFailure))
+    }
 }
 
 fn storage_error(_: std::io::Error) -> DashboardError {

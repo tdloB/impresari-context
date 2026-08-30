@@ -5236,7 +5236,7 @@ env_vars = ["HOME"]
         let mut apply = base;
         apply.push("--apply".into());
         let (code, applied) = invoke(&apply, "budgetapp");
-        assert_eq!(code, 0);
+        assert_eq!(code, 0, "apply response: {applied}");
         assert_eq!(applied["state"], "applied");
         assert_eq!(applied["after"]["current_policy_id"], policy.policy_id);
 

@@ -85,8 +85,11 @@ maxima remain compiled/release policy. The new layer can only deny or reduce.
 
 - Keep dashboard labels and budget policy in a distinct explicit state root,
   never in source, cache, MCP configuration, or audit rows.
-- Write canonical JSON through create-new staging, fsync, no-replace/identity
-  comparison, atomic rename, and parent-directory sync.
+- Write canonical JSON through create-new staging, file sync, no-replace/identity
+  comparison, and same-volume atomic rename. Sync the parent directory where
+  the safe platform API exposes that durability barrier; on Windows, revalidate
+  the directory after the synced-file rename rather than using an unsafe native
+  handle.
 - Retain one exact previous policy for explicit rollback, with both identities
   in the receipt. Never silently roll back after a valid operator change.
 - Unknown or modified ownership markers fail exact removal; return bounded
