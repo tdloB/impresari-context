@@ -659,6 +659,7 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
                         | "linux-rootless-host-preflight.schema.json"
                         | "linux-rootless-user-manager-rehearsal.schema.json"
                         | "linux-external-delegation-capability.schema.json"
+                        | "linux-external-delegation-live-rehearsal.schema.json"
                         | "linux-cgroup-resource-profile.schema.json"
                         | "linux-cgroup-feasibility.schema.json"
                 )

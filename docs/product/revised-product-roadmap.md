@@ -224,8 +224,12 @@ for the selected external profile is now frozen and source-free tested: fixed
 descriptor slot 3, directory verification, immediate close-on-exec, no raw
 path, and no production authority. The next external checkpoint is bounded live
 cgroup revalidation plus the complete original-synthetic corpus in an
-operator-provided ephemeral environment. Production lifecycle work follows
-only after both selected profiles have independent candidate evidence.
+operator-provided ephemeral environment. That live checkpoint is now
+implemented as a dedicated hosted job with one collected operator service,
+fixed descriptor slot 3, bounded revalidation, the complete synthetic corpus,
+and explicit descendant cleanup. Hosted evidence is pending. Production
+lifecycle work follows only after both selected profiles have independent
+candidate evidence.
 
 ## Parallel Client Integration Depth Track
 

@@ -86,6 +86,15 @@ not prove cgroup delegation. Unified cgroup v2, ownership, current-process
 containment, exclusive descendants, and CPU/memory/pids delegation must all be
 revalidated through the capability before the first mutation.
 
+The live feasibility adapter assigns that operator role to one dedicated
+ephemeral CI job. A single collected system service supplies the delegated
+boundary, then runs as the unprivileged hosted-runner identity. The receiver
+must match its current process to descriptor slot 3, verify ownership,
+writeability, exclusive descendants, and the exact controller set, close the
+descriptor to future exec, and only then run the existing complete synthetic
+composite. This is independent external-profile evidence; it is not a
+privileged Impresari installation design.
+
 ## Deferred Administrator Profile
 
 An administrator-provisioned profile would require a root-owned unit, exact

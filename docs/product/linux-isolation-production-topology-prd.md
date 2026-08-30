@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Accepted; rootless rehearsal passed and external capability transport frozen
+- Status: Accepted; rootless candidate passed and external live rehearsal implemented
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -110,7 +110,10 @@ skipped without attempting a unit or fallback. These are exact-host synthetic
 candidate results, not production admission. The externally managed profile now
 has a fixed-slot inherited-directory-descriptor transport with raw paths,
 configurable slots, descriptor leakage, and every production authority rejected.
-It has not yet revalidated or mutated a live delegated cgroup. External host
-revalidation, release and lifecycle gates, real analyzers, repository input,
-automatic repair, privileged fallback, and persistent service installation
-remain closed.
+The live external rehearsal is now implemented in a dedicated ephemeral hosted
+job: one operator-created transient service supplies descriptor slot 3, the
+unprivileged receiver revalidates the boundary, and the complete synthetic
+corpus plus both descendant and service cleanup must pass together. Hosted
+evidence is pending. Release and lifecycle gates, real analyzers, repository
+input, automatic repair, privileged fallback inside Impresari, and persistent
+service installation remain closed.
