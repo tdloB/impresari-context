@@ -19,7 +19,7 @@ COMPOSITION_FIXTURE = ROOT.join("tests/conformance/v1/valid/linux-external-lifec
 SOURCE_SHA = "6666666666666666666666666666666666666666"
 
 def write_json(path, document)
-  path.write(JSON.pretty_generate(document) + "\n")
+  path.binwrite(JSON.pretty_generate(document) + "\n")
 end
 
 def compose(package:, external:, composite:, capability_available: false, expected_source: SOURCE_SHA)
