@@ -1,6 +1,6 @@
 # ADR-0043: Source-free client lifecycle maintenance
 
-- Status: Accepted; GitHub Copilot CLI, Claude Code, Cursor, and VS Code Copilot scopes implemented
+- Status: Accepted; Codex, GitHub Copilot CLI, Claude Code, Cursor, and VS Code Copilot scopes implemented
 - Date: 2026-08-25
 - Scope: CI-4 health, freshness, and compatibility signals
 
@@ -34,9 +34,10 @@ check provides useful freshness evidence while preserving user authority.
 Impresari can offer maintenance depth comparable to adjacent products without
 claiming surveillance, automated healing, or opaque connection management.
 The compatibility matrix remains the public truth and must demote stale claims.
-Independent manifests now admit the exact Copilot CLI v3 instruction, Claude
-Code v2 skill, Cursor v2 rule, and VS Code Copilot v3-guidance/L3-delivery
-scopes without adding client discovery or repair.
+Independent manifests now admit the exact Codex v2 `AGENTS.md`, Copilot CLI v3
+instruction, Claude Code v2 skill, Cursor v2 rule, and VS Code Copilot v3-
+guidance/L3-delivery scopes without adding client discovery or repair. Codex
+L4 remains separate from its differently versioned App Server L3 scope.
 
 ## References
 

@@ -221,7 +221,16 @@
       "transport": "local_stdio",
       "first_class": true,
       "conformance": "managed_user_home_configuration_and_app_server_direct_tool_conformance",
-      "conformance_evidence": "docs/verification/phase-1-codex-connection-kit.md"
+      "conformance_evidence": "docs/verification/phase-1-codex-connection-kit.md",
+      "lifecycle_maintenance": {
+        "level": "L4",
+        "manifest": "client-lifecycle/codex-native-guidance-v1.json",
+        "scope": "native_guidance_v2",
+        "client_version": "0.149.0-alpha.4.1",
+        "os": "macos",
+        "arch": "aarch64",
+        "fresh_through": "2026-11-24"
+      }
     },
     {
       "client": "Claude Code",
