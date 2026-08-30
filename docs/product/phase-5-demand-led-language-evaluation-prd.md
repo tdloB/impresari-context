@@ -24,6 +24,19 @@ candidate is admitted automatically.
   corpus evaluation evidence.
 - Expected decision value over current supported languages and maintenance cost.
 
+## Request Intake
+
+The default public intake is one GitHub issue form labeled
+`language-request`. It records the attributable request, requested language,
+use case, optional public representative repository, missing evidence, relevant
+platforms, and willingness to evaluate a candidate. It must not request private
+source, credentials, customer data, or repository uploads.
+
+Direct adopter conversations and founder decisions may also establish demand,
+but a bounded issue or decision record must preserve attribution and evidence
+without retaining private source content. Request count alone never admits a
+language and no workflow may start repository scanning from an issue URL.
+
 ## Decision outcomes
 
 - `admit`: create a language PRD and ADR, then implement only that language.

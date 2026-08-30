@@ -14,6 +14,13 @@ automatic, verified, recoverable updates without granting the updater access to
 source workspaces, context caches, client configuration, credentials, or a
 system-wide installation boundary.
 
+Implementation remains sequenced after the macOS VM/cask artifact shape is
+stable. Homebrew-managed installations retain Homebrew's update lifecycle; the
+separate updater covers only recognized portable installations. If a future
+portable release includes a guest image, the same signed metadata, atomic
+version alignment, health, rollback, and removal contract must cover that image
+without granting the updater guest execution or workspace access.
+
 ## User outcome
 
 An operator can explicitly preview and enroll one eligible user-owned portable

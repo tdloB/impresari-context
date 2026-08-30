@@ -1,0 +1,56 @@
+# Impresari Context — YARA Analyzer Admission PRD
+
+- Status: Accepted for contract and fixture planning; execution gated on IAR-1B
+- Date: 2026-08-30
+- Owner: Aaron Boldt
+- Decision: ADR-0089
+
+## Objective
+
+Admit YARA as the first real static analyzer behind the separate Analyzer
+Runner on each independently production-admitted platform.
+
+## User Outcome
+
+An operator requests a bounded security analysis. Impresari reports which exact
+artifacts YARA examined, the exact pinned analyzer and ruleset identities, each
+normalized match, complete coverage, failures, and limitations without claiming
+that a repository is safe or malware-free.
+
+## Scope
+
+- One pinned YARA executable build per admitted platform and architecture.
+- One project-owned, reviewed, versioned ruleset artifact with exact source,
+  license, build, digest, expiry, and rollback identity.
+- Manifest-selected regular-file inputs already admitted by HRA inventory.
+- No includes, repository rules, external modules, callbacks, network, process
+  launch, or writable path-backed analyzer storage.
+- All-or-nothing bounded result conversion through the existing untrusted
+  analyzer-result normalization boundary.
+
+## Non-goals
+
+- ClamAV, archive extraction, packer emulation, dynamic execution, online
+  reputation, automatic remediation, deletion, quarantine, a `clean` verdict,
+  or running YARA on an IAR-1A/application-only platform.
+
+## Acceptance Criteria
+
+- YARA runs only within a fresh production-admitted IAR-1B job.
+- Executable and ruleset substitution, expiry, rollback, malformed rules,
+  excessive matches, timeout, crash, partial output, and unsupported files fail
+  closed with complete coverage accounting.
+- Safe original-synthetic fixtures prove matches and non-matches without live
+  malware or third-party sample redistribution.
+- Every finding binds rule, ruleset, analyzer, artifact, snapshot, byte range
+  where available, method, confidence, and limitations.
+- Analyzer absence or stale rules produces explicit incomplete analysis and
+  cannot authorize a later stage.
+- Ruleset updates are separately built and admitted between jobs; the analyzer
+  has no update or network capability.
+
+## Platform Sequence
+
+Linux is first after production IAR-1B and release admission. Windows and
+macOS follow only after their own confinement, packaging, maintenance, and
+review gates pass.

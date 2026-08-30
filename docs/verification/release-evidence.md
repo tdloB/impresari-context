@@ -68,8 +68,10 @@ AI-assisted evidence is not an independent audit.
   blocker. The post-v0.1.0 external-client, authentication-reference, and child-
   process boundaries now satisfy ADR-0017's earlier-review trigger. ADR-0083
   makes an attributable independent human report mandatory before the proposed
-  v0.2.0 tag or publication. ADR-0084 backlogs reviewer engagement until the
-  final release candidate is frozen; ordinary roadmap development may continue.
+  v0.2.0 tag or publication. ADR-0084 first backlogged reviewer engagement until
+  candidate freeze. ADR-0085 now treats that candidate as immutable historical
+  evidence and continues ordinary roadmap development; the review remains
+  mandatory only after a later final candidate is frozen.
 
 ## Current release status
 
@@ -77,16 +79,17 @@ There is no open `v0.1.0` publication gate. Future releases still require an
 exact-commit hosted native matrix, clean-install evidence, checksums,
 provenance attestations, reviewed release notes, and explicit owner
 authorization. The provenance policy and implementation are recorded in
-ADR-0016. The proposed v0.2.0 feature release remains review-gated. The final
-product candidate is now frozen at
+ADR-0016. The proposed v0.2.0 feature release remains review-gated. The first
+product candidate was frozen at
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`. Release-candidate run
 [`33323269945`](https://github.com/tdloB/impresari-context/actions/runs/33323269945)
 passed on all three native release targets, including the Linux
 v0.1.0-to-v0.2.0 package lifecycle and external composition checks. Its exact
 archive, manifest, and workflow-artifact identities are recorded in the
-immutable candidate scope. The attributable independent human report remains
-the next required manual action; review admission, tagging, and publication are
-still false.
+immutable historical candidate scope. ADR-0085 prevents that scope from being
+used after later production changes. Accepted roadmap development now precedes
+a new final-candidate freeze. Review admission, tagging, publication,
+production analyzer support, and real-analyzer execution remain false.
 
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 

@@ -292,20 +292,38 @@ ADR-0083 now applies ADR-0017's earlier-review trigger to the proposed v0.2.0
 feature release. The exact prepared product baseline, eight required security-
 review areas, reviewer independence requirements, finding policy, reviewer
 brief, and source-free readiness receipt are frozen. ADR-0084 retains that
-release gate while backlogging reviewer engagement until the final v0.2.0
-release candidate is frozen. Roadmap development therefore continues, but
+release gate while backlogging reviewer engagement until a candidate is
+frozen. ADR-0085 records that the first frozen candidate is now immutable
+historical evidence rather than the final release candidate because accepted
+analyzer-confinement roadmap work continues and no reviewer is currently
+available. Roadmap development therefore continues, but
 automated or AI-assisted checks cannot satisfy the review and no v0.2.0 tag,
 publication, Linux production-support admission, or real-analyzer authorization
 may occur first. At candidate freeze, the project must refresh the exact source
 scope and reviewer brief, obtain the attributable independent human report,
 remediate or disposition findings, and then run the remaining release gates.
 
-The candidate-freeze portion is complete. PR 156 froze product source at
+The historical candidate-freeze portion is complete. PR 156 froze product source at
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run
 `33323269945` passed on macOS arm64, Linux x86-64, and Windows x86-64. The
-refreshed candidate scope pins the package evidence and release controls. The
-next roadmap boundary is now the attributable independent human report; no tag
-or publication is authorized.
+refreshed historical scope pins the package evidence and release controls but
+cannot satisfy a later release after production code changes. The next roadmap
+sequence is genuine Linux rootless login-session evidence, scheduled
+maintenance automation, local-VM macOS confinement, Windows native
+confinement, stable VM/cask distribution, verified updates, and platform-gated
+YARA admission. A new final candidate and attributable independent human report
+follow those intended release contents; no tag or publication is authorized.
+
+ADR-0086 freezes fail-closed scheduled compatibility and maintenance
+automation. ADR-0087 replaces only the failed macOS XPC analyzer-execution
+topology with a fresh local Linux VM feasibility candidate while retaining one
+CLI-compatible cask as the desired user experience. ADR-0088 adds an
+independently evidenced Windows LPAC/AppContainer plus Job Object feasibility
+track. ADR-0089 selects YARA as the first real analyzer but keeps execution
+closed until an exact platform has current production IAR-1B support. ADR-0090
+owns the immediate profile-A checkpoint: two genuine PAM/logind sessions for a
+temporary non-lingering Linux user, without a privileged product install or
+persistent service.
 
 ## Parallel Client Integration Depth Track
 
