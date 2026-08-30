@@ -1,0 +1,200 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-isolation-production-lifecycle.schema.json",
+  "title": "Linux isolation production-lifecycle contracts",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "profile": {
+      "type": "string",
+      "enum": ["rootless_user_manager", "externally_managed"]
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["clean_install", "upgrade", "rollback", "logout_login", "operator_relaunch", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]
+    },
+    "operationEvidence": {
+      "type": "string",
+      "enum": ["clean_install_identity_verified", "upgrade_replacement_verified", "rollback_identity_restored", "logout_login_reentry_verified", "operator_relaunch_verified", "cancellation_cleanup_verified", "crash_recovery_cleanup_verified", "health_withdrawal_verified", "uninstall_cleanup_verified"]
+    },
+    "cleanState": {
+      "type": "object",
+      "required": ["persistent_service_absent", "privileged_policy_absent", "stale_cgroup_absent", "descendants_absent", "staged_source_absent"],
+      "properties": {
+        "persistent_service_absent": {"type": "boolean"},
+        "privileged_policy_absent": {"type": "boolean"},
+        "stale_cgroup_absent": {"type": "boolean"},
+        "descendants_absent": {"type": "boolean"},
+        "staged_source_absent": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "authority": {
+      "type": "object",
+      "required": ["source_read", "source_write", "host_discovery", "process_execution", "network", "credential_access", "privilege_use", "service_mutation", "background_monitoring", "analyzer_execution", "automatic_repair"],
+      "properties": {
+        "source_read": {"const": "denied"},
+        "source_write": {"const": "denied"},
+        "host_discovery": {"const": "denied"},
+        "process_execution": {"const": "denied"},
+        "network": {"const": "denied"},
+        "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"},
+        "service_mutation": {"const": "denied"},
+        "background_monitoring": {"const": "denied"},
+        "analyzer_execution": {"const": "denied"},
+        "automatic_repair": {"const": "denied"}
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "decision", "package_scope", "phase_order", "clean_state", "health", "claim"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-production-lifecycle-policy"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+        "decision": {
+          "type": "object",
+          "required": ["selected_profiles", "administrator_profile", "automatic_sudo", "persistent_service", "automatic_repair"],
+          "properties": {
+            "selected_profiles": {"const": ["rootless_user_manager", "externally_managed"]},
+            "administrator_profile": {"const": "deferred"},
+            "automatic_sudo": {"const": "denied"},
+            "persistent_service": {"const": "denied"},
+            "automatic_repair": {"const": "denied"}
+          },
+          "additionalProperties": false
+        },
+        "package_scope": {
+          "type": "object",
+          "required": ["artifacts", "service_unit", "authorization_policy", "external_operator_contract"],
+          "properties": {
+            "artifacts": {"const": ["cli", "first_party_worker"]},
+            "service_unit": {"const": "absent"},
+            "authorization_policy": {"const": "absent"},
+            "external_operator_contract": {"const": "documentation_only"}
+          },
+          "additionalProperties": false
+        },
+        "phase_order": {
+          "type": "object",
+          "required": ["rootless_user_manager", "externally_managed"],
+          "properties": {
+            "rootless_user_manager": {"const": ["clean_install", "upgrade", "rollback", "logout_login", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]},
+            "externally_managed": {"const": ["clean_install", "upgrade", "rollback", "operator_relaunch", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]}
+          },
+          "additionalProperties": false
+        },
+        "clean_state": {
+          "type": "object",
+          "required": ["persistent_service", "privileged_policy", "stale_cgroup", "descendants", "staged_source"],
+          "properties": {
+            "persistent_service": {"const": "absent"},
+            "privileged_policy": {"const": "absent"},
+            "stale_cgroup": {"const": "absent"},
+            "descendants": {"const": "absent"},
+            "staged_source": {"const": "absent"}
+          },
+          "additionalProperties": false
+        },
+        "health": {
+          "type": "object",
+          "required": ["check", "changed_prerequisite", "claim_behavior", "fallback"],
+          "properties": {
+            "check": {"const": "explicit_source_free"},
+            "changed_prerequisite": {"const": "withdraw"},
+            "claim_behavior": {"const": "fail_closed"},
+            "fallback": {"const": "unsupported"}
+          },
+          "additionalProperties": false
+        },
+        "claim": {
+          "type": "object",
+          "required": ["contract_only", "lifecycle_candidate_only", "production_admitted", "real_analyzer_authorized", "release_packaging_authorized"],
+          "properties": {
+            "contract_only": {"const": true},
+            "lifecycle_candidate_only": {"const": true},
+            "production_admitted": {"const": false},
+            "real_analyzer_authorized": {"const": false},
+            "release_packaging_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "phaseObservation": {
+      "type": "object",
+      "required": ["phase", "outcome", "operation_evidence", "package_identity_verified", "topology_revalidated", "claim_withdrawn", "clean_state"],
+      "properties": {
+        "phase": {"$ref": "#/$defs/phase"},
+        "outcome": {"type": "string", "enum": ["passed", "failed", "not_observed"]},
+        "operation_evidence": {"$ref": "#/$defs/operationEvidence"},
+        "package_identity_verified": {"type": "boolean"},
+        "topology_revalidated": {"type": "boolean"},
+        "claim_withdrawn": {"type": "boolean"},
+        "clean_state": {"$ref": "#/$defs/cleanState"}
+      },
+      "additionalProperties": false
+    },
+    "observationSet": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "profile", "package_artifact_identity", "source_free", "phases"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-production-lifecycle-observations"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+        "profile": {"$ref": "#/$defs/profile"},
+        "package_artifact_identity": {"$ref": "#/$defs/sha256"},
+        "source_free": {"const": true},
+        "phases": {
+          "type": "array",
+          "minItems": 8,
+          "maxItems": 8,
+          "items": {"$ref": "#/$defs/phaseObservation"}
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "observation_identity", "profile", "status", "reason_code", "evaluated_phases", "failed_phase", "checks", "safe_next_step", "lifecycle_candidate_active", "health_withdrawal_verified", "production_admitted", "real_analyzer_authorized", "release_packaging_authorized", "privileged_installation_authorized", "persistent_service_authorized", "authority"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-production-lifecycle-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+        "policy_identity": {"$ref": "#/$defs/sha256"},
+        "observation_identity": {"$ref": "#/$defs/sha256"},
+        "profile": {"$ref": "#/$defs/profile"},
+        "status": {"type": "string", "enum": ["lifecycle_candidate", "incomplete", "lifecycle_failed", "withdrawal_failed", "invalid_contract"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "evaluated_phases": {"type": "array", "maxItems": 8, "uniqueItems": true, "items": {"$ref": "#/$defs/phase"}},
+        "failed_phase": {"type": "string", "enum": ["none", "clean_install", "upgrade", "rollback", "logout_login", "operator_relaunch", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 40, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "lifecycle_candidate_active": {"type": "boolean"},
+        "health_withdrawal_verified": {"type": "boolean"},
+        "production_admitted": {"const": false},
+        "real_analyzer_authorized": {"const": false},
+        "release_packaging_authorized": {"const": false},
+        "privileged_installation_authorized": {"const": false},
+        "persistent_service_authorized": {"const": false},
+        "authority": {"$ref": "#/$defs/authority"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "lifecycle_candidate"}}, "required": ["status"]},
+          "then": {"properties": {"lifecycle_candidate_active": {"const": true}, "health_withdrawal_verified": {"const": true}, "failed_phase": {"const": "none"}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["incomplete", "lifecycle_failed", "withdrawal_failed", "invalid_contract"]}}, "required": ["status"]},
+          "then": {"properties": {"lifecycle_candidate_active": {"const": false}}}
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -322,6 +322,15 @@ diversity for the candidate but do not by themselves define a production
 support promise; admission now requires a frozen support, freshness,
 withdrawal, and maintenance contract.
 
+ADR-0079 adds the source-free production-lifecycle hard gate after both selected
+Linux profiles passed independent synthetic topology rehearsals. The canonical
+matrix covers clean install, upgrade, rollback, profile-specific reentry,
+cancellation, crash recovery, changed-prerequisite withdrawal, and uninstall.
+Every phase must leave no persistent service, privileged policy, stale cgroup,
+descendant, or staged source. A complete matrix remains candidate evidence only;
+production, release packaging, privilege, persistent services, and real
+analyzers remain false until independently hosted package rehearsals pass.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

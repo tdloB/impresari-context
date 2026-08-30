@@ -118,4 +118,8 @@ corpus plus both descendant and service cleanup must pass together. PR 140 run
 `6.17.0-1022-azure`. The rootless and externally managed profiles now have
 independent exact-host synthetic candidate evidence. Release and lifecycle
 gates, real analyzers, repository input, automatic repair, privileged fallback
-inside Impresari, and persistent service installation remain closed.
+inside Impresari, and persistent service installation remain closed. ADR-0079
+now freezes the shared source-free install-through-uninstall lifecycle contract
+and profile-specific reentry phases. Its deterministic matrix is a contract-
+level candidate only; hosted package rehearsals and production admission remain
+open.
