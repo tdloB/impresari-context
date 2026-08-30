@@ -13,7 +13,7 @@ workspace = true
 
 [dependencies]
 base64 = { version = "=0.23.1", default-features = false, features = ["std"] }
-context-core = { version = "=0.1.0", path = "../context-core" }
-context-store = { version = "=0.1.0", path = "../context-store" }
-context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+context-core = { version = "=0.2.0", path = "../context-core" }
+context-store = { version = "=0.2.0", path = "../context-store" }
+context-workspace = { version = "=0.2.0", path = "../context-workspace" }
 sha2 = { version = "=0.11.0", default-features = false }

@@ -7,6 +7,8 @@ env:
   # GitHub binds this value to the ref selected when the workflow is dispatched.
   # It is not supplied through a free-form workflow input.
   SOURCE_SHA: ${{ github.sha }}
+  CANDIDATE_VERSION: 0.2.0
+  BASELINE_VERSION: 0.1.0
 
 permissions:
   contents: read
@@ -37,7 +39,9 @@ jobs:
           persist-credentials: false
       - name: Verify checkout identity
         shell: bash
-        run: test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+        run: |
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          grep -Fq "version = \"$CANDIDATE_VERSION\"" Cargo.toml
       - name: Install pinned Rust toolchain
         shell: bash
         run: rustup toolchain install 1.98.0 --profile minimal
@@ -55,28 +59,29 @@ jobs:
         run: ruby scripts/package-release.rb "${{ matrix.target }}" dist "$SOURCE_SHA"
       - name: Rehearse clean installation
         shell: bash
-        run: ruby scripts/rehearse-release.rb "dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz"
+        run: ruby scripts/rehearse-release.rb "dist/impresari-context-${CANDIDATE_VERSION}-${{ matrix.target }}.tar.gz"
       - name: Rehearse Linux A+C package lifecycle
         if: matrix.target == 'x86_64-unknown-linux-gnu'
         shell: bash
         env:
           RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: |
-          baseline_dir="$RUNNER_TEMP/impresari-v0.1.0-baseline"
+          baseline_dir="$RUNNER_TEMP/impresari-v${BASELINE_VERSION}-baseline"
           reports_dir="dist/linux-package-lifecycle"
-          baseline_name="impresari-context-0.1.0-x86_64-unknown-linux-gnu.tar.gz"
+          baseline_name="impresari-context-${BASELINE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          candidate_name="impresari-context-${CANDIDATE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
           mkdir -p "$baseline_dir" "$reports_dir"
           curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
             --output "$baseline_dir/$baseline_name" \
-            "https://github.com/tdloB/impresari-context/releases/download/v0.1.0/$baseline_name"
+            "https://github.com/tdloB/impresari-context/releases/download/v${BASELINE_VERSION}/$baseline_name"
           curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
             --output "$baseline_dir/$baseline_name.sha256" \
-            "https://github.com/tdloB/impresari-context/releases/download/v0.1.0/$baseline_name.sha256"
+            "https://github.com/tdloB/impresari-context/releases/download/v${BASELINE_VERSION}/$baseline_name.sha256"
           for profile in rootless_user_manager externally_managed; do
             ruby scripts/linux-package-lifecycle-rehearsal.rb \
               --profile "$profile" \
               --baseline "$baseline_dir/$baseline_name" \
-              --candidate "dist/$baseline_name" \
+              --candidate "dist/$candidate_name" \
               --candidate-source-sha "$SOURCE_SHA" \
               > "$reports_dir/$profile.json"
           done
@@ -124,10 +129,10 @@ jobs:
       - name: Upload candidate only
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: impresari-context-0.1.0-${{ matrix.target }}
+          name: impresari-context-${{ env.CANDIDATE_VERSION }}-${{ matrix.target }}
           path: |
-            dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz
-            dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz.sha256
+            dist/impresari-context-${{ env.CANDIDATE_VERSION }}-${{ matrix.target }}.tar.gz
+            dist/impresari-context-${{ env.CANDIDATE_VERSION }}-${{ matrix.target }}.tar.gz.sha256
             dist/linux-package-lifecycle/*.json
           if-no-files-found: error
           retention-days: 7

@@ -107,7 +107,7 @@ package_clean = exact_true_fields?(package["clean_state"], PACKAGE_CLEAN_KEYS)
 package_candidate = package["candidate"].is_a?(Hash) &&
   package["candidate"].keys.sort == %w[archive_sha256 manifest_sha256 project_version source_commit].sort &&
   sha256?(package.dig("candidate", "archive_sha256")) && sha256?(package.dig("candidate", "manifest_sha256")) &&
-  package.dig("candidate", "project_version") == "0.1.0" && source_commit?(package.dig("candidate", "source_commit"))
+  package.dig("candidate", "project_version") == "0.2.0" && source_commit?(package.dig("candidate", "source_commit"))
 package_ok = package["schema_name"] == "linux-isolation-package-lifecycle-rehearsal" &&
   package["schema_version"] == "1.0.0" && package["policy_id"] == "linux-iar-1b-production-lifecycle-v1" &&
   package["profile"] == "externally_managed" && package["status"] == "package_lifecycle_candidate" &&

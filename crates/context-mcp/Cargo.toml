@@ -12,12 +12,12 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-core = { version = "=0.1.0", path = "../context-core" }
-context-engine = { version = "=0.1.0", path = "../context-engine" }
-context-session = { version = "=0.1.0", path = "../context-session" }
-context-store = { version = "=0.1.0", path = "../context-store" }
-context-structural = { version = "=0.1.0", path = "../context-structural" }
-context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+context-core = { version = "=0.2.0", path = "../context-core" }
+context-engine = { version = "=0.2.0", path = "../context-engine" }
+context-session = { version = "=0.2.0", path = "../context-session" }
+context-store = { version = "=0.2.0", path = "../context-store" }
+context-structural = { version = "=0.2.0", path = "../context-structural" }
+context-workspace = { version = "=0.2.0", path = "../context-workspace" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 

@@ -33,8 +33,8 @@ FIXTURES.each do |profile, path|
   abort("fixture admitted production") unless fixture.fetch("claims").values.none?
 end
 
-def build_package(directory, label, source_commit)
-  package = "impresari-context-0.1.0-x86_64-unknown-linux-gnu"
+def build_package(directory, label, version, source_commit)
+  package = "impresari-context-#{version}-x86_64-unknown-linux-gnu"
   root = File.join(directory, "#{label}-root", package)
   FileUtils.mkdir_p(File.join(root, "bin"))
   entries = BINARIES.map do |name|
@@ -51,7 +51,7 @@ def build_package(directory, label, source_commit)
   manifest = {
     "schema_name" => "release-candidate-manifest",
     "schema_version" => "1.0.0",
-    "project_version" => "0.1.0",
+    "project_version" => version,
     "target" => "x86_64-unknown-linux-gnu",
     "source_commit" => source_commit,
     "rust_toolchain" => "1.98.0",
@@ -76,8 +76,8 @@ if RUBY_PLATFORM.include?("linux")
   Dir.mktmpdir("impresari-package-check-") do |directory|
     baseline_sha = "1" * 40
     candidate_sha = "2" * 40
-    baseline = build_package(directory, "baseline", baseline_sha)
-    candidate = build_package(directory, "candidate", candidate_sha)
+    baseline = build_package(directory, "baseline", "0.1.0", baseline_sha)
+    candidate = build_package(directory, "candidate", "0.2.0", candidate_sha)
     FIXTURES.each_key do |profile|
       output, status = Open3.capture2e(
         { "RUNNER_ENVIRONMENT" => "github-hosted" }, "ruby", REHEARSAL.to_s,

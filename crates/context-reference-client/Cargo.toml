@@ -12,10 +12,10 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-core = { version = "=0.1.0", path = "../context-core" }
-context-engine = { version = "=0.1.0", path = "../context-engine" }
+context-core = { version = "=0.2.0", path = "../context-core" }
+context-engine = { version = "=0.2.0", path = "../context-engine" }
 
 [dev-dependencies]
-context-store = { version = "=0.1.0", path = "../context-store" }
-context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+context-store = { version = "=0.2.0", path = "../context-store" }
+context-workspace = { version = "=0.2.0", path = "../context-workspace" }
 

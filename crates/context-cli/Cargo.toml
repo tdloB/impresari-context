@@ -12,21 +12,21 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-core = { version = "=0.1.0", path = "../context-core" }
-context-dashboard = { version = "=0.1.0", path = "../context-dashboard" }
-context-dashboard-server = { version = "=0.1.0", path = "../context-dashboard-server" }
-context-adapters = { version = "=0.1.0", path = "../context-adapters" }
-context-codex-app-server = { version = "=0.1.0", path = "../context-codex-app-server" }
-context-copilot-cli = { version = "=0.1.0", path = "../context-copilot-cli" }
-context-claude-code = { version = "=0.1.0", path = "../context-claude-code" }
-context-cursor-agent = { version = "=0.1.0", path = "../context-cursor-agent" }
-context-vscode-copilot = { version = "=0.1.0", path = "../context-vscode-copilot" }
-context-engine = { version = "=0.1.0", path = "../context-engine" }
-context-mcp = { version = "=0.1.0", path = "../context-mcp" }
-context-session = { version = "=0.1.0", path = "../context-session" }
-context-store = { version = "=0.1.0", path = "../context-store" }
-context-structural = { version = "=0.1.0", path = "../context-structural" }
-context-workspace = { version = "=0.1.0", path = "../context-workspace" }
+context-core = { version = "=0.2.0", path = "../context-core" }
+context-dashboard = { version = "=0.2.0", path = "../context-dashboard" }
+context-dashboard-server = { version = "=0.2.0", path = "../context-dashboard-server" }
+context-adapters = { version = "=0.2.0", path = "../context-adapters" }
+context-codex-app-server = { version = "=0.2.0", path = "../context-codex-app-server" }
+context-copilot-cli = { version = "=0.2.0", path = "../context-copilot-cli" }
+context-claude-code = { version = "=0.2.0", path = "../context-claude-code" }
+context-cursor-agent = { version = "=0.2.0", path = "../context-cursor-agent" }
+context-vscode-copilot = { version = "=0.2.0", path = "../context-vscode-copilot" }
+context-engine = { version = "=0.2.0", path = "../context-engine" }
+context-mcp = { version = "=0.2.0", path = "../context-mcp" }
+context-session = { version = "=0.2.0", path = "../context-session" }
+context-store = { version = "=0.2.0", path = "../context-store" }
+context-structural = { version = "=0.2.0", path = "../context-structural" }
+context-workspace = { version = "=0.2.0", path = "../context-workspace" }
 serde = { version = "=1.0.229", default-features = false, features = ["std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 sha2 = { version = "=0.11.0", default-features = false }

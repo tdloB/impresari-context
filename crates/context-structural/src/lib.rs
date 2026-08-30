@@ -22,7 +22,7 @@ pub const PROTOCOL_VERSION: &str = "1.0.0";
 /// Graph contract version.
 pub const GRAPH_VERSION: &str = "1.0.0";
 /// Resolver version.
-pub const RESOLVER_VERSION: &str = "0.1.0";
+pub const RESOLVER_VERSION: &str = "0.2.0";
 /// Maximum accepted request frame size.
 pub const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum emitted response frame size.
@@ -3611,7 +3611,8 @@ export function outer() { const nested = value(); const alias = helper; helper()
                 .contains(&"unresolved_traversal_target".into())
         );
 
-        let limited = query_graph(&first, &file.node_id, &[], 1, 1, 1).expect("limited traversal");
+        let limited =
+            query_graph(&first, &file.node_id, &[], 1, 1, 100).expect("limited traversal");
         assert!(limited.truncated);
         assert_eq!(limited.nodes.len(), 1);
         assert!(

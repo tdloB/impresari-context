@@ -301,7 +301,7 @@ fn run() -> Result<ScaleReport, String> {
         schema_name: "scale-evaluation-report",
         schema_version: "1.0.0",
         runner_version: "1.0.0",
-        engine_version: "0.1.0",
+        engine_version: "0.2.0",
         samples_per_profile: SAMPLE_COUNT,
         platform_os: std::env::consts::OS,
         platform_arch: std::env::consts::ARCH,
