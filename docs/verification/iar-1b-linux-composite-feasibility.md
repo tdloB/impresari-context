@@ -79,7 +79,7 @@ Runner availability is grounded in GitHub's current
 
 ## Independent kernel checkpoint
 
-The next held-out matrix uses native standard `ubuntu-22.04` and
+The held-out matrix uses native standard `ubuntu-22.04` and
 `ubuntu-26.04` runners. GitHub's current image records identify materially
 different 6.8 and 7.0 Azure kernel lines. Each matrix invocation runs the
 original-synthetic primitive and composite checkpoints and creates exactly one
@@ -87,6 +87,24 @@ temporary delegated service. Neither result may inherit the Ubuntu 24.04
 candidate, and no container or userspace-only version change counts as kernel
 diversity.
 
-Hosted results are pending. The target rationale is grounded in GitHub's
-current [Ubuntu 22.04 image record](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)
+PR 133 job `99200027090` passed on Ubuntu 22.04 image `20260824.273.3`, kernel
+`6.8.0-1064-azure`, architecture `x86_64`, and Landlock ABI 4:
+
+```text
+Linux composite IAR-1B feasibility: result=candidate_passed kernel=6.8.0-1064-azure arch=x86_64 Landlock ABI=4
+```
+
+PR 133 job `99200027056` independently passed on Ubuntu 26.04 image
+`20260824.116.1`, kernel `7.0.0-1012-azure`, architecture `x86_64`, and
+Landlock ABI 8:
+
+```text
+Linux composite IAR-1B feasibility: result=candidate_passed kernel=7.0.0-1012-azure arch=x86_64 Landlock ABI=8
+```
+
+The ordinary nondelegated receipt remained `unsupported` on both hosts, as
+required. These exact-host receipts establish kernel diversity but do not
+admit a production backend or promise support for every Ubuntu image. The
+target rationale is grounded in GitHub's current
+[Ubuntu 22.04 image record](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md)
 and [Ubuntu 26.04 image record](https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2604-Readme.md).
