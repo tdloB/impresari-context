@@ -79,6 +79,13 @@ ownership and containment; the supervisor revalidates the boundary and never
 accepts a raw arbitrary path as authority. This profile is independently
 admitted and cannot borrow the rootless desktop result.
 
+The first external-profile slice fixes the inherited descriptor at slot 3,
+rejects caller-selected slots and paths, verifies that it is a directory, and
+marks it close-on-exec before any future worker launch. Transport success does
+not prove cgroup delegation. Unified cgroup v2, ownership, current-process
+containment, exclusive descendants, and CPU/memory/pids delegation must all be
+revalidated through the capability before the first mutation.
+
 ## Deferred Administrator Profile
 
 An administrator-provisioned profile would require a root-owned unit, exact
