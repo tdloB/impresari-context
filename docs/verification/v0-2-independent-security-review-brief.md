@@ -1,5 +1,10 @@
 # Impresari Context v0.2 Independent Security Review Brief
 
+> Scheduling notice: ADR-0084 backlogs reviewer engagement until the final
+> v0.2.0 release candidate is frozen. This prepared brief records the original
+> planning baseline and must be refreshed before it is used for admission if
+> product source has changed.
+
 ## Review target
 
 - Repository: `https://github.com/tdloB/impresari-context`

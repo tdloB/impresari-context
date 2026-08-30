@@ -289,8 +289,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   targets.
 - [v0.2 independent security review brief](docs/verification/v0-2-independent-security-review-brief.md):
   the exact product commit, reviewer independence requirements, assessment
-  areas, questions, report format, and finding-disposition gate. The review is
-  still manual and has not yet been completed.
+  areas, questions, report format, and finding-disposition gate. ADR-0084
+  backlogs engagement until candidate freeze; review remains mandatory before
+  tag or publication.
 - [MCP and release traceability](docs/verification/mcp-release-traceability.md):
   direct-engine equivalence, transport hardening, and packaging evidence.
 - [Compatibility matrix](docs/reference/compatibility-matrix.md): versioned

@@ -277,16 +277,16 @@ publication of the exact or freshly revalidated source, and post-publication
 admission evidence.
 
 ADR-0083 now applies ADR-0017's earlier-review trigger to the proposed v0.2.0
-feature release. The exact product baseline, eight required security-review
-areas, reviewer independence requirements, finding policy, reviewer brief, and
-source-free readiness receipt are frozen. The current state is
-`manual_review_required`; automated or AI-assisted checks cannot satisfy it,
-and even a future admitted report cannot create a tag, publish a release, accept
-risk, activate Linux production support, or authorize a real analyzer. The next
-manual artifact is an attributable independent human report bound to the exact
-product commit. After findings are remediated or dispositioned under the frozen
-policy, the roadmap resumes with a fresh exact-source candidate, v0.2.0 release
-metadata, owner publication approval, and post-publication ADR-0082 admission.
+feature release. The exact prepared product baseline, eight required security-
+review areas, reviewer independence requirements, finding policy, reviewer
+brief, and source-free readiness receipt are frozen. ADR-0084 retains that
+release gate while backlogging reviewer engagement until the final v0.2.0
+release candidate is frozen. Roadmap development therefore continues, but
+automated or AI-assisted checks cannot satisfy the review and no v0.2.0 tag,
+publication, Linux production-support admission, or real-analyzer authorization
+may occur first. At candidate freeze, the project must refresh the exact source
+scope and reviewer brief, obtain the attributable independent human report,
+remediate or disposition findings, and then run the remaining release gates.
 
 ## Parallel Client Integration Depth Track
 

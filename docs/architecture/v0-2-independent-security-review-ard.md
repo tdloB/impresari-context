@@ -10,6 +10,10 @@
   without reading source, starting a process, contacting a reviewer, or changing
   release state.
 - The reviewer brief describes the human work product and required evidence.
+- `v0.2.0-independent-review-backlog.json` preserves the founder-approved
+  scheduling decision without mutating the prepared review scope.
+- `independent-security-review-backlog.rb` evaluates scheduling metadata only;
+  it cannot admit a review or authorize a release.
 
 ## Binding model
 
@@ -43,3 +47,20 @@ reviewer must assess the delta or repeat the review. The final tag may descend
 from the reviewed commit only through transparently enumerated review evidence,
 version, changelog, and release-record changes that do not alter product
 behavior. The pre-publication gate must verify that path list explicitly.
+
+## Backlog scheduling
+
+The prepared scope remains byte-for-byte pinned. The backlog contract points to
+that digest and baseline commit, records that development may continue, and
+keeps the release boundary closed. Once product work moves past the prepared
+commit, the scheduling receipt changes from `development_continues` to
+`scope_refresh_required`; neither state blocks ordinary roadmap work and both
+block tag and publication. A release attempt before an admitted refreshed
+review returns `review_required_before_release`.
+
+The publish workflow separately calls
+`enforce-v0-2-independent-review-release-gate.rb` after verifying tag, commit,
+manifest version, and changelog identity. That guard admits v0.2.0 only from a
+closed `review_recorded` scope bound to the same source commit. The prepared
+scope therefore keeps normal development green while being mechanically
+incapable of publishing v0.2.0.
