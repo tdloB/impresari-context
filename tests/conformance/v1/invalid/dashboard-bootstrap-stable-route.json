@@ -1,0 +1,5 @@
+{
+  "schema_name": "dashboard-bootstrap",
+  "schema_version": "1.0.0",
+  "api_base": "/api/session/current"
+}

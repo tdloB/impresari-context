@@ -176,10 +176,14 @@ The command writes exactly one `dashboard-ready` JSON record before entering
 the foreground loop. Its `bootstrap_url` contains a one-use 256-bit capability
 in the URL fragment; open it manually in a local browser. The server binds an
 operating-system-selected port on verified loopback only, serves compiled
-assets, exchanges the fragment for a process-local HttpOnly cookie, and ends on
-the authenticated UI shutdown action or process termination. It never opens a
-browser, listens remotely, daemonizes, reads source or packets, makes an
-outbound request, or permits a budget increase.
+assets, exchanges the fragment for a separate 256-bit API-route capability
+held only in bundled-page memory, and ends on the authenticated UI shutdown
+action or process termination. It uses no cookie, query parameter, browser
+storage, stable API route, remote listener, daemon, source/packet read,
+outbound request, or budget-increase authority.
+The exchange response is closed by `dashboard-bootstrap.schema.json`; its
+`api_base` is exactly `/api/session/` followed by 64 lowercase hexadecimal
+characters.
 
 Policy apply, remove, and rollback are preview-first. The browser must return
 the exact preview receipt ID plus the current policy identity and revision for
@@ -187,8 +191,9 @@ the write to proceed. Stale state, altered drafts, replayed bootstrap tokens,
 wrong Host/Origin, missing CSRF, malformed HTTP/JSON, or incompatible stores
 fail with closed, source-free errors.
 
-DBC-3 is implemented in the current source tree. Native-browser adversarial
-and source-canary rehearsal remains the separate DBC-4 release-admission gate.
+DBC-1 through DBC-4 are implemented. The native-browser adversarial and
+source-canary admission record is
+[`dbc-4-native-browser-admission.md`](../verification/dbc-4-native-browser-admission.md).
 
 ## Local MCP process
 

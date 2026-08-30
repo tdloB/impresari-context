@@ -207,7 +207,7 @@ struct StreamFrame {
 
 struct Coordinator {
     bootstrap: Option<String>,
-    session: String,
+    api_base: String,
     snapshot: DashboardSnapshot,
     snapshot_bytes: Arc<Vec<u8>>,
     frames: VecDeque<StreamFrame>,
@@ -233,7 +233,7 @@ pub struct DashboardServer {
 
 impl DashboardServer {
     /// Validates explicit roots, binds one verified loopback socket, and creates
-    /// process-local bootstrap/session capabilities.
+    /// independent process-local bootstrap and API-route capabilities.
     ///
     /// # Errors
     ///
@@ -268,7 +268,8 @@ impl DashboardServer {
         let host = host_for(address);
         let origin = format!("http://{host}");
         let bootstrap = random_hex()?;
-        let session = random_hex()?;
+        let route = random_hex()?;
+        let api_base = format!("/api/session/{route}");
         let (snapshot, snapshot_bytes) = read_snapshot(&reader, config.max_records, 1)?;
         let running = Arc::new(AtomicBool::new(true));
         let shared = Arc::new(Shared {
@@ -277,7 +278,7 @@ impl DashboardServer {
             active_streams: AtomicUsize::new(0),
             coordinator: Mutex::new(Coordinator {
                 bootstrap: Some(bootstrap.clone()),
-                session,
+                api_base,
                 snapshot,
                 snapshot_bytes: Arc::new(snapshot_bytes.clone()),
                 frames: VecDeque::from([StreamFrame {
@@ -461,6 +462,13 @@ struct StateResponse {
     policy: PolicyStoreState,
 }
 
+#[derive(Serialize)]
+struct BootstrapResponse {
+    schema_name: &'static str,
+    schema_version: &'static str,
+    api_base: String,
+}
+
 fn handle_connection(
     mut stream: TcpStream,
     shared: &Shared,
@@ -488,16 +496,29 @@ fn handle_connection(
     {
         return write_error(&mut stream, 403, DashboardServerErrorCode::Protocol);
     }
+    let api_target = shared
+        .coordinator
+        .lock()
+        .map_err(|_| internal_error())?
+        .api_base
+        .clone();
+    let api_target = request
+        .target
+        .strip_prefix(&api_target)
+        .filter(|target| target.starts_with('/'))
+        .map(str::to_owned);
     match (request.method.as_str(), request.target.as_str()) {
         ("GET", "/") => write_asset(&mut stream, "text/html; charset=utf-8", INDEX_HTML),
         ("GET", "/app.js") => write_asset(&mut stream, "text/javascript; charset=utf-8", APP_JS),
         ("GET", "/app.css") => write_asset(&mut stream, "text/css; charset=utf-8", APP_CSS),
         ("POST", "/api/bootstrap") => bootstrap(&mut stream, &request, shared, origin),
-        (_, target) if target.starts_with("/api/") => {
-            if request.header("origin") != Some(origin) || !authorized(&request, shared)? {
+        _ if api_target.is_some() => {
+            let api_target = api_target.as_deref().ok_or_else(internal_error)?;
+            let state_changing = request.method != "GET";
+            if state_changing && request.header("origin") != Some(origin) {
                 return write_error(&mut stream, 403, DashboardServerErrorCode::Protocol);
             }
-            if request.method == "GET" && request.target == "/api/events" {
+            if request.method == "GET" && api_target == "/events" {
                 let Ok(cursor) = request
                     .header("last-event-id")
                     .map(str::parse::<u64>)
@@ -507,7 +528,7 @@ fn handle_connection(
                 };
                 return stream_events(&mut stream, cursor, shared, stream_poll);
             }
-            match route_api(&mut stream, &request, shared, policy_root) {
+            match route_api(&mut stream, &request, api_target, shared, policy_root) {
                 Ok(()) => Ok(()),
                 Err(error) => write_error(&mut stream, status_for(error.code()), error.code()),
             }
@@ -519,11 +540,12 @@ fn handle_connection(
 fn route_api(
     stream: &mut TcpStream,
     request: &Request,
+    target: &str,
     shared: &Shared,
     policy_root: &Path,
 ) -> Result<(), DashboardServerError> {
-    match (request.method.as_str(), request.target.as_str()) {
-        ("GET", "/api/state") => {
+    match (request.method.as_str(), target) {
+        ("GET", "/state") => {
             let snapshot = shared
                 .coordinator
                 .lock()
@@ -533,18 +555,17 @@ fn route_api(
             let policy = PolicyStore::open(policy_root)
                 .and_then(|store| store.state())
                 .map_err(policy_error)?;
-            write_json(stream, 200, &StateResponse { snapshot, policy }, None)
+            write_json(stream, 200, &StateResponse { snapshot, policy })
         }
-        ("POST", "/api/policy/apply") => apply_policy(stream, request, policy_root),
-        ("POST", "/api/policy/remove") => remove_policy(stream, request, policy_root),
-        ("POST", "/api/policy/rollback") => rollback_policy(stream, request, policy_root),
-        ("POST", "/api/shutdown") => {
+        ("POST", "/policy/apply") => apply_policy(stream, request, policy_root),
+        ("POST", "/policy/remove") => remove_policy(stream, request, policy_root),
+        ("POST", "/policy/rollback") => rollback_policy(stream, request, policy_root),
+        ("POST", "/shutdown") => {
             require_empty_write(request)?;
             write_json(
                 stream,
                 200,
                 &serde_json::json!({"schema_name":"dashboard-shutdown","schema_version":VERSION,"stopped":true}),
-                None,
             )?;
             shared.running.store(false, Ordering::SeqCst);
             Ok(())
@@ -585,7 +606,7 @@ fn apply_policy(
     } else {
         preview
     };
-    write_json(stream, 200, &receipt, None)
+    write_json(stream, 200, &receipt)
 }
 
 fn remove_policy(
@@ -616,7 +637,7 @@ fn remove_policy(
     } else {
         preview
     };
-    write_json(stream, 200, &receipt, None)
+    write_json(stream, 200, &receipt)
 }
 
 fn rollback_policy(
@@ -647,7 +668,7 @@ fn rollback_policy(
     } else {
         preview
     };
-    write_json(stream, 200, &receipt, None)
+    write_json(stream, 200, &receipt)
 }
 
 fn require_exact_preview(
@@ -690,40 +711,17 @@ fn bootstrap(
         return write_error(stream, 403, DashboardServerErrorCode::Protocol);
     }
     coordinator.bootstrap = None;
-    let cookie = format!(
-        "impresari_dashboard_session={}; HttpOnly; SameSite=Strict; Path=/",
-        coordinator.session
-    );
+    let api_base = coordinator.api_base.clone();
     drop(coordinator);
-    http::write_response(
+    write_json(
         stream,
-        Response {
-            status: 204,
-            content_type: "application/json",
-            body: b"",
-            set_cookie: Some(&cookie),
+        200,
+        &BootstrapResponse {
+            schema_name: "dashboard-bootstrap",
+            schema_version: VERSION,
+            api_base,
         },
     )
-}
-
-fn authorized(request: &Request, shared: &Shared) -> Result<bool, DashboardServerError> {
-    let expected = shared
-        .coordinator
-        .lock()
-        .map_err(|_| internal_error())?
-        .session
-        .clone();
-    let Some(cookie) = request.header("cookie") else {
-        return Ok(false);
-    };
-    let matches = cookie
-        .split(';')
-        .map(str::trim)
-        .filter_map(|part| part.split_once('='))
-        .filter(|(name, _)| *name == "impresari_dashboard_session")
-        .map(|(_, value)| value)
-        .collect::<Vec<_>>();
-    Ok(matches.len() == 1 && constant_time_equal(matches[0].as_bytes(), expected.as_bytes()))
 }
 
 fn stream_events(
@@ -1054,7 +1052,6 @@ fn write_error(
             status,
             content_type: "application/json",
             body: &body,
-            set_cookie: None,
         },
     )
 }
@@ -1063,7 +1060,6 @@ fn write_json(
     stream: &mut TcpStream,
     status: u16,
     value: &impl Serialize,
-    cookie: Option<&str>,
 ) -> Result<(), DashboardServerError> {
     let body = serde_json::to_vec(value).map_err(|_| internal_error())?;
     if body.len() > MAX_SNAPSHOT_BYTES {
@@ -1077,7 +1073,6 @@ fn write_json(
             status,
             content_type: "application/json",
             body: &body,
-            set_cookie: cookie,
         },
     )
 }
@@ -1093,7 +1088,6 @@ fn write_asset(
             status: 200,
             content_type,
             body,
-            set_cookie: None,
         },
     )
 }
@@ -1120,6 +1114,7 @@ mod tests {
     use context_core::{AuditOutcome, Capability, ResourceBudget, audit_event};
     use context_dashboard::{BudgetCeilings, BudgetSelector, LocalBudgetRule};
     use context_store::{AuditRetention, AuditStore};
+    use rusqlite::{Connection, params};
     use std::{fs, io::Read as _, sync::atomic::AtomicU64};
 
     static TEST_SEQUENCE: AtomicU64 = AtomicU64::new(0);
@@ -1145,19 +1140,7 @@ mod tests {
     }
 
     fn budget() -> ResourceBudget {
-        ResourceBudget {
-            unit_kind: "utf8_bytes".into(),
-            requested: "8192".into(),
-            hard: true,
-            max_evidence_items: "8".into(),
-            max_files: "16".into(),
-            max_excerpt_bytes_per_item: "512".into(),
-            max_matches: "32".into(),
-            max_traversal_depth: "4".into(),
-            max_elapsed_ms: "5000".into(),
-            max_memory_bytes: "8388608".into(),
-            policy_profile: "local-hard-v1".into(),
-        }
+        ResourceBudget::conservative(8_192, 8, 16, 512, 32, 4, 5_000, 8_388_608).expect("budget")
     }
 
     fn policy(revision: &str, requested: &str) -> context_dashboard::LocalBudgetPolicy {
@@ -1210,6 +1193,19 @@ mod tests {
             )
             .expect("append");
         drop(audit);
+        let connection = Connection::open(audit_root.join("audit/audit.sqlite3"))
+            .expect("open synthetic rejected row");
+        connection
+            .execute(
+                "INSERT INTO audit_events(event_id,occurred_at,workspace_identity,payload) VALUES(?1,?2,NULL,?3)",
+                params![
+                    "evt_dashboard_server_rejected",
+                    "2026-08-30T00:00:01Z",
+                    br#"{"schema_name":"future-audit-event","source":"DBC4_UNIT_SOURCE_CANARY"}"#
+                ],
+            )
+            .expect("insert synthetic rejected row");
+        drop(connection);
         let initial = policy("1", "4096");
         PolicyStore::apply(&policy_root, initial, None, None).expect("policy state");
         (root, audit_root, policy_root)
@@ -1240,15 +1236,6 @@ mod tests {
             }
         }
         response
-    }
-
-    fn cookie(response: &[u8]) -> String {
-        let text = String::from_utf8(response.to_vec()).expect("response");
-        text.lines()
-            .find_map(|line| line.strip_prefix("Set-Cookie: "))
-            .and_then(|line| line.split(';').next())
-            .expect("cookie")
-            .to_owned()
     }
 
     #[test]
@@ -1285,8 +1272,21 @@ mod tests {
                 "POST /api/bootstrap HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: bootstrap\r\nX-Impresari-Bootstrap: {token}\r\nContent-Length: 0\r\n\r\n"
             ),
         );
-        assert!(bootstrap.starts_with(b"HTTP/1.1 204"));
-        let session = cookie(&bootstrap);
+        assert!(bootstrap.starts_with(b"HTTP/1.1 200"));
+        let bootstrap_text = String::from_utf8(bootstrap.clone()).expect("bootstrap response");
+        let bootstrap_value: serde_json::Value = serde_json::from_str(
+            bootstrap_text
+                .split_once("\r\n\r\n")
+                .expect("bootstrap body")
+                .1,
+        )
+        .expect("bootstrap json");
+        let api_base = bootstrap_value["api_base"]
+            .as_str()
+            .expect("api base")
+            .to_owned();
+        assert!(api_base.starts_with("/api/session/"));
+        assert!(!bootstrap_text.contains("Set-Cookie:"));
         let replay = exchange(
             &origin,
             &format!(
@@ -1295,22 +1295,34 @@ mod tests {
         );
         assert!(replay.starts_with(b"HTTP/1.1 403"));
 
-        let state = exchange(
+        let undisclosed_state = exchange(
+            &origin,
+            &format!("GET /api/state HTTP/1.1\r\nHost: {host}\r\n\r\n"),
+        );
+        assert!(undisclosed_state.starts_with(b"HTTP/1.1 404"));
+        let hostile_origin_state = exchange(
             &origin,
             &format!(
-                "GET /api/state HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\n\r\n"
+                "GET {api_base}/state HTTP/1.1\r\nHost: {host}\r\nOrigin: http://attacker.invalid\r\n\r\n"
             ),
+        );
+        assert!(hostile_origin_state.starts_with(b"HTTP/1.1 403"));
+
+        let state = exchange(
+            &origin,
+            &format!("GET {api_base}/state HTTP/1.1\r\nHost: {host}\r\n\r\n"),
         );
         let state_text = String::from_utf8(state).expect("state");
         assert!(state_text.starts_with("HTTP/1.1 200"));
         assert!(state_text.contains("dashboard-snapshot"));
+        assert!(state_text.contains("\"records\":[{"));
+        assert!(state_text.contains("\"unavailable_rows\":\"1\""));
+        assert!(!state_text.contains("DBC4_UNIT_SOURCE_CANARY"));
         assert!(!state_text.contains(&token));
 
         let events = exchange_prefix(
             &origin,
-            &format!(
-                "GET /api/events HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\n\r\n"
-            ),
+            &format!("GET {api_base}/events HTTP/1.1\r\nHost: {host}\r\n\r\n"),
             b"event: snapshot",
         );
         assert!(events.starts_with(b"HTTP/1.1 200"));
@@ -1323,7 +1335,7 @@ mod tests {
         let reset = exchange_prefix(
             &origin,
             &format!(
-                "GET /api/events HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nLast-Event-ID: 999\r\n\r\n"
+                "GET {api_base}/events HTTP/1.1\r\nHost: {host}\r\nLast-Event-ID: 999\r\n\r\n"
             ),
             b"event: reset_required",
         );
@@ -1356,7 +1368,7 @@ mod tests {
         let preview = exchange(
             &origin,
             &format!(
-                "POST /api/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
+                "POST {api_base}/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{body}",
                 body.len()
             ),
         );
@@ -1378,7 +1390,7 @@ mod tests {
         let rejected_apply = exchange(
             &origin,
             &format!(
-                "POST /api/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{wrong_apply_body}",
+                "POST {api_base}/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{wrong_apply_body}",
                 wrong_apply_body.len()
             ),
         );
@@ -1388,7 +1400,7 @@ mod tests {
         let applied = exchange(
             &origin,
             &format!(
-                "POST /api/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{apply_body}",
+                "POST {api_base}/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: {}\r\n\r\n{apply_body}",
                 apply_body.len()
             ),
         );
@@ -1410,7 +1422,7 @@ mod tests {
         let malformed = exchange(
             &origin,
             &format!(
-                "POST /api/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: 1\r\n\r\n{{"
+                "POST {api_base}/policy/apply HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: 1\r\nContent-Type: application/json\r\nContent-Length: 1\r\n\r\n{{"
             ),
         );
         assert!(malformed.starts_with(b"HTTP/1.1 400"));
@@ -1418,7 +1430,7 @@ mod tests {
         let stopped = exchange(
             &origin,
             &format!(
-                "POST /api/shutdown HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nCookie: {session}\r\nX-Impresari-CSRF: 1\r\nContent-Length: 0\r\n\r\n"
+                "POST {api_base}/shutdown HTTP/1.1\r\nHost: {host}\r\nOrigin: {origin}\r\nX-Impresari-CSRF: 1\r\nContent-Length: 0\r\n\r\n"
             ),
         );
         assert!(stopped.starts_with(b"HTTP/1.1 200"));

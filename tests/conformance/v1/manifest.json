@@ -72,6 +72,7 @@
     {"fixture": "valid/effective-budget-decision.json", "schema": "effective-budget-decision.schema.json", "valid": true},
     {"fixture": "valid/dashboard-snapshot.json", "schema": "dashboard-snapshot.schema.json", "valid": true},
     {"fixture": "valid/dashboard-ready.json", "schema": "dashboard-ready.schema.json", "valid": true},
+    {"fixture": "valid/dashboard-bootstrap.json", "schema": "dashboard-bootstrap.schema.json", "valid": true},
     {"fixture": "valid/dashboard-http-error.json", "schema": "dashboard-http-error.schema.json", "valid": true},
     {"fixture": "valid/local-budget-policy-store-state.json", "schema": "local-budget-policy-store-state.schema.json", "valid": true},
     {"fixture": "valid/local-budget-policy-mutation-receipt.json", "schema": "local-budget-policy-mutation-receipt.schema.json", "valid": true},
@@ -121,6 +122,7 @@
     {"fixture": "invalid/effective-budget-decision-authority.json", "schema": "effective-budget-decision.schema.json", "valid": false},
     {"fixture": "invalid/dashboard-snapshot-source-field.json", "schema": "dashboard-snapshot.schema.json", "valid": false},
     {"fixture": "invalid/dashboard-ready-remote.json", "schema": "dashboard-ready.schema.json", "valid": false},
+    {"fixture": "invalid/dashboard-bootstrap-stable-route.json", "schema": "dashboard-bootstrap.schema.json", "valid": false},
     {"fixture": "invalid/dashboard-http-error-detail.json", "schema": "dashboard-http-error.schema.json", "valid": false},
     {"fixture": "invalid/local-budget-policy-mutation-receipt-authority.json", "schema": "local-budget-policy-mutation-receipt.schema.json", "valid": false}
   ]

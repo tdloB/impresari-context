@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/dashboard-bootstrap.schema.json",
+  "title": "One-use dashboard bootstrap response",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "api_base"],
+  "properties": {
+    "schema_name": {"const": "dashboard-bootstrap"},
+    "schema_version": {"const": "1.0.0"},
+    "api_base": {
+      "type": "string",
+      "pattern": "^/api/session/[a-f0-9]{64}$",
+      "maxLength": 77
+    }
+  }
+}

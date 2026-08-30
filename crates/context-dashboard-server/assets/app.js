@@ -1,6 +1,6 @@
 "use strict";
 
-const state = { snapshot: null, policy: null, lastPreview: null };
+const state = { snapshot: null, policy: null, lastPreview: null, ending: false, apiBase: null };
 const byId = (id) => document.getElementById(id);
 
 function showJson(target, value) {
@@ -53,16 +53,17 @@ function render() {
 }
 
 async function request(path, options = {}) {
+  if (!state.apiBase) throw new Error("local session unavailable");
   const headers = new Headers(options.headers || {});
   headers.set("X-Impresari-CSRF", "1");
-  const response = await fetch(path, { ...options, headers, credentials: "same-origin" });
+  const response = await fetch(`${state.apiBase}${path}`, { ...options, headers, credentials: "same-origin" });
   const value = await response.json();
   if (!response.ok) throw new Error(value.code || "local request failed");
   return value;
 }
 
 async function refresh() {
-  const value = await request("/api/state");
+  const value = await request("/state");
   state.snapshot = value.snapshot;
   state.policy = value.policy;
   render();
@@ -71,7 +72,7 @@ async function refresh() {
 async function mutatePolicy(apply) {
   const draft = JSON.parse(byId("policy-draft").value);
   const current = state.policy || {};
-  const result = await request("/api/policy/apply", {
+  const result = await request("/policy/apply", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ draft, expected_policy_id: current.current_policy_id || null, expected_revision: current.current_revision || null, expected_preview_receipt_id: apply && state.lastPreview?.operation === "apply" ? state.lastPreview.receipt_id : null, apply })
@@ -83,7 +84,7 @@ async function mutatePolicy(apply) {
 
 async function lifecyclePolicy(operation, apply) {
   const current = state.policy || {};
-  const result = await request(`/api/policy/${operation}`, {
+  const result = await request(`/policy/${operation}`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ expected_policy_id: current.current_policy_id || null, expected_revision: current.current_revision || null, expected_preview_receipt_id: apply && state.lastPreview?.operation === operation ? state.lastPreview.receipt_id : null, apply })
@@ -99,11 +100,14 @@ async function bootstrap() {
   if (!/^[a-f0-9]{64}$/.test(token)) throw new Error("missing local bootstrap capability");
   const response = await fetch("/api/bootstrap", { method: "POST", headers: { "X-Impresari-Bootstrap": token, "X-Impresari-CSRF": "bootstrap" }, credentials: "same-origin" });
   if (!response.ok) throw new Error("local bootstrap rejected");
+  const bootstrap = await response.json();
+  if (bootstrap.schema_name !== "dashboard-bootstrap" || !/^\/api\/session\/[a-f0-9]{64}$/.test(bootstrap.api_base)) throw new Error("invalid local bootstrap response");
+  state.apiBase = bootstrap.api_base;
   await refresh();
-  const events = new EventSource("/api/events");
+  const events = new EventSource(`${state.apiBase}/events`);
   events.addEventListener("snapshot", (event) => { state.snapshot = JSON.parse(event.data); render(); });
   events.addEventListener("reset_required", (event) => { state.snapshot = JSON.parse(event.data); render(); });
-  events.onerror = () => { byId("connection").textContent = "Local stream disconnected"; };
+  events.onerror = () => { if (!state.ending) byId("connection").textContent = "Local stream disconnected"; };
   byId("connection").textContent = "Connected to this foreground process";
 }
 
@@ -115,5 +119,5 @@ byId("preview-remove").addEventListener("click", () => lifecyclePolicy("remove",
 byId("apply-remove").addEventListener("click", () => lifecyclePolicy("remove", true).catch((error) => { byId("policy-result").textContent = error.message; }));
 byId("preview-rollback").addEventListener("click", () => lifecyclePolicy("rollback", false).catch((error) => { byId("policy-result").textContent = error.message; }));
 byId("apply-rollback").addEventListener("click", () => lifecyclePolicy("rollback", true).catch((error) => { byId("policy-result").textContent = error.message; }));
-byId("shutdown").addEventListener("click", () => request("/api/shutdown", { method: "POST" }).then(() => { byId("connection").textContent = "Local session ended"; }).catch((error) => { byId("connection").textContent = error.message; }));
+byId("shutdown").addEventListener("click", () => { state.ending = true; request("/shutdown", { method: "POST" }).then(() => { byId("connection").textContent = "Local session ended"; }).catch((error) => { state.ending = false; byId("connection").textContent = error.message; }); });
 bootstrap().catch((error) => { byId("connection").textContent = error.message; });

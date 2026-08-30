@@ -1,6 +1,6 @@
 # ADR-0072: Use a loopback metadata dashboard and narrowing-only budget policy
 
-- Status: Accepted; DBC-1 through DBC-3 implemented, DBC-4 pending
+- Status: Accepted; DBC-1 through DBC-4 implemented and native-browser rehearsed
 - Date: 2026-08-29
 - Related PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Related architecture: [Local dashboard and budget control ARD](../architecture/local-dashboard-budget-control-ard.md)
@@ -20,7 +20,8 @@ Add a foreground, loopback-only local dashboard that reads only
 validated audit metadata and a versioned local budget policy that can deny or
 narrow requests but can never increase a governing limit.
 
-- Serve bundled assets with an ephemeral process-local access capability,
+- Serve bundled assets with one-use bootstrap and per-process API-route
+  capabilities held only in page memory,
   strict same-origin/CSRF/content-security controls, bounded streaming, and no
   outbound network, telemetry, persistence, or automatic browser launch.
 - Display metadata and aggregates only. Do not expose source paths, names,
@@ -66,3 +67,11 @@ pure narrowing and metadata-projection boundary becomes independently testable
 before storage or HTTP is added. Live browser rehearsal uses only synthetic
 metadata and disposable local state. External exposure remains outside this
 decision and requires a new founder-approved architecture and data boundary.
+
+DBC-4 completed the native-browser admission on 2026-08-30. The rehearsal
+replaced the provisional cookie exchange with a separate 256-bit API-route
+capability returned by the one-use bootstrap and retained only in bundled-page
+memory. Cookies are host/path scoped rather than port scoped, so removing them
+avoids ambient exposure to unrelated loopback services and native-browser
+collision behavior. The route capability is absent from readiness output,
+top-level URLs, browser history, persistent storage, server logs, and errors.

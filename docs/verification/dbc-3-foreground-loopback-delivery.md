@@ -1,8 +1,8 @@
 # DBC-3 foreground loopback dashboard delivery
 
-- Status: Implemented locally; hosted acceptance pending
+- Status: Implemented; current runtime contract superseded and admitted by DBC-4
 - Decision: [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md)
-- Scope: One explicit foreground local process; DBC-4 native browser rehearsal remains pending
+- Scope: Historical DBC-3 implementation record; DBC-4 later completed native-browser admission
 
 ## Implemented boundary
 
@@ -14,13 +14,14 @@
   exact, disjoint roots. It prints one closed `dashboard-ready` record and runs
   in the foreground; it does not launch a browser, daemonize, advertise, or
   survive explicit shutdown.
-- A 256-bit fragment capability is exchanged once for an HttpOnly,
-  SameSite=Strict process-local cookie. The token is cleared from browser
-  history before the exchange and is never placed in an HTTP request target,
-  asset, state response, SSE frame, or error body.
+- DBC-3 originally exchanged the 256-bit fragment capability for an HttpOnly,
+  SameSite=Strict process-local cookie. DBC-4 native-browser testing found that
+  cookies are not scoped by loopback port and replaced this provisional design
+  with an independent 256-bit API-route capability retained only in page
+  memory. See the DBC-4 admission record for the current contract.
 - The bounded HTTP/1.1 parser rejects queries, fragments, duplicate or forwarded
   headers, transfer encoding, pipelining, non-ASCII ambiguity, oversized input,
-  wrong Host/Origin, missing authentication, and missing write CSRF/content
+  wrong Host/Origin, an undisclosed API route, and missing write CSRF/content
   headers. Responses carry no-store, no-frame, no-sniff, restrictive CSP,
   same-origin isolation, and permissions-denial headers.
 - Bundled HTML, CSS, and JavaScript have the domain-separated release identity
@@ -39,7 +40,7 @@
 - Closed readiness and source-free HTTP-error schemas accept only loopback
   origins and reject remote origins or diagnostic detail.
 - Unit/integration tests cover strict parsing, exact/disjoint roots, wrong Host,
-  CSP assets, one-use bootstrap and replay rejection, authenticated state,
+  CSP assets, one-use bootstrap and replay rejection, capability-bound state,
   bounded initial SSE delivery, absence of the bootstrap secret, exact policy
   preview/apply, malformed JSON response, explicit shutdown, thread join, and
   closed listener cleanup.
@@ -50,7 +51,8 @@
 
 ## Explicit non-claims
 
-DBC-3 does not establish the final native-browser, adversarial-XSS, screenshot,
-or source-canary evidence required by DBC-4. It adds no remote mode, daemon,
-automatic browser launch, source view, packet view, telemetry, cost estimation,
-provider control, or authority to raise any governing budget.
+This historical DBC-3 record did not establish native-browser,
+adversarial-XSS, screenshot, or source-canary evidence. DBC-4 now supplies that
+evidence without adding a remote mode, daemon, automatic browser launch,
+source/packet view, telemetry, cost estimation, provider control, or authority
+to raise any governing budget.
