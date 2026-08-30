@@ -1,6 +1,6 @@
 # Local real-time dashboard and budget control architecture
 
-- Status: Proposed; not approved for implementation
+- Status: Accepted; staged implementation
 - Date: 2026-08-29
 - Governing PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Governing decision: [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md)
@@ -13,7 +13,7 @@ observe existing metadata rather than inspect source or packet content. Budget
 control is more sensitive: a new policy layer must be unable to increase any
 existing limit or become a second authorization system.
 
-## Proposed process boundary
+## Process boundary
 
 Add an optional `dashboard` CLI surface that launches one foreground local
 process with four internal components:
@@ -121,8 +121,13 @@ maxima remain compiled/release policy. The new layer can only deny or reduce.
   evidence-bound design requirement; public vision is an influence, not a
   compatibility contract.
 
-## Implementation gate
+## Staged implementation boundary
 
-This architecture is non-operative until ADR-0072 is explicitly accepted. A
-future remote or hosted mode cannot be added by extending this local server; it
-requires an independent architecture and decision record.
+ADR-0072 was accepted on 2026-08-30. DBC-1 freezes the shared pure evaluator,
+closed public contracts, safe metadata projection, deterministic bounded
+aggregates, and concurrent read-only audit view before any HTTP listener or
+policy write exists. DBC-2 adds exact-owned policy lifecycle and runtime
+composition. DBC-3 adds the foreground loopback server only after those
+boundaries pass independently. DBC-4 records the complete synthetic local
+rehearsal. A future remote or hosted mode cannot be added by extending this
+local server; it requires an independent architecture and decision record.

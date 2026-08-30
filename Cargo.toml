@@ -5,6 +5,7 @@ members = [
     "crates/context-copilot-cli",
     "crates/context-claude-code",
     "crates/context-cursor-agent",
+    "crates/context-dashboard",
     "crates/context-vscode-copilot",
     "crates/context-adapters",
     "crates/context-admission",

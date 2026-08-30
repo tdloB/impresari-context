@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/dashboard-snapshot.schema.json",
+  "title": "Bounded metadata-only dashboard snapshot",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "stream_sequence", "records", "aggregates", "unavailable_rows"],
+  "properties": {
+    "schema_name": {"const": "dashboard-snapshot"},
+    "schema_version": {"const": "1.0.0"},
+    "stream_sequence": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "records": {"type": "array", "maxItems": 10000, "items": {"$ref": "#/$defs/record"}},
+    "aggregates": {"type": "array", "maxItems": 60, "items": {"$ref": "#/$defs/aggregate"}},
+    "unavailable_rows": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+  },
+  "$defs": {
+    "outcome": {"type": "string", "enum": ["allowed", "denied", "limited", "failed", "cancelled"]},
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "event_id", "occurred_at", "capability", "outcome", "policy_decision", "limits", "duration_ms", "engine_version", "workspace_identity_present", "snapshot_identity_present"],
+      "properties": {
+        "schema_name": {"const": "dashboard-record"},
+        "schema_version": {"const": "1.0.0"},
+        "event_id": {"$ref": "common.schema.json#/$defs/identifier"},
+        "occurred_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+        "capability": {"$ref": "common.schema.json#/$defs/capability"},
+        "outcome": {"$ref": "#/$defs/outcome"},
+        "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+        "limits": {"$ref": "resource-budget.schema.json"},
+        "duration_ms": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "engine_version": {"$ref": "common.schema.json#/$defs/schemaVersion"},
+        "workspace_identity_present": {"type": "boolean"},
+        "snapshot_identity_present": {"type": "boolean"},
+        "workspace_label": {"$ref": "common.schema.json#/$defs/sha256"}
+      }
+    },
+    "aggregate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capability", "outcome", "events", "duration_ms"],
+      "properties": {
+        "capability": {"$ref": "common.schema.json#/$defs/capability"},
+        "outcome": {"$ref": "#/$defs/outcome"},
+        "events": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "duration_ms": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    }
+  }
+}

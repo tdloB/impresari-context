@@ -1,0 +1,36 @@
+{
+  "schema_name": "effective-budget-decision",
+  "schema_version": "1.0.0",
+  "decision_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+  "local_policy_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "requested_budget": {
+    "unit_kind": "utf8_bytes",
+    "requested": "65536",
+    "hard": true,
+    "max_evidence_items": "100",
+    "max_files": "1000",
+    "max_excerpt_bytes_per_item": "4096",
+    "max_matches": "1000",
+    "max_traversal_depth": "32",
+    "max_elapsed_ms": "30000",
+    "max_memory_bytes": "536870912",
+    "policy_profile": "sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+  },
+  "effective_budget": {
+    "unit_kind": "utf8_bytes",
+    "requested": "12000",
+    "hard": true,
+    "max_evidence_items": "100",
+    "max_files": "40",
+    "max_excerpt_bytes_per_item": "4096",
+    "max_matches": "1000",
+    "max_traversal_depth": "32",
+    "max_elapsed_ms": "5000",
+    "max_memory_bytes": "536870912",
+    "policy_profile": "sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8"
+  },
+  "outcome": "limit",
+  "matched_rule_id": "implementation_build",
+  "reason_codes": ["governing_budget_reduced"],
+  "evaluated_at": "2026-08-30T01:00:00Z"
+}

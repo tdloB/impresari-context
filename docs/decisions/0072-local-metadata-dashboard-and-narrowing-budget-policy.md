@@ -1,6 +1,6 @@
 # ADR-0072: Use a loopback metadata dashboard and narrowing-only budget policy
 
-- Status: Proposed; founder decision required
+- Status: Accepted; staged implementation
 - Date: 2026-08-29
 - Related PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Related architecture: [Local dashboard and budget control ARD](../architecture/local-dashboard-budget-control-ard.md)
@@ -14,9 +14,9 @@ control can become an authority-expansion path if it is not strictly ordered
 below existing limits. The core also explicitly forbids a dashboard beyond the
 local trust boundary by default.
 
-## Proposed decision
+## Decision
 
-If approved, add a foreground, loopback-only local dashboard that reads only
+Add a foreground, loopback-only local dashboard that reads only
 validated audit metadata and a versioned local budget policy that can deny or
 narrow requests but can never increase a governing limit.
 
@@ -59,8 +59,10 @@ narrow requests but can never increase a governing limit.
 - Provider token/cost estimates are not deterministic model-neutral hard budget
   units and cannot replace the existing serialized-byte authority.
 
-## Decision gate
+## Acceptance record
 
-This ADR is a proposal only. Acceptance requires explicit founder approval.
-Live browser rehearsal and any external exposure require separate authorization;
-merging this record grants neither.
+The founder accepted this ADR on 2026-08-30. Implementation is staged so the
+pure narrowing and metadata-projection boundary becomes independently testable
+before storage or HTTP is added. Live browser rehearsal uses only synthetic
+metadata and disposable local state. External exposure remains outside this
+decision and requires a new founder-approved architecture and data boundary.

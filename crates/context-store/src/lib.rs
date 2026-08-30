@@ -191,6 +191,112 @@ pub struct AuditStore {
     database_path: PathBuf,
 }
 
+/// One bounded read batch with malformed rows counted but never exposed.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AuditReadBatch {
+    /// Canonical validated events, newest first.
+    pub events: Vec<AuditEvent>,
+    /// Rows rejected because their payload or schema was unavailable.
+    pub unavailable_rows: u64,
+}
+
+/// Concurrent read-only view of the existing metadata-only audit database.
+#[derive(Debug)]
+pub struct AuditReader {
+    connection: Connection,
+}
+
+impl AuditReader {
+    /// Opens an existing audit store without creating files or taking its writer lock.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for absent or unsafe roots, symlinks, incompatible metadata,
+    /// corruption, or storage errors.
+    pub fn open(cache_root: &Path) -> Result<Self, CacheError> {
+        let root = existing_cache_root(cache_root)?;
+        let audit_path = root.join("audit");
+        if !audit_path.try_exists().map_err(CacheError::storage)? {
+            return Err(CacheError::new(CacheErrorCode::IncompatibleCache));
+        }
+        reject_symlink(&audit_path)?;
+        let audit = audit_path.canonicalize().map_err(CacheError::storage)?;
+        if audit.parent() != Some(root.as_path()) {
+            return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
+        }
+        let database_path = audit.join("audit.sqlite3");
+        if !database_path.try_exists().map_err(CacheError::storage)? {
+            return Err(CacheError::new(CacheErrorCode::IncompatibleCache));
+        }
+        reject_symlink(&database_path)?;
+        let database = database_path.canonicalize().map_err(CacheError::storage)?;
+        if database.parent() != Some(audit.as_path()) {
+            return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
+        }
+        let connection = Connection::open_with_flags(
+            database,
+            OpenFlags::SQLITE_OPEN_READ_ONLY | OpenFlags::SQLITE_OPEN_NO_MUTEX,
+        )
+        .map_err(CacheError::storage)?;
+        configure_reader(&connection)?;
+        let version: String = connection
+            .query_row(
+                "SELECT schema_version FROM audit_metadata WHERE singleton=1",
+                [],
+                |row| row.get(0),
+            )
+            .map_err(CacheError::storage)?;
+        if version != AUDIT_SCHEMA_VERSION {
+            return Err(CacheError::new(CacheErrorCode::IncompatibleCache));
+        }
+        verify_integrity(&connection)?;
+        Ok(Self { connection })
+    }
+
+    /// Reads at most `limit` newest rows and withholds malformed payloads.
+    ///
+    /// # Errors
+    ///
+    /// Fails for an invalid limit or database-level storage failure. Individual
+    /// malformed rows increment `unavailable_rows` instead of exposing bytes.
+    pub fn recent(&self, limit: u64) -> Result<AuditReadBatch, CacheError> {
+        if limit == 0 || limit > 10_000 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let limit =
+            i64::try_from(limit).map_err(|_| CacheError::new(CacheErrorCode::ResourceLimit))?;
+        let mut statement = self
+            .connection
+            .prepare(
+                "SELECT payload FROM audit_events ORDER BY occurred_at DESC,event_id DESC LIMIT ?1",
+            )
+            .map_err(CacheError::storage)?;
+        let rows = statement
+            .query_map([limit], |row| row.get::<_, Vec<u8>>(0))
+            .map_err(CacheError::storage)?;
+        let mut events = Vec::new();
+        let mut unavailable_rows = 0_u64;
+        for row in rows {
+            let bytes = row.map_err(CacheError::storage)?;
+            let event = (bytes.len() <= 65_536)
+                .then(|| serde_json::from_slice::<AuditEvent>(&bytes).ok())
+                .flatten()
+                .filter(|event| validate_audit_event(event).is_ok());
+            if let Some(event) = event {
+                events.push(event);
+            } else {
+                unavailable_rows = unavailable_rows
+                    .checked_add(1)
+                    .ok_or_else(|| CacheError::new(CacheErrorCode::ResourceLimit))?;
+            }
+        }
+        Ok(AuditReadBatch {
+            events,
+            unavailable_rows,
+        })
+    }
+}
+
 impl AuditStore {
     /// Opens the audit database below a validated cache root.
     ///
@@ -819,6 +925,24 @@ fn configure(connection: &Connection) -> Result<(), CacheError> {
         .map_err(CacheError::storage)
 }
 
+fn configure_reader(connection: &Connection) -> Result<(), CacheError> {
+    connection
+        .busy_timeout(Duration::from_secs(5))
+        .map_err(CacheError::storage)?;
+    connection
+        .set_limit(Limit::SQLITE_LIMIT_ATTACHED, 0)
+        .map_err(CacheError::storage)?;
+    connection
+        .set_limit(Limit::SQLITE_LIMIT_LENGTH, 16 * 1024 * 1024)
+        .map_err(CacheError::storage)?;
+    connection
+        .set_limit(Limit::SQLITE_LIMIT_SQL_LENGTH, 256 * 1024)
+        .map_err(CacheError::storage)?;
+    connection
+        .execute_batch("PRAGMA query_only=ON; PRAGMA trusted_schema=OFF; PRAGMA temp_store=MEMORY;")
+        .map_err(CacheError::storage)
+}
+
 fn initialize(connection: &Connection, workspace_identity: &str) -> Result<(), CacheError> {
     connection.execute_batch(
         "CREATE TABLE IF NOT EXISTS cache_metadata(singleton INTEGER PRIMARY KEY CHECK(singleton=1),schema_version TEXT NOT NULL,workspace_identity TEXT NOT NULL);
@@ -907,6 +1031,23 @@ fn prepare_cache_root(root: &Path) -> Result<PathBuf, CacheError> {
     }
     fs::create_dir_all(root).map_err(CacheError::storage)?;
     set_private_permissions(root)?;
+    let resolved = root.canonicalize().map_err(CacheError::storage)?;
+    if resolved.parent().is_none()
+        || std::env::var_os("HOME").is_some_and(|home| resolved == Path::new(&home))
+    {
+        return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
+    }
+    Ok(resolved)
+}
+
+fn existing_cache_root(root: &Path) -> Result<PathBuf, CacheError> {
+    if root.as_os_str().is_empty()
+        || root.parent().is_none()
+        || !root.try_exists().map_err(CacheError::storage)?
+    {
+        return Err(CacheError::new(CacheErrorCode::InvalidCacheRoot));
+    }
+    reject_symlink(root)?;
     let resolved = root.canonicalize().map_err(CacheError::storage)?;
     if resolved.parent().is_none()
         || std::env::var_os("HOME").is_some_and(|home| resolved == Path::new(&home))
@@ -1389,6 +1530,37 @@ mod tests {
         let remaining = audit.recent(10).expect("remaining");
         assert_eq!(remaining.len(), 1);
         assert_eq!(remaining[0].workspace_identity.as_deref(), Some(B));
+    }
+
+    #[test]
+    fn audit_reader_is_concurrent_bounded_and_withholds_malformed_rows() {
+        let root = TestRoot::new();
+        let mut audit = AuditStore::open(&root.0).expect("audit");
+        let retention =
+            AuditRetention::new("2026-08-20T00:00:00Z", 10, 1_048_576).expect("retention");
+        audit
+            .append(
+                &event("evt_00000001", A, "2026-08-20T01:00:00Z"),
+                &retention,
+            )
+            .expect("valid");
+        audit
+            .connection
+            .execute(
+                "INSERT INTO audit_events(event_id,occurred_at,workspace_identity,payload) VALUES(?1,?2,NULL,?3)",
+                params!["evt_00000002", "2026-08-20T02:00:00Z", b"{not-json"],
+            )
+            .expect("malformed synthetic row");
+
+        let reader = AuditReader::open(&root.0).expect("concurrent reader");
+        let batch = reader.recent(10).expect("batch");
+        assert_eq!(batch.events.len(), 1);
+        assert_eq!(batch.events[0].event_id, "evt_00000001");
+        assert_eq!(batch.unavailable_rows, 1);
+        assert_eq!(
+            reader.recent(0).expect_err("zero limit").code(),
+            CacheErrorCode::ResourceLimit
+        );
     }
 
     #[cfg(unix)]
