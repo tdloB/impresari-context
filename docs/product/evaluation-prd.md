@@ -241,11 +241,15 @@ Device, resource/process-tree, fault-timeout, complete OS-managed cleanup,
 production signing/notarization, packaging, and multi-host gates remain false or
 unverified; the candidate is not an admission result.
 
-The subsequent documented-interface review closes this macOS candidate as not
-admitted: XPC service configuration provides no hard per-job resource contract,
-`RLIMIT_NPROC` is per user, `RLIMIT_RSS` is advisory under memory pressure, and
-idle XPC reclamation is not deterministic job-tree teardown. These hard gates
-must not be rescored as passing. Linux is evaluated independently next.
+The hybrid follow-up corrects the earlier assumption that XPC must supply the
+whole boundary alone. Native synthetic evidence now passes for `RLIMIT_CPU`
+termination, current-footprint-derived `RLIMIT_AS` growth denial,
+`RLIMIT_NPROC=0` denial of `fork` and `posix_spawn`, exact prepared-service
+identity, supervisor timeout termination, crash/relaunch, and source-byte
+cleanup. These checks may be scored as passing only for the observed ad hoc
+prototype. Device denial, production profiles/signing/notarization/cask
+lifecycle, the complete Tier A corpus, and every claimed host remain false or
+unverified, so macOS is still not admitted.
 
 ## Evaluation Principles
 

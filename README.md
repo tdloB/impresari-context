@@ -267,8 +267,11 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   the resource, lifecycle, signing, packaging, and compatibility gates that
   keep the result partial and unadmitted.
 - [IAR-1B macOS resource/lifecycle decision](docs/verification/iar-1b-macos-resource-lifecycle-decision.md):
-  why the candidate is not adopted, macOS remains at IAR-1A, and Linux is the
-  next platform rather than weakening hard per-job confinement requirements.
+  the selected hybrid App Sandbox/private-XPC plus Rust-supervisor candidate,
+  its passing synthetic resource/lifecycle probes, and its remaining hard gates.
+- [macOS hybrid XPC distribution](docs/product/macos-hybrid-xpc-distribution-prd.md):
+  the accepted Option C target—one signed/notarized cask with CLI compatibility—
+  and the evidence required before it becomes a supported release path.
 - [Evaluation PRD](docs/product/evaluation-prd.md): benchmark corpus, baselines,
   metrics, reproducibility requirements, and release gates.
 - [Release evidence](docs/verification/release-evidence.md): archived hosted

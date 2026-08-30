@@ -29,10 +29,11 @@ the capability exists in the `v0.1.0` binaries.
 
 The short-install and first-run increment provides a pinned, checksum-verified
 macOS/Linux installer and one preview-by-default `quickstart` command for the
-recorded managed clients. Homebrew distribution now has a reviewable
-[proposed PRD](homebrew-distribution-prd.md), architecture, and ADR; it remains
-unapproved until its separate tap and trust boundary receive an explicit
-founder decision. Automatic update installation remains a later, separate
+recorded managed clients. ADR-0076 now accepts staged macOS work toward one
+signed/notarized [CLI-compatible cask](macos-hybrid-xpc-distribution-prd.md),
+but publication remains gated on IAR-1B, signing/notarization, clean-machine,
+migration, upgrade, rollback, and uninstall evidence. The earlier formula
+proposal remains Linux-only and separately gated. Automatic update installation remains a later, separate
 future increment with a reviewable
 [proposed PRD](automatic-update-installation-prd.md), architecture, and ADR.
 It remains unapproved and separately gated on signing-root custody, scheduled
@@ -87,11 +88,15 @@ credential, process, and network denials pass, while device denial and hard
 resource/process-tree limits, fault timeout, complete OS-managed container
 cleanup, production signing/notarization, packaging, and multi-host evidence
 remain open. It does not admit macOS or open IAR-2.
-The resource/lifecycle checkpoint subsequently rejected adoption: documented
-private-XPC and per-process resource controls do not provide hard per-job
-memory, process-count/tree, and deterministic teardown. macOS therefore remains
-at IAR-1A, and Linux is the next IAR-1B candidate. No privileged daemon, private
-API, or VM fallback is added.
+The hybrid resource/lifecycle checkpoint subsequently passed native synthetic
+CPU termination, bounded address-space growth, `fork`/`posix_spawn` denial,
+exact-target timeout termination, crash/relaunch, and source-byte cleanup. The
+candidate combines App Sandbox/private XPC with the Rust supervisor and public
+resource limits, and ADR-0076 selects one CLI-compatible Homebrew cask as its
+intended release topology. macOS remains at IAR-1A until device denial,
+production profiles, Developer ID/notarization, cask lifecycle, the full Tier A
+corpus, and multi-host evidence pass. No privileged daemon, private API,
+persistent service, or VM fallback is added.
 
 ## Parallel Client Integration Depth Track
 

@@ -32,12 +32,21 @@ export SWIFT_MODULECACHE_PATH="$output_root/module-cache"
 cp "$source_root/Resources/Host-Info.plist" "$app/Contents/Info.plist"
 cp "$source_root/Resources/Service-Info.plist" "$xpc/Contents/Info.plist"
 
+xcrun clang \
+  -Wall \
+  -Wextra \
+  -Werror \
+  -c "$source_root/Sources/Service/ResourceProbe.c" \
+  -o "$output_root/resource-probe.o"
+
 xcrun swiftc \
   -warnings-as-errors \
   -parse-as-library \
+  -import-objc-header "$source_root/Sources/Service/ResourceProbe.h" \
   -framework Foundation \
   "$source_root/Sources/Shared/ProbeProtocol.swift" \
   "$source_root/Sources/Service/main.swift" \
+  "$output_root/resource-probe.o" \
   -o "$xpc/Contents/MacOS/studio.boldthaus.impresari-context.SandboxProbe"
 
 xcrun swiftc \

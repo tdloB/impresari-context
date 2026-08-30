@@ -2,7 +2,7 @@
 
 - Date: 2026-08-29
 - Decision: ADR-0074
-- Prototype: `iar-macos-xpc-feasibility-v1`
+- Prototype: `iar-macos-xpc-hybrid-feasibility-v2`
 - Result: Partial; not production-admitted
 
 ## Scope
@@ -13,9 +13,10 @@ production signing identity, contact a network service, notarize a release, or
 change the ordinary Impresari Context scan path.
 
 The prototype is a non-UI App Sandbox host with one private embedded App
-Sandbox XPC service. The host sends one bounded synthetic request and accepts
-one bounded source-free receipt. The service has no network client or server
-entitlement and receives only four synthetic canary paths, one unrelated
+Sandbox XPC service plus a synthetic stand-in for the selected Rust supervisor.
+The host sends bounded synthetic requests and accepts bounded source-free
+receipts. The service has no network client or server entitlement and receives
+only a fixed synthetic payload, four synthetic canary paths, one unrelated
 process identifier, and a loopback port controlled by the test harness.
 
 ## Observed environment
@@ -47,12 +48,25 @@ fixed to `false`.
 - request and receipt bytes have explicit upper bounds; and
 - the receipt contained no source bytes and granted no authority.
 
+The hybrid follow-up also demonstrated:
+
+- one-second `RLIMIT_CPU` termination of an intentional CPU loop;
+- an irreversible `RLIMIT_AS` bound derived from the service's startup virtual
+  footprint plus 128 MiB, with a one-GiB `mmap` denied;
+- `RLIMIT_NPROC=0` denial of both `fork` and `posix_spawn`;
+- publication and verification of the exact embedded service PID/path before a
+  supervisor terminated a deliberately hung service;
+- XPC relaunch in a distinct process after CPU-limit termination; and
+- write, read-back, removal, and absence verification for the exact bounded
+  synthetic payload inside the service container.
+
 ## Unresolved gates
 
-This prototype does not establish device denial, hard CPU, memory, disk, or
-process-count limits, descendant process-tree containment, or a fault-injected timeout. The
-service deliberately does not launch a descendant, so the existing exact-count
-production child-launch guard is unchanged.
+This prototype does not establish device denial, production disk/output
+profiles, a production Rust-to-host launch contract, or the full Tier A escape
+and mutation corpus. Its CPU, address-space-growth, process-count, descendant,
+crash/relaunch, exact-target timeout, and synthetic-byte cleanup evidence is
+native but remains development-only.
 
 The app's synthetic container contents were removed after the rehearsal.
 macOS retained only its protected `.com.apple.containermanagerd.metadata.plist`
@@ -68,11 +82,13 @@ notarization credential was inspected or used.
 
 The subsequent
 [resource and lifecycle decision](iar-1b-macos-resource-lifecycle-decision.md)
-found a material platform gap: the selected independently distributed
-architecture does not provide a documented hard per-job memory,
-process-count/tree, and deterministic teardown composition. The candidate is
-therefore not adopted. macOS remains at IAR-1A, its IAR-1B analyzer backend is
-unsupported, and IAR-2 YARA execution remains closed on macOS.
+corrects the earlier all-in-one assumption and selects the hybrid architecture
+for continued feasibility. The App Sandbox/XPC layer supplies access
+confinement, the in-service harness applies irreversible resource limits, and
+the Rust supervisor owns exact-target wall-time termination and cleanup.
+ADR-0076 selects one CLI-compatible Homebrew cask as the intended release
+topology. The candidate remains partial and does not yet admit macOS or open
+IAR-2 YARA execution.
 
 ## Reproduction
 

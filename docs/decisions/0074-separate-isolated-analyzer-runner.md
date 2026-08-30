@@ -1,8 +1,8 @@
 # ADR-0074: Separate isolated analyzer runner
 
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented; the macOS IAR-1B candidate is not admitted and
-  Linux is next; IAR-1B remains pending
+  supervision implemented; the macOS hybrid IAR-1B candidate is selected for
+  continued feasibility but remains partial and unadmitted
 - Date: 2026-08-26
 - Scope: Static analyzer execution, scanner adapters, Windows hostile-format
   analysis, rule/database updates, and hash-only reputation
@@ -143,12 +143,15 @@ demonstrates exact sandbox identity, bounded IPC, and selected native denials,
 but does not yet establish hard resource/process-tree controls, rehearsed fault
 timeout, complete OS-managed container cleanup, production signing/notarization,
 packaging, or multi-host compatibility. It does not change the decision status,
-admit macOS, authorize a real analyzer, or open IAR-2. The follow-up resource
-and lifecycle review finds a material gap in hard per-job memory,
-process-count/tree, and deterministic teardown under the documented selected
-architecture. The candidate is not adopted, macOS remains at IAR-1A, and Linux
-becomes the next IAR-1B candidate. Privileged launch daemons, private APIs, and
-VMs remain outside this decision.
+admit macOS, authorize a real analyzer, or open IAR-2. The hybrid follow-up
+corrects the assumption that XPC must supply every layer alone. It combines
+App Sandbox/private XPC access confinement, irreversible in-service CPU,
+address-space-growth, and process-count limits, and Rust-supervisor exact-target
+wall-time termination and cleanup. Those native synthetic probes pass locally,
+so the candidate is selected for continued feasibility. Device denial,
+production profiles, Developer ID/notarization, ADR-0076 cask lifecycle, the
+full Tier A corpus, and multi-host evidence remain mandatory. Privileged launch
+daemons, private APIs, persistent services, and VMs remain outside this decision.
 
 ## Review Triggers
 

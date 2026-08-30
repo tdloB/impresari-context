@@ -127,14 +127,16 @@ Primary references:
 
 The separately authorized, synthetic-only App Sandbox/XPC prototype is
 recorded in [IAR-1B macOS App Sandbox/XPC feasibility evidence](iar-1b-macos-xpc-feasibility.md).
-It demonstrated a private XPC transport and several native denial boundaries,
-but it did not establish hard resource/process-tree controls, a rehearsed
-timeout, or complete OS-managed container removal. It therefore keeps
-`os_confined` and `production_admitted` false and does not select a backend.
-The follow-up
+It demonstrated a private XPC transport and several native denial boundaries.
+The hybrid follow-up added CPU termination, address-space-growth denial,
+`fork`/`posix_spawn` denial, exact-target timeout termination, crash/relaunch,
+and synthetic-byte cleanup evidence. It still keeps `os_confined` and
+`production_admitted` false pending production and multi-host gates. The follow-up
 [resource and lifecycle decision](iar-1b-macos-resource-lifecycle-decision.md)
-finds the remaining hard per-job controls unavailable under the selected
-documented architecture. macOS remains at IAR-1A and Linux is evaluated next.
+selects App Sandbox/private XPC plus the Rust supervisor and public resource
+limits for continued feasibility. Linux and Windows remain independently
+evaluated candidates rather than substitutes forced by a premature macOS
+rejection.
 
 ## Cross-platform selection gate
 

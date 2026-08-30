@@ -1,6 +1,6 @@
 # Impresari Context — Homebrew distribution PRD
 
-- Status: Proposed; founder approval required before implementation
+- Status: Superseded for macOS by ADR-0076; Linux formula proposal remains
 - Date: 2026-08-29
 - Authority: Future adoption-experience increment
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
@@ -10,9 +10,9 @@
 ## Objective
 
 Provide a one-command, package-manager-native installation and user-invoked
-upgrade path for the three Impresari Context executables on the two currently
-packaged platforms, without adding an in-process updater, background service,
-or new workspace authority.
+upgrade path for the standalone Linux executables. The accepted
+[macOS hybrid XPC distribution PRD](macos-hybrid-xpc-distribution-prd.md)
+governs the separate signed cask topology.
 
 ## User outcome
 
@@ -28,18 +28,18 @@ searching the user's environment.
   `homebrew-tap` name and a single `impresari-context` formula.
 - Direct, fully qualified installation so the user trusts only the named
   formula rather than every current or future item in the tap.
-- Binary release installation for macOS ARM64 and Linux x86-64 from immutable
-  GitHub Release archives with exact SHA-256 values.
+- Binary release installation for Linux x86-64 from immutable GitHub Release
+  archives with exact SHA-256 values.
 - Installation of `impresari-context`, `impresari-context-mcp`, and
   `impresari-context-structural-worker` into Homebrew's managed prefix.
 - A release-generated, reviewable pull request that updates the formula only
   after the normal release artifacts and checksums exist.
 - Tap CI covering formula audit, install, a source-free smoke check, upgrade
-  from the preceding supported release, and uninstall on both platforms.
+  from the preceding supported Linux release, and uninstall.
 
 ## Non-goals
 
-- Publication in `homebrew/core`, source builds, bottles, casks, Windows
+- Publication in `homebrew/core`, source builds, bottles, Windows
   package managers, resolving an unpublished version, or replacing the pinned
   portable installer.
 - Automatic formula-PR merge, automatic GitHub Release publication, silent
@@ -68,8 +68,8 @@ searching the user's environment.
 
 ## Acceptance criteria
 
-- The tap and formula pass their own policy and hosted CI on macOS ARM64 and
-  Linux x86-64 before the installation path is documented as supported.
+- The tap and formula pass their own policy and hosted CI on Linux x86-64
+  before the installation path is documented as supported.
 - A clean install yields exactly the three expected sibling executables, whose
   versions equal the formula version and whose packaged checksums trace to the
   accepted release evidence.
@@ -86,6 +86,6 @@ searching the user's environment.
 
 ## Manual boundary
 
-Implementation cannot begin until the founder approves this proposed product
-scope and creates or authorizes creation of the separately governed tap
-repository. Publication and formula-update merge remain explicit owner actions.
+Linux formula implementation remains gated on its separate tap decision.
+ADR-0076 independently authorizes staged macOS cask work, but publication and
+credential-bearing release operations remain explicit owner actions.

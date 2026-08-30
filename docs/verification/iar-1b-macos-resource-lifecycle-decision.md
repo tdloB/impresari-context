@@ -1,70 +1,94 @@
-# IAR-1B macOS Resource And Lifecycle Decision
+# IAR-1B macOS Hybrid Resource And Lifecycle Decision
 
 - Date: 2026-08-29
 - Decision: ADR-0074
-- Candidate: App Sandbox host with a private XPC service
-- Result: Not admitted; macOS remains at IAR-1A
+- Candidate: App Sandbox host and private XPC service supervised by the Rust
+  control plane
+- Result: Selected for continued feasibility; partial and not production-admitted
 
 ## Question
 
-Can the independently distributed App Sandbox/private-XPC candidate satisfy
-the remaining IAR-1B hard CPU, memory, process-count/tree, timeout, and cleanup
-requirements without a privileged daemon, private API, VM, or weaker claim?
+Can a private App Sandbox XPC service supply the native access boundary while
+the existing Rust supervisor supplies exact job identity, wall-time control,
+termination, and cleanup, without a privileged daemon, private API, or VM?
 
-## Documented platform constraints
+## Corrected decomposition
 
-The installed macOS `xpcservice.plist(5)` contract exposes service type,
-run-loop type, audit-session joining, and environment variables. It does not
-expose the `launchd.plist(5)` hard-resource dictionaries for a private embedded
-XPC service. XPC services launch on demand and may be terminated after an idle
-period, but that is not a caller-selected hard deadline or a deterministic
-process-tree reap contract.
+The earlier review treated the private XPC service as though it had to provide
+access control, hard resource limits, lifecycle supervision, and packaging by
+itself. The selected design instead assigns one bounded responsibility to each
+layer:
 
-The installed `getrlimit(2)` contract provides useful but incomplete controls:
+- App Sandbox and the private XPC service deny undeclared filesystem, process,
+  credential, device, and network capabilities;
+- the trusted XPC harness applies irreversible per-process limits before
+  invoking any analyzer code in-process;
+- the Rust supervisor validates the prepared service identity and enforces the
+  wall deadline, exact termination target, result contract, and cleanup; and
+- one signed/notarized macOS app bundle keeps the supervisor, host, and XPC
+  service at one version and is distributed as a Homebrew cask with a CLI
+  compatibility link under ADR-0076.
 
-- `RLIMIT_CPU` limits CPU seconds for each process;
-- `RLIMIT_FSIZE` limits file size and `RLIMIT_NOFILE` limits open files;
-- `RLIMIT_NPROC` limits simultaneous processes for the entire user ID, not one
-  Impresari job;
-- `RLIMIT_RSS` expresses a resident-set preference used under memory pressure,
-  not an unconditional hard memory ceiling; and
-- limits are per process and inherited by processes it creates, but they do not
-  supply a job object that proves every descendant is found and reaped.
+No analyzer receives a shell or child-process surface. No persistent service,
+LaunchAgent, privileged helper, private sandbox profile, or VM is selected.
 
-The broader `launchd.plist(5)` contract describes resource-limit keys for
-launchd jobs, but its process-count limit is also per user ID and its
-resident-set behavior is not a hard per-job memory kill boundary. Installing a
-separate privileged or persistent launchd supervisor would create a different
-packaging, authority, patching, and removal architecture and is not authorized
-by the XPC feasibility decision.
+## Synthetic feasibility result
 
-## Decision
+The second native prototype demonstrated, on the recorded macOS arm64 host:
 
-The candidate materially fails the frozen IAR-1B resource and lifecycle gate.
-The earlier native prototype remains valid evidence for selected access-control
-denials, but it is not adopted as an analyzer backend. macOS remains
-`application_enforced` at IAR-1A and reports IAR-1B analyzer execution as
-unsupported.
+- `RLIMIT_CPU` applied before synthetic work and terminated an intentional CPU
+  loop after its one-second limit;
+- an `RLIMIT_AS` hard limit derived from the service's current virtual size
+  denied a one-gibibyte `mmap` beyond the admitted 128-MiB growth allowance;
+- `RLIMIT_NPROC=0` denied both `fork` and `posix_spawn` from the service;
+- the service published its PID before work, and the supervisor verified the
+  exact embedded executable path before terminating a deliberately hung job;
+- CPU termination invalidated the connection and a subsequent request launched
+  a distinct service process successfully;
+- a bounded synthetic payload was written, re-read, removed, and verified
+  absent from the service's temporary container; and
+- the earlier App Sandbox filesystem, credential, unrelated-process, and live
+  loopback-network denials continued to pass.
 
-Impresari Context will not replace hard per-job memory, process-tree, timeout,
-and teardown requirements with advisory limits, per-user controls, idle
-reclamation, or a claim based only on absence of entitlements. No Developer ID
-credential, notarization operation, release package, Homebrew cask, real
-analyzer, repository artifact, network service, or production launch daemon is
-needed or used for this decision.
+The fixed 512-MiB attempt from the first review returned `EINVAL` because it was
+below the service's existing virtual footprint. Deriving the irreversible hard
+limit from the observed startup footprint plus a frozen growth allowance was
+accepted by the kernel and denied growth beyond that allowance. The evidence
+therefore supports bounded address-space expansion, not a claim that resident
+memory will equal one fixed number on every OS release.
 
-The next platform evaluation is Linux using independently verified
-`no_new_privs`, Landlock, seccomp, descriptor closure, and a delegated cgroup v2
-leaf. Linux remains unsupported unless every required primitive and effective
-policy check passes without root or a permissive fallback.
+## Remaining gates
 
-## Reproduction references
+The candidate remains `partial`, with `os_confined` and
+`production_admitted` fixed to `false`, until all of the following pass:
+
+- a deterministic device-denial probe;
+- a frozen production resource profile and Rust-to-host launch contract;
+- Developer ID nested signing and notarization without exposing credentials;
+- the selected one-cask/CLI-compatible installation, upgrade, rollback,
+  migration, and uninstall lifecycle;
+- a clean-machine Gatekeeper rehearsal;
+- the complete Tier A escape and mutation corpus; and
+- evidence on every macOS version and architecture the release claims.
+
+No real analyzer, repository artifact, production signing credential,
+notarization submission, release upload, or Homebrew publication was used.
+
+## Packaging consequence
+
+ADR-0076 selects one cask with CLI compatibility as the target topology. That
+selection is architectural, not a publication claim. The cask remains
+unimplemented until this synthetic candidate passes the remaining admission
+gates. Existing `v0.1.0` artifacts are unchanged and no retroactive claim is
+made for them.
+
+## Reproduction
 
 ```sh
-man 2 setrlimit
-man 5 xpcservice.plist
-man 5 launchd.plist
+./scripts/check-macos-xpc-feasibility.sh
+cargo test -p context-conformance --test schema_conformance --locked
 ```
 
-This is a documented-interface feasibility decision, not an escape-test claim
-for controls that macOS does not provide under the selected architecture.
+The first command builds only ad hoc signed synthetic artifacts beneath
+`target/iar-macos-xpc-feasibility`. It deliberately creates no repository
+input, analyzer, network authority, production identity, or installable cask.
