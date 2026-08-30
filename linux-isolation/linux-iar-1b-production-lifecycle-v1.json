@@ -1,0 +1,42 @@
+{
+  "schema_name": "linux-isolation-production-lifecycle-policy",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "decision": {
+    "selected_profiles": ["rootless_user_manager", "externally_managed"],
+    "administrator_profile": "deferred",
+    "automatic_sudo": "denied",
+    "persistent_service": "denied",
+    "automatic_repair": "denied"
+  },
+  "package_scope": {
+    "artifacts": ["cli", "mcp_server", "structural_worker"],
+    "service_unit": "absent",
+    "authorization_policy": "absent",
+    "external_operator_contract": "documentation_only"
+  },
+  "phase_order": {
+    "rootless_user_manager": ["clean_install", "upgrade", "rollback", "logout_login", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"],
+    "externally_managed": ["clean_install", "upgrade", "rollback", "operator_relaunch", "cancellation", "crash_recovery", "health_withdrawal", "uninstall"]
+  },
+  "clean_state": {
+    "persistent_service": "absent",
+    "privileged_policy": "absent",
+    "stale_cgroup": "absent",
+    "descendants": "absent",
+    "staged_source": "absent"
+  },
+  "health": {
+    "check": "explicit_source_free",
+    "changed_prerequisite": "withdraw",
+    "claim_behavior": "fail_closed",
+    "fallback": "unsupported"
+  },
+  "claim": {
+    "contract_only": true,
+    "lifecycle_candidate_only": true,
+    "production_admitted": false,
+    "real_analyzer_authorized": false,
+    "release_packaging_authorized": false
+  }
+}

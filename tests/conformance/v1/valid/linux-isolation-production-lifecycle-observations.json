@@ -1,0 +1,18 @@
+{
+  "schema_name": "linux-isolation-production-lifecycle-observations",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "profile": "rootless_user_manager",
+  "package_artifact_identity": "1111111111111111111111111111111111111111111111111111111111111111",
+  "source_free": true,
+  "phases": [
+    {"phase": "clean_install", "outcome": "passed", "operation_evidence": "clean_install_identity_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "upgrade", "outcome": "passed", "operation_evidence": "upgrade_replacement_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "rollback", "outcome": "passed", "operation_evidence": "rollback_identity_restored", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "logout_login", "outcome": "passed", "operation_evidence": "logout_login_reentry_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "cancellation", "outcome": "passed", "operation_evidence": "cancellation_cleanup_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "crash_recovery", "outcome": "passed", "operation_evidence": "crash_recovery_cleanup_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "health_withdrawal", "outcome": "passed", "operation_evidence": "health_withdrawal_verified", "package_identity_verified": true, "topology_revalidated": false, "claim_withdrawn": true, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}},
+    {"phase": "uninstall", "outcome": "passed", "operation_evidence": "uninstall_cleanup_verified", "package_identity_verified": true, "topology_revalidated": true, "claim_withdrawn": false, "clean_state": {"persistent_service_absent": true, "privileged_policy_absent": true, "stale_cgroup_absent": true, "descendants_absent": true, "staged_source_absent": true}}
+  ]
+}

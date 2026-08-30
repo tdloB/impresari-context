@@ -380,6 +380,12 @@ initial candidate scope; held-out Ubuntu 22.04 and 26.04 receipts are diversity
 evidence only. This satisfies maintenance for the candidate claim, not the
 separate production-support or IAR-2 gates.
 
+ADR-0078 selects rootless user-manager and externally managed production-
+feasibility profiles. ADR-0079 adds one shared source-free install-through-
+uninstall lifecycle contract with profile-specific reentry and mandatory clean
+state after every phase. The contract is candidate evidence only. Live package
+rehearsals, production admission, and IAR-2 remain separate gates.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.

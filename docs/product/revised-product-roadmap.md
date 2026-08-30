@@ -233,7 +233,14 @@ was `d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c`.
 Both selected profiles now have independent exact-host synthetic candidates.
 The next checkpoint freezes the shared Linux install, upgrade, rollback,
 login-session, health-withdrawal, and uninstall lifecycle matrix before any
-production or IAR-2 claim.
+production or IAR-2 claim. ADR-0079 now freezes that source-free contract. The
+rootless profile uses logout/login reentry; the external profile uses operator
+relaunch; both share exact install, upgrade, rollback, cancellation, crash,
+withdrawal, uninstall, and clean-state semantics. The deterministic evaluator
+admits only a contract-level lifecycle candidate and fixes production,
+packaging, privilege, persistent services, and analyzers false. The next
+checkpoint is independently hosted package-lifecycle rehearsal against exact
+release-candidate artifacts for both selected profiles.
 
 ## Parallel Client Integration Depth Track
 
