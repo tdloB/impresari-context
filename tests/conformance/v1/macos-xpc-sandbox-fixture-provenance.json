@@ -1,7 +1,7 @@
 {
   "schema_name": "macos-xpc-sandbox-fixture-provenance",
   "schema_version": "1.0.0",
-  "reviewed_at": "2026-08-29T23:30:00Z",
+  "reviewed_at": "2026-08-30T01:30:00Z",
   "review_status": "approved_original_synthetic_only",
   "contains_executable_artifacts": false,
   "contains_malware_or_live_signatures": false,
@@ -9,7 +9,13 @@
   "contains_private_or_customer_source": false,
   "network_or_provider_data_used": false,
   "cases": [
-    {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "7761d8edc9e05f1de03add9cc4e79dc2d1a796d2dedbeabacb89db184ba3824b", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS hybrid XPC resource and lifecycle evidence"},
-    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "422affb739da15b61367e2b5dae396a0f064d2f55970b0f2d9f9b18e3634c919", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with remaining native and release gates"}
+    {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "9016a43fbb50ddf0de493d5d32ff82dd788cb76f0b23ddc4b9e855103e133fb0", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS hybrid XPC device, resource, and lifecycle evidence"},
+    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "6add5b1a44890d2707b1b1eb8ca30438baf825bd4acd330682b046674a3613ff", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with remaining release and native-host gates"},
+    {"path": "valid/iar-macos-xpc-hybrid-profile.json", "sha256": "7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "frozen authority-denying macOS XPC resource profile"},
+    {"path": "valid/macos-xpc-launch-request.json", "sha256": "cdf6a57e7d0133400b36c026871da4c42dea1ce37abe15799e8639e8563ab960", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free Rust-to-host preparation request"},
+    {"path": "valid/macos-xpc-launch-preparation.json", "sha256": "c07a522292c11550bc63deaa6d5aa91afd56e06cc9c6cb471643814b5ac535d0", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free exact-identity preparation receipt"},
+    {"path": "invalid/macos-xpc-launch-request-workspace-path.json", "sha256": "6ab110e35ee258a462ff9c31d3ab4a9c3087a5524aa154a87a6691d6e6ae6a2a", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject repository path authority in the launch request"},
+    {"path": "invalid/macos-xpc-launch-request-profile-overflow.json", "sha256": "81e747804a3be498a8969a23b609c40696137d1a82b49abbc7c98249a5c41e9a", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject launch accounting beyond the frozen profile"},
+    {"path": "invalid/macos-xpc-launch-preparation-overclaim.json", "sha256": "2fc8c19a9a4a1c306f25eca4556392b108760551fdfc01781e068027d2413952", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject OS-confinement and production claims from preparation alone"}
   ]
 }

@@ -1,0 +1,22 @@
+{
+  "schema_name": "macos-xpc-launch-request",
+  "schema_version": "1.0.0",
+  "request_id": "req_macos_xpc_launch",
+  "profile_id": "iar-macos-xpc-hybrid-v1",
+  "profile_digest": "sha256:7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf",
+  "job_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "artifacts": "1",
+  "total_artifact_bytes": "4096",
+  "bundle_identifier": "studio.boldthaus.impresari-context",
+  "host_relative_path": "Contents/MacOS/impresari-context-xpc-host",
+  "service_name": "studio.boldthaus.impresari-context.Analyzer",
+  "service_relative_path": "Contents/XPCServices/studio.boldthaus.impresari-context.Analyzer.xpc",
+  "repository_path_present": false,
+  "arguments_present": false,
+  "environment_present": false,
+  "credentials_present": false,
+  "network_authorized": false,
+  "analyzer_execution": false,
+  "authority_added": false,
+  "workspace_path": "/untrusted/repository"
+}

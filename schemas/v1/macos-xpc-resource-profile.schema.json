@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-xpc-resource-profile.schema.json",
+  "title": "ADR-0074 macOS hybrid XPC production-candidate resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-xpc-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-xpc-hybrid-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobs", "launch_request_bytes", "preparation_receipt_bytes", "artifacts", "artifact_bytes", "total_artifact_bytes", "output_bytes", "stderr_bytes", "temporary_file_bytes", "file_descriptors", "cpu_seconds", "address_space_growth_bytes", "process_descendants", "elapsed_ms"],
+      "properties": {
+        "jobs": {"const": "1"},
+        "launch_request_bytes": {"const": "16384"},
+        "preparation_receipt_bytes": {"const": "16384"},
+        "artifacts": {"const": "64"},
+        "artifact_bytes": {"const": "1048576"},
+        "total_artifact_bytes": {"const": "4194304"},
+        "output_bytes": {"const": "262144"},
+        "stderr_bytes": {"const": "16384"},
+        "temporary_file_bytes": {"const": "8388608"},
+        "file_descriptors": {"const": "32"},
+        "cpu_seconds": {"const": "30"},
+        "address_space_growth_bytes": {"const": "134217728"},
+        "process_descendants": {"const": "0"},
+        "elapsed_ms": {"const": "60000"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["app_sandbox", "private_xpc_service", "no_shell", "no_arguments", "environment_cleared", "exact_bundle_identity", "exact_service_identity", "network_entitlement_absent", "network_denial_required", "device_denial_required", "source_cleanup_required", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "app_sandbox": {"const": true},
+        "private_xpc_service": {"const": true},
+        "no_shell": {"const": true},
+        "no_arguments": {"const": true},
+        "environment_cleared": {"const": true},
+        "exact_bundle_identity": {"const": true},
+        "exact_service_identity": {"const": true},
+        "network_entitlement_absent": {"const": true},
+        "network_denial_required": {"const": true},
+        "device_denial_required": {"const": true},
+        "source_cleanup_required": {"const": true},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

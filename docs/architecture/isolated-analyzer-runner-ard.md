@@ -112,10 +112,10 @@ inheritance/file-access rules make a separately signed app bundle with a
 minimal private XPC service the macOS candidate architecture. This is a design
 candidate only. A development-only synthetic prototype now demonstrates the
 private XPC transport, effective App Sandbox identities, bounded messages, and
-selected native denials. It remains unselected and unadmitted because hard
-resource/process-tree controls, fault timeout, OS-managed container cleanup,
-production signing/notarization, packaging, and multi-host evidence are still
-missing. See the
+selected native denials. The hybrid candidate is selected for continued
+feasibility but remains unadmitted because OS-managed container cleanup,
+production signing/notarization, packaging, clean-machine, complete Tier A,
+and multi-host evidence are still missing. See the
 [macOS feasibility evidence](../verification/iar-1b-macos-xpc-feasibility.md).
 
 The hybrid follow-up
@@ -123,10 +123,12 @@ The hybrid follow-up
 selects App Sandbox/private XPC plus the Rust supervisor and public resource
 limits for continued feasibility. Native synthetic probes now demonstrate CPU
 termination, bounded address-space growth, descendant denial, exact-target
-timeout termination, crash/relaunch, and source-byte cleanup. Production
-signing/notarization, the ADR-0076 cask lifecycle, device denial, frozen launch
-and resource profiles, the full Tier A corpus, and multi-host evidence remain
-hard gates. No privileged daemon, private API, persistent service, or VM is
+timeout termination, crash/relaunch, source-byte cleanup, an exact synthetic
+pseudo-terminal device denial, an effective frozen resource profile, and a
+closed source-free Rust-to-host preparation contract. Production
+signing/notarization, the ADR-0076 cask lifecycle, clean-machine Gatekeeper,
+the full Tier A corpus, OS-managed removal, and multi-host evidence remain hard
+gates. No privileged daemon, private API, persistent service, or VM is
 introduced.
 
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated

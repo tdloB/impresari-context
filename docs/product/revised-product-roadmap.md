@@ -84,18 +84,21 @@ The initial macOS feasibility inventory also records that the available
 boundary merely because it is already used by a network-denied test harness.
 A synthetic App Sandbox/private-XPC prototype now records a partial macOS
 result: native sandbox identity, bounded IPC, and selected filesystem,
-credential, process, and network denials pass, while device denial and hard
-resource/process-tree limits, fault timeout, complete OS-managed container
-cleanup, production signing/notarization, packaging, and multi-host evidence
-remain open. It does not admit macOS or open IAR-2.
+credential, synthetic-device, process, and network denials pass. Hard
+resource/process-tree limits, exact-target fault timeout, and bounded
+source-byte cleanup also pass, while complete OS-managed container cleanup,
+production signing/notarization, packaging, and multi-host evidence remain
+open. It does not admit macOS or open IAR-2.
 The hybrid resource/lifecycle checkpoint subsequently passed native synthetic
 CPU termination, bounded address-space growth, `fork`/`posix_spawn` denial,
 exact-target timeout termination, crash/relaunch, and source-byte cleanup. The
 candidate combines App Sandbox/private XPC with the Rust supervisor and public
 resource limits, and ADR-0076 selects one CLI-compatible Homebrew cask as its
-intended release topology. macOS remains at IAR-1A until device denial,
-production profiles, Developer ID/notarization, cask lifecycle, the full Tier A
-corpus, and multi-host evidence pass. No privileged daemon, private API,
+intended release topology. The frozen `iar-macos-xpc-hybrid-v1` profile and
+closed source-free Rust-to-host preparation handshake now pass schema, Rust,
+and native effective-limit checks. macOS remains at IAR-1A until Developer ID
+signing/notarization, cask lifecycle, clean-machine Gatekeeper, the full Tier A
+corpus, and every claimed macOS host pass. No privileged daemon, private API,
 persistent service, or VM fallback is added.
 
 ## Parallel Client Integration Depth Track

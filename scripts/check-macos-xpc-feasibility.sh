@@ -11,12 +11,15 @@ output_root="$repository_root/target/iar-macos-xpc-feasibility"
 app=$($repository_root/scripts/build-macos-xpc-feasibility.sh)
 canaries="$output_root/canaries"
 listener="$output_root/bin/synthetic-loopback-listener"
+device_canary="$output_root/bin/synthetic-device-canary"
+device_path_file="$output_root/device.path"
 port_file="$output_root/loopback.port"
 network_result="$output_root/loopback.result"
 service="$app/Contents/XPCServices/studio.boldthaus.impresari-context.SandboxProbe.xpc"
 service_executable="$service/Contents/MacOS/studio.boldthaus.impresari-context.SandboxProbe"
 timeout_open_pid=
 timeout_service_pid=
+device_canary_pid=
 
 mkdir -p "$canaries"
 for category in cache credential home repository; do
@@ -36,6 +39,7 @@ run_probe() {
     "$canaries/credential" \
     "$canaries/home" \
     "$canaries/repository" \
+    "$synthetic_device_path" \
     "$$" \
     "$probe_port" || true
 }
@@ -99,12 +103,32 @@ cleanup() {
     kill "$listener_pid" 2>/dev/null || true
     wait "$listener_pid" 2>/dev/null || true
   fi
+  if [ -n "$device_canary_pid" ]; then
+    kill "$device_canary_pid" 2>/dev/null || true
+    wait "$device_canary_pid" 2>/dev/null || true
+  fi
 }
 trap cleanup EXIT HUP INT TERM
 
 baseline_receipt="$output_root/receipt.json"
 baseline_errors="$output_root/host.stderr"
-rm -f -- "$port_file" "$network_result"
+rm -f -- "$port_file" "$network_result" "$device_path_file"
+"$device_canary" "$device_path_file" &
+device_canary_pid=$!
+attempt=0
+while [ ! -s "$device_path_file" ]; do
+  attempt=$((attempt + 1))
+  if [ "$attempt" -ge 100 ]; then
+    echo "synthetic device canary did not become ready" >&2
+    exit 8
+  fi
+  sleep 0.02
+done
+synthetic_device_path=$(cat "$device_path_file")
+if [ ! -c "$synthetic_device_path" ]; then
+  echo "synthetic device canary is not a character device" >&2
+  exit 8
+fi
 "$listener" "$port_file" "$network_result" &
 listener_pid=$!
 attempt=0
@@ -138,7 +162,7 @@ if ! jq -e '
   .request_accepted == true and
   .app_container_read_write_verified == true and
   .canary_denials == {"cache":true,"credential":true,"home":true,"repository":true} and
-  .device_access_denied == false and
+  .device_access_denied == true and
   .unrelated_process_access_denied == true and
   .network_denial_verified == true and
   .resource_limits_verified == false and
@@ -152,6 +176,34 @@ if ! jq -e '
   exit 4
 fi
 wait_for_process_exit "$baseline_service_pid"
+
+profile_receipt="$output_root/production-profile.json"
+profile_errors="$output_root/production-profile.stderr"
+run_probe production_profile "$profile_receipt" "$profile_errors" 1
+profile_service_pid=$(validate_preparation "$profile_errors" production_profile)
+if ! jq -e \
+  --arg digest "sha256:7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf" '
+  .schema_name == "macos-xpc-production-profile-receipt" and
+  .schema_version == "1.0.0" and
+  .probe_mode == "production_profile" and
+  (.service_process_id > 1) and
+  .profile_id == "iar-macos-xpc-hybrid-v1" and
+  .profile_digest == $digest and
+  .cpu_seconds == 30 and
+  .address_space_growth_bytes == 134217728 and
+  .process_descendants == 0 and
+  .file_descriptors == 32 and
+  .temporary_file_bytes == 8388608 and
+  .effective_profile_verified == true and
+  .os_confined == false and
+  .production_admitted == false and
+  .source_retained == false and
+  .authority_added == false
+' "$profile_receipt" >/dev/null; then
+  echo "frozen macOS XPC production profile was not effective" >&2
+  exit 19
+fi
+wait_for_process_exit "$profile_service_pid"
 
 cpu_receipt="$output_root/cpu-limit.json"
 cpu_errors="$output_root/cpu-limit.stderr"
@@ -217,6 +269,7 @@ open -W -n -g -o "$timeout_receipt" --stderr "$timeout_errors" "$app" --args \
   "$canaries/credential" \
   "$canaries/home" \
   "$canaries/repository" \
+  "$synthetic_device_path" \
   "$$" \
   1 &
 timeout_open_pid=$!
