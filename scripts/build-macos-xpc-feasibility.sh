@@ -64,6 +64,13 @@ xcrun swiftc \
   "$source_root/Sources/Listener/main.swift" \
   -o "$output_root/bin/synthetic-loopback-listener"
 
+xcrun clang \
+  -Wall \
+  -Wextra \
+  -Werror \
+  "$source_root/Sources/DeviceCanary/main.c" \
+  -o "$output_root/bin/synthetic-device-canary"
+
 codesign --force --sign - --timestamp=none \
   --entitlements "$source_root/Resources/Service.entitlements" \
   "$xpc"

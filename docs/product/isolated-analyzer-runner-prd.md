@@ -330,13 +330,15 @@ feasibility record. IAR-1B must complete before IAR-2 executes YARA.
 macOS feasibility result: a synthetic App Sandbox host/private-XPC-service
 prototype has demonstrated exact sandbox identity, bounded IPC, absence of
 network entitlements, and native denial of external synthetic files,
-credentials, unrelated-process access, and a live loopback
-connection. The hybrid follow-up adds native CPU termination, bounded address-
-space growth, `fork`/`posix_spawn` denial, exact-target timeout termination,
-crash/relaunch, and synthetic-byte cleanup. The result remains `partial`:
-device denial, the frozen production profile and launch contract, Developer ID
-signing/notarization, the selected CLI-compatible cask, the complete Tier A
-corpus, and multi-host evidence remain unverified. It neither admits macOS nor
+credentials, a synthetic pseudo-terminal device, unrelated-process access, and
+a live loopback connection. The hybrid follow-up adds native CPU termination,
+bounded address-space growth, `fork`/`posix_spawn` denial, exact-target timeout
+termination, crash/relaunch, and synthetic-byte cleanup. The exact
+`iar-macos-xpc-hybrid-v1` profile and source-free Rust-to-host preparation
+handshake are frozen and pass native/Rust/schema checks. The result remains
+`partial`: Developer ID signing/notarization, the selected CLI-compatible cask,
+clean-machine Gatekeeper, the complete Tier A corpus, OS-managed container
+removal, and multi-host evidence remain unverified. It neither admits macOS nor
 opens IAR-2.
 
 ### IAR-2 — YARA reference adapter

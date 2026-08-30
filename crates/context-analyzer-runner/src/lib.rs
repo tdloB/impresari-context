@@ -30,6 +30,22 @@ const STDERR_BYTES: usize = 16_384;
 const SUPERVISOR_PROFILE_ID: &str = "iar-application-supervisor-v1";
 const SUPERVISOR_PROFILE_DIGEST: &str =
     "sha256:3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa";
+/// Frozen macOS hybrid XPC resource-profile identity.
+pub const MACOS_XPC_PROFILE_ID: &str = "iar-macos-xpc-hybrid-v1";
+/// Digest of the exact committed macOS hybrid XPC resource-profile bytes.
+pub const MACOS_XPC_PROFILE_DIGEST: &str =
+    "sha256:7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf";
+/// Exact production bundle identifier selected by ADR-0076.
+pub const MACOS_XPC_BUNDLE_IDENTIFIER: &str = "studio.boldthaus.impresari-context";
+/// Exact background host location inside the sealed bundle.
+pub const MACOS_XPC_HOST_RELATIVE_PATH: &str = "Contents/MacOS/impresari-context-xpc-host";
+/// Exact private XPC service name.
+pub const MACOS_XPC_SERVICE_NAME: &str = "studio.boldthaus.impresari-context.Analyzer";
+/// Exact private XPC service location inside the sealed bundle.
+pub const MACOS_XPC_SERVICE_RELATIVE_PATH: &str =
+    "Contents/XPCServices/studio.boldthaus.impresari-context.Analyzer.xpc";
+const MACOS_XPC_MAX_ARTIFACTS: u64 = 64;
+const MACOS_XPC_MAX_TOTAL_ARTIFACT_BYTES: u64 = 4_194_304;
 
 /// Stable source-free supervisor failure categories.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -189,6 +205,169 @@ pub struct Supervisor {
     pub excluded_roots: Vec<PathBuf>,
     /// Fixed wall-time limit, no more than one minute.
     pub timeout: Duration,
+}
+
+/// Source-free Rust-to-host launch request for the selected macOS XPC backend.
+///
+/// This is a closed preparation handshake. It carries only immutable identity
+/// and accounting data; source paths, commands, arguments, environment,
+/// credentials, network authority, and analyzer execution are prohibited.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MacOsXpcLaunchRequest {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Caller-owned request identifier.
+    pub request_id: String,
+    /// Frozen resource-profile identifier.
+    pub profile_id: String,
+    /// Exact resource-profile bytes digest.
+    pub profile_digest: String,
+    /// Digest of the canonical source-free job description.
+    pub job_digest: String,
+    /// Canonical artifact count.
+    pub artifacts: String,
+    /// Canonical total artifact bytes.
+    pub total_artifact_bytes: String,
+    /// Expected sealed application identity.
+    pub bundle_identifier: String,
+    /// Expected background host path relative to the bundle root.
+    pub host_relative_path: String,
+    /// Expected private XPC service name.
+    pub service_name: String,
+    /// Expected private XPC bundle path relative to the bundle root.
+    pub service_relative_path: String,
+    /// A repository path is never admitted across this boundary.
+    pub repository_path_present: bool,
+    /// Arbitrary launch arguments are never admitted across this boundary.
+    pub arguments_present: bool,
+    /// Caller-controlled environment is never admitted across this boundary.
+    pub environment_present: bool,
+    /// Credentials are never admitted across this boundary.
+    pub credentials_present: bool,
+    /// The worker has no network authority.
+    pub network_authorized: bool,
+    /// The contract remains synthetic-only until IAR-1B admission.
+    pub analyzer_execution: bool,
+    /// The handshake cannot add authority.
+    pub authority_added: bool,
+}
+
+/// Source-free preparation record returned by the selected macOS XPC host.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MacOsXpcLaunchPreparation {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Exact request identity copied from the launch request.
+    pub request_id: String,
+    /// Frozen resource-profile identifier.
+    pub profile_id: String,
+    /// Exact resource-profile bytes digest.
+    pub profile_digest: String,
+    /// Exact source-free job identity copied from the request.
+    pub job_digest: String,
+    /// Exact prepared host process identifier.
+    pub host_process_id: String,
+    /// Exact prepared private-service process identifier.
+    pub service_process_id: String,
+    /// The sealed application identity matched the request.
+    pub bundle_identity_verified: bool,
+    /// The private service identity matched the request.
+    pub service_identity_verified: bool,
+    /// Effective resource limits matched the frozen profile.
+    pub effective_profile_verified: bool,
+    /// The effective private-service entitlements contain no network grant.
+    pub network_entitlement_absent: bool,
+    /// The prepared identity may receive the separately bounded job only when true.
+    pub ready: bool,
+    /// Preparation alone never establishes the complete IAR-1B claim.
+    pub os_confined: bool,
+    /// Preparation alone never admits a production backend.
+    pub production_admitted: bool,
+    /// No source bytes are retained in this preparation record.
+    pub source_retained: bool,
+    /// The preparation record cannot add authority.
+    pub authority_added: bool,
+}
+
+/// Validates the closed source-free macOS XPC launch request.
+///
+/// # Errors
+///
+/// Returns `InvalidConfiguration` for any identity mismatch, malformed
+/// accounting value, exceeded profile limit, or authority-bearing field.
+pub fn validate_macos_xpc_launch_request(
+    request: &MacOsXpcLaunchRequest,
+) -> Result<(), RunnerError> {
+    let artifacts = parse_canonical_u64(&request.artifacts)?;
+    let total_artifact_bytes = parse_canonical_u64(&request.total_artifact_bytes)?;
+    if request.schema_name != "macos-xpc-launch-request"
+        || request.schema_version != "1.0.0"
+        || !valid_identifier(&request.request_id)
+        || request.profile_id != MACOS_XPC_PROFILE_ID
+        || request.profile_digest != MACOS_XPC_PROFILE_DIGEST
+        || !valid_sha256(&request.job_digest)
+        || artifacts > MACOS_XPC_MAX_ARTIFACTS
+        || total_artifact_bytes > MACOS_XPC_MAX_TOTAL_ARTIFACT_BYTES
+        || (artifacts == 0) != (total_artifact_bytes == 0)
+        || request.bundle_identifier != MACOS_XPC_BUNDLE_IDENTIFIER
+        || request.host_relative_path != MACOS_XPC_HOST_RELATIVE_PATH
+        || request.service_name != MACOS_XPC_SERVICE_NAME
+        || request.service_relative_path != MACOS_XPC_SERVICE_RELATIVE_PATH
+        || request.repository_path_present
+        || request.arguments_present
+        || request.environment_present
+        || request.credentials_present
+        || request.network_authorized
+        || request.analyzer_execution
+        || request.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    Ok(())
+}
+
+/// Validates a macOS host preparation record against its exact request.
+///
+/// # Errors
+///
+/// Returns `InvalidOutput` unless every identity and effective-profile check
+/// passes while all admission, retention, and authority claims remain false.
+pub fn validate_macos_xpc_launch_preparation(
+    request: &MacOsXpcLaunchRequest,
+    preparation: &MacOsXpcLaunchPreparation,
+) -> Result<(), RunnerError> {
+    validate_macos_xpc_launch_request(request)?;
+    let host_process_id = parse_canonical_u64(&preparation.host_process_id)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    let service_process_id = parse_canonical_u64(&preparation.service_process_id)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    if preparation.schema_name != "macos-xpc-launch-preparation"
+        || preparation.schema_version != "1.0.0"
+        || preparation.request_id != request.request_id
+        || preparation.profile_id != request.profile_id
+        || preparation.profile_digest != request.profile_digest
+        || preparation.job_digest != request.job_digest
+        || host_process_id <= 1
+        || service_process_id <= 1
+        || !preparation.bundle_identity_verified
+        || !preparation.service_identity_verified
+        || !preparation.effective_profile_verified
+        || !preparation.network_entitlement_absent
+        || !preparation.ready
+        || preparation.os_confined
+        || preparation.production_admitted
+        || preparation.source_retained
+        || preparation.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    Ok(())
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -718,6 +897,47 @@ fn sha256(bytes: &[u8]) -> String {
             output
         });
     format!("sha256:{hex}")
+}
+
+fn parse_canonical_u64(value: &str) -> Result<u64, RunnerError> {
+    if value.is_empty()
+        || (value.len() > 1 && value.starts_with('0'))
+        || !value.bytes().all(|byte| byte.is_ascii_digit())
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    value
+        .parse::<u64>()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.strip_prefix("sha256:").is_some_and(|digest| {
+        digest.len() == 64
+            && digest
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
+    })
+}
+
+fn valid_identifier(value: &str) -> bool {
+    value.match_indices('_').any(|(delimiter, _)| {
+        let prefix = &value[..delimiter];
+        let suffix = &value[delimiter + 1..];
+        !prefix.is_empty()
+            && prefix.len() <= 32
+            && prefix
+                .bytes()
+                .next()
+                .is_some_and(|byte| byte.is_ascii_lowercase())
+            && prefix.bytes().all(|byte| {
+                byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_' || byte == b'-'
+            })
+            && (8..=128).contains(&suffix.len())
+            && suffix
+                .bytes()
+                .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
+    })
 }
 
 #[cfg(unix)]

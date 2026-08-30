@@ -1,0 +1,19 @@
+{
+  "schema_name": "macos-xpc-launch-preparation",
+  "schema_version": "1.0.0",
+  "request_id": "req_macos_xpc_launch",
+  "profile_id": "iar-macos-xpc-hybrid-v1",
+  "profile_digest": "sha256:7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf",
+  "job_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "host_process_id": "1200",
+  "service_process_id": "1201",
+  "bundle_identity_verified": true,
+  "service_identity_verified": true,
+  "effective_profile_verified": true,
+  "network_entitlement_absent": true,
+  "ready": true,
+  "os_confined": false,
+  "production_admitted": false,
+  "source_retained": false,
+  "authority_added": false
+}

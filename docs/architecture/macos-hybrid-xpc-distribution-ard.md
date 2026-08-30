@@ -31,6 +31,14 @@ substituted, unsigned, mixed-version, or writable-component topology. It starts
 one background host for one job and receives a bounded preparation record that
 identifies the private XPC service before analyzer work begins.
 
+The frozen Rust-to-host request carries only the request ID, profile identity,
+canonical job digest, artifact count/bytes, and expected sealed-bundle/host/XPC
+identities. Closed schemas and Rust validation reject a repository path,
+arbitrary arguments, caller environment, credentials, network authority,
+analyzer execution, unknown fields, mismatched preparation identity, partial
+readiness, retained source, or an IAR-1B/production claim. Transport is one
+bounded canonical request and one bounded source-free preparation record.
+
 The XPC harness applies irreversible CPU, address-space-growth, file/output,
 descriptor, and process-count limits, then calls the admitted analyzer library
 in-process. `RLIMIT_NPROC=0`, absent process authority, and the closed service
@@ -41,6 +49,14 @@ job, rejects partial output, and validates source-byte cleanup.
 No service persists independently of its client. No network entitlement,
 repository path, home access, credential access, user-selected-file grant,
 shell, arbitrary executable, or analyzer discovery enters the service.
+
+The exact `iar-macos-xpc-hybrid-v1` profile fixes one job, 64 artifacts,
+1 MiB per artifact, 4 MiB total input, 256 KiB output, 16 KiB stderr, 8 MiB
+per-file temporary output, 32 descriptors, 30 CPU seconds, 128 MiB address-space
+growth, zero descendants, and a 60-second supervisor wall deadline. The native
+synthetic harness verifies the effective CPU, address-space, descendant,
+descriptor, and file-size limits after XPC launch. This profile still fixes
+`analyzer_execution` and `production_admitted` to false.
 
 ## Signing and release order
 
@@ -69,8 +85,10 @@ must not assume their artifacts or acceptance gates are interchangeable.
 
 ## Verification stages
 
-1. Ad hoc synthetic hybrid-XPC resource/lifecycle matrix.
+1. Ad hoc synthetic hybrid-XPC resource/lifecycle matrix. Complete on the
+   recorded development host.
 2. Frozen production resource and launch protocols with fault injection.
+   Complete for the synthetic candidate; no analyzer or production claim.
 3. Developer ID nested-signing and notarization rehearsal.
 4. Local test cask: install, CLI link, identity, upgrade, rollback, migration,
    uninstall, and retained-user-state tests.

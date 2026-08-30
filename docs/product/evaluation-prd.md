@@ -236,10 +236,11 @@ comparison baseline.
 
 The first macOS App Sandbox/XPC synthetic candidate records a `partial` result.
 It passes identity, bounded transport, entitlement, external-filesystem,
-credential-canary, unrelated-process, and live loopback network-denial checks.
-Device, resource/process-tree, fault-timeout, complete OS-managed cleanup,
-production signing/notarization, packaging, and multi-host gates remain false or
-unverified; the candidate is not an admission result.
+credential-canary, synthetic-device, unrelated-process, and live loopback
+network-denial checks. Resource/process-tree and fault-timeout checks also pass,
+while complete OS-managed cleanup, production signing/notarization, packaging,
+clean-machine, and multi-host gates remain false or unverified; the candidate
+is not an admission result.
 
 The hybrid follow-up corrects the earlier assumption that XPC must supply the
 whole boundary alone. Native synthetic evidence now passes for `RLIMIT_CPU`
@@ -247,9 +248,11 @@ termination, current-footprint-derived `RLIMIT_AS` growth denial,
 `RLIMIT_NPROC=0` denial of `fork` and `posix_spawn`, exact prepared-service
 identity, supervisor timeout termination, crash/relaunch, and source-byte
 cleanup. These checks may be scored as passing only for the observed ad hoc
-prototype. Device denial, production profiles/signing/notarization/cask
-lifecycle, the complete Tier A corpus, and every claimed host remain false or
-unverified, so macOS is still not admitted.
+prototype. The frozen production-candidate profile, source-free Rust-to-host
+preparation contract, and exact synthetic pseudo-terminal denial now pass their
+native/Rust/schema checks. Signing/notarization/cask lifecycle, clean-machine
+Gatekeeper, complete Tier A, OS-managed removal, and every claimed host remain
+false or unverified, so macOS is still not admitted.
 
 ## Evaluation Principles
 

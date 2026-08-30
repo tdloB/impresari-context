@@ -5,10 +5,10 @@ import Foundation
 struct ProbeHost {
     static func main() {
         let arguments = CommandLine.arguments
-        guard arguments.count == 8,
+        guard arguments.count == 9,
               let probeMode = ProbeMode(rawValue: arguments[1]),
-              let unrelatedProcessID = Int32(arguments[6]),
-              let loopbackPort = UInt16(arguments[7]),
+              let unrelatedProcessID = Int32(arguments[7]),
+              let loopbackPort = UInt16(arguments[8]),
               loopbackPort > 0 else {
             exit(1)
         }
@@ -24,6 +24,7 @@ struct ProbeHost {
             probeMode: probeMode,
             syntheticPayload: Data("synthetic-only".utf8),
             canaries: canaries,
+            syntheticDevicePath: arguments[6],
             unrelatedProcessID: unrelatedProcessID,
             loopbackPort: loopbackPort,
             authorityAdded: false
@@ -143,6 +144,28 @@ struct ProbeHost {
                 decoded.probeMode == .baseline &&
                 decoded.serviceProcessID > 1 &&
                 decoded.requestAccepted &&
+                !decoded.osConfined &&
+                !decoded.productionAdmitted &&
+                !decoded.sourceRetained &&
+                !decoded.authorityAdded
+        }
+        if mode == .productionProfile,
+           let decoded = try? JSONDecoder().decode(
+               ProbeProductionProfileReceipt.self,
+               from: output
+           ) {
+            return decoded.schemaName == "macos-xpc-production-profile-receipt" &&
+                decoded.schemaVersion == "1.0.0" &&
+                decoded.probeMode == .productionProfile &&
+                decoded.serviceProcessID > 1 &&
+                decoded.profileID == "iar-macos-xpc-hybrid-v1" &&
+                decoded.profileDigest == "sha256:7b33023031e84ac63e686054837cc20416e5e82cee333d7007fa1e1788581acf" &&
+                decoded.cpuSeconds == 30 &&
+                decoded.addressSpaceGrowthBytes == 128 * 1_024 * 1_024 &&
+                decoded.processDescendants == 0 &&
+                decoded.fileDescriptors == 32 &&
+                decoded.temporaryFileBytes == 8 * 1_024 * 1_024 &&
+                decoded.effectiveProfileVerified &&
                 !decoded.osConfined &&
                 !decoded.productionAdmitted &&
                 !decoded.sourceRetained &&

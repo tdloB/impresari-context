@@ -52,6 +52,10 @@ background service.
 - The CLI link invokes the exact bundled supervisor without copying or mutating
   signed executable bytes.
 - The supervisor validates the embedded host and XPC identities before work.
+- The source-free launch handshake contains no repository path, arbitrary
+  argument, environment, credential, endpoint, or analyzer-execution grant.
+- The exact committed resource-profile bytes match the Rust and native
+  effective-limit identities.
 - A cask upgrade cannot produce a mixed-version component set.
 - Formula-to-cask migration detects and resolves conflicts explicitly.
 - Uninstall removes all executable components; `zap` behavior is separately

@@ -148,10 +148,15 @@ corrects the assumption that XPC must supply every layer alone. It combines
 App Sandbox/private XPC access confinement, irreversible in-service CPU,
 address-space-growth, and process-count limits, and Rust-supervisor exact-target
 wall-time termination and cleanup. Those native synthetic probes pass locally,
-so the candidate is selected for continued feasibility. Device denial,
-production profiles, Developer ID/notarization, ADR-0076 cask lifecycle, the
-full Tier A corpus, and multi-host evidence remain mandatory. Privileged launch
-daemons, private APIs, persistent services, and VMs remain outside this decision.
+as does denial of an exact synthetic pseudo-terminal device. The frozen
+`iar-macos-xpc-hybrid-v1` production-candidate profile is effective in the
+service, and the closed source-free Rust-to-host preparation handshake rejects
+paths, arguments, environment, credentials, network authority, analyzer
+execution, mismatched identity, partial readiness, and premature confinement
+claims. The candidate is selected for continued feasibility. Developer ID and
+notarization, ADR-0076 cask lifecycle, clean-machine Gatekeeper, the full Tier A
+corpus, and multi-host evidence remain mandatory. Privileged launch daemons,
+private APIs, persistent services, and VMs remain outside this decision.
 
 ## Review Triggers
 

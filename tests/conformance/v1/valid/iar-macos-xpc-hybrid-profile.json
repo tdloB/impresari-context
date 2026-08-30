@@ -1,0 +1,38 @@
+{
+  "schema_name": "macos-xpc-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-xpc-hybrid-v1",
+  "profile_version": "1.0.0",
+  "limits": {
+    "jobs": "1",
+    "launch_request_bytes": "16384",
+    "preparation_receipt_bytes": "16384",
+    "artifacts": "64",
+    "artifact_bytes": "1048576",
+    "total_artifact_bytes": "4194304",
+    "output_bytes": "262144",
+    "stderr_bytes": "16384",
+    "temporary_file_bytes": "8388608",
+    "file_descriptors": "32",
+    "cpu_seconds": "30",
+    "address_space_growth_bytes": "134217728",
+    "process_descendants": "0",
+    "elapsed_ms": "60000"
+  },
+  "controls": {
+    "app_sandbox": true,
+    "private_xpc_service": true,
+    "no_shell": true,
+    "no_arguments": true,
+    "environment_cleared": true,
+    "exact_bundle_identity": true,
+    "exact_service_identity": true,
+    "network_entitlement_absent": true,
+    "network_denial_required": true,
+    "device_denial_required": true,
+    "source_cleanup_required": true,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

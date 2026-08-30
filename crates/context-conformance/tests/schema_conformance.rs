@@ -509,8 +509,21 @@ fn analyzer_supervisor_profile_and_fixture_provenance_are_frozen() {
 }
 
 #[test]
-fn macos_xpc_feasibility_fixture_provenance_is_frozen() {
+fn macos_xpc_contract_profile_and_fixture_provenance_are_frozen() {
     let root = repository_root();
+    let profile_path = root.join("profiles/v1/iar-macos-xpc-hybrid-v1.json");
+    let profile_bytes = fs::read(&profile_path).expect("macOS XPC profile");
+    let sidecar = fs::read_to_string(root.join("profiles/v1/iar-macos-xpc-hybrid-v1.sha256"))
+        .expect("macOS XPC profile digest sidecar");
+    assert_eq!(
+        lowercase_hex(Sha256::digest(&profile_bytes)),
+        sidecar.split_whitespace().next().expect("profile digest")
+    );
+    assert_eq!(
+        profile_bytes,
+        fs::read(root.join("tests/conformance/v1/valid/iar-macos-xpc-hybrid-profile.json"))
+            .expect("macOS XPC profile fixture")
+    );
     let provenance =
         read_json(&root.join("tests/conformance/v1/macos-xpc-sandbox-fixture-provenance.json"));
     assert_eq!(
@@ -550,7 +563,14 @@ fn macos_xpc_feasibility_fixture_provenance_is_frozen() {
         .expect("conformance cases")
         .iter()
         .filter(|case| {
-            case["schema"].as_str().expect("schema") == "macos-xpc-sandbox-feasibility.schema.json"
+            matches!(
+                case["schema"].as_str().expect("schema").split('#').next(),
+                Some(
+                    "macos-xpc-sandbox-feasibility.schema.json"
+                        | "macos-xpc-resource-profile.schema.json"
+                        | "macos-xpc-launch.schema.json"
+                )
+            )
         })
         .map(|case| case["fixture"].as_str().expect("fixture"))
         .collect::<BTreeSet<_>>();

@@ -46,9 +46,19 @@ The second native prototype demonstrated, on the recorded macOS arm64 host:
 - CPU termination invalidated the connection and a subsequent request launched
   a distinct service process successfully;
 - a bounded synthetic payload was written, re-read, removed, and verified
-  absent from the service's temporary container; and
+  absent from the service's temporary container;
+- an exact synthetic pseudo-terminal character device was present and denied
+  to the sandboxed service; and
 - the earlier App Sandbox filesystem, credential, unrelated-process, and live
   loopback-network denials continued to pass.
+
+The follow-up froze the exact `iar-macos-xpc-hybrid-v1` profile and a closed,
+source-free Rust-to-host preparation handshake. Native evidence verifies the
+profile's effective CPU, address-space-growth, process-count, descriptor, and
+file-size limits. Rust/schema evidence rejects any repository path, arbitrary
+argument, caller environment, credential, network authority, analyzer
+execution, mismatched identity, partial readiness, retained source, or
+premature confinement/production claim.
 
 The fixed 512-MiB attempt from the first review returned `EINVAL` because it was
 below the service's existing virtual footprint. Deriving the irreversible hard
@@ -62,8 +72,6 @@ memory will equal one fixed number on every OS release.
 The candidate remains `partial`, with `os_confined` and
 `production_admitted` fixed to `false`, until all of the following pass:
 
-- a deterministic device-denial probe;
-- a frozen production resource profile and Rust-to-host launch contract;
 - Developer ID nested signing and notarization without exposing credentials;
 - the selected one-cask/CLI-compatible installation, upgrade, rollback,
   migration, and uninstall lifecycle;

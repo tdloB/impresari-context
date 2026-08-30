@@ -2,7 +2,7 @@
 
 - Date: 2026-08-29
 - Decision: ADR-0074
-- Prototype: `iar-macos-xpc-hybrid-feasibility-v2`
+- Prototype: `iar-macos-xpc-hybrid-feasibility-v3`
 - Result: Partial; not production-admitted
 
 ## Scope
@@ -42,6 +42,8 @@ fixed to `false`.
 - its own app container remained readable and writable;
 - reads of exact synthetic repository, home, cache, and credential canaries
   outside the container were denied;
+- access to an exact synthetic pseudo-terminal character device created by the
+  harness was denied;
 - access to an unrelated process was denied;
 - a live unsandboxed loopback listener observed no service connection while
   the service received an OS permission-denied result;
@@ -60,13 +62,23 @@ The hybrid follow-up also demonstrated:
 - write, read-back, removal, and absence verification for the exact bounded
   synthetic payload inside the service container.
 
+The production-candidate follow-up also froze
+`profiles/v1/iar-macos-xpc-hybrid-v1.json` and the source-free Rust-to-host
+preparation handshake. The native service reported the exact profile digest and
+verified effective 30-second CPU, current-footprint-plus-128-MiB address-space,
+zero-descendant, 32-descriptor, and 8-MiB file-size limits. Rust and schema
+tests reject repository paths, arbitrary arguments or environment, credentials,
+network authority, analyzer execution, unknown fields, mismatched identity,
+partial readiness, retained source, and premature confinement or production
+claims.
+
 ## Unresolved gates
 
-This prototype does not establish device denial, production disk/output
-profiles, a production Rust-to-host launch contract, or the full Tier A escape
-and mutation corpus. Its CPU, address-space-growth, process-count, descendant,
-crash/relaunch, exact-target timeout, and synthetic-byte cleanup evidence is
-native but remains development-only.
+This prototype does not establish the full Tier A escape and mutation corpus,
+production signing/notarization, packaging, clean-machine behavior, or
+multi-host compatibility. Its device, CPU, address-space-growth, process-count,
+descendant, descriptor, file-size, crash/relaunch, exact-target timeout, and
+synthetic-byte cleanup evidence is native but remains development-only.
 
 The app's synthetic container contents were removed after the rehearsal.
 macOS retained only its protected `.com.apple.containermanagerd.metadata.plist`
