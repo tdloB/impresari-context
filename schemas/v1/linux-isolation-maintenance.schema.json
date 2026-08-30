@@ -1,0 +1,183 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-isolation-maintenance.schema.json",
+  "title": "Linux isolation candidate maintenance contracts",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "date": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+    },
+    "target": {
+      "type": "object",
+      "required": ["target_id", "classification", "runner_label", "runner_image_version", "os_release", "kernel_release", "architecture", "landlock_abi", "evidence"],
+      "properties": {
+        "target_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "classification": {"type": "string", "enum": ["candidate_scope", "kernel_diversity_only"]},
+        "runner_label": {"type": "string", "pattern": "^ubuntu-[0-9]{2}\\.[0-9]{2}(?:-arm)?$"},
+        "runner_image_version": {"type": "string", "pattern": "^[0-9]{8}\\.[0-9]+\\.[0-9]+$"},
+        "os_release": {"type": "string", "pattern": "^[0-9]{2}\\.[0-9]{2}$"},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "architecture": {"type": "string", "enum": ["x86_64", "aarch64"]},
+        "landlock_abi": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "evidence": {
+          "type": "object",
+          "required": ["pull_request", "job_id", "observed_at", "fresh_through", "receipt_fixture", "receipt_sha256"],
+          "properties": {
+            "pull_request": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+            "job_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+            "observed_at": {"$ref": "#/$defs/date"},
+            "fresh_through": {"$ref": "#/$defs/date"},
+            "receipt_fixture": {"type": "string", "pattern": "^tests/conformance/v1/valid/linux-isolation-feasibility-.+\\.json$"},
+            "receipt_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "manifest": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "manifest_id", "backend", "claim", "bindings", "targets", "maintenance", "safe_next_steps"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-candidate-manifest"},
+        "schema_version": {"const": "1.0.0"},
+        "manifest_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "backend": {"const": "landlock-seccomp-cgroup-v2"},
+        "claim": {
+          "type": "object",
+          "required": ["level", "candidate_only", "broad_linux_support", "production_admitted", "real_analyzer_authorized"],
+          "properties": {
+            "level": {"const": "IAR-1B"},
+            "candidate_only": {"const": true},
+            "broad_linux_support": {"const": false},
+            "production_admitted": {"const": false},
+            "real_analyzer_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "bindings": {
+          "type": "object",
+          "required": ["profile_id", "profile_sha256", "probe_path", "probe_sha256", "composite_check_path", "composite_check_sha256"],
+          "properties": {
+            "profile_id": {"const": "iar-linux-synthetic-v1"},
+            "profile_sha256": {"$ref": "#/$defs/sha256"},
+            "probe_path": {"const": "platform/linux-isolation-feasibility/probe.c"},
+            "probe_sha256": {"$ref": "#/$defs/sha256"},
+            "composite_check_path": {"const": "scripts/check-linux-composite-feasibility.sh"},
+            "composite_check_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        "targets": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {"$ref": "#/$defs/target"}
+        },
+        "maintenance": {
+          "type": "object",
+          "required": ["health_check", "host_discovery", "automatic_repair", "background_monitoring", "privilege_use", "service_mutation", "analyzer_execution", "production_admission", "withdraw_on"],
+          "properties": {
+            "health_check": {"const": "explicit_source_free"},
+            "host_discovery": {"const": "denied"},
+            "automatic_repair": {"const": "denied"},
+            "background_monitoring": {"const": "denied"},
+            "privilege_use": {"const": "denied"},
+            "service_mutation": {"const": "denied"},
+            "analyzer_execution": {"const": "denied"},
+            "production_admission": {"const": "denied"},
+            "withdraw_on": {
+              "type": "array",
+              "minItems": 8,
+              "maxItems": 8,
+              "uniqueItems": true,
+              "items": {"type": "string", "enum": ["evidence_expired", "evidence_missing", "target_unavailable", "runner_image_changed", "kernel_changed", "architecture_changed", "landlock_abi_changed", "bound_artifact_changed"]}
+            }
+          },
+          "additionalProperties": false
+        },
+        "safe_next_steps": {
+          "type": "object",
+          "required": ["compatible_candidate", "stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"],
+          "properties": {
+            "compatible_candidate": {"type": "string", "minLength": 1, "maxLength": 300},
+            "stale_evidence": {"type": "string", "minLength": 1, "maxLength": 300},
+            "changed": {"type": "string", "minLength": 1, "maxLength": 300},
+            "missing_evidence": {"type": "string", "minLength": 1, "maxLength": 300},
+            "unsupported": {"type": "string", "minLength": 1, "maxLength": 300},
+            "unavailable": {"type": "string", "minLength": 1, "maxLength": 300}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "status", "reason_code", "manifest_id", "target_id", "observed", "manifest_identity", "evidence_identity", "checks", "safe_next_step", "candidate_claim_active", "production_admitted", "real_analyzer_authorized", "authority"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-candidate-health-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "status": {"type": "string", "enum": ["compatible_candidate", "stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "manifest_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "target_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "observed": {
+          "type": "object",
+          "required": ["target_available", "evidence_available", "runner_label", "runner_image_version", "os_release", "kernel_release", "architecture", "landlock_abi", "as_of"],
+          "properties": {
+            "target_available": {"type": "boolean"},
+            "evidence_available": {"type": "boolean"},
+            "runner_label": {"type": "string", "maxLength": 80},
+            "runner_image_version": {"type": "string", "maxLength": 80},
+            "os_release": {"type": "string", "maxLength": 40},
+            "kernel_release": {"type": "string", "maxLength": 160},
+            "architecture": {"type": "string", "maxLength": 40},
+            "landlock_abi": {"type": "string", "maxLength": 20},
+            "as_of": {"$ref": "#/$defs/date"}
+          },
+          "additionalProperties": false
+        },
+        "manifest_identity": {"$ref": "#/$defs/sha256"},
+        "evidence_identity": {"$ref": "#/$defs/sha256"},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "candidate_claim_active": {"type": "boolean"},
+        "production_admitted": {"const": false},
+        "real_analyzer_authorized": {"const": false},
+        "authority": {
+          "type": "object",
+          "required": ["source_read", "source_write", "host_discovery", "process_execution", "network", "credential_access", "privilege_use", "service_mutation", "background_monitoring", "analyzer_execution"],
+          "properties": {
+            "source_read": {"const": "denied"},
+            "source_write": {"const": "denied"},
+            "host_discovery": {"const": "denied"},
+            "process_execution": {"const": "denied"},
+            "network": {"const": "denied"},
+            "credential_access": {"const": "denied"},
+            "privilege_use": {"const": "denied"},
+            "service_mutation": {"const": "denied"},
+            "background_monitoring": {"const": "denied"},
+            "analyzer_execution": {"const": "denied"}
+          },
+          "additionalProperties": false
+        }
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "compatible_candidate"}}, "required": ["status"]},
+          "then": {"properties": {"candidate_claim_active": {"const": true}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"]}}, "required": ["status"]},
+          "then": {"properties": {"candidate_claim_active": {"const": false}}}
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

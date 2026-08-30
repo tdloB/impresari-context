@@ -37,6 +37,8 @@
     {"fixture": "valid/linux-isolation-feasibility-arm64-candidate.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
     {"fixture": "valid/linux-isolation-feasibility-ubuntu22-candidate.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
     {"fixture": "valid/linux-isolation-feasibility-ubuntu26-candidate.json", "schema": "linux-isolation-feasibility.schema.json", "valid": true},
+    {"fixture": "valid/linux-isolation-candidate-manifest.json", "schema": "linux-isolation-maintenance.schema.json#/$defs/manifest", "valid": true},
+    {"fixture": "valid/linux-isolation-candidate-health-receipt.json", "schema": "linux-isolation-maintenance.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/iar-linux-cgroup-synthetic-profile.json", "schema": "linux-cgroup-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/linux-cgroup-feasibility-candidate.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
@@ -76,6 +78,7 @@
     {"fixture": "invalid/macos-xpc-launch-request-profile-overflow.json", "schema": "macos-xpc-launch.schema.json", "valid": false},
     {"fixture": "invalid/macos-xpc-launch-preparation-overclaim.json", "schema": "macos-xpc-launch.schema.json#/$defs/preparation", "valid": false},
     {"fixture": "invalid/linux-isolation-feasibility-overclaim.json", "schema": "linux-isolation-feasibility.schema.json", "valid": false},
+    {"fixture": "invalid/linux-isolation-candidate-health-overclaim.json", "schema": "linux-isolation-maintenance.schema.json#/$defs/receipt", "valid": false},
     {"fixture": "invalid/linux-cgroup-feasibility-overclaim.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": false}
   ]
 }

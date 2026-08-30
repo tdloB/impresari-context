@@ -76,9 +76,10 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0071](0071-opt-in-verified-automatic-updates.md) | Use a separately installed, explicitly enrolled, verified updater | Proposed; founder decision required |
 | [ADR-0072](0072-local-metadata-dashboard-and-narrowing-budget-policy.md) | Use a loopback metadata dashboard and narrowing-only budget policy | Proposed; founder decision required |
 | [ADR-0073](0073-evidence-only-hostile-repository-admission.md) | Add static-first, evidence-only hostile-repository admission contracts | Accepted; Step 1 complete (HRA-0 through HRA-5) |
-| [ADR-0074](0074-separate-isolated-analyzer-runner.md) | Keep hostile analyzers in a separate capability-reduced runner | Accepted; IAR-0 and IAR-1A implemented; IAR-1B OS confinement pending |
+| [ADR-0074](0074-separate-isolated-analyzer-runner.md) | Keep hostile analyzers in a separate capability-reduced runner | Accepted; IAR-0/IAR-1A implemented; exact Linux IAR-1B candidate evidence maintained; production admission pending |
 | [ADR-0075](0075-disposable-vm-quarantine-execution.md) | Permit later dynamic execution only in a disposable quarantine VM | Proposed; implementation not authorized |
 | [ADR-0076](0076-macos-hybrid-xpc-cask.md) | Package the macOS hybrid XPC boundary as one CLI-compatible cask | Accepted; staged implementation, production publication gated |
+| [ADR-0077](0077-linux-isolation-candidate-maintenance.md) | Maintain exact Linux IAR-1B candidate claims with expiring evidence and deterministic withdrawal | Accepted; implemented candidate-only contract, production and real analyzers closed |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |

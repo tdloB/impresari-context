@@ -182,6 +182,12 @@ Every receipt remains an exact-host admission unit. Production use remains
 closed until support, freshness, withdrawal, and maintenance contracts are
 frozen.
 
+ADR-0077 freezes the candidate maintenance portion of that gate. Its released
+manifest and source-free evaluator retain a claim only for exact, current
+Ubuntu 24.04 x86_64/arm64 evidence and deterministically withdraw it otherwise.
+The evaluator cannot discover a host, launch a process, mutate a service, use
+privilege, or run an analyzer. Production support remains a later decision.
+
 ## Trust Zones
 
 ### IAR-Z1 — Context control plane
