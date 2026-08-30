@@ -1,0 +1,69 @@
+{
+  "schema_name": "linux-external-lifecycle-composition",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "profile": "externally_managed",
+  "expected_source_commit": "6666666666666666666666666666666666666666",
+  "observed_host": {
+    "operating_system": "linux",
+    "kernel_release": "6.17.0-1022-azure",
+    "architecture": "x86_64"
+  },
+  "package": {
+    "receipt_identity": "76d1556a4fc795ae5a6e1651c179c6406c66bc4e56f5c0e31d4c23cebc579db0",
+    "archive_identity": "4444444444444444444444444444444444444444444444444444444444444444",
+    "manifest_identity": "5555555555555555555555555555555555555555555555555555555555555555",
+    "source_commit": "6666666666666666666666666666666666666666",
+    "status": "package_lifecycle_candidate",
+    "scope_verified": true,
+    "clean_state_verified": true
+  },
+  "external": {
+    "receipt_identity": "e3383329b73ec4132c7aecfe6f381d0ab65ad5d882f67e92871593dfb3a07047",
+    "composite_identity": "d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c",
+    "status": "candidate_passed",
+    "os_confined": true,
+    "provisioner_collected": true,
+    "operator_privilege_used": true,
+    "impresari_privilege_used": false,
+    "persistent": false
+  },
+  "interruption": {
+    "receipt_identity": "d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c",
+    "result": "candidate_passed",
+    "exact_cgroup_kill": true,
+    "cgroup_empty_after_job": true,
+    "timeout": true,
+    "crash_relaunch": true,
+    "cleanup": true
+  },
+  "withdrawal": {
+    "receipt_identity": "6c14f96c1a49148f1ce4a66271e8279c6624fada533740870cbf9356daeb9dc3",
+    "prior_external_receipt_identity": "e3383329b73ec4132c7aecfe6f381d0ab65ad5d882f67e92871593dfb3a07047",
+    "status": "withdrawn",
+    "capability_available": false,
+    "topology_revalidated": false,
+    "claim_withdrawn": true,
+    "clean_state_verified": true
+  },
+  "phases": [
+    "clean_install",
+    "upgrade",
+    "rollback",
+    "operator_relaunch",
+    "cancellation",
+    "crash_recovery",
+    "health_withdrawal",
+    "uninstall"
+  ],
+  "status": "lifecycle_candidate",
+  "reason_code": "exact_external_lifecycle_evidence_composed",
+  "safe_next_step": "Retain this exact-host C lifecycle candidate and proceed to expiring production-support admission; production and analyzers remain closed.",
+  "lifecycle_candidate_active": true,
+  "health_withdrawal_verified": true,
+  "production_admitted": false,
+  "real_analyzer_authorized": false,
+  "release_packaging_authorized": false,
+  "privileged_installation_authorized": false,
+  "persistent_service_authorized": false
+}

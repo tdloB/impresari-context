@@ -25,6 +25,7 @@
     {"name": "linux-external-delegation-live-rehearsal", "path": "linux-external-delegation-live-rehearsal.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-production-lifecycle", "path": "linux-isolation-production-lifecycle.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-package-lifecycle-rehearsal", "path": "linux-isolation-package-lifecycle-rehearsal.schema.json", "identity_object_kind": null},
+    {"name": "linux-external-lifecycle-composition", "path": "linux-external-lifecycle-composition.schema.json", "identity_object_kind": null},
     {"name": "linux-cgroup-resource-profile", "path": "linux-cgroup-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "linux-cgroup-feasibility", "path": "linux-cgroup-feasibility.schema.json", "identity_object_kind": null},
     {"name": "analyzer-runner-capability", "path": "analyzer-runner-capability.schema.json", "identity_object_kind": null},

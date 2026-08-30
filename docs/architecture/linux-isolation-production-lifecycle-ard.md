@@ -96,3 +96,8 @@ It invokes no service manager, privilege mechanism, repository code, analyzer,
 or background process. Its receipt cannot satisfy the full lifecycle evaluator
 without separately bound topology, interruption, withdrawal, and A-profile
 login-session evidence.
+
+ADR-0081 supplies the separate C binding through one exact-source hosted
+composition. It verifies the full composite receipt directly, then observes
+claim withdrawal after the collected operator capability is absent. A remains
+outside that composition until genuine login-session evidence exists.

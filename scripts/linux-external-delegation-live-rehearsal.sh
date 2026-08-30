@@ -14,6 +14,7 @@ fi
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 output_root="$repository_root/target/iar-linux-external-live"
 facts="$output_root/facts.json"
+receipt="$output_root/receipt.json"
 
 if [ "${1:-}" != "--provisioned" ]; then
   [ "$#" -eq 0 ] || { echo "usage: scripts/linux-external-delegation-live-rehearsal.sh" >&2; exit 2; }
@@ -30,7 +31,8 @@ if [ "${1:-}" != "--provisioned" ]; then
     "$repository_root/scripts/linux-external-delegation-live-rehearsal.sh" --provisioned
   load_state=$(systemctl show "$unit" --property=LoadState --value)
   [ "$load_state" = not-found ] || { echo "external provisioner service was not collected" >&2; exit 6; }
-  ruby "$repository_root/scripts/linux-external-delegation-live-finalize.rb"
+  ruby "$repository_root/scripts/linux-external-delegation-live-finalize.rb" > "$receipt"
+  cat "$receipt"
   exit 0
 fi
 

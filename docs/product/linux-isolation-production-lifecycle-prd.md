@@ -79,3 +79,11 @@ also proves operator relaunch. The rootless profile must remain partial until a
 genuine logout/login session boundary is observed; a process restart is not an
 acceptable substitute. Cancellation, crash, health withdrawal, topology
 revalidation, production, and analyzers remain separate gates.
+
+## External Composition Increment
+
+ADR-0081 composes the exact C package receipt with a fresh external live
+receipt, its identity-linked original-synthetic interruption/crash receipt, and
+a post-collection missing-capability health receipt. Only a same-run,
+exact-source, fully linked set can become a C lifecycle candidate. This does not
+complete A, admit production, or authorize an analyzer.
