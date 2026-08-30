@@ -182,6 +182,15 @@ non-compatible state. It performs no host discovery or execution and always
 keeps production and real-analyzer admission false. The next checkpoint is an
 explicit production-support decision; IAR-2 remains closed.
 
+ADR-0078 now frames that decision. The recommended first production-feasibility
+topology uses only an existing systemd user-manager delegation, with a separate
+explicit profile for administrator/orchestrator-provided delegated subtrees.
+Automatic sudo/pkexec fallback, a privileged daemon, and an administrator-
+installed unit are excluded from the first slice. This is proposed, not yet
+accepted: the founder must choose whether the intentionally narrow rootless-
+first coverage is preferable to the broader but privileged installation
+surface before implementation continues.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
