@@ -1,0 +1,22 @@
+{
+  "schema_name": "linux-external-delegation-live-rehearsal",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "policy_identity": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4",
+  "profile": "externally_managed",
+  "status": "candidate_passed",
+  "reason_code": "external_synthetic_corpus_passed",
+  "observed_host": {"operating_system": "linux", "kernel_release": "6.17.0-synthetic", "architecture": "x86_64"},
+  "provisioner": {"provider": "ephemeral_ci_transient_system_service", "service_created": true, "service_collected": true, "operator_privilege_used": true, "impresari_privilege_used": false, "persistent": false, "unit_name_recorded": false},
+  "capability": {"transport": "inherited_directory_fd", "descriptor_slot": 3, "received": true, "directory_verified": true, "close_on_exec_set": true, "raw_path_received": false, "raw_cgroup_path_recorded": false},
+  "revalidation": {"executed": true, "unified_cgroup_v2": true, "owner_verified": true, "process_contained": true, "exclusive_descendants": true, "delegation_writable": true, "controllers": ["cpu", "memory", "pids"], "raw_cgroup_path_recorded": false},
+  "composite": {"executed": true, "result": "candidate_passed", "receipt_identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "real_analyzer_used": false},
+  "cleanup": {"attempted": true, "descendants_removed": true},
+  "safe_next_step": "Unsafe overclaim fixture.",
+  "external_candidate_active": true,
+  "os_confined": true,
+  "production_admitted": true,
+  "real_analyzer_authorized": true,
+  "privileged_installation_authorized": true,
+  "authority": {"workspace_source_read": "denied", "source_write": "synthetic_target_only", "process_execution": "fixed_synthetic_composite_only", "cgroup_mutation": "inherited_delegated_descendants_only", "service_mutation_by_impresari": "denied", "operator_provisioning": "one_ephemeral_ci_service_only", "network": "denied", "credential_access": "denied", "impresari_privilege_use": "denied", "persistent_service": "denied", "analyzer_execution": "denied"}
+}

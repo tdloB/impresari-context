@@ -23,6 +23,7 @@ ruby ./scripts/check-linux-isolation-topology-feasibility.rb
 ruby ./scripts/check-linux-rootless-host-preflight.rb
 ruby ./scripts/check-linux-rootless-user-manager-rehearsal.rb
 ruby ./scripts/check-linux-external-delegation-capability.rb
+ruby ./scripts/check-linux-external-delegation-live-rehearsal.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
 ruby ./scripts/check-vscode-client-lifecycle.rb

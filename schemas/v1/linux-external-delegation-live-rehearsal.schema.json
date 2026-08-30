@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-external-delegation-live-rehearsal.schema.json",
+  "title": "Linux externally managed delegation live rehearsal receipt",
+  "type": "object",
+  "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "profile", "status", "reason_code", "observed_host", "provisioner", "capability", "revalidation", "composite", "cleanup", "safe_next_step", "external_candidate_active", "os_confined", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "authority"],
+  "properties": {
+    "schema_name": {"const": "linux-external-delegation-live-rehearsal"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+    "policy_identity": {"const": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4"},
+    "profile": {"const": "externally_managed"},
+    "status": {"enum": ["candidate_passed", "capability_failed", "revalidation_failed", "composite_failed", "cleanup_failed", "provisioner_cleanup_failed"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+    "observed_host": {"type": "object", "required": ["operating_system", "kernel_release", "architecture"], "properties": {"operating_system": {"const": "linux"}, "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]{1,128}$"}, "architecture": {"enum": ["x86_64", "aarch64", "other"]}}, "additionalProperties": false},
+    "provisioner": {"type": "object", "required": ["provider", "service_created", "service_collected", "operator_privilege_used", "impresari_privilege_used", "persistent", "unit_name_recorded"], "properties": {"provider": {"const": "ephemeral_ci_transient_system_service"}, "service_created": {"type": "boolean"}, "service_collected": {"type": "boolean"}, "operator_privilege_used": {"const": true}, "impresari_privilege_used": {"const": false}, "persistent": {"const": false}, "unit_name_recorded": {"const": false}}, "additionalProperties": false},
+    "capability": {"type": "object", "required": ["transport", "descriptor_slot", "received", "directory_verified", "close_on_exec_set", "raw_path_received", "raw_cgroup_path_recorded"], "properties": {"transport": {"const": "inherited_directory_fd"}, "descriptor_slot": {"const": 3}, "received": {"type": "boolean"}, "directory_verified": {"type": "boolean"}, "close_on_exec_set": {"type": "boolean"}, "raw_path_received": {"const": false}, "raw_cgroup_path_recorded": {"const": false}}, "additionalProperties": false},
+    "revalidation": {"type": "object", "required": ["executed", "unified_cgroup_v2", "owner_verified", "process_contained", "exclusive_descendants", "delegation_writable", "controllers", "raw_cgroup_path_recorded"], "properties": {"executed": {"type": "boolean"}, "unified_cgroup_v2": {"type": "boolean"}, "owner_verified": {"type": "boolean"}, "process_contained": {"type": "boolean"}, "exclusive_descendants": {"type": "boolean"}, "delegation_writable": {"type": "boolean"}, "controllers": {"type": "array", "items": {"enum": ["cpu", "memory", "pids"]}, "uniqueItems": true}, "raw_cgroup_path_recorded": {"const": false}}, "additionalProperties": false},
+    "composite": {"type": "object", "required": ["executed", "result", "receipt_identity", "real_analyzer_used"], "properties": {"executed": {"type": "boolean"}, "result": {"enum": ["not_executed", "candidate_passed", "failed"]}, "receipt_identity": {"type": "string", "pattern": "^(?:not_executed|not_available|[0-9a-f]{64})$"}, "real_analyzer_used": {"const": false}}, "additionalProperties": false},
+    "cleanup": {"type": "object", "required": ["attempted", "descendants_removed"], "properties": {"attempted": {"type": "boolean"}, "descendants_removed": {"type": "boolean"}}, "additionalProperties": false},
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+    "external_candidate_active": {"type": "boolean"},
+    "os_confined": {"type": "boolean"},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "authority": {"type": "object", "required": ["workspace_source_read", "source_write", "process_execution", "cgroup_mutation", "service_mutation_by_impresari", "operator_provisioning", "network", "credential_access", "impresari_privilege_use", "persistent_service", "analyzer_execution"], "properties": {"workspace_source_read": {"const": "denied"}, "source_write": {"const": "synthetic_target_only"}, "process_execution": {"const": "fixed_synthetic_composite_only"}, "cgroup_mutation": {"const": "inherited_delegated_descendants_only"}, "service_mutation_by_impresari": {"const": "denied"}, "operator_provisioning": {"const": "one_ephemeral_ci_service_only"}, "network": {"const": "denied"}, "credential_access": {"const": "denied"}, "impresari_privilege_use": {"const": "denied"}, "persistent_service": {"const": "denied"}, "analyzer_execution": {"const": "denied"}}, "additionalProperties": false}
+  },
+  "allOf": [
+    {"if": {"properties": {"status": {"const": "candidate_passed"}}, "required": ["status"]}, "then": {"properties": {"reason_code": {"const": "external_synthetic_corpus_passed"}, "external_candidate_active": {"const": true}, "os_confined": {"const": true}, "provisioner": {"properties": {"service_created": {"const": true}, "service_collected": {"const": true}}}, "capability": {"properties": {"received": {"const": true}, "directory_verified": {"const": true}, "close_on_exec_set": {"const": true}}}, "revalidation": {"properties": {"executed": {"const": true}, "unified_cgroup_v2": {"const": true}, "owner_verified": {"const": true}, "process_contained": {"const": true}, "exclusive_descendants": {"const": true}, "delegation_writable": {"const": true}, "controllers": {"const": ["cpu", "memory", "pids"]}}}, "composite": {"properties": {"executed": {"const": true}, "result": {"const": "candidate_passed"}, "receipt_identity": {"pattern": "^[0-9a-f]{64}$"}}}, "cleanup": {"properties": {"attempted": {"const": true}, "descendants_removed": {"const": true}}}}}},
+    {"if": {"properties": {"status": {"enum": ["capability_failed", "revalidation_failed", "composite_failed", "cleanup_failed", "provisioner_cleanup_failed"]}}, "required": ["status"]}, "then": {"properties": {"external_candidate_active": {"const": false}, "os_confined": {"const": false}}}}
+  ],
+  "additionalProperties": false
+}

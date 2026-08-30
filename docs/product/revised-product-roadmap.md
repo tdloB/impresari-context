@@ -224,8 +224,16 @@ for the selected external profile is now frozen and source-free tested: fixed
 descriptor slot 3, directory verification, immediate close-on-exec, no raw
 path, and no production authority. The next external checkpoint is bounded live
 cgroup revalidation plus the complete original-synthetic corpus in an
-operator-provided ephemeral environment. Production lifecycle work follows
-only after both selected profiles have independent candidate evidence.
+operator-provided ephemeral environment. That live checkpoint is now
+implemented as a dedicated hosted job with one collected operator service,
+fixed descriptor slot 3, bounded revalidation, the complete synthetic corpus,
+and explicit descendant cleanup. PR 140 run `33295514984` passed that gate on
+Ubuntu 24.04 x86_64, kernel `6.17.0-1022-azure`; the complete composite identity
+was `d9bbcbc55831385b3f56962170622cb2f79dbf8a7237573a2c2d8f712d100c2c`.
+Both selected profiles now have independent exact-host synthetic candidates.
+The next checkpoint freezes the shared Linux install, upgrade, rollback,
+login-session, health-withdrawal, and uninstall lifecycle matrix before any
+production or IAR-2 claim.
 
 ## Parallel Client Integration Depth Track
 
