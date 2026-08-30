@@ -1,6 +1,6 @@
 # Homebrew distribution architecture
 
-- Status: Proposed; not approved for implementation
+- Status: Superseded for macOS by ADR-0076; Linux formula proposal remains
 - Date: 2026-08-29
 - Governing PRD: [Homebrew distribution PRD](../product/homebrew-distribution-prd.md)
 - Governing decision: [ADR-0070](../decisions/0070-homebrew-tap-distribution.md)
@@ -8,7 +8,7 @@
 ## Context
 
 The current pinned installer already publishes three sibling native binaries
-for macOS ARM64 and Linux x86-64. Homebrew can shorten installation and provide
+for Linux x86-64. Homebrew can shorten installation and provide
 its normal explicit update lifecycle, but a non-official tap is executable
 third-party code and therefore creates a separate repository, trust, release,
 and credential boundary.
@@ -19,8 +19,8 @@ and credential boundary.
 
 Use a dedicated `homebrew-tap` repository. Keep the formula, tap tests,
 ownership rules, and release-update history there; do not make the application
-repository itself a Homebrew tap. The tap contains one formula and no external
-commands or casks in the initial scope.
+repository itself a Homebrew tap. The formula proposal is now Linux-specific;
+ADR-0076 separately selects one macOS cask with CLI compatibility.
 
 Users install the fully qualified formula directly. This lets Homebrew add the
 tap while limiting the user's explicit trust choice to that formula rather
@@ -32,7 +32,6 @@ The formula selects only these already-supported release tuples:
 
 | Host | Release target | Installed artifacts |
 | --- | --- | --- |
-| macOS ARM64 | `aarch64-apple-darwin` | CLI, MCP server, structural worker |
 | Linux x86-64 | `x86_64-unknown-linux-gnu` | CLI, MCP server, structural worker |
 
 Each branch uses the immutable versioned GitHub Release archive and its exact
@@ -95,6 +94,6 @@ ownership domains and remain untouched.
 
 ## Implementation gate
 
-This architecture is deliberately non-operative. Founder approval and a
-separately governed tap repository are required before code, workflows,
-credentials, or publication steps are added.
+This formula architecture remains non-operative for Linux. ADR-0076 governs
+staged macOS cask implementation. A separately governed tap and every
+credential-bearing publication step remain independently gated.

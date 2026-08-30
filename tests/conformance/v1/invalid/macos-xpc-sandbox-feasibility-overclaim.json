@@ -1,7 +1,7 @@
 {
   "schema_name": "macos-xpc-sandbox-feasibility",
-  "schema_version": "1.0.0",
-  "prototype_id": "iar-macos-xpc-feasibility-v1",
+  "schema_version": "1.1.0",
+  "prototype_id": "iar-macos-xpc-hybrid-feasibility-v2",
   "observed_host": {
     "operating_system": "macos",
     "version": "26.5.1",
@@ -29,7 +29,9 @@
     "descendant_containment": false,
     "bounded_request": true,
     "bounded_reply": true,
+    "exact_timeout_target": true,
     "timeout": true,
+    "crash_relaunch": true,
     "cleanup": true
   },
   "limitations": ["synthetic-probe-no-analysis"],

@@ -9,7 +9,7 @@
   "contains_private_or_customer_source": false,
   "network_or_provider_data_used": false,
   "cases": [
-    {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "da799dd0b91ac40b28cb8bea4f72beba832ab7203adcf193713a611fa101dccc", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS XPC feasibility evidence"},
-    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "f4586926b5e29d0ca6d6dca5c83170687beb8bd410c6750f910c249559e14e5a", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with incomplete native gates"}
+    {"path": "valid/macos-xpc-sandbox-feasibility.json", "sha256": "7761d8edc9e05f1de03add9cc4e79dc2d1a796d2dedbeabacb89db184ba3824b", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free partial macOS hybrid XPC resource and lifecycle evidence"},
+    {"path": "invalid/macos-xpc-sandbox-feasibility-overclaim.json", "sha256": "422affb739da15b61367e2b5dae396a0f064d2f55970b0f2d9f9b18e3634c919", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject production and OS-confinement claims with remaining native and release gates"}
   ]
 }

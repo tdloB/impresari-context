@@ -7,8 +7,8 @@
   "required": ["schema_name", "schema_version", "prototype_id", "observed_host", "signing_mode", "result", "checks", "limitations", "os_confined", "production_admitted", "source_retained", "authority_added"],
   "properties": {
     "schema_name": {"const": "macos-xpc-sandbox-feasibility"},
-    "schema_version": {"const": "1.0.0"},
-    "prototype_id": {"const": "iar-macos-xpc-feasibility-v1"},
+    "schema_version": {"const": "1.1.0"},
+    "prototype_id": {"const": "iar-macos-xpc-hybrid-feasibility-v2"},
     "observed_host": {
       "type": "object",
       "additionalProperties": false,
@@ -27,7 +27,7 @@
     "checks": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["private_xpc_transport", "host_app_sandbox", "service_app_sandbox", "service_network_entitlement_absent", "app_container_read_write", "external_filesystem_denial", "credential_canary_denial", "device_denial", "unrelated_process_denial", "network_denial", "cpu_limit", "memory_limit", "process_count_limit", "descendant_containment", "bounded_request", "bounded_reply", "timeout", "cleanup"],
+      "required": ["private_xpc_transport", "host_app_sandbox", "service_app_sandbox", "service_network_entitlement_absent", "app_container_read_write", "external_filesystem_denial", "credential_canary_denial", "device_denial", "unrelated_process_denial", "network_denial", "cpu_limit", "memory_limit", "process_count_limit", "descendant_containment", "bounded_request", "bounded_reply", "exact_timeout_target", "timeout", "crash_relaunch", "cleanup"],
       "properties": {
         "private_xpc_transport": {"type": "boolean"},
         "host_app_sandbox": {"type": "boolean"},
@@ -45,7 +45,9 @@
         "descendant_containment": {"type": "boolean"},
         "bounded_request": {"type": "boolean"},
         "bounded_reply": {"type": "boolean"},
+        "exact_timeout_target": {"type": "boolean"},
         "timeout": {"type": "boolean"},
+        "crash_relaunch": {"type": "boolean"},
         "cleanup": {"type": "boolean"}
       }
     },
@@ -99,7 +101,9 @@
               "descendant_containment": {"const": true},
               "bounded_request": {"const": true},
               "bounded_reply": {"const": true},
+              "exact_timeout_target": {"const": true},
               "timeout": {"const": true},
+              "crash_relaunch": {"const": true},
               "cleanup": {"const": true}
             }
           }

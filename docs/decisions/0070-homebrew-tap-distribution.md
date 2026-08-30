@@ -1,6 +1,6 @@
 # ADR-0070: Distribute release binaries through a separately governed Homebrew tap
 
-- Status: Proposed; founder decision required
+- Status: Superseded for macOS by ADR-0076; Linux formula proposal remains
 - Date: 2026-08-29
 - Related PRD: [Homebrew distribution PRD](../product/homebrew-distribution-prd.md)
 - Related architecture: [Homebrew distribution ARD](../architecture/homebrew-distribution-ard.md)
@@ -16,13 +16,15 @@ credentials and tests.
 
 ## Proposed decision
 
-If approved, distribute the three existing native release executables through
-one formula in a dedicated `homebrew-tap` repository.
+For non-macOS command-line releases, distribute the existing native release
+executables through one formula in a dedicated `homebrew-tap` repository.
+ADR-0076 replaces this proposal's macOS formula shape with one signed,
+notarized, CLI-compatible cask after its security and packaging gates pass.
 
 - Prefer direct fully qualified formula installation over instructions that
   trust the entire tap.
 - Consume only immutable accepted GitHub Release archives and exact SHA-256
-  values for macOS ARM64 and Linux x86-64.
+  values for Linux x86-64.
 - Keep application release, tap update proposal, tap acceptance, and formula
   publication as distinct evidence and authority boundaries.
 - Allow automation to open a deterministic formula-update pull request only
@@ -52,11 +54,12 @@ one formula in a dedicated `homebrew-tap` repository.
 - A moving `latest` URL or checksum discovered during installation is not
   reproducible and cannot inherit release assurance.
 - Automatic formula merge collapses independent acceptance into publication.
-- A cask or self-updater does not match the current three-CLI-binary product
-  shape and would introduce unnecessary lifecycle authority.
+- A self-updater does not match the package-manager-owned lifecycle. A cask was
+  initially unnecessary for three standalone CLI binaries, but ADR-0076 now
+  requires one for the signed App Sandbox/private-XPC macOS topology.
 
 ## Decision gate
 
-This ADR records a reviewable proposal, not an accepted decision. Change its
-status only after explicit founder approval. Repository creation, credential
-grant, publication, and release remain separate manual actions.
+The macOS portion is superseded by accepted ADR-0076. The Linux formula remains
+a reviewable proposal. Repository creation, credential grant, publication, and
+release remain separate manual actions.
