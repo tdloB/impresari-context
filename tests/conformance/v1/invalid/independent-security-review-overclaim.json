@@ -1,0 +1,26 @@
+{
+  "schema_name": "independent-security-review-receipt",
+  "schema_version": "1.0.0",
+  "status": "manual_review_required",
+  "reason_code": "attributable_independent_report_not_recorded",
+  "scope_id": "impresari-context-v0-2-0-review-v1",
+  "target_version": "0.2.0",
+  "observed": {
+    "scope_available": true, "report_available": false, "reviewer_independent": false,
+    "target_version": "0.2.0", "product_source_commit": "1ed4500a6d3ac4a0d375c62f1c208ba8ddf98d51",
+    "report_sha256": "", "critical_open": 0, "high_open": 0
+  },
+  "scope_identity": "98a248d7133c85366a16b0a443dab15f131529d1bc4e3d8587b0adfc7925a45c",
+  "checks": ["scope_valid", "manual_review_required"],
+  "safe_next_step": "Skip the manual review.",
+  "review_gate_satisfied": true,
+  "release_ready": true,
+  "publication_authorized": true,
+  "production_support_admitted": true,
+  "real_analyzer_authorized": true,
+  "authority": {
+    "source_read": "denied", "source_write": "denied", "network": "denied",
+    "credential_access": "denied", "process_execution": "denied", "tag_creation": "denied",
+    "release_publication": "denied", "risk_acceptance": "denied"
+  }
+}

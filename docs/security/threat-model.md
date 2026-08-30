@@ -4,12 +4,16 @@
 
 - Document ID/version: IC-SEC-001 / 0.1.
 - Status: Founder-approved security design baseline; implementation evidence
-  remains required. ADR-0017 governs independent review for `v0.1.0`.
+  remains required. ADR-0017 governs independent review for `v0.1.0`; its
+  earlier-review trigger is active for the proposed v0.2.0 scope under ADR-0083.
 - Date: 2026-08-20.
 - Initial scope: Slice A — Verifiable Local Context MVP plus the authorized
   Slice B structural-worker boundary in ADR-0010.
 - Future scope represented but not authorized: consumer adapters, general
   extensions, model access, network access, and hosted deployment.
+- Current separately authorized scope includes consent-gated external-client
+  delivery adapters and application/OS isolation candidates. Their exact
+  boundaries and non-claims are reviewed in the v0.2.0 independent-review brief.
 - Parent requirements:
   - [Master Product PRD](../product/master-prd.md)
   - [Verifiable Local Context MVP PRD](../product/verifiable-local-context-mvp-prd.md)
