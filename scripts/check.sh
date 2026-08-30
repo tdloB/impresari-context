@@ -27,6 +27,7 @@ ruby ./scripts/check-linux-external-delegation-live-rehearsal.rb
 ruby ./scripts/check-linux-isolation-production-lifecycle.rb
 ruby ./scripts/check-linux-package-lifecycle-rehearsal.rb
 ruby ./scripts/check-linux-external-lifecycle-composition.rb
+ruby ./scripts/check-linux-external-production-support-admission.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
 ruby ./scripts/check-vscode-client-lifecycle.rb

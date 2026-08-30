@@ -1,0 +1,136 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-external-production-support-admission.schema.json",
+  "title": "Linux externally managed production-support admission",
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "gitCommit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "target": {
+      "type": "object",
+      "required": ["runner_label", "runner_image_version", "os_release", "kernel_release", "architecture", "landlock_abi"],
+      "properties": {
+        "runner_label": {"const": "ubuntu-24.04"},
+        "runner_image_version": {"type": "string", "pattern": "^[0-9]{8}\\.[0-9]+\\.[0-9]+$"},
+        "os_release": {"const": "24.04"},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "architecture": {"const": "x86_64"},
+        "landlock_abi": {"type": "string", "pattern": "^[1-9][0-9]*$"}
+      },
+      "additionalProperties": false
+    },
+    "authority": {
+      "type": "object",
+      "required": ["source_read", "source_write", "host_discovery", "process_execution", "network", "credential_access", "privilege_use", "service_mutation", "background_monitoring", "analyzer_execution"],
+      "properties": {
+        "source_read": {"const": "denied"}, "source_write": {"const": "denied"},
+        "host_discovery": {"const": "denied"}, "process_execution": {"const": "denied"},
+        "network": {"const": "denied"}, "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"}, "service_mutation": {"const": "denied"},
+        "background_monitoring": {"const": "denied"}, "analyzer_execution": {"const": "denied"}
+      },
+      "additionalProperties": false
+    },
+    "manifest": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "manifest_id", "profile", "support_surface", "target", "evidence", "release", "claim", "withdraw_on", "safe_next_steps"],
+      "properties": {
+        "schema_name": {"const": "linux-external-production-support-manifest"},
+        "schema_version": {"const": "1.0.0"},
+        "manifest_id": {"const": "linux-external-github-hosted-ubuntu-24-04-x86-64-v1"},
+        "profile": {"const": "externally_managed"},
+        "support_surface": {"const": "github_actions_hosted"},
+        "target": {"$ref": "#/$defs/target"},
+        "evidence": {
+          "type": "object",
+          "required": ["run_id", "job_id", "observed_at", "fresh_through", "source_commit", "candidate_archive_sha256", "composition_receipt_sha256"],
+          "properties": {
+            "run_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+            "job_id": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+            "observed_at": {"$ref": "#/$defs/date"}, "fresh_through": {"$ref": "#/$defs/date"},
+            "source_commit": {"$ref": "#/$defs/gitCommit"},
+            "candidate_archive_sha256": {"$ref": "#/$defs/sha256"},
+            "composition_receipt_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "additionalProperties": false
+        },
+        "release": {
+          "type": "object",
+          "required": ["status"],
+          "properties": {
+            "status": {"enum": ["pending_publication", "published"]},
+            "baseline_version": {"const": "0.1.0"},
+            "candidate_project_version": {"const": "0.1.0"},
+            "required_action": {"type": "string", "minLength": 1, "maxLength": 300},
+            "version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+            "tag": {"type": "string", "pattern": "^v[0-9]+\\.[0-9]+\\.[0-9]+$"},
+            "source_commit": {"$ref": "#/$defs/gitCommit"},
+            "archive_sha256": {"$ref": "#/$defs/sha256"}
+          },
+          "allOf": [
+            {"if": {"properties": {"status": {"const": "pending_publication"}}}, "then": {"required": ["baseline_version", "candidate_project_version", "required_action"]}},
+            {"if": {"properties": {"status": {"const": "published"}}}, "then": {"required": ["version", "tag", "source_commit", "archive_sha256"]}}
+          ],
+          "additionalProperties": false
+        },
+        "claim": {
+          "type": "object",
+          "required": ["level", "exact_scope_only", "broad_linux_support", "production_admitted", "real_analyzer_authorized"],
+          "properties": {
+            "level": {"const": "IAR-1B"}, "exact_scope_only": {"const": true},
+            "broad_linux_support": {"const": false}, "production_admitted": {"type": "boolean"},
+            "real_analyzer_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "withdraw_on": {
+          "type": "array", "minItems": 10, "maxItems": 10, "uniqueItems": true,
+          "items": {"enum": ["manifest_changed", "release_missing", "release_identity_changed", "evidence_expired", "evidence_missing", "target_unavailable", "runner_image_changed", "kernel_changed", "architecture_changed", "landlock_abi_changed"]}
+        },
+        "safe_next_steps": {
+          "type": "object",
+          "required": ["release_pending", "compatible_supported", "stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"],
+          "additionalProperties": {"type": "string", "minLength": 1, "maxLength": 300}
+        }
+      },
+      "allOf": [
+        {"if": {"properties": {"release": {"properties": {"status": {"const": "pending_publication"}}}}}, "then": {"properties": {"claim": {"properties": {"production_admitted": {"const": false}}}}}}
+      ],
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "status", "reason_code", "manifest_id", "profile", "support_surface", "observed", "manifest_identity", "evidence_identity", "checks", "safe_next_step", "support_claim_active", "production_admitted", "real_analyzer_authorized", "authority"],
+      "properties": {
+        "schema_name": {"const": "linux-external-production-support-receipt"}, "schema_version": {"const": "1.0.0"},
+        "status": {"enum": ["release_pending", "compatible_supported", "stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "manifest_id": {"type": "string", "minLength": 1, "maxLength": 100},
+        "profile": {"const": "externally_managed"}, "support_surface": {"const": "github_actions_hosted"},
+        "observed": {
+          "type": "object",
+          "required": ["target_available", "evidence_available", "release_available", "runner_label", "runner_image_version", "os_release", "kernel_release", "architecture", "landlock_abi", "release_version", "release_tag", "release_archive_sha256", "as_of"],
+          "properties": {
+            "target_available": {"type": "boolean"}, "evidence_available": {"type": "boolean"}, "release_available": {"type": "boolean"},
+            "runner_label": {"type": "string", "maxLength": 80}, "runner_image_version": {"type": "string", "maxLength": 80},
+            "os_release": {"type": "string", "maxLength": 40}, "kernel_release": {"type": "string", "maxLength": 160},
+            "architecture": {"type": "string", "maxLength": 40}, "landlock_abi": {"type": "string", "maxLength": 20},
+            "release_version": {"type": "string", "maxLength": 40}, "release_tag": {"type": "string", "maxLength": 60},
+            "release_archive_sha256": {"type": "string", "maxLength": 64}, "as_of": {"$ref": "#/$defs/date"}
+          },
+          "additionalProperties": false
+        },
+        "manifest_identity": {"$ref": "#/$defs/sha256"}, "evidence_identity": {"$ref": "#/$defs/sha256"},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 24, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "support_claim_active": {"type": "boolean"}, "production_admitted": {"type": "boolean"},
+        "real_analyzer_authorized": {"const": false}, "authority": {"$ref": "#/$defs/authority"}
+      },
+      "allOf": [
+        {"if": {"properties": {"status": {"const": "compatible_supported"}}}, "then": {"properties": {"support_claim_active": {"const": true}, "production_admitted": {"const": true}}}},
+        {"if": {"properties": {"status": {"enum": ["release_pending", "stale_evidence", "changed", "missing_evidence", "unsupported", "unavailable"]}}}, "then": {"properties": {"support_claim_active": {"const": false}, "production_admitted": {"const": false}}}}
+      ],
+      "additionalProperties": false
+    }
+  }
+}

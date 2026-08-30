@@ -1,0 +1,37 @@
+{
+  "schema_name": "linux-external-production-support-receipt",
+  "schema_version": "1.0.0",
+  "status": "release_pending",
+  "reason_code": "immutable_release_not_published",
+  "manifest_id": "linux-external-github-hosted-ubuntu-24-04-x86-64-v1",
+  "profile": "externally_managed",
+  "support_surface": "github_actions_hosted",
+  "observed": {
+    "target_available": true,
+    "evidence_available": true,
+    "release_available": false,
+    "runner_label": "ubuntu-24.04",
+    "runner_image_version": "20260823.283.1",
+    "os_release": "24.04",
+    "kernel_release": "6.17.0-1022-azure",
+    "architecture": "x86_64",
+    "landlock_abi": "7",
+    "release_version": "",
+    "release_tag": "",
+    "release_archive_sha256": "",
+    "as_of": "2026-09-01"
+  },
+  "manifest_identity": "1b0d35034d7020629a65e4e8358fae850c94f03644a87850b4bede8a4926e05d",
+  "evidence_identity": "0481667521371f3c7db33abfc4b99165fa9b71bd7bc8ed504173f7a89d4ea80b",
+  "checks": ["manifest_valid", "manifest_identity_pinned", "profile_exact", "support_surface_exact", "target_available", "evidence_available", "evidence_current", "target_identity_exact", "release_publication_pending"],
+  "safe_next_step": "Publish a new immutable release from the exact admitted source, then record and review its tag and archive identity in a new admission change.",
+  "support_claim_active": false,
+  "production_admitted": false,
+  "real_analyzer_authorized": false,
+  "authority": {
+    "source_read": "denied", "source_write": "denied", "host_discovery": "denied",
+    "process_execution": "denied", "network": "denied", "credential_access": "denied",
+    "privilege_use": "denied", "service_mutation": "denied", "background_monitoring": "denied",
+    "analyzer_execution": "denied"
+  }
+}

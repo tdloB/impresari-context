@@ -1,0 +1,58 @@
+{
+  "schema_name": "linux-external-production-support-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "linux-external-github-hosted-ubuntu-24-04-x86-64-v1",
+  "profile": "externally_managed",
+  "support_surface": "github_actions_hosted",
+  "target": {
+    "runner_label": "ubuntu-24.04",
+    "runner_image_version": "20260823.283.1",
+    "os_release": "24.04",
+    "kernel_release": "6.17.0-1022-azure",
+    "architecture": "x86_64",
+    "landlock_abi": "7"
+  },
+  "evidence": {
+    "run_id": "33300661271",
+    "job_id": "99228064803",
+    "observed_at": "2026-08-30",
+    "fresh_through": "2026-09-13",
+    "source_commit": "8f8f9adb5d99f373fbd6456564dfa6233c37bc34",
+    "candidate_archive_sha256": "78d1b56552f292ba7da86a0c62ec7a1c840554bd0eec7f1e8a4ec900bece99e3",
+    "composition_receipt_sha256": "0481667521371f3c7db33abfc4b99165fa9b71bd7bc8ed504173f7a89d4ea80b"
+  },
+  "release": {
+    "status": "pending_publication",
+    "baseline_version": "0.1.0",
+    "candidate_project_version": "0.1.0",
+    "required_action": "Publish a new non-v0.1.0 release from this exact source or fresh revalidated source; never reuse the v0.1.0 tag."
+  },
+  "claim": {
+    "level": "IAR-1B",
+    "exact_scope_only": true,
+    "broad_linux_support": false,
+    "production_admitted": false,
+    "real_analyzer_authorized": false
+  },
+  "withdraw_on": [
+    "manifest_changed",
+    "release_missing",
+    "release_identity_changed",
+    "evidence_expired",
+    "evidence_missing",
+    "target_unavailable",
+    "runner_image_changed",
+    "kernel_changed",
+    "architecture_changed",
+    "landlock_abi_changed"
+  ],
+  "safe_next_steps": {
+    "release_pending": "Publish a new immutable release from the exact admitted source, then record and review its tag and archive identity in a new admission change.",
+    "compatible_supported": "Retain the exact scoped claim only until the evidence expiry date and rerun the admission after any target or release change.",
+    "stale_evidence": "Withdraw the claim and rerun the complete synthetic lifecycle checkpoint on the exact supported target.",
+    "changed": "Withdraw the claim and evaluate the changed target or release as a new independently pinned support scope.",
+    "missing_evidence": "Keep production support withdrawn until every exact evidence identity is available.",
+    "unsupported": "Use a separately admitted profile and target; do not generalize this exact support scope.",
+    "unavailable": "Keep production support withdrawn because the admitted target is unavailable."
+  }
+}

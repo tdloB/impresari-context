@@ -264,6 +264,18 @@ deterministically withdrawn production-support admission for C; production,
 real analyzers, privilege, persistence, automatic repair, and IAR-2 remain
 closed until that separate gate passes.
 
+ADR-0082 now freezes that C admission gate. It pins the exact hosted target,
+fresh lifecycle evidence, source commit, candidate archive, and tracked manifest
+identity, but returns `release_pending` because the candidate is newer than the
+published v0.1.0 artifact and still reports the same project version. Production
+support cannot activate until a new immutable version/tag/archive is published
+and bound by a reviewed update; v0.1.0 cannot be reused. Stale, changed, missing,
+unsupported, and unavailable states deterministically withdraw the claim. A
+remains partial, broad Linux and administrator-installed services remain out of
+scope, and IAR-2 stays closed. The next release checkpoint is version selection,
+publication of the exact or freshly revalidated source, and post-publication
+admission evidence.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
