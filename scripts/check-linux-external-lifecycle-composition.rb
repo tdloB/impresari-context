@@ -11,6 +11,7 @@ require_relative "lib/linux_external_health_withdrawal"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
 COMPOSER = ROOT.join("scripts/linux-external-lifecycle-compose.rb")
+COLLECTOR = ROOT.join("scripts/linux-external-health-withdrawal.rb")
 PACKAGE_FIXTURE = ROOT.join("tests/conformance/v1/valid/linux-isolation-package-lifecycle-external.json")
 EXTERNAL_FIXTURE = ROOT.join("tests/conformance/v1/valid/linux-external-delegation-live-rehearsal-candidate.json")
 COMPOSITE_FIXTURE = ROOT.join("tests/conformance/v1/valid/linux-isolation-feasibility-candidate.json")
@@ -69,6 +70,23 @@ candidate, stderr, status, withdrawal = compose(package: package, external: exte
 abort("candidate composition failed: #{stderr}") unless status.success?
 abort("candidate composition drift") unless candidate == JSON.parse(COMPOSITION_FIXTURE.read)
 abort("withdrawal fixture drift") unless withdrawal == JSON.parse(WITHDRAWAL_FIXTURE.read)
+
+if RbConfig::CONFIG.fetch("host_os").include?("linux")
+  collector_stdout, collector_stderr, collector_status = Open3.capture3(
+    {"GITHUB_ACTIONS" => "true", "RUNNER_ENVIRONMENT" => "github-hosted"},
+    "bash", "-c", 'exec 3</dev/null; exec "$@"', "withdrawal-collector",
+    RbConfig.ruby, COLLECTOR.to_s,
+    "--package-receipt", PACKAGE_FIXTURE.to_s,
+    "--external-receipt", EXTERNAL_FIXTURE.to_s,
+  )
+  abort("executable withdrawal collector did not return its closed withdrawal status: #{collector_stderr}") unless
+    collector_status.success?
+  expected_collector_receipt = JSON.parse(WITHDRAWAL_FIXTURE.read)
+  expected_collector_receipt["package_receipt_identity"] = Digest::SHA256.hexdigest(PACKAGE_FIXTURE.binread)
+  expected_collector_receipt["external_receipt_identity"] = Digest::SHA256.hexdigest(EXTERNAL_FIXTURE.binread)
+  abort("executable withdrawal collector drift") unless
+    JSON.parse(collector_stdout) == expected_collector_receipt
+end
 
 cases = {"candidate" => candidate}
 package, external, composite = documents

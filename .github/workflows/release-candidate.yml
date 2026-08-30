@@ -103,7 +103,7 @@ jobs:
           ruby scripts/linux-external-health-withdrawal.rb \
             --package-receipt "$package_receipt" \
             --external-receipt "$external_receipt" \
-            3<&- > "$withdrawal_receipt"
+            3</dev/null > "$withdrawal_receipt"
           ruby scripts/linux-external-lifecycle-compose.rb \
             --expected-source-sha "$SOURCE_SHA" \
             --package-receipt "$package_receipt" \

@@ -34,9 +34,11 @@ abort("external topology receipt is not a collected candidate") unless
   %w[production_admitted real_analyzer_authorized privileged_installation_authorized].none? { |claim| external[claim] }
 
 capability_available = begin
-  IO.for_fd(3, autoclose: false)
-  true
-rescue Errno::EBADF
+  # Ruby may reserve a descriptor that the invoking shell closed, so descriptor
+  # existence alone is not evidence that the inherited directory capability is
+  # still present. Inspect only the descriptor type without resolving its path.
+  File.stat("/proc/self/fd/3").directory?
+rescue Errno::ENOENT, Errno::EBADF
   false
 end
 
