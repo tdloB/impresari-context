@@ -1,6 +1,6 @@
 # ADR-0078: Select The Linux Production Delegation Topology
 
-- Status: Proposed; founder decision required
+- Status: Accepted
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 
@@ -12,7 +12,7 @@ support needs a way to obtain that parent boundary. Choosing a rootless user
 manager, an administrator-installed policy, or an externally managed subtree
 changes installation authority, support coverage, packaging, and maintenance.
 
-## Proposed Decision
+## Decision
 
 Use existing systemd user-manager delegation as the first production-
 feasibility candidate. Admit an externally managed delegated subtree only as a
@@ -21,9 +21,11 @@ privileged daemon, or an administrator-installed unit in the first slice.
 
 Systems lacking an effective user-manager delegation remain `unsupported`.
 They must not fall back to IAR-1A while reporting IAR-1B or analyzer readiness.
-An administrator-provisioned profile may be reconsidered through a separate
-founder-approved security and packaging decision if documented demand warrants
-the larger authority surface.
+An administrator-provisioned profile is deferred. Reconsider it only when
+documented production preflight evidence shows that more than 10% of otherwise
+eligible Linux attempts are unsupported and at least half of those failures
+would be recovered by that profile. Reconsideration requires a separate
+security and packaging decision; it is not an automatic roadmap transition.
 
 ## Rationale
 
@@ -36,8 +38,8 @@ over surprise privilege escalation.
 
 - Initial production coverage will be narrower than “all Linux.”
 - A source-free user-manager feasibility matrix is required before admission.
-- Headless, containerized, or policy-restricted hosts may need Option C or
-  remain unsupported.
+- Headless, containerized, or policy-restricted hosts may need the externally
+  managed delegation profile or remain unsupported.
 - No real analyzer is authorized; IAR-2 remains closed until the chosen
   topology passes all admission and release gates.
 
@@ -51,10 +53,16 @@ over surprise privilege escalation.
   exact Impresari confinement evidence.
 - Privileged daemon or automatic elevation: rejected as excessive authority.
 
-## Approval Effect
+## Acceptance Effect
 
-Accepting this ADR authorizes only source-free feasibility contracts and
-synthetic testing for Option A and the closed Option C interface. It does not
-authorize a real analyzer, repository content as analyzer input, network or
-credential access, privileged installation, persistent services, package
-publication, or IAR-2 admission.
+This ADR authorizes only source-free feasibility contracts and synthetic
+testing for the rootless user-manager and closed externally managed profiles.
+It does not authorize a real analyzer, repository content as analyzer input,
+network or credential access, privileged installation, persistent services,
+package publication, or IAR-2 admission.
+
+## Decision Record
+
+The founder selected the recommended rootless user-manager plus externally
+managed direction on 2026-08-30. The former Option A/B/C labels are retired to
+avoid collision with the independent macOS packaging options in ADR-0076.

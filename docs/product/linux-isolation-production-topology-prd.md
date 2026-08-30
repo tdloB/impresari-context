@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Proposed; founder decision required
+- Status: Accepted; source-free feasibility contract implemented
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -27,9 +27,9 @@ staging or launching a worker. The user is never surprised by a password
 prompt, privilege escalation, persistent background service, or weaker
 application-only fallback.
 
-## Decision Options
+## Selected And Deferred Profiles
 
-### Option A — Existing systemd user-manager delegation (recommended first)
+### Rootless user-manager delegation — selected default
 
 Use only an already-running per-user systemd manager whose parent has delegated
 the required cgroup v2 controllers. Impresari creates a foreground transient
@@ -41,19 +41,21 @@ user service/scope below that existing boundary and manages only its subtree.
   whether CPU, memory, and pids controllers reach the user manager.
 - Missing user manager, controller, or effective delegation is `unsupported`.
 
-### Option B — Opt-in administrator-provisioned delegation
+### Administrator-provisioned delegation — deferred
 
 Install a root-owned declarative systemd unit and narrowly scoped authorization
 policy that creates a transient delegated subtree for the invoking user. The
 analyzer supervisor remains unprivileged below it.
 
-- Can cover headless and locked-down systems where Option A is unavailable.
+- Can cover headless and locked-down systems where rootless user-manager
+  delegation is unavailable.
 - Adds privileged installation, policy review, upgrade/removal duties, and a
   new local authorization surface.
 - Must not become a long-running daemon or a general command launcher.
-- Requires a separate explicit founder decision and dedicated threat model.
+- Requires the evidence threshold, a dedicated threat model, and a separate
+  accepted security and packaging decision.
 
-### Option C — Externally managed delegated subtree
+### Externally managed delegated subtree — selected explicit profile
 
 An administrator or container/orchestration platform supplies an already
 delegated subtree through a closed launch contract. Impresari validates and
@@ -71,13 +73,15 @@ uses it but never creates or broadens it.
 - Treating Docker/Podman availability as equivalent evidence.
 - Falling back to IAR-1A while reporting IAR-1B or analyzer readiness.
 
-## Recommendation
+## Decision
 
-Select Option A as the first production-feasibility candidate and Option C as
-the explicit externally managed profile. Keep Option B as a separately approved
-future expansion only if real user demand shows Option A/C coverage is
-insufficient. This preserves a rootless default and makes unsupported systems
-honest rather than privileged by surprise.
+Use rootless user-manager delegation as the first production-feasibility
+candidate and the externally managed delegated subtree as an explicit profile.
+Keep administrator-provisioned delegation deferred unless production preflight
+evidence shows both an unsupported-attempt rate above 10% and that the deferred
+profile would recover at least half of those failures. This preserves a
+rootless default and makes unsupported systems honest rather than privileged by
+surprise.
 
 ## Acceptance Gates
 
@@ -92,9 +96,10 @@ honest rather than privileged by surprise.
 - Missing or changed prerequisites withdraw the production claim.
 - No real analyzer or repository content participates in topology admission.
 
-## Decision Needed
+## Current Boundary
 
-Approve the rootless-first Option A plus explicit Option C direction, or
-authorize the broader Option B administrator-installed boundary for the first
-production slice. This choice materially changes installation authority and
-cannot be inferred from candidate CI authorization.
+The topology decision is complete. The next increment is limited to
+source-free contracts and synthetic feasibility evaluation for the two selected
+profiles. Production admission, real analyzers, repository input, host
+discovery, automatic repair, privilege use, and persistent service installation
+remain closed.

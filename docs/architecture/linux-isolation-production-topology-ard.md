@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology ARD
 
-- Status: Proposed
+- Status: Accepted
 - Date: 2026-08-30
 - Decision: ADR-0078
 
@@ -17,7 +17,7 @@ Primary platform references:
 - [Linux kernel cgroup v2 delegation](https://www.kernel.org/doc/html/latest/admin-guide/cgroup-v2.html#delegation)
 - [systemd control-group delegation](https://systemd.io/CGROUP_DELEGATION/)
 
-## Recommended Topology
+## Selected Rootless Topology
 
 ```text
 existing systemd user manager (platform-owned delegation)
@@ -52,30 +52,33 @@ platform metadata and booleans. It must verify:
 - ability to create/remove a synthetic child without crossing the boundary;
 - no inherited source, cache, credential, network, or analyzer authority.
 
-Any failure is `unsupported`. Preflight cannot install packages, start the
-system user manager, change login policy, contact D-Bus outside the selected
-user manager, or request privilege.
+Any failure returns a non-feasible state such as `unsupported`, `unavailable`,
+`insufficient_delegation`, or `invalid_contract`. Preflight cannot install
+packages, start the system user manager, change login policy, contact D-Bus
+outside the selected user manager, or request privilege.
 
-## External Delegation Profile
+## Selected External Delegation Profile
 
-Option C accepts an inherited directory/file-descriptor capability only through
-a closed launcher contract. The caller must prove ownership and containment;
-the supervisor revalidates the boundary and never accepts a raw arbitrary path
-as authority. This profile is independently admitted and cannot borrow the
-rootless desktop result.
+The externally managed profile accepts an inherited directory/file-descriptor
+capability only through a closed launcher contract. The caller must prove
+ownership and containment; the supervisor revalidates the boundary and never
+accepts a raw arbitrary path as authority. This profile is independently
+admitted and cannot borrow the rootless desktop result.
 
 ## Deferred Administrator Profile
 
-Option B would require a root-owned unit, exact executable identity, a closed
-UID/job request, explicit local authorization policy, bounded lifecycle, and
-complete package removal. It must never accept a command, argv, environment,
-repository path, network destination, or analyzer choice. No Option B code or
-policy is authorized by this proposal.
+An administrator-provisioned profile would require a root-owned unit, exact
+executable identity, a closed UID/job request, explicit local authorization
+policy, bounded lifecycle, and complete package removal. It must never accept a
+command, argv, environment, repository path, network destination, or analyzer
+choice. No administrator-profile code or policy is authorized by this
+decision.
 
 ## Packaging Consequences
 
-Option A adds no privileged package component. A Linux formula/package may
-install only the CLI and first-party worker; runtime support is conditional on
-an already-valid user delegation. Option C adds documentation and a closed
-integration contract. Option B would be a separate privileged package slice
+The rootless profile adds no privileged package component. A Linux
+formula/package may install only the CLI and first-party worker; runtime
+support is conditional on an already-valid user delegation. The externally
+managed profile adds documentation and a closed integration contract. An
+administrator-provisioned profile would be a separate privileged package slice
 with stronger signing, upgrade, rollback, and uninstall requirements.

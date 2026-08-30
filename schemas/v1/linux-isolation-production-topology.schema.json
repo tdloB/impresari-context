@@ -1,0 +1,167 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-isolation-production-topology.schema.json",
+  "title": "Linux isolation production-topology feasibility contracts",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authority": {
+      "type": "object",
+      "required": ["source_read", "source_write", "host_discovery", "process_execution", "network", "credential_access", "privilege_use", "service_mutation", "background_monitoring", "analyzer_execution"],
+      "properties": {
+        "source_read": {"const": "denied"},
+        "source_write": {"const": "denied"},
+        "host_discovery": {"const": "denied"},
+        "process_execution": {"const": "denied"},
+        "network": {"const": "denied"},
+        "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"},
+        "service_mutation": {"const": "denied"},
+        "background_monitoring": {"const": "denied"},
+        "analyzer_execution": {"const": "denied"}
+      },
+      "additionalProperties": false
+    },
+    "policy": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "backend", "decision", "profiles", "fallback", "reconsideration", "claim"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-production-topology-policy"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+        "backend": {"const": "landlock-seccomp-cgroup-v2"},
+        "decision": {
+          "type": "object",
+          "required": ["default_profile", "selected_profiles", "administrator_profile", "automatic_sudo", "privileged_daemon"],
+          "properties": {
+            "default_profile": {"const": "rootless_user_manager"},
+            "selected_profiles": {
+              "type": "array",
+              "minItems": 2,
+              "maxItems": 2,
+              "uniqueItems": true,
+              "items": {"enum": ["rootless_user_manager", "externally_managed"]}
+            },
+            "administrator_profile": {"const": "deferred"},
+            "automatic_sudo": {"const": "denied"},
+            "privileged_daemon": {"const": "denied"}
+          },
+          "additionalProperties": false
+        },
+        "profiles": {
+          "type": "object",
+          "required": ["rootless_user_manager", "externally_managed"],
+          "properties": {
+            "rootless_user_manager": {
+              "type": "object",
+              "required": ["launch_contract", "parent_manager", "privileged_installation", "raw_path_authority"],
+              "properties": {
+                "launch_contract": {"const": "transient_user_service_or_scope"},
+                "parent_manager": {"const": "existing_systemd_user_manager"},
+                "privileged_installation": {"const": false},
+                "raw_path_authority": {"const": false}
+              },
+              "additionalProperties": false
+            },
+            "externally_managed": {
+              "type": "object",
+              "required": ["launch_contract", "provisioner", "privileged_installation_by_impresari", "raw_path_authority"],
+              "properties": {
+                "launch_contract": {"const": "inherited_directory_fd"},
+                "provisioner": {"const": "administrator_or_orchestrator"},
+                "privileged_installation_by_impresari": {"const": false},
+                "raw_path_authority": {"const": false}
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
+        },
+        "fallback": {"const": "unsupported"},
+        "reconsideration": {
+          "type": "object",
+          "required": ["unsupported_attempt_rate_gt", "recoverable_share_gte", "evidence_kind", "automatic_transition"],
+          "properties": {
+            "unsupported_attempt_rate_gt": {"const": "0.10"},
+            "recoverable_share_gte": {"const": "0.50"},
+            "evidence_kind": {"const": "documented_aggregate_preflight"},
+            "automatic_transition": {"const": false}
+          },
+          "additionalProperties": false
+        },
+        "claim": {
+          "type": "object",
+          "required": ["source_free_feasibility_only", "production_admitted", "real_analyzer_authorized"],
+          "properties": {
+            "source_free_feasibility_only": {"const": true},
+            "production_admitted": {"const": false},
+            "real_analyzer_authorized": {"const": false}
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "profile", "status", "reason_code", "observed", "checks", "safe_next_step", "feasibility_claim_active", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "authority"],
+      "properties": {
+        "schema_name": {"const": "linux-isolation-production-topology-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+        "policy_identity": {"$ref": "#/$defs/sha256"},
+        "profile": {"enum": ["rootless_user_manager", "externally_managed", "administrator_provisioned"]},
+        "status": {"enum": ["feasible_candidate", "unavailable", "unsupported", "insufficient_delegation", "invalid_contract"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "observed": {
+          "type": "object",
+          "required": ["cgroup_mode", "user_manager_available", "delegation_marker", "controllers", "process_contained", "descendant_ownership_exclusive", "synthetic_child_cycle", "external_capability", "external_owner_verified", "external_containment_verified"],
+          "properties": {
+            "cgroup_mode": {"enum": ["unified_v2", "legacy_or_hybrid", "unavailable"]},
+            "user_manager_available": {"type": "boolean"},
+            "delegation_marker": {"type": "boolean"},
+            "controllers": {
+              "type": "array",
+              "maxItems": 3,
+              "uniqueItems": true,
+              "items": {"enum": ["cpu", "memory", "pids"]}
+            },
+            "process_contained": {"type": "boolean"},
+            "descendant_ownership_exclusive": {"type": "boolean"},
+            "synthetic_child_cycle": {"type": "boolean"},
+            "external_capability": {"enum": ["none", "inherited_directory_fd", "raw_path"]},
+            "external_owner_verified": {"type": "boolean"},
+            "external_containment_verified": {"type": "boolean"}
+          },
+          "additionalProperties": false
+        },
+        "checks": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}
+        },
+        "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+        "feasibility_claim_active": {"type": "boolean"},
+        "production_admitted": {"const": false},
+        "real_analyzer_authorized": {"const": false},
+        "privileged_installation_authorized": {"const": false},
+        "authority": {"$ref": "#/$defs/authority"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "feasible_candidate"}}, "required": ["status"]},
+          "then": {"properties": {"feasibility_claim_active": {"const": true}}}
+        },
+        {
+          "if": {"properties": {"status": {"enum": ["unavailable", "unsupported", "insufficient_delegation", "invalid_contract"]}}, "required": ["status"]},
+          "then": {"properties": {"feasibility_claim_active": {"const": false}}}
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,7 +1,7 @@
 {
   "schema_name": "linux-isolation-fixture-provenance",
   "schema_version": "1.0.0",
-  "reviewed_at": "2026-08-30T04:00:00Z",
+  "reviewed_at": "2026-08-30T16:00:00Z",
   "review_status": "approved_original_synthetic_only",
   "contains_executable_artifacts": false,
   "contains_malware_or_live_signatures": false,
@@ -21,6 +21,9 @@
     {"path": "invalid/linux-isolation-candidate-health-overclaim.json", "sha256": "99b36e0c462d936476066eff6423507022848ff2f5842d32659bcc5ccc899e21", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject a candidate health receipt that attempts to admit production"},
     {"path": "valid/iar-linux-cgroup-synthetic-profile.json", "sha256": "63d127ecd53523b087811e41d36695343a60ca05f74e83e0276aa38830e24705", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "frozen low-cost resource profile for the delegated-cgroup synthetic checkpoint"},
     {"path": "valid/linux-cgroup-feasibility-candidate.json", "sha256": "2721f5084b625b2e822c44ee6b05d91edc94159771be8f47a6517d35405240a6", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "closed candidate receipt for a complete delegated-cgroup resource and lifecycle pass"},
-    {"path": "invalid/linux-cgroup-feasibility-overclaim.json", "sha256": "a848187d754bb27986c7571d16704a4ba9a8cd363735949d09eb8d8fc1554483", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject a cgroup candidate pass when any required resource check is false"}
+    {"path": "invalid/linux-cgroup-feasibility-overclaim.json", "sha256": "a848187d754bb27986c7571d16704a4ba9a8cd363735949d09eb8d8fc1554483", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject a cgroup candidate pass when any required resource check is false"},
+    {"path": "valid/linux-isolation-production-topology-policy.json", "sha256": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "freeze the selected rootless and externally managed topology while deferring privileged installation"},
+    {"path": "valid/linux-isolation-production-topology-receipt.json", "sha256": "2c41e489610866438eef97c9e209846aa89b3fa686ba6e3dc676032211d0dce4", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free rootless topology feasibility candidate with all production and analyzer authority closed"},
+    {"path": "invalid/linux-isolation-production-topology-overclaim.json", "sha256": "6e53746ac0132e2e64b73d4bf158e485d35816874ef5d910db9b3ca16565cc8e", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject topology feasibility evidence that attempts to authorize production, analyzers, or privileged installation"}
   ]
 }

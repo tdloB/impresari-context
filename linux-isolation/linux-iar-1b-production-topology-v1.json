@@ -1,0 +1,39 @@
+{
+  "schema_name": "linux-isolation-production-topology-policy",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "backend": "landlock-seccomp-cgroup-v2",
+  "decision": {
+    "default_profile": "rootless_user_manager",
+    "selected_profiles": ["rootless_user_manager", "externally_managed"],
+    "administrator_profile": "deferred",
+    "automatic_sudo": "denied",
+    "privileged_daemon": "denied"
+  },
+  "profiles": {
+    "rootless_user_manager": {
+      "launch_contract": "transient_user_service_or_scope",
+      "parent_manager": "existing_systemd_user_manager",
+      "privileged_installation": false,
+      "raw_path_authority": false
+    },
+    "externally_managed": {
+      "launch_contract": "inherited_directory_fd",
+      "provisioner": "administrator_or_orchestrator",
+      "privileged_installation_by_impresari": false,
+      "raw_path_authority": false
+    }
+  },
+  "fallback": "unsupported",
+  "reconsideration": {
+    "unsupported_attempt_rate_gt": "0.10",
+    "recoverable_share_gte": "0.50",
+    "evidence_kind": "documented_aggregate_preflight",
+    "automatic_transition": false
+  },
+  "claim": {
+    "source_free_feasibility_only": true,
+    "production_admitted": false,
+    "real_analyzer_authorized": false
+  }
+}

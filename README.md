@@ -269,6 +269,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B macOS resource/lifecycle decision](docs/verification/iar-1b-macos-resource-lifecycle-decision.md):
   the selected hybrid App Sandbox/private-XPC plus Rust-supervisor candidate,
   its passing synthetic resource/lifecycle probes, and its remaining hard gates.
+- [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
+  the accepted rootless plus externally managed delegation profiles, closed
+  source-free evaluator, and deferred privileged installation boundary.
 - [macOS hybrid XPC distribution](docs/product/macos-hybrid-xpc-distribution-prd.md):
   the accepted Option C target—one signed/notarized cask with CLI compatibility—
   and the evidence required before it becomes a supported release path.
