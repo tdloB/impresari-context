@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-rootless-login-session-rehearsal.schema.json",
+  "title": "Linux rootless genuine login-session rehearsal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "policy_id", "expected_source_commit", "host", "package", "temporary_user", "login_transport", "sessions", "transition", "cleanup", "status", "reason_code", "safe_next_step", "rootless_reentry_candidate_active", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "persistent_service_authorized", "authority"],
+  "properties": {
+    "schema_name": {"const": "linux-rootless-login-session-rehearsal"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-lifecycle-v1"},
+    "expected_source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+    "host": {"$ref": "#/$defs/host"},
+    "package": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["lifecycle_receipt_identity", "candidate_archive_sha256", "candidate_manifest_sha256", "project_version", "source_commit", "binary_set_identity", "identity_preserved_across_sessions"],
+      "properties": {
+        "lifecycle_receipt_identity": {"$ref": "#/$defs/digest"},
+        "candidate_archive_sha256": {"$ref": "#/$defs/digest"},
+        "candidate_manifest_sha256": {"$ref": "#/$defs/digest"},
+        "project_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+([+-][0-9A-Za-z.-]+)?$"},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "binary_set_identity": {"$ref": "#/$defs/digest"},
+        "identity_preserved_across_sessions": {"type": "boolean"}
+      }
+    },
+    "temporary_user": {
+      "const": {
+        "non_privileged": true,
+        "lingering_enabled": false,
+        "sudo_available": false,
+        "persistent": false,
+        "name_recorded": false
+      }
+    },
+    "login_transport": {
+      "const": {
+        "kind": "isolated_loopback_ssh_pam_logind",
+        "network_scope": "loopback_only",
+        "system_ssh_service_modified": false,
+        "persistent_service_created": false
+      }
+    },
+    "sessions": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {"$ref": "#/$defs/session"}
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["first_session_closed", "first_user_manager_terminated", "distinct_session_identity", "distinct_user_manager_identity", "same_package_identity", "process_restart_substitution_used"],
+      "properties": {
+        "first_session_closed": {"type": "boolean"},
+        "first_user_manager_terminated": {"type": "boolean"},
+        "distinct_session_identity": {"type": "boolean"},
+        "distinct_user_manager_identity": {"type": "boolean"},
+        "same_package_identity": {"type": "boolean"},
+        "process_restart_substitution_used": {"const": false}
+      }
+    },
+    "cleanup": {"$ref": "#/$defs/cleanup"},
+    "status": {"enum": ["login_session_candidate", "unsupported", "session_failed", "identity_mismatch", "cleanup_failed"]},
+    "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 320},
+    "rootless_reentry_candidate_active": {"type": "boolean"},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "persistent_service_authorized": {"const": false},
+    "authority": {
+      "const": {
+        "ephemeral_host_administrator_setup": "temporary_user_and_isolated_loopback_ssh_only",
+        "session_user_privilege": "denied",
+        "workspace_source_read": "denied",
+        "network": "loopback_login_only",
+        "credential_access": "ephemeral_test_key_only",
+        "persistent_service": "denied",
+        "analyzer_execution": "denied",
+        "product_authority_added": false
+      }
+    }
+  },
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "kernel_release", "architecture", "environment"],
+      "properties": {
+        "operating_system": {"const": "linux"},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]{1,128}$"},
+        "architecture": {"enum": ["x86_64", "aarch64", "other"]},
+        "environment": {"const": "github-hosted-ephemeral"}
+      }
+    },
+    "session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ordinal", "login_kind", "session_identity", "user_manager_invocation_identity", "lingering_enabled", "preflight", "synthetic_rehearsal", "package_binary_set_identity", "ended_cleanly"],
+      "properties": {
+        "ordinal": {"enum": [1, 2]},
+        "login_kind": {"const": "pam_logind"},
+        "session_identity": {"$ref": "#/$defs/digest"},
+        "user_manager_invocation_identity": {"$ref": "#/$defs/digest"},
+        "lingering_enabled": {"const": false},
+        "preflight": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "receipt_identity"],
+          "properties": {
+            "status": {"enum": ["ready_for_synthetic_rehearsal", "unsupported", "failed"]},
+            "receipt_identity": {"$ref": "#/$defs/digest"}
+          }
+        },
+        "synthetic_rehearsal": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "receipt_identity", "real_analyzer_used"],
+          "properties": {
+            "status": {"enum": ["candidate_passed", "not_executed", "failed"]},
+            "receipt_identity": {"$ref": "#/$defs/digest"},
+            "real_analyzer_used": {"const": false}
+          }
+        },
+        "package_binary_set_identity": {"$ref": "#/$defs/digest"},
+        "ended_cleanly": {"type": "boolean"}
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["temporary_user_absent", "home_absent", "isolated_ssh_process_absent", "system_ssh_service_unchanged", "lingering_absent", "user_manager_absent", "product_service_absent", "authorization_policy_absent", "delegated_cgroups_empty", "staged_source_absent"],
+      "properties": {
+        "temporary_user_absent": {"type": "boolean"},
+        "home_absent": {"type": "boolean"},
+        "isolated_ssh_process_absent": {"type": "boolean"},
+        "system_ssh_service_unchanged": {"type": "boolean"},
+        "lingering_absent": {"type": "boolean"},
+        "user_manager_absent": {"type": "boolean"},
+        "product_service_absent": {"type": "boolean"},
+        "authorization_policy_absent": {"type": "boolean"},
+        "delegated_cgroups_empty": {"type": "boolean"},
+        "staged_source_absent": {"type": "boolean"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "login_session_candidate"}}, "required": ["status"]},
+      "then": {"properties": {
+        "rootless_reentry_candidate_active": {"const": true},
+        "package": {"properties": {"identity_preserved_across_sessions": {"const": true}}},
+        "transition": {"properties": {"first_session_closed": {"const": true}, "first_user_manager_terminated": {"const": true}, "distinct_session_identity": {"const": true}, "distinct_user_manager_identity": {"const": true}, "same_package_identity": {"const": true}}},
+        "cleanup": {"const": {"temporary_user_absent": true, "home_absent": true, "isolated_ssh_process_absent": true, "system_ssh_service_unchanged": true, "lingering_absent": true, "user_manager_absent": true, "product_service_absent": true, "authorization_policy_absent": true, "delegated_cgroups_empty": true, "staged_source_absent": true}}
+      }}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["unsupported", "session_failed", "identity_mismatch", "cleanup_failed"]}}, "required": ["status"]},
+      "then": {"properties": {"rootless_reentry_candidate_active": {"const": false}}}
+    }
+  ]
+}

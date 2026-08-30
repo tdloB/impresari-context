@@ -1,0 +1,65 @@
+# macOS Local-VM Analyzer Confinement ARD
+
+- Status: Accepted for synthetic feasibility
+- Date: 2026-08-30
+- Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
+- Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
+
+## Architecture
+
+```text
+Context exact manifest
+        |
+        v
+Rust supervisor -> signed VM controller -> fresh local Linux guest
+        |                                      |
+        |                              read-only input disk
+        |                              no network device
+        |                              bounded result channel
+        +<----------- validated result --------+
+                         |
+                         v
+                 destroy job overlay
+```
+
+The Context core never invokes Virtualization APIs. A separately packaged
+macOS controller receives the existing source-free runner request and fixed
+profile. The Rust supervisor validates controller, guest-image, and profile
+identities before creating any job artifact.
+
+## Guest Boundary
+
+- Direct Linux boot with a minimal immutable root image.
+- One fixed read-only input image containing only manifest-selected exact bytes.
+- One fixed-capacity ephemeral overlay or scratch block device.
+- No host directory sharing and no network interface.
+- Fixed CPU and memory at VM construction; guest cgroup/seccomp/Landlock
+  defense-in-depth where supported by the pinned guest kernel.
+- One framed result channel with byte and time limits; no general shell or RPC.
+
+## Lifecycle
+
+1. Verify controller signature, entitlement, guest image, and profile.
+2. Create private job directory and fixed-capacity disks.
+3. Rehash staged input before VM start.
+4. Boot and require an exact guest handshake before the deadline.
+5. Run only the synthetic worker during feasibility.
+6. Validate complete result, terminate VM, detach devices, and remove job state.
+7. Verify no source canary survives into the next fresh job.
+
+## Supply Chain
+
+The guest kernel, initramfs, root image, and every included executable have a
+reproducible manifest, SBOM, license record, source provenance, vulnerability
+policy, expiry, and rollback identity. The VM cannot update itself. Image
+updates occur only between jobs through separately reviewed release metadata.
+
+## Verification
+
+- Original IAR synthetic corpus plus VM boot, malformed disk, malformed result,
+  guest panic, controller crash, host cancellation, storage exhaustion, and
+  cross-job canary cases.
+- Packet capture or absent-interface evidence for network denial.
+- Host filesystem and process canaries for every prohibited boundary.
+- Clean install, upgrade, rollback, uninstall, Gatekeeper, and notarization on
+  every claimed macOS target before production admission.
