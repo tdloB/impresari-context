@@ -1,0 +1,47 @@
+{
+  "schema_name": "linux-external-delegation-capability",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-topology-v1",
+  "policy_identity": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4",
+  "profile": "externally_managed",
+  "status": "transport_ready_for_host_rehearsal",
+  "reason_code": "fixed_inherited_directory_fd_verified",
+  "capability": {
+    "transport": "inherited_directory_fd",
+    "descriptor_slot": 3,
+    "descriptor_slot_configurable": false,
+    "received": true,
+    "directory_verified": true,
+    "close_on_exec_set": true,
+    "raw_path_received": false,
+    "descriptor_identity_recorded": false,
+    "raw_cgroup_path_recorded": false
+  },
+  "host_revalidation": {
+    "required_before_mutation": true,
+    "executed": false,
+    "unified_cgroup_v2": "not_observed",
+    "owner_verified": "not_observed",
+    "process_contained": "not_observed",
+    "exclusive_descendants": "not_observed",
+    "required_controllers": "not_observed"
+  },
+  "safe_next_step": "Unsafe overclaim fixture.",
+  "transport_contract_active": true,
+  "os_confined": true,
+  "production_admitted": true,
+  "real_analyzer_authorized": true,
+  "privileged_installation_authorized": true,
+  "authority": {
+    "workspace_source_read": "denied",
+    "source_write": "denied",
+    "process_execution": "fixed_source_free_transport_probe_only",
+    "cgroup_mutation": "denied",
+    "service_mutation": "denied",
+    "network": "denied",
+    "credential_access": "denied",
+    "privilege_use": "denied",
+    "persistent_service": "denied",
+    "analyzer_execution": "denied"
+  }
+}

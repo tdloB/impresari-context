@@ -43,6 +43,7 @@
     {"fixture": "valid/linux-isolation-production-topology-receipt.json", "schema": "linux-isolation-production-topology.schema.json#/$defs/receipt", "valid": true},
     {"fixture": "valid/linux-rootless-host-preflight-ready.json", "schema": "linux-rootless-host-preflight.schema.json", "valid": true},
     {"fixture": "valid/linux-rootless-user-manager-rehearsal-candidate.json", "schema": "linux-rootless-user-manager-rehearsal.schema.json", "valid": true},
+    {"fixture": "valid/linux-external-delegation-capability-ready.json", "schema": "linux-external-delegation-capability.schema.json", "valid": true},
     {"fixture": "valid/iar-linux-cgroup-synthetic-profile.json", "schema": "linux-cgroup-resource-profile.schema.json", "valid": true},
     {"fixture": "valid/linux-cgroup-feasibility-candidate.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": true},
     {"fixture": "valid/analyzer-runner-capability.json", "schema": "analyzer-runner-capability.schema.json", "valid": true},
@@ -86,6 +87,7 @@
     {"fixture": "invalid/linux-isolation-production-topology-overclaim.json", "schema": "linux-isolation-production-topology.schema.json#/$defs/receipt", "valid": false},
     {"fixture": "invalid/linux-rootless-host-preflight-overclaim.json", "schema": "linux-rootless-host-preflight.schema.json", "valid": false},
     {"fixture": "invalid/linux-rootless-user-manager-rehearsal-overclaim.json", "schema": "linux-rootless-user-manager-rehearsal.schema.json", "valid": false},
+    {"fixture": "invalid/linux-external-delegation-capability-overclaim.json", "schema": "linux-external-delegation-capability.schema.json", "valid": false},
     {"fixture": "invalid/linux-cgroup-feasibility-overclaim.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": false}
   ]
 }

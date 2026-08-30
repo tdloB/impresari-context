@@ -1,6 +1,6 @@
 # Linux IAR-1B Production Topology PRD
 
-- Status: Accepted; rootless exact-host synthetic rehearsal passed on the admitted hosted matrix
+- Status: Accepted; rootless rehearsal passed and external capability transport frozen
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0078
@@ -107,7 +107,10 @@ three preflight-ready hosted targets: Ubuntu 24.04 x86_64, Ubuntu 24.04 arm64,
 and Ubuntu 26.04 x86_64. It used one collected foreground user service and the
 existing complete composite. Ubuntu 22.04 x86_64 remained ineligible and
 skipped without attempting a unit or fallback. These are exact-host synthetic
-candidate results, not production admission. The externally managed profile,
-release and lifecycle gates, real analyzers, repository input, automatic
-repair, privileged fallback, and persistent service installation remain
-closed.
+candidate results, not production admission. The externally managed profile now
+has a fixed-slot inherited-directory-descriptor transport with raw paths,
+configurable slots, descriptor leakage, and every production authority rejected.
+It has not yet revalidated or mutated a live delegated cgroup. External host
+revalidation, release and lifecycle gates, real analyzers, repository input,
+automatic repair, privileged fallback, and persistent service installation
+remain closed.

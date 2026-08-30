@@ -219,9 +219,13 @@ on Ubuntu 24.04 x86_64 and arm64 plus Ubuntu 26.04 x86_64. Each ready target
 created and collected one transient user service without sudo, privilege, or
 persistence. Ubuntu 22.04 again skipped before launch because CPU delegation
 was unavailable. These are exact-host synthetic candidates only; production,
-the external profile, and IAR-2 stay closed. The next checkpoint freezes and
-tests the inherited-capability contract for the selected externally managed
-profile before production lifecycle work.
+the external profile, and IAR-2 stay closed. The inherited-capability contract
+for the selected external profile is now frozen and source-free tested: fixed
+descriptor slot 3, directory verification, immediate close-on-exec, no raw
+path, and no production authority. The next external checkpoint is bounded live
+cgroup revalidation plus the complete original-synthetic corpus in an
+operator-provided ephemeral environment. Production lifecycle work follows
+only after both selected profiles have independent candidate evidence.
 
 ## Parallel Client Integration Depth Track
 

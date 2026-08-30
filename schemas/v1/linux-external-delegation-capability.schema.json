@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-external-delegation-capability.schema.json",
+  "title": "Linux externally managed delegation capability receipt",
+  "type": "object",
+  "required": ["schema_name", "schema_version", "policy_id", "policy_identity", "profile", "status", "reason_code", "capability", "host_revalidation", "safe_next_step", "transport_contract_active", "os_confined", "production_admitted", "real_analyzer_authorized", "privileged_installation_authorized", "authority"],
+  "properties": {
+    "schema_name": {"const": "linux-external-delegation-capability"},
+    "schema_version": {"const": "1.0.0"},
+    "policy_id": {"const": "linux-iar-1b-production-topology-v1"},
+    "policy_identity": {"const": "03ff04052dae6f7990805011fe454774c3f2ba209a9cf0eea083097eacb7bac4"},
+    "profile": {"const": "externally_managed"},
+    "status": {"enum": ["transport_ready_for_host_rehearsal", "unavailable", "invalid_contract"]},
+    "reason_code": {"enum": ["fixed_inherited_directory_fd_verified", "inherited_descriptor_missing", "raw_path_rejected", "descriptor_slot_rejected", "inherited_descriptor_not_directory", "descriptor_leakage_not_closed"]},
+    "capability": {
+      "type": "object",
+      "required": ["transport", "descriptor_slot", "descriptor_slot_configurable", "received", "directory_verified", "close_on_exec_set", "raw_path_received", "descriptor_identity_recorded", "raw_cgroup_path_recorded"],
+      "properties": {
+        "transport": {"const": "inherited_directory_fd"},
+        "descriptor_slot": {"type": "integer"},
+        "descriptor_slot_configurable": {"const": false},
+        "received": {"type": "boolean"},
+        "directory_verified": {"type": "boolean"},
+        "close_on_exec_set": {"type": "boolean"},
+        "raw_path_received": {"type": "boolean"},
+        "descriptor_identity_recorded": {"const": false},
+        "raw_cgroup_path_recorded": {"const": false}
+      },
+      "additionalProperties": false
+    },
+    "host_revalidation": {
+      "type": "object",
+      "required": ["required_before_mutation", "executed", "unified_cgroup_v2", "owner_verified", "process_contained", "exclusive_descendants", "required_controllers"],
+      "properties": {
+        "required_before_mutation": {"const": true},
+        "executed": {"const": false},
+        "unified_cgroup_v2": {"const": "not_observed"},
+        "owner_verified": {"const": "not_observed"},
+        "process_contained": {"const": "not_observed"},
+        "exclusive_descendants": {"const": "not_observed"},
+        "required_controllers": {"const": "not_observed"}
+      },
+      "additionalProperties": false
+    },
+    "safe_next_step": {"type": "string", "minLength": 1, "maxLength": 300},
+    "transport_contract_active": {"type": "boolean"},
+    "os_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "real_analyzer_authorized": {"const": false},
+    "privileged_installation_authorized": {"const": false},
+    "authority": {
+      "type": "object",
+      "required": ["workspace_source_read", "source_write", "process_execution", "cgroup_mutation", "service_mutation", "network", "credential_access", "privilege_use", "persistent_service", "analyzer_execution"],
+      "properties": {
+        "workspace_source_read": {"const": "denied"},
+        "source_write": {"const": "denied"},
+        "process_execution": {"const": "fixed_source_free_transport_probe_only"},
+        "cgroup_mutation": {"const": "denied"},
+        "service_mutation": {"const": "denied"},
+        "network": {"const": "denied"},
+        "credential_access": {"const": "denied"},
+        "privilege_use": {"const": "denied"},
+        "persistent_service": {"const": "denied"},
+        "analyzer_execution": {"const": "denied"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "transport_ready_for_host_rehearsal"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "reason_code": {"const": "fixed_inherited_directory_fd_verified"},
+          "transport_contract_active": {"const": true},
+          "capability": {"properties": {"descriptor_slot": {"const": 3}, "received": {"const": true}, "directory_verified": {"const": true}, "close_on_exec_set": {"const": true}, "raw_path_received": {"const": false}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["unavailable", "invalid_contract"]}}, "required": ["status"]},
+      "then": {"properties": {"transport_contract_active": {"const": false}}}
+    }
+  ],
+  "additionalProperties": false
+}
