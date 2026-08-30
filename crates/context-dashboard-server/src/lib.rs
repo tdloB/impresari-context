@@ -140,7 +140,7 @@ impl DashboardServerConfig {
             poll_interval: Duration::from_millis(250),
             max_stream_frames: 64,
             max_stream_bytes: 524_288,
-            max_stream_age: Duration::from_secs(300),
+            max_stream_age: Duration::from_mins(5),
             request_timeout: Duration::from_secs(2),
         }
     }
@@ -152,7 +152,7 @@ impl DashboardServerConfig {
             || self.max_stream_frames == 0
             || self.max_stream_frames > 256
             || !(65_536..=2_097_152).contains(&self.max_stream_bytes)
-            || !(Duration::from_secs(10)..=Duration::from_secs(600)).contains(&self.max_stream_age)
+            || !(Duration::from_secs(10)..=Duration::from_mins(10)).contains(&self.max_stream_age)
             || !(Duration::from_millis(250)..=Duration::from_secs(10))
                 .contains(&self.request_timeout)
         {
