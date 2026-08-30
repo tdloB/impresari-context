@@ -80,7 +80,7 @@ if RbConfig::CONFIG.fetch("host_os").include?("linux")
     3 => File::NULL,
   )
   abort("executable withdrawal collector did not return its closed withdrawal status: #{collector_stderr}") unless
-    collector_status.exitstatus == 7
+    collector_status.success?
   abort("executable withdrawal collector drift") unless
     JSON.parse(collector_stdout) == JSON.parse(WITHDRAWAL_FIXTURE.read)
 end
