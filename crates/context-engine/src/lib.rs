@@ -42,7 +42,7 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest as _, Sha256};
 
 const CONTRACT_VERSION: &str = "1.0.0";
-const ENGINE_VERSION: &str = "0.1.0";
+const ENGINE_VERSION: &str = "0.2.0";
 
 /// Caller-controlled data for one capability invocation.
 #[derive(Clone, Debug, Eq, PartialEq)]

@@ -12,8 +12,8 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-core = { version = "=0.1.0", path = "../context-core" }
-context-store = { version = "=0.1.0", path = "../context-store" }
+context-core = { version = "=0.2.0", path = "../context-core" }
+context-store = { version = "=0.2.0", path = "../context-store" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 serde_json_canonicalizer = { version = "=0.3.2", default-features = false }

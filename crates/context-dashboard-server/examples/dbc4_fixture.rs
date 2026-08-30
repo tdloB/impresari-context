@@ -48,7 +48,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         &identity,
         budget()?,
         7,
-        "0.1.0",
+        "0.2.0",
     )?;
     audit.append(&event, &AuditRetention::new(FIXED_CUTOFF, 100, 1_048_576)?)?;
     drop(audit);

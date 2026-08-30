@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "policy_id": "linux-iar-1b-production-lifecycle-v1",
   "profile": "externally_managed",
-  "package_receipt_identity": "76d1556a4fc795ae5a6e1651c179c6406c66bc4e56f5c0e31d4c23cebc579db0",
+  "package_receipt_identity": "6ba341f86c6a93a743eef6203881e20d5d8db3a1152ed38e0896dddfc01d50df",
   "external_receipt_identity": "e3383329b73ec4132c7aecfe6f381d0ab65ad5d882f67e92871593dfb3a07047",
   "changed_prerequisite": "inherited_delegation_capability_unavailable",
   "capability_descriptor": 3,

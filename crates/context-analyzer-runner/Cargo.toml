@@ -12,7 +12,7 @@ publish.workspace = true
 workspace = true
 
 [dependencies]
-context-analyzer-protocol = { path = "../context-analyzer-protocol", version = "=0.1.0" }
+context-analyzer-protocol = { path = "../context-analyzer-protocol", version = "=0.2.0" }
 serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
 serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
 serde_json_canonicalizer = { version = "=0.3.2", default-features = false }

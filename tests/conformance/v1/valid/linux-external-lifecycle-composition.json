@@ -10,7 +10,7 @@
     "architecture": "x86_64"
   },
   "package": {
-    "receipt_identity": "76d1556a4fc795ae5a6e1651c179c6406c66bc4e56f5c0e31d4c23cebc579db0",
+    "receipt_identity": "6ba341f86c6a93a743eef6203881e20d5d8db3a1152ed38e0896dddfc01d50df",
     "archive_identity": "4444444444444444444444444444444444444444444444444444444444444444",
     "manifest_identity": "5555555555555555555555555555555555555555555555555555555555555555",
     "source_commit": "6666666666666666666666666666666666666666",
@@ -38,7 +38,7 @@
     "cleanup": true
   },
   "withdrawal": {
-    "receipt_identity": "6c14f96c1a49148f1ce4a66271e8279c6624fada533740870cbf9356daeb9dc3",
+    "receipt_identity": "6c16c34605faa677524fa3fa50ef35c17bbe17620341f3d0736f3fabcc1057be",
     "prior_external_receipt_identity": "e3383329b73ec4132c7aecfe6f381d0ab65ad5d882f67e92871593dfb3a07047",
     "status": "withdrawn",
     "capability_available": false,
