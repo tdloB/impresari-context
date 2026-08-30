@@ -307,7 +307,7 @@ The historical candidate-freeze portion is complete. PR 156 froze product source
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run
 `33323269945` passed on macOS arm64, Linux x86-64, and Windows x86-64. The
 refreshed historical scope pins the package evidence and release controls but
-cannot satisfy a later release after production code changes. The next roadmap
+cannot satisfy a later release after production code changes. The roadmap
 sequence is genuine Linux rootless login-session evidence, scheduled
 maintenance automation, local-VM macOS confinement, Windows native
 confinement, stable VM/cask distribution, verified updates, and platform-gated
@@ -323,7 +323,14 @@ track. ADR-0089 selects YARA as the first real analyzer but keeps execution
 closed until an exact platform has current production IAR-1B support. ADR-0090
 owns the immediate profile-A checkpoint: two genuine PAM/logind sessions for a
 temporary non-lingering Linux user, without a privileged product install or
-persistent service.
+persistent service. Protected run `33341872303`, job `99338854149`, passed from
+exact commit `bf2504f78ddb4e709407a0ac5c23d5d0ecc534a6`. Its source-free receipt
+identity is `50ceac6df76bf90f40f6e888bb931ac84e5d18acaa7d8a442834adbcbe2538d4`.
+Both session and user-manager identities were distinct, the first manager
+terminated, package identity was stable, and every cleanup condition passed.
+Profile A is therefore an exact-host synthetic lifecycle candidate; production
+admission and real analyzers remain closed. The next roadmap checkpoint is
+ADR-0086 scheduled maintenance automation.
 
 ## Parallel Client Integration Depth Track
 

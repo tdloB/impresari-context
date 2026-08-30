@@ -5,6 +5,30 @@ replace release signing, clean-install testing, an owner decision to publish, or
 an independent review when ADR-0017 makes one mandatory. Automated and
 AI-assisted evidence is not an independent audit.
 
+## 2026-08-30 — Linux rootless genuine login-session candidate
+
+- Exact source commit: `bf2504f78ddb4e709407a0ac5c23d5d0ecc534a6`.
+- Protected workflow:
+  [GitHub Actions 33341872303](https://github.com/tdloB/impresari-context/actions/runs/33341872303),
+  job `99338854149`, successful on GitHub-hosted Ubuntu 24.04 x86-64, kernel
+  `6.17.0-1022-azure`.
+- Source-free receipt SHA-256:
+  `50ceac6df76bf90f40f6e888bb931ac84e5d18acaa7d8a442834adbcbe2538d4`.
+- GitHub artifact digest:
+  `sha256:7986c3ebd64e5871e4823898699b1dfa54221ca0d02593700b01bdd222149c8b`.
+- Package lifecycle receipt identity:
+  `38d20aea124021afcfdd7c252dde6b4f87ea8554518e1412ecb0872f02663fde`.
+- The run used one temporary non-privileged, non-lingering user and an isolated
+  loopback-only SSH/PAM transport. It recorded two distinct hashed logind
+  session identities and two distinct hashed user-manager invocation
+  identities, verified first-manager termination, preserved exact package
+  identity, passed the existing original-synthetic corpus in both sessions,
+  and recorded all cleanup conditions true.
+- This completes profile A's genuine logout/login reentry evidence only. The
+  receipt status is `login_session_candidate`; production support, real
+  analyzers, privileged installation, persistent services, tagging, and
+  publication remain false.
+
 ## 2026-08-29 — ADR-0073 HRA-5 Step 1 candidate matrix
 
 - Candidate commit: `12a46c1b9d934830450019470c3a74c9a1b47bf8`.
