@@ -69,3 +69,13 @@ This increment performs no installation, upgrade, rollback, login-session
 mutation, service management, analyzer execution, repository-source staging,
 network access, credential access, publication, or production admission. Live
 package rehearsals and production release evidence are later gates.
+
+## Package-Rehearsal Increment
+
+ADR-0080 implements the next package-only gate against the public v0.1.0 Linux
+archive and an exact-source release candidate. Both profiles must prove install,
+replacement, rollback, and removal in a disposable prefix. The external profile
+also proves operator relaunch. The rootless profile must remain partial until a
+genuine logout/login session boundary is observed; a process restart is not an
+acceptable substitute. Cancellation, crash, health withdrawal, topology
+revalidation, production, and analyzers remain separate gates.

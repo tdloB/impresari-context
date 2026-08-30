@@ -238,9 +238,14 @@ rootless profile uses logout/login reentry; the external profile uses operator
 relaunch; both share exact install, upgrade, rollback, cancellation, crash,
 withdrawal, uninstall, and clean-state semantics. The deterministic evaluator
 admits only a contract-level lifecycle candidate and fixes production,
-packaging, privilege, persistent services, and analyzers false. The next
-checkpoint is independently hosted package-lifecycle rehearsal against exact
-release-candidate artifacts for both selected profiles.
+packaging, privilege, persistent services, and analyzers false. ADR-0080
+implements the independently hosted package-only rehearsal against the
+published v0.1.0 Linux baseline and an exact-source release candidate for both
+selected profiles. It proves install, replacement, rollback, and removal for A
+and C, plus operator relaunch for C. A remains explicitly partial until a real
+logout/login boundary is observed. The following checkpoint composes these
+package receipts with fresh topology, cancellation, crash, and withdrawal
+evidence without weakening the accepted A+C authority boundary.
 
 ## Parallel Client Integration Depth Track
 

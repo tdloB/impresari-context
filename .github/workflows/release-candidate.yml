@@ -56,6 +56,37 @@ jobs:
       - name: Rehearse clean installation
         shell: bash
         run: ruby scripts/rehearse-release.rb "dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz"
+      - name: Rehearse Linux A+C package lifecycle
+        if: matrix.target == 'x86_64-unknown-linux-gnu'
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          baseline_dir="$RUNNER_TEMP/impresari-v0.1.0-baseline"
+          reports_dir="dist/linux-package-lifecycle"
+          baseline_name="impresari-context-0.1.0-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p "$baseline_dir" "$reports_dir"
+          curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
+            --output "$baseline_dir/$baseline_name" \
+            "https://github.com/tdloB/impresari-context/releases/download/v0.1.0/$baseline_name"
+          curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
+            --output "$baseline_dir/$baseline_name.sha256" \
+            "https://github.com/tdloB/impresari-context/releases/download/v0.1.0/$baseline_name.sha256"
+          for profile in rootless_user_manager externally_managed; do
+            ruby scripts/linux-package-lifecycle-rehearsal.rb \
+              --profile "$profile" \
+              --baseline "$baseline_dir/$baseline_name" \
+              --candidate "dist/$baseline_name" \
+              --candidate-source-sha "$SOURCE_SHA" \
+              > "$reports_dir/$profile.json"
+          done
+          ruby -rjson -e '
+            rootless = JSON.parse(File.read(ARGV.fetch(0)))
+            external = JSON.parse(File.read(ARGV.fetch(1)))
+            abort "rootless login gate drifted" unless rootless["status"] == "package_lifecycle_partial" && rootless["reentry_evidence"] == "real_login_session_required"
+            abort "external package candidate missing" unless external["status"] == "package_lifecycle_candidate" && external["reentry_evidence"] == "operator_relaunch_verified"
+            abort "package rehearsal overclaimed" unless [rootless, external].all? { |receipt| receipt.fetch("claims").values.none? }
+          ' "$reports_dir/rootless_user_manager.json" "$reports_dir/externally_managed.json"
       - name: Confirm tracked workspace unchanged
         shell: bash
         run: test -z "$(git status --short --untracked-files=no)"
@@ -66,5 +97,6 @@ jobs:
           path: |
             dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz
             dist/impresari-context-0.1.0-${{ matrix.target }}.tar.gz.sha256
+            dist/linux-package-lifecycle/*.json
           if-no-files-found: error
           retention-days: 7
