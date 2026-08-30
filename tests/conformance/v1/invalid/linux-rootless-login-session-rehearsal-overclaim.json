@@ -1,0 +1,25 @@
+{
+  "schema_name": "linux-rootless-login-session-rehearsal",
+  "schema_version": "1.0.0",
+  "policy_id": "linux-iar-1b-production-lifecycle-v1",
+  "expected_source_commit": "6666666666666666666666666666666666666666",
+  "host": {"operating_system": "linux", "kernel_release": "6.17.0-synthetic", "architecture": "x86_64", "environment": "github-hosted-ephemeral"},
+  "package": {"lifecycle_receipt_identity": "1010101010101010101010101010101010101010101010101010101010101010", "candidate_archive_sha256": "4444444444444444444444444444444444444444444444444444444444444444", "candidate_manifest_sha256": "5555555555555555555555555555555555555555555555555555555555555555", "project_version": "0.2.0", "source_commit": "6666666666666666666666666666666666666666", "binary_set_identity": "7777777777777777777777777777777777777777777777777777777777777777", "identity_preserved_across_sessions": true},
+  "temporary_user": {"non_privileged": true, "lingering_enabled": false, "sudo_available": false, "persistent": false, "name_recorded": false},
+  "login_transport": {"kind": "isolated_loopback_ssh_pam_logind", "network_scope": "loopback_only", "system_ssh_service_modified": false, "persistent_service_created": false},
+  "sessions": [
+    {"ordinal": 1, "login_kind": "pam_logind", "session_identity": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", "user_manager_invocation_identity": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", "lingering_enabled": false, "preflight": {"status": "ready_for_synthetic_rehearsal", "receipt_identity": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"}, "synthetic_rehearsal": {"status": "candidate_passed", "receipt_identity": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "real_analyzer_used": false}, "package_binary_set_identity": "7777777777777777777777777777777777777777777777777777777777777777", "ended_cleanly": true},
+    {"ordinal": 2, "login_kind": "pam_logind", "session_identity": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee", "user_manager_invocation_identity": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff", "lingering_enabled": false, "preflight": {"status": "ready_for_synthetic_rehearsal", "receipt_identity": "8888888888888888888888888888888888888888888888888888888888888888"}, "synthetic_rehearsal": {"status": "candidate_passed", "receipt_identity": "9999999999999999999999999999999999999999999999999999999999999999", "real_analyzer_used": false}, "package_binary_set_identity": "7777777777777777777777777777777777777777777777777777777777777777", "ended_cleanly": true}
+  ],
+  "transition": {"first_session_closed": true, "first_user_manager_terminated": true, "distinct_session_identity": true, "distinct_user_manager_identity": true, "same_package_identity": true, "process_restart_substitution_used": false},
+  "cleanup": {"temporary_user_absent": true, "home_absent": true, "isolated_ssh_process_absent": true, "system_ssh_service_unchanged": true, "lingering_absent": true, "user_manager_absent": true, "product_service_absent": true, "authorization_policy_absent": true, "delegated_cgroups_empty": true, "staged_source_absent": true},
+  "status": "login_session_candidate",
+  "reason_code": "genuine_rootless_login_reentry_verified",
+  "safe_next_step": "Retain this exact-host rootless reentry candidate and compose it only with the remaining exact lifecycle and release gates; production and real analyzers remain closed.",
+  "rootless_reentry_candidate_active": true,
+  "production_admitted": true,
+  "real_analyzer_authorized": false,
+  "privileged_installation_authorized": false,
+  "persistent_service_authorized": false,
+  "authority": {"ephemeral_host_administrator_setup": "temporary_user_and_isolated_loopback_ssh_only", "session_user_privilege": "denied", "workspace_source_read": "denied", "network": "loopback_login_only", "credential_access": "ephemeral_test_key_only", "persistent_service": "denied", "analyzer_execution": "denied", "product_authority_added": false}
+}

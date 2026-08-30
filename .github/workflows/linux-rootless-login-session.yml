@@ -1,0 +1,112 @@
+name: Linux rootless genuine login-session evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  SOURCE_SHA: ${{ github.sha }}
+  CANDIDATE_VERSION: 0.2.0
+  BASELINE_VERSION: 0.1.0
+
+jobs:
+  rehearse:
+    name: PAM/logind logout-login / Ubuntu 24.04 x86-64
+    if: github.repository == 'tdloB/impresari-context' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out exact protected source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Validate source and host boundary
+        shell: bash
+        run: |
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]]
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test -x /usr/sbin/sshd
+          test -x /usr/sbin/useradd
+          test -x /usr/bin/loginctl
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Fetch locked dependencies
+        run: cargo fetch --locked
+      - name: Run complete unprivileged gate
+        run: ./scripts/check.sh
+      - name: Build and package exact candidate
+        shell: bash
+        run: |
+          cargo build --release --locked --offline --bins
+          ruby scripts/package-release.rb x86_64-unknown-linux-gnu dist "$SOURCE_SHA"
+      - name: Rehearse rootless package replacement without reentry overclaim
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          baseline_dir="$RUNNER_TEMP/impresari-v${BASELINE_VERSION}-baseline"
+          reports_dir="$RUNNER_TEMP/impresari-rootless-login-session"
+          baseline_name="impresari-context-${BASELINE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          candidate_name="impresari-context-${CANDIDATE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          mkdir -p "$baseline_dir" "$reports_dir"
+          curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
+            --output "$baseline_dir/$baseline_name" \
+            "https://github.com/tdloB/impresari-context/releases/download/v${BASELINE_VERSION}/$baseline_name"
+          curl --fail --location --silent --show-error --proto '=https' --tlsv1.2 \
+            --output "$baseline_dir/$baseline_name.sha256" \
+            "https://github.com/tdloB/impresari-context/releases/download/v${BASELINE_VERSION}/$baseline_name.sha256"
+          ruby scripts/linux-package-lifecycle-rehearsal.rb \
+            --profile rootless_user_manager \
+            --baseline "$baseline_dir/$baseline_name" \
+            --candidate "dist/$candidate_name" \
+            --candidate-source-sha "$SOURCE_SHA" \
+            > "$reports_dir/package.json"
+          ruby -rjson -e 'r=JSON.parse(File.read(ARGV.fetch(0))); abort "rootless partial gate drifted" unless r["status"] == "package_lifecycle_partial" && r["reentry_evidence"] == "real_login_session_required"' "$reports_dir/package.json"
+      - name: Collect two genuine PAM/logind sessions
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: |
+          reports_dir="$RUNNER_TEMP/impresari-rootless-login-session"
+          candidate="dist/impresari-context-${CANDIDATE_VERSION}-x86_64-unknown-linux-gnu.tar.gz"
+          sudo env \
+            GITHUB_ACTIONS=true \
+            RUNNER_ENVIRONMENT="$RUNNER_ENVIRONMENT" \
+            GITHUB_RUN_ID="$GITHUB_RUN_ID" \
+            GITHUB_RUN_ATTEMPT="$GITHUB_RUN_ATTEMPT" \
+            bash scripts/linux-rootless-login-session-live.sh \
+              "$GITHUB_WORKSPACE" "$candidate" "$reports_dir/package.json" \
+              "$reports_dir" "$SOURCE_SHA" "$(id -u)"
+      - name: Compose source-free reentry receipt
+        shell: bash
+        run: |
+          reports_dir="$RUNNER_TEMP/impresari-rootless-login-session"
+          ruby scripts/linux-rootless-login-session-compose.rb \
+            --expected-source-sha "$SOURCE_SHA" \
+            --package "$reports_dir/package.json" \
+            --first-session "$reports_dir/first-session.json" \
+            --second-session "$reports_dir/second-session.json" \
+            --cleanup "$reports_dir/cleanup.json" \
+            > "$reports_dir/receipt.json"
+          ruby -rjson -e '
+            r=JSON.parse(File.read(ARGV.fetch(0)))
+            abort "genuine login-session candidate missing" unless r["status"] == "login_session_candidate" && r["rootless_reentry_candidate_active"] == true
+            abort "login-session rehearsal overclaimed" unless %w[production_admitted real_analyzer_authorized privileged_installation_authorized persistent_service_authorized].none? { |key| r.fetch(key) }
+          ' "$reports_dir/receipt.json"
+      - name: Upload bounded evidence only
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: linux-rootless-login-session-${{ github.sha }}
+          path: |
+            ${{ runner.temp }}/impresari-rootless-login-session/package.json
+            ${{ runner.temp }}/impresari-rootless-login-session/first-session.json
+            ${{ runner.temp }}/impresari-rootless-login-session/second-session.json
+            ${{ runner.temp }}/impresari-rootless-login-session/cleanup.json
+            ${{ runner.temp }}/impresari-rootless-login-session/receipt.json
+          if-no-files-found: error
+          retention-days: 7

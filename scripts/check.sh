@@ -22,6 +22,7 @@ ruby ./scripts/check-linux-isolation-maintenance.rb
 ruby ./scripts/check-linux-isolation-topology-feasibility.rb
 ruby ./scripts/check-linux-rootless-host-preflight.rb
 ruby ./scripts/check-linux-rootless-user-manager-rehearsal.rb
+ruby ./scripts/check-linux-rootless-login-session-rehearsal.rb
 ruby ./scripts/check-linux-external-delegation-capability.rb
 ruby ./scripts/check-linux-external-delegation-live-rehearsal.rb
 ruby ./scripts/check-linux-isolation-production-lifecycle.rb
