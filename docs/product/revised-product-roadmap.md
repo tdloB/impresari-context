@@ -253,9 +253,16 @@ its separate genuine-login-session evidence path. ADR-0081 now implements that
 C composition as one exact-source release-candidate sequence: one accepted
 temporary operator service, fresh topology and original-synthetic interruption
 and crash evidence, explicit post-collection missing-capability withdrawal, and
-closed SHA-linked composition. Its first exact hosted pass remains the next
-checkpoint. Production, real analyzers, privilege, persistence, and automatic
-repair remain closed.
+closed SHA-linked composition. PRs 145 and 146 merged the composition and its descriptor-
+portability correction. Release-candidate run `33300661271`, Linux job
+`99228064803`, then passed the complete exact-source C lifecycle sequence from
+commit `8f8f9adb5d99f373fbd6456564dfa6233c37bc34`; its final composition identity
+is `0481667521371f3c7db33abfc4b99165fa9b71bd7bc8ed504173f7a89d4ea80b`.
+C is therefore an exact-host synthetic lifecycle candidate. A remains partial
+pending genuine login-session reentry. The next checkpoint is an expiring,
+deterministically withdrawn production-support admission for C; production,
+real analyzers, privilege, persistence, automatic repair, and IAR-2 remain
+closed until that separate gate passes.
 
 ## Parallel Client Integration Depth Track
 
