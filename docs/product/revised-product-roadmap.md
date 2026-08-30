@@ -46,9 +46,11 @@ A local real-time dashboard and narrowing-only budget-control layer are
 accepted under [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md).
 The DBC-1 foundation freezes closed policy/decision/snapshot schemas, a pure
 field-wise-minimum evaluator, metadata-only audit projection, bounded
-aggregates, and a concurrent read-only audit view. Exact-owned policy lifecycle,
-runtime composition, the foreground loopback HTTP/SSE surface, and the complete
-synthetic browser rehearsal remain staged next steps. No current release claims
+aggregates, and a concurrent read-only audit view. DBC-2 adds preview-first
+exact-owned policy apply/remove/rollback, optimistic concurrency, one atomic
+current/previous state, admission-time reload, actual operation narrowing, and
+limited/denied audit outcomes. The foreground loopback HTTP/SSE surface and the
+complete synthetic browser rehearsal remain staged next steps. No current release claims
 dashboard availability. Remote, hosted, organization, billing, telemetry, and
 source-viewing surfaces remain outside the roadmap without a separate founder
 decision and external-data boundary.

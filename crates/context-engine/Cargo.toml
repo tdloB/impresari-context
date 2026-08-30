@@ -13,6 +13,7 @@ workspace = true
 
 [dependencies]
 context-core = { version = "=0.1.0", path = "../context-core" }
+context-dashboard = { version = "=0.1.0", path = "../context-dashboard" }
 context-retrieval = { version = "=0.1.0", path = "../context-retrieval" }
 context-store = { version = "=0.1.0", path = "../context-store" }
 context-structural = { version = "=0.1.0", path = "../context-structural" }

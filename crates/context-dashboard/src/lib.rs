@@ -7,7 +7,15 @@ use std::{
     collections::{BTreeMap, BTreeSet},
     error::Error,
     fmt,
+    fs::{self, OpenOptions},
+    io::Write as _,
+    path::{Path, PathBuf},
+    sync::atomic::{AtomicU64, Ordering},
+    time::{SystemTime, UNIX_EPOCH},
 };
+
+#[cfg(unix)]
+use std::{fs::File, os::unix::fs::PermissionsExt};
 
 use context_core::{
     AuditEvent, AuditOutcome, Capability, ResourceBudget, validate_audit_event,
@@ -18,6 +26,13 @@ use sha2::{Digest, Sha256};
 
 const VERSION: &str = "1.0.0";
 const MAX_RULES: usize = 128;
+const MAX_POLICY_BYTES: u64 = 262_144;
+const MAX_STORE_BYTES: u64 = 524_288;
+const OWNER_FILE: &str = "owner.json";
+const STATE_FILE: &str = "policies.json";
+const LOCK_FILE: &str = "mutation.lock";
+const OWNER_BYTES: &[u8] = b"{\"owner\":\"impresari-context\",\"schema_name\":\"local-budget-policy-store\",\"schema_version\":\"1.0.0\"}\n";
+static TEMP_SEQUENCE: AtomicU64 = AtomicU64::new(0);
 
 /// Stable local-dashboard failure categories without source-bearing detail.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -30,6 +45,10 @@ pub enum DashboardErrorCode {
     IntegrityFailure,
     /// Stored metadata is incompatible or malformed.
     IncompatibleData,
+    /// A policy mutation raced or supplied stale expected state.
+    StaleState,
+    /// Exact-owned local state could not be read or changed safely.
+    StorageFailure,
 }
 
 /// Safe dashboard error that never includes policy bytes, paths, or audit data.
@@ -57,6 +76,8 @@ impl fmt::Display for DashboardError {
             DashboardErrorCode::ResourceLimit => "dashboard resource limit exceeded",
             DashboardErrorCode::IntegrityFailure => "dashboard identity verification failed",
             DashboardErrorCode::IncompatibleData => "incompatible dashboard metadata",
+            DashboardErrorCode::StaleState => "stale local budget policy state",
+            DashboardErrorCode::StorageFailure => "local budget policy storage failed",
         })
     }
 }
@@ -81,6 +102,21 @@ pub enum DashboardPurpose {
     TestSelection,
     /// Configuration change.
     ConfigurationChange,
+}
+
+/// Maps the closed planner-purpose vocabulary without accepting free-form scope.
+#[must_use]
+pub fn dashboard_purpose(value: &str) -> Option<DashboardPurpose> {
+    match value {
+        "orientation" => Some(DashboardPurpose::Orientation),
+        "implementation" => Some(DashboardPurpose::Implementation),
+        "bug_investigation" => Some(DashboardPurpose::BugInvestigation),
+        "change_review" => Some(DashboardPurpose::ChangeReview),
+        "security_review" => Some(DashboardPurpose::SecurityReview),
+        "test_selection" => Some(DashboardPurpose::TestSelection),
+        "configuration_change" => Some(DashboardPurpose::ConfigurationChange),
+        _ => None,
+    }
 }
 
 /// Optional narrowing ceilings for existing `ResourceBudget` fields.
@@ -180,8 +216,9 @@ impl BudgetSelector {
         u8::from(self.purpose.is_some()) + u8::from(self.capability.is_some())
     }
 
-    fn matches(&self, purpose: DashboardPurpose, capability: Capability) -> bool {
-        self.purpose.is_none_or(|candidate| candidate == purpose)
+    fn matches(&self, purpose: Option<DashboardPurpose>, capability: Capability) -> bool {
+        self.purpose
+            .is_none_or(|candidate| Some(candidate) == purpose)
             && self
                 .capability
                 .is_none_or(|candidate| candidate == capability)
@@ -281,6 +318,82 @@ pub enum EffectiveBudgetOutcome {
     Limit,
     /// An exact matching rule denied the request.
     Deny,
+}
+
+/// Exact current and rollback identities without policy content.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyStoreState {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Current policy identity, when installed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_policy_id: Option<String>,
+    /// Current policy revision, when installed.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub current_revision: Option<String>,
+    /// One exact rollback identity, when retained.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub previous_policy_id: Option<String>,
+}
+
+/// Supported exact-owned local policy mutations.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum PolicyMutation {
+    /// Install or update a canonical policy.
+    Apply,
+    /// Remove the current narrowing layer.
+    Remove,
+    /// Restore the one retained prior state.
+    Rollback,
+}
+
+/// Deterministic mutation preview and durable receipt.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct PolicyMutationReceipt {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Canonical preview identity.
+    pub receipt_id: String,
+    /// Requested operation.
+    pub operation: PolicyMutation,
+    /// Expected current identity supplied by the operator.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_policy_id: Option<String>,
+    /// Expected current revision supplied by the operator.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub expected_revision: Option<String>,
+    /// State observed before the mutation.
+    pub before: PolicyStoreState,
+    /// State that would or did result.
+    pub after: PolicyStoreState,
+    /// Whether the exact-owned store was changed.
+    pub external_write_performed: bool,
+    /// Stable lifecycle state.
+    pub state: String,
+}
+
+/// Exact-owned local policy store rooted outside source and cache state.
+#[derive(Clone, Debug)]
+pub struct PolicyStore {
+    root: PathBuf,
+}
+
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+struct StoredPolicies {
+    schema_name: String,
+    schema_version: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    current: Option<LocalBudgetPolicy>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    previous: Option<LocalBudgetPolicy>,
 }
 
 /// Metadata-only event safe for dashboard serialization.
@@ -418,6 +531,271 @@ pub fn validate_policy(policy: &LocalBudgetPolicy) -> Result<(), DashboardError>
     }
 }
 
+impl PolicyStore {
+    /// Opens an existing exact-owned store without creating or changing state.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for absent, broad, symlinked, permissive, or modified state.
+    pub fn open(root: &Path) -> Result<Self, DashboardError> {
+        let root = validate_existing_store(root)?;
+        Ok(Self { root })
+    }
+
+    /// Returns identities for the current and one retained previous policy.
+    ///
+    /// # Errors
+    ///
+    /// Fails if either exact-owned policy file is malformed or noncanonical.
+    pub fn state(&self) -> Result<PolicyStoreState, DashboardError> {
+        store_state(&self.root)
+    }
+
+    /// Loads and revalidates the current policy, if present.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for modified ownership or policy bytes.
+    pub fn current(&self) -> Result<Option<LocalBudgetPolicy>, DashboardError> {
+        Ok(read_policies(&self.root)?.current)
+    }
+
+    /// Previews an install or update without writing local state.
+    ///
+    /// An absent store is treated as empty only for an initial apply preview.
+    /// Existing state must have the exact ownership marker.
+    ///
+    /// # Errors
+    ///
+    /// Fails for a noncanonical policy or stale expected identity/revision.
+    pub fn preview_apply(
+        root: &Path,
+        policy: &LocalBudgetPolicy,
+        expected_policy_id: Option<&str>,
+        expected_revision: Option<&str>,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        validate_policy(policy)?;
+        let before = preview_state(root)?;
+        validate_expected(&before, expected_policy_id, expected_revision)?;
+        if let Some(revision) = before.current_revision.as_deref()
+            && decimal(&policy.revision)? <= decimal(revision)?
+        {
+            return Err(DashboardError::new(DashboardErrorCode::StaleState));
+        }
+        let after = PolicyStoreState {
+            schema_name: "local-budget-policy-store-state".into(),
+            schema_version: VERSION.into(),
+            current_policy_id: Some(policy.policy_id.clone()),
+            current_revision: Some(policy.revision.clone()),
+            previous_policy_id: before.current_policy_id.clone(),
+        };
+        mutation_receipt(
+            PolicyMutation::Apply,
+            expected_policy_id,
+            expected_revision,
+            before,
+            after,
+            false,
+            "preview",
+        )
+    }
+
+    /// Applies exactly the previously previewable install/update transition.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for stale state, ownership drift, partial state, or I/O.
+    pub fn apply(
+        root: &Path,
+        policy: LocalBudgetPolicy,
+        expected_policy_id: Option<&str>,
+        expected_revision: Option<&str>,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        let preview = Self::preview_apply(root, &policy, expected_policy_id, expected_revision)?;
+        initialize_store(root)?;
+        let root = validate_existing_store(root)?;
+        let _lock = MutationLock::acquire(&root)?;
+        let before = store_state(&root)?;
+        if before != preview.before {
+            return Err(DashboardError::new(DashboardErrorCode::StaleState));
+        }
+        let stored = read_policies(&root)?;
+        atomic_write(
+            &root,
+            STATE_FILE,
+            &canonical_store_bytes(&StoredPolicies {
+                schema_name: "local-budget-policy-store".into(),
+                schema_version: VERSION.into(),
+                current: Some(policy),
+                previous: stored.current,
+            })?,
+        )?;
+        sync_directory(&root)?;
+        mutation_receipt(
+            PolicyMutation::Apply,
+            expected_policy_id,
+            expected_revision,
+            before,
+            store_state(&root)?,
+            true,
+            "applied",
+        )
+    }
+
+    /// Previews removal of the current narrowing layer.
+    ///
+    /// # Errors
+    ///
+    /// Fails for absent current state or stale expectations.
+    pub fn preview_remove(
+        root: &Path,
+        expected_policy_id: &str,
+        expected_revision: &str,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        let before = store_state(&validate_existing_store(root)?)?;
+        validate_expected(&before, Some(expected_policy_id), Some(expected_revision))?;
+        if before.current_policy_id.is_none() {
+            return Err(DashboardError::new(DashboardErrorCode::StaleState));
+        }
+        let after = PolicyStoreState {
+            schema_name: "local-budget-policy-store-state".into(),
+            schema_version: VERSION.into(),
+            current_policy_id: None,
+            current_revision: None,
+            previous_policy_id: before.current_policy_id.clone(),
+        };
+        mutation_receipt(
+            PolicyMutation::Remove,
+            Some(expected_policy_id),
+            Some(expected_revision),
+            before,
+            after,
+            false,
+            "preview",
+        )
+    }
+
+    /// Removes exactly the expected current policy and retains it for rollback.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for stale state, ownership drift, or storage failure.
+    pub fn remove(
+        root: &Path,
+        expected_policy_id: &str,
+        expected_revision: &str,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        let preview = Self::preview_remove(root, expected_policy_id, expected_revision)?;
+        let root = validate_existing_store(root)?;
+        let _lock = MutationLock::acquire(&root)?;
+        let before = store_state(&root)?;
+        if before != preview.before {
+            return Err(DashboardError::new(DashboardErrorCode::StaleState));
+        }
+        let stored = read_policies(&root)?;
+        let current = stored
+            .current
+            .ok_or_else(|| DashboardError::new(DashboardErrorCode::StaleState))?;
+        atomic_write(
+            &root,
+            STATE_FILE,
+            &canonical_store_bytes(&StoredPolicies {
+                schema_name: "local-budget-policy-store".into(),
+                schema_version: VERSION.into(),
+                current: None,
+                previous: Some(current),
+            })?,
+        )?;
+        sync_directory(&root)?;
+        mutation_receipt(
+            PolicyMutation::Remove,
+            Some(expected_policy_id),
+            Some(expected_revision),
+            before,
+            store_state(&root)?,
+            true,
+            "removed",
+        )
+    }
+
+    /// Previews restoring the one retained previous policy.
+    ///
+    /// # Errors
+    ///
+    /// Fails when rollback state is absent or current expectations are stale.
+    pub fn preview_rollback(
+        root: &Path,
+        expected_policy_id: Option<&str>,
+        expected_revision: Option<&str>,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        let root = validate_existing_store(root)?;
+        let before = store_state(&root)?;
+        validate_expected(&before, expected_policy_id, expected_revision)?;
+        let previous = read_policies(&root)?
+            .previous
+            .ok_or_else(|| DashboardError::new(DashboardErrorCode::StaleState))?;
+        let after = PolicyStoreState {
+            schema_name: "local-budget-policy-store-state".into(),
+            schema_version: VERSION.into(),
+            current_policy_id: Some(previous.policy_id),
+            current_revision: Some(previous.revision),
+            previous_policy_id: before.current_policy_id.clone(),
+        };
+        mutation_receipt(
+            PolicyMutation::Rollback,
+            expected_policy_id,
+            expected_revision,
+            before,
+            after,
+            false,
+            "preview",
+        )
+    }
+
+    /// Atomically swaps current and retained previous policy state.
+    ///
+    /// # Errors
+    ///
+    /// Fails closed for stale state, modified bytes, or storage failure.
+    pub fn rollback(
+        root: &Path,
+        expected_policy_id: Option<&str>,
+        expected_revision: Option<&str>,
+    ) -> Result<PolicyMutationReceipt, DashboardError> {
+        let preview = Self::preview_rollback(root, expected_policy_id, expected_revision)?;
+        let root = validate_existing_store(root)?;
+        let _lock = MutationLock::acquire(&root)?;
+        let before = store_state(&root)?;
+        if before != preview.before {
+            return Err(DashboardError::new(DashboardErrorCode::StaleState));
+        }
+        let stored = read_policies(&root)?;
+        let previous = stored
+            .previous
+            .ok_or_else(|| DashboardError::new(DashboardErrorCode::StaleState))?;
+        atomic_write(
+            &root,
+            STATE_FILE,
+            &canonical_store_bytes(&StoredPolicies {
+                schema_name: "local-budget-policy-store".into(),
+                schema_version: VERSION.into(),
+                current: Some(previous),
+                previous: stored.current,
+            })?,
+        )?;
+        sync_directory(&root)?;
+        mutation_receipt(
+            PolicyMutation::Rollback,
+            expected_policy_id,
+            expected_revision,
+            before,
+            store_state(&root)?,
+            true,
+            "rolled_back",
+        )
+    }
+}
+
 /// Computes the field-wise minimum across all governing layers.
 ///
 /// # Errors
@@ -429,7 +807,7 @@ pub fn evaluate_budget(
     authorized_budget: &ResourceBudget,
     local_policy: Option<&LocalBudgetPolicy>,
     caller_budget: &ResourceBudget,
-    purpose: DashboardPurpose,
+    purpose: Option<DashboardPurpose>,
     capability: Capability,
     evaluated_at: &str,
 ) -> Result<EffectiveBudgetDecision, DashboardError> {
@@ -763,10 +1141,348 @@ fn zero_hash() -> String {
     format!("sha256:{}", "0".repeat(64))
 }
 
+fn preview_state(root: &Path) -> Result<PolicyStoreState, DashboardError> {
+    if !root.try_exists().map_err(storage_error)? {
+        validate_store_root_candidate(root)?;
+        return Ok(empty_store_state());
+    }
+    store_state(&validate_existing_store(root)?)
+}
+
+fn empty_store_state() -> PolicyStoreState {
+    PolicyStoreState {
+        schema_name: "local-budget-policy-store-state".into(),
+        schema_version: VERSION.into(),
+        current_policy_id: None,
+        current_revision: None,
+        previous_policy_id: None,
+    }
+}
+
+fn store_state(root: &Path) -> Result<PolicyStoreState, DashboardError> {
+    let stored = read_policies(root)?;
+    Ok(PolicyStoreState {
+        schema_name: "local-budget-policy-store-state".into(),
+        schema_version: VERSION.into(),
+        current_policy_id: stored
+            .current
+            .as_ref()
+            .map(|policy| policy.policy_id.clone()),
+        current_revision: stored
+            .current
+            .as_ref()
+            .map(|policy| policy.revision.clone()),
+        previous_policy_id: stored
+            .previous
+            .as_ref()
+            .map(|policy| policy.policy_id.clone()),
+    })
+}
+
+fn validate_expected(
+    state: &PolicyStoreState,
+    expected_policy_id: Option<&str>,
+    expected_revision: Option<&str>,
+) -> Result<(), DashboardError> {
+    if expected_policy_id.map(str::to_owned) != state.current_policy_id
+        || expected_revision.map(str::to_owned) != state.current_revision
+    {
+        return Err(DashboardError::new(DashboardErrorCode::StaleState));
+    }
+    Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+fn mutation_receipt(
+    operation: PolicyMutation,
+    expected_policy_id: Option<&str>,
+    expected_revision: Option<&str>,
+    before: PolicyStoreState,
+    after: PolicyStoreState,
+    external_write_performed: bool,
+    state: &str,
+) -> Result<PolicyMutationReceipt, DashboardError> {
+    let mut receipt = PolicyMutationReceipt {
+        schema_name: "local-budget-policy-mutation-receipt".into(),
+        schema_version: VERSION.into(),
+        receipt_id: zero_hash(),
+        operation,
+        expected_policy_id: expected_policy_id.map(str::to_owned),
+        expected_revision: expected_revision.map(str::to_owned),
+        before,
+        after,
+        external_write_performed,
+        state: state.into(),
+    };
+    receipt.receipt_id = identity_for(
+        "local-budget-policy-mutation-receipt",
+        &receipt,
+        "receipt_id",
+    )?;
+    Ok(receipt)
+}
+
+fn validate_store_root_candidate(root: &Path) -> Result<(), DashboardError> {
+    if root.as_os_str().is_empty() || root.parent().is_none() {
+        return Err(DashboardError::new(DashboardErrorCode::InvalidInput));
+    }
+    if std::env::var_os("HOME").is_some_and(|home| root == Path::new(&home)) {
+        return Err(DashboardError::new(DashboardErrorCode::InvalidInput));
+    }
+    let parent = root
+        .parent()
+        .ok_or_else(|| DashboardError::new(DashboardErrorCode::InvalidInput))?;
+    let parent = parent.canonicalize().map_err(storage_error)?;
+    if parent.parent().is_none() {
+        return Err(DashboardError::new(DashboardErrorCode::InvalidInput));
+    }
+    Ok(())
+}
+
+fn validate_existing_store(root: &Path) -> Result<PathBuf, DashboardError> {
+    validate_store_root_candidate(root)?;
+    reject_symlink(root)?;
+    let metadata = fs::metadata(root).map_err(storage_error)?;
+    if !metadata.is_dir() {
+        return Err(DashboardError::new(DashboardErrorCode::InvalidInput));
+    }
+    #[cfg(unix)]
+    if metadata.permissions().mode() & 0o077 != 0 {
+        return Err(DashboardError::new(DashboardErrorCode::InvalidInput));
+    }
+    let resolved = root.canonicalize().map_err(storage_error)?;
+    let owner = resolved.join(OWNER_FILE);
+    reject_symlink(&owner)?;
+    let metadata = fs::metadata(&owner).map_err(storage_error)?;
+    if !metadata.is_file() || metadata.len() != OWNER_BYTES.len() as u64 {
+        return Err(DashboardError::new(DashboardErrorCode::IntegrityFailure));
+    }
+    let bytes = fs::read(&owner).map_err(storage_error)?;
+    if bytes != OWNER_BYTES {
+        return Err(DashboardError::new(DashboardErrorCode::IntegrityFailure));
+    }
+    Ok(resolved)
+}
+
+fn initialize_store(root: &Path) -> Result<(), DashboardError> {
+    if root.try_exists().map_err(storage_error)? {
+        validate_existing_store(root)?;
+        return Ok(());
+    }
+    validate_store_root_candidate(root)?;
+    fs::create_dir(root).map_err(storage_error)?;
+    #[cfg(unix)]
+    fs::set_permissions(root, fs::Permissions::from_mode(0o700)).map_err(storage_error)?;
+    let owner = root.join(OWNER_FILE);
+    let result = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&owner)
+        .and_then(|mut file| {
+            file.write_all(OWNER_BYTES)?;
+            file.sync_all()
+        });
+    if result.is_err() {
+        return Err(DashboardError::new(DashboardErrorCode::StorageFailure));
+    }
+    sync_directory(root)
+}
+
+fn read_policies(root: &Path) -> Result<StoredPolicies, DashboardError> {
+    let path = root.join(STATE_FILE);
+    if !path.try_exists().map_err(storage_error)? {
+        return Ok(StoredPolicies {
+            schema_name: "local-budget-policy-store".into(),
+            schema_version: VERSION.into(),
+            current: None,
+            previous: None,
+        });
+    }
+    reject_symlink(&path)?;
+    let metadata = fs::metadata(&path).map_err(storage_error)?;
+    if !metadata.is_file() || metadata.len() == 0 || metadata.len() > MAX_STORE_BYTES {
+        return Err(DashboardError::new(DashboardErrorCode::ResourceLimit));
+    }
+    let bytes = fs::read(&path).map_err(storage_error)?;
+    let stored: StoredPolicies = serde_json::from_slice(&bytes)
+        .map_err(|_| DashboardError::new(DashboardErrorCode::IncompatibleData))?;
+    if stored.schema_name != "local-budget-policy-store" || stored.schema_version != VERSION {
+        return Err(DashboardError::new(DashboardErrorCode::IncompatibleData));
+    }
+    if let Some(policy) = &stored.current {
+        validate_policy(policy)?;
+    }
+    if let Some(policy) = &stored.previous {
+        validate_policy(policy)?;
+    }
+    if stored
+        .current
+        .as_ref()
+        .zip(stored.previous.as_ref())
+        .is_some_and(|(current, previous)| current.policy_id == previous.policy_id)
+    {
+        return Err(DashboardError::new(DashboardErrorCode::IntegrityFailure));
+    }
+    if canonical_store_bytes(&stored)? != bytes {
+        return Err(DashboardError::new(DashboardErrorCode::IntegrityFailure));
+    }
+    Ok(stored)
+}
+
+fn canonical_store_bytes(stored: &StoredPolicies) -> Result<Vec<u8>, DashboardError> {
+    if let Some(policy) = &stored.current {
+        validate_policy(policy)?;
+        if serde_json_canonicalizer::to_vec(policy)
+            .map_err(|_| DashboardError::new(DashboardErrorCode::IntegrityFailure))?
+            .len() as u64
+            > MAX_POLICY_BYTES
+        {
+            return Err(DashboardError::new(DashboardErrorCode::ResourceLimit));
+        }
+    }
+    if let Some(policy) = &stored.previous {
+        validate_policy(policy)?;
+        if serde_json_canonicalizer::to_vec(policy)
+            .map_err(|_| DashboardError::new(DashboardErrorCode::IntegrityFailure))?
+            .len() as u64
+            > MAX_POLICY_BYTES
+        {
+            return Err(DashboardError::new(DashboardErrorCode::ResourceLimit));
+        }
+    }
+    let mut bytes = serde_json_canonicalizer::to_vec(stored)
+        .map_err(|_| DashboardError::new(DashboardErrorCode::IntegrityFailure))?;
+    bytes.push(b'\n');
+    if bytes.len() as u64 > MAX_STORE_BYTES {
+        return Err(DashboardError::new(DashboardErrorCode::ResourceLimit));
+    }
+    Ok(bytes)
+}
+
+fn atomic_write(root: &Path, filename: &str, bytes: &[u8]) -> Result<(), DashboardError> {
+    let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+    let epoch = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|_| DashboardError::new(DashboardErrorCode::StorageFailure))?
+        .as_nanos();
+    let temporary = root.join(format!(
+        ".policy-{}-{epoch}-{sequence}.tmp",
+        std::process::id()
+    ));
+    let mut file = OpenOptions::new()
+        .write(true)
+        .create_new(true)
+        .open(&temporary)
+        .map_err(storage_error)?;
+    if file
+        .write_all(bytes)
+        .and_then(|()| file.sync_all())
+        .is_err()
+    {
+        let _ = fs::remove_file(&temporary);
+        return Err(DashboardError::new(DashboardErrorCode::StorageFailure));
+    }
+    let target = root.join(filename);
+    if target.try_exists().map_err(storage_error)? {
+        reject_symlink(&target)?;
+    }
+    if fs::rename(&temporary, &target).is_err() {
+        let _ = fs::remove_file(&temporary);
+        return Err(DashboardError::new(DashboardErrorCode::StorageFailure));
+    }
+    sync_directory(root)
+}
+
+fn reject_symlink(path: &Path) -> Result<(), DashboardError> {
+    if fs::symlink_metadata(path)
+        .map_err(storage_error)?
+        .file_type()
+        .is_symlink()
+    {
+        return Err(DashboardError::new(DashboardErrorCode::IntegrityFailure));
+    }
+    Ok(())
+}
+
+#[cfg(unix)]
+fn sync_directory(path: &Path) -> Result<(), DashboardError> {
+    File::open(path)
+        .and_then(|file| file.sync_all())
+        .map_err(storage_error)
+}
+
+#[cfg(not(unix))]
+fn sync_directory(path: &Path) -> Result<(), DashboardError> {
+    // Rust's safe standard-library API cannot open a Windows directory for a
+    // metadata flush. The staged file itself is synced before the same-volume
+    // atomic rename, and the directory is still revalidated here.
+    if fs::metadata(path).map_err(storage_error)?.is_dir() {
+        Ok(())
+    } else {
+        Err(DashboardError::new(DashboardErrorCode::StorageFailure))
+    }
+}
+
+fn storage_error(_: std::io::Error) -> DashboardError {
+    DashboardError::new(DashboardErrorCode::StorageFailure)
+}
+
+struct MutationLock {
+    path: PathBuf,
+}
+
+impl MutationLock {
+    fn acquire(root: &Path) -> Result<Self, DashboardError> {
+        let path = root.join(LOCK_FILE);
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(&path)
+            .and_then(|file| file.sync_all())
+            .map_err(|_| DashboardError::new(DashboardErrorCode::StaleState))?;
+        Ok(Self { path })
+    }
+}
+
+impl Drop for MutationLock {
+    fn drop(&mut self) {
+        let _ = fs::remove_file(&self.path);
+        if let Some(parent) = self.path.parent() {
+            let _ = sync_directory(parent);
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use context_core::audit_event;
+
+    struct TestRoot(PathBuf);
+
+    impl TestRoot {
+        fn new(label: &str) -> Self {
+            let sequence = TEMP_SEQUENCE.fetch_add(1, Ordering::Relaxed);
+            let path = std::env::temp_dir().join(format!(
+                "impresari-dashboard-{label}-{}-{sequence}",
+                std::process::id()
+            ));
+            fs::create_dir(&path).expect("test parent");
+            #[cfg(unix)]
+            fs::set_permissions(&path, fs::Permissions::from_mode(0o700)).expect("permissions");
+            Self(path)
+        }
+
+        fn store(&self) -> PathBuf {
+            self.0.join("policy")
+        }
+    }
+
+    impl Drop for TestRoot {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
 
     fn budget(values: [u64; 8]) -> ResourceBudget {
         budget_from_values(values).expect("budget")
@@ -878,7 +1594,7 @@ mod tests {
             &authorized,
             Some(&policy),
             &caller,
-            DashboardPurpose::Implementation,
+            Some(DashboardPurpose::Implementation),
             Capability::ContextBuild,
             "2026-08-30T01:00:00Z",
         )
@@ -924,7 +1640,7 @@ mod tests {
             &base,
             Some(&policy),
             &base,
-            DashboardPurpose::Implementation,
+            Some(DashboardPurpose::Implementation),
             Capability::ContextBuild,
             "2026-08-30T01:00:00Z",
         )
@@ -946,7 +1662,7 @@ mod tests {
             &base,
             Some(&policy),
             &base,
-            DashboardPurpose::Implementation,
+            Some(DashboardPurpose::Implementation),
             Capability::ContextBuild,
             "2026-08-30T03:00:00Z",
         )
@@ -1016,5 +1732,112 @@ mod tests {
         assert_eq!(snapshot.aggregates.len(), 1);
         assert_eq!(snapshot.aggregates[0].events, "2");
         assert_eq!(snapshot.aggregates[0].duration_ms, "14");
+    }
+
+    #[test]
+    fn policy_store_preview_apply_remove_and_rollback_are_exact() {
+        let root = TestRoot::new("lifecycle");
+        let store = root.store();
+        let first = compile_policy(draft(vec![ceiling(
+            "first",
+            BudgetSelector {
+                purpose: None,
+                capability: Some(Capability::ContextBuild),
+            },
+            16_384,
+        )]))
+        .expect("first");
+        let preview =
+            PolicyStore::preview_apply(&store, &first, None, None).expect("install preview");
+        assert!(!preview.external_write_performed);
+        assert!(!store.exists());
+        let applied = PolicyStore::apply(&store, first.clone(), None, None).expect("install");
+        assert!(applied.external_write_performed);
+        assert_eq!(
+            PolicyStore::open(&store)
+                .expect("open")
+                .current()
+                .expect("read"),
+            Some(first.clone())
+        );
+
+        let mut second_draft = draft(vec![ceiling(
+            "second",
+            BudgetSelector {
+                purpose: None,
+                capability: Some(Capability::ContextBuild),
+            },
+            8_192,
+        )]);
+        second_draft.revision = "2".into();
+        let second = compile_policy(second_draft).expect("second");
+        PolicyStore::apply(
+            &store,
+            second.clone(),
+            Some(&first.policy_id),
+            Some(&first.revision),
+        )
+        .expect("update");
+        assert_eq!(
+            PolicyStore::open(&store)
+                .expect("open")
+                .state()
+                .expect("state")
+                .previous_policy_id,
+            Some(first.policy_id.clone())
+        );
+
+        let removed =
+            PolicyStore::remove(&store, &second.policy_id, &second.revision).expect("remove");
+        assert_eq!(removed.after.current_policy_id, None);
+        assert_eq!(
+            removed.after.previous_policy_id,
+            Some(second.policy_id.clone())
+        );
+        let rolled_back = PolicyStore::rollback(&store, None, None).expect("rollback");
+        assert_eq!(rolled_back.after.current_policy_id, Some(second.policy_id));
+        assert_eq!(rolled_back.after.previous_policy_id, None);
+    }
+
+    #[test]
+    fn policy_store_rejects_stale_modified_and_symlinked_state() {
+        let root = TestRoot::new("adversarial");
+        let store = root.store();
+        let policy = compile_policy(draft(vec![ceiling(
+            "only",
+            BudgetSelector {
+                purpose: None,
+                capability: None,
+            },
+            8_192,
+        )]))
+        .expect("policy");
+        PolicyStore::apply(&store, policy.clone(), None, None).expect("apply");
+        assert_eq!(
+            PolicyStore::preview_remove(&store, &zero_hash(), "1")
+                .expect_err("stale")
+                .code(),
+            DashboardErrorCode::StaleState
+        );
+        fs::write(store.join(STATE_FILE), b"{}\n").expect("tamper");
+        assert!(PolicyStore::open(&store).expect("open").current().is_err());
+
+        #[cfg(unix)]
+        {
+            let second = root.0.join("symlink-policy");
+            PolicyStore::apply(&second, policy, None, None).expect("second apply");
+            let target = second.join("target.json");
+            fs::write(&target, b"{}\n").expect("target");
+            fs::remove_file(second.join(STATE_FILE)).expect("remove state");
+            std::os::unix::fs::symlink(&target, second.join(STATE_FILE)).expect("symlink");
+            assert_eq!(
+                PolicyStore::open(&second)
+                    .expect("open")
+                    .current()
+                    .expect_err("symlink")
+                    .code(),
+                DashboardErrorCode::IntegrityFailure
+            );
+        }
     }
 }

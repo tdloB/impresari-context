@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/local-budget-policy-mutation-receipt.schema.json",
+  "title": "Local budget policy mutation preview or receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "receipt_id", "operation", "before", "after", "external_write_performed", "state"],
+  "properties": {
+    "schema_name": {"const": "local-budget-policy-mutation-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "receipt_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "operation": {"type": "string", "enum": ["apply", "remove", "rollback"]},
+    "expected_policy_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "expected_revision": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+    "before": {"$ref": "local-budget-policy-store-state.schema.json"},
+    "after": {"$ref": "local-budget-policy-store-state.schema.json"},
+    "external_write_performed": {"type": "boolean"},
+    "state": {"type": "string", "enum": ["preview", "applied", "removed", "rolled_back"]}
+  }
+}

@@ -1,6 +1,6 @@
 # Impresari Context — Local real-time dashboard and budget control PRD
 
-- Status: Accepted; contract foundation implemented, loopback delivery pending
+- Status: Accepted; policy lifecycle and runtime composition implemented, loopback delivery pending
 - Date: 2026-08-29
 - Authority: Future observability and control increment
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
@@ -127,8 +127,9 @@ server ends all dashboard access and background work.
    decision, and dashboard-snapshot schemas; canonical narrowing evaluator;
    metadata-only audit projection; bounded aggregates; and a concurrent
    read-only audit-store view that withholds malformed rows.
-2. **DBC-2 exact-owned policy lifecycle:** preview/apply/remove/rollback,
-   optimistic concurrency, durable ownership, and runtime engine composition.
+2. **DBC-2 exact-owned policy lifecycle (implemented):** preview/apply/remove/
+   rollback, optimistic concurrency, durable ownership, atomic current/previous
+   state, admission-time reload, and runtime engine composition.
 3. **DBC-3 foreground loopback delivery:** ephemeral capability bootstrap,
    bundled immutable UI, strict HTTP boundary, bounded live stream, and exact
    shutdown.

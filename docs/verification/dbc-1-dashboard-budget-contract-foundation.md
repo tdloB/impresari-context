@@ -1,6 +1,6 @@
 # DBC-1 dashboard and budget contract foundation
 
-- Status: Implemented locally; hosted acceptance pending
+- Status: Merged; hosted acceptance passed in PR 152
 - Decision: [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md)
 - Scope: Pure contracts and read-only metadata projection only
 

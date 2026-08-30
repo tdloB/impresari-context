@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/local-budget-policy-store-state.schema.json",
+  "title": "Exact-owned local budget policy store state",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version"],
+  "properties": {
+    "schema_name": {"const": "local-budget-policy-store-state"},
+    "schema_version": {"const": "1.0.0"},
+    "current_policy_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "current_revision": {"type": "string", "pattern": "^[1-9][0-9]{0,19}$"},
+    "previous_policy_id": {"$ref": "common.schema.json#/$defs/sha256"}
+  }
+}

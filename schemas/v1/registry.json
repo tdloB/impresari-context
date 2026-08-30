@@ -9,6 +9,8 @@
     {"name": "local-budget-policy", "path": "local-budget-policy.schema.json", "identity_object_kind": "local-budget-policy"},
     {"name": "effective-budget-decision", "path": "effective-budget-decision.schema.json", "identity_object_kind": "effective-budget-decision"},
     {"name": "dashboard-snapshot", "path": "dashboard-snapshot.schema.json", "identity_object_kind": null},
+    {"name": "local-budget-policy-store-state", "path": "local-budget-policy-store-state.schema.json", "identity_object_kind": null},
+    {"name": "local-budget-policy-mutation-receipt", "path": "local-budget-policy-mutation-receipt.schema.json", "identity_object_kind": "local-budget-policy-mutation-receipt"},
     {"name": "resource-policy-profile", "path": "resource-policy-profile.schema.json", "identity_object_kind": null},
     {"name": "hostile-repository-resource-profile", "path": "hostile-repository-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "analyzer-runner-resource-profile", "path": "analyzer-runner-resource-profile.schema.json", "identity_object_kind": null},
