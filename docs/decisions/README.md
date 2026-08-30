@@ -74,7 +74,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0069](0069-swift-structural-language-admission.md) | Admit bounded Swift syntax evidence without compiler, SwiftPM, Xcode, macro, signing, or runtime authority | Accepted for implementation |
 | [ADR-0070](0070-homebrew-tap-distribution.md) | Distribute release binaries through a separately governed Homebrew tap | Proposed; founder decision required |
 | [ADR-0071](0071-opt-in-verified-automatic-updates.md) | Use a separately installed, explicitly enrolled, verified updater | Proposed; founder decision required |
-| [ADR-0072](0072-local-metadata-dashboard-and-narrowing-budget-policy.md) | Use a loopback metadata dashboard and narrowing-only budget policy | Accepted; DBC-1 through DBC-3 implemented, DBC-4 pending |
+| [ADR-0072](0072-local-metadata-dashboard-and-narrowing-budget-policy.md) | Use a loopback metadata dashboard and narrowing-only budget policy | Accepted; DBC-1 through DBC-4 implemented and native-browser rehearsed |
 | [ADR-0073](0073-evidence-only-hostile-repository-admission.md) | Add static-first, evidence-only hostile-repository admission contracts | Accepted; Step 1 complete (HRA-0 through HRA-5) |
 | [ADR-0074](0074-separate-isolated-analyzer-runner.md) | Keep hostile analyzers in a separate capability-reduced runner | Accepted; IAR-0/IAR-1A implemented; exact Linux IAR-1B candidate evidence maintained; production admission pending |
 | [ADR-0075](0075-disposable-vm-quarantine-execution.md) | Permit later dynamic execution only in a disposable quarantine VM | Proposed; implementation not authorized |

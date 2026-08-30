@@ -49,6 +49,7 @@ ruby -c ./scripts/rehearse-cursor-native-approval.rb
 ruby -c ./scripts/rehearse-vscode-copilot-guided-delivery.rb
 ruby -c ./scripts/rehearse-gemini-copilot-preadmission.rb
 ruby -c ./scripts/rehearse-copilot-native-project.rb
+ruby -c ./scripts/rehearse-dashboard-native-browser.rb
 cargo fmt --all --check
 cargo clippy --workspace --all-targets --locked -- -D warnings
 cargo test --workspace --all-targets --locked

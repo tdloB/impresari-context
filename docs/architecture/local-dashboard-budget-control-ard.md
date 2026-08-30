@@ -1,6 +1,6 @@
 # Local real-time dashboard and budget control architecture
 
-- Status: Accepted; foreground loopback delivery implemented, native rehearsal pending
+- Status: Accepted; foreground loopback delivery and native-browser admission implemented
 - Date: 2026-08-29
 - Governing PRD: [Local dashboard and budget control PRD](../product/local-dashboard-budget-control-prd.md)
 - Governing decision: [ADR-0072](../decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md)
@@ -32,10 +32,12 @@ release and their digests are included in release evidence.
 
 - Resolve and bind only an IPv4 or IPv6 loopback address with port `0`; verify
   the actual socket address before announcing readiness.
-- Generate 256 bits of process-local randomness. The printed bootstrap URL uses
-  a fragment so the token is not sent in the initial HTTP request; bundled
-  JavaScript exchanges it once for an HttpOnly, SameSite=Strict, Secure-when-
-  available session cookie bound to the process and origin.
+- Generate independent 256-bit bootstrap and API-route capabilities. The
+  printed bootstrap URL uses a fragment so the first token is not sent in the
+  initial HTTP request; bundled JavaScript exchanges it once and retains the
+  returned API route only in page memory. Do not use cookies, query strings,
+  browser storage, or a stable API route: cookies are not port-scoped and would
+  create ambient authority across unrelated loopback services.
 - Require exact Host and Origin allowlists, custom anti-CSRF headers for writes,
   JSON content types, small body ceilings, short timeouts, and no CORS.
 - Set `default-src 'self'`, deny objects/frames/base URIs/forms, prohibit inline
@@ -133,6 +135,7 @@ policy write exists. DBC-2 implements the exact-owned atomic policy lifecycle,
 admission-time reload, effective-budget enforcement, and audit composition.
 DBC-3 adds the isolated std-only foreground loopback server, bundled assets,
 one-use fragment bootstrap, exact preview-bound mutation routes, bounded SSE,
-and explicit shutdown after those boundaries pass independently. DBC-4 records the complete synthetic local
-rehearsal. A future remote or hosted mode cannot be added by extending this
+and explicit shutdown after those boundaries pass independently. DBC-4 adds
+the separate memory-only API-route capability and records the complete
+synthetic native-browser rehearsal. A future remote or hosted mode cannot be added by extending this
 local server; it requires an independent architecture and decision record.

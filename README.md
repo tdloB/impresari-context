@@ -149,8 +149,11 @@ metadata session and prints a one-use fragment-bearing `bootstrap_url`. Open
 that URL manually. The dashboard reads only validated audit metadata and an
 exact-owned, separate budget-policy state root; it does not display source or
 packets, open a browser, create a daemon, make outbound requests, or raise any
-governing limit. DBC-3 is implemented in the current source tree; the final
-native-browser DBC-4 rehearsal remains a release-admission gate.
+governing limit. The one-use bootstrap returns a separate 256-bit API-route
+capability retained only in bundled-page memory; no cookie, query parameter,
+or browser storage carries dashboard authority. DBC-1 through DBC-4 are
+implemented, and the native-browser adversarial admission is recorded in
+`docs/verification/dbc-4-native-browser-admission.md`.
 
 ## Local MCP
 

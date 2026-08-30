@@ -124,7 +124,6 @@ pub(crate) struct Response<'a> {
     pub status: u16,
     pub content_type: &'static str,
     pub body: &'a [u8],
-    pub set_cookie: Option<&'a str>,
 }
 
 pub(crate) fn write_response(
@@ -156,11 +155,6 @@ pub(crate) fn write_response(
         response.body.len(),
         security_headers()
     );
-    if let Some(cookie) = response.set_cookie {
-        header.push_str("Set-Cookie: ");
-        header.push_str(cookie);
-        header.push_str("\r\n");
-    }
     header.push_str("\r\n");
     stream
         .write_all(header.as_bytes())

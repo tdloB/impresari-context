@@ -1,6 +1,6 @@
 # Impresari Context — Local real-time dashboard and budget control PRD
 
-- Status: Accepted; DBC-1 through DBC-3 implemented, native browser rehearsal pending
+- Status: Accepted; DBC-1 through DBC-4 implemented and native-browser rehearsed
 - Date: 2026-08-29
 - Authority: Future observability and control increment
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
@@ -67,8 +67,11 @@ server ends all dashboard access and background work.
   rejects workspace/cache overlap, symlinks, non-owned paths, and broad home or
   filesystem roots.
 - The command prints one loopback URL containing a high-entropy, process-local
-  capability. The token is never persisted, accepted in query strings after
-  initial bootstrap, reflected, logged, or exposed to child processes.
+  bootstrap capability. The token is never persisted, accepted in query
+  strings after initial bootstrap, reflected, logged, or exposed to child
+  processes. Successful one-use exchange returns a separate 256-bit API-route
+  capability held only in bundled-page memory; no cookie or browser storage is
+  used.
 - Every response uses a restrictive content security policy, no-store caching,
   no framing, no MIME sniffing, same-origin requests, and explicit origin and
   host validation. Non-loopback bind resolution fails closed.
@@ -133,8 +136,9 @@ server ends all dashboard access and background work.
 3. **DBC-3 foreground loopback delivery (implemented):** ephemeral capability bootstrap,
    bundled immutable UI, strict HTTP boundary, bounded live stream, and exact
    shutdown.
-4. **DBC-4 native rehearsal:** synthetic metadata only, disposable policy
-   state, browser security/adversarial checks, and source-secrecy evidence.
+4. **DBC-4 native rehearsal (implemented):** synthetic metadata only,
+   disposable policy state, browser security/adversarial checks, and
+   source-secrecy evidence.
 
 Each step must preserve the authority ceiling established by the preceding
 step. A contract or local test pass is not a dashboard-availability claim.
