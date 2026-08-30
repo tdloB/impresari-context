@@ -158,6 +158,16 @@ memory, process-count, exact-kill, empty-state, and lifecycle checks remain
 false until a real delegated cgroup v2 leaf passes. See the
 [Linux feasibility checkpoint](../verification/iar-1b-linux-feasibility.md).
 
+The resource/lifecycle checkpoint uses systemd solely as the trusted creator of
+one disposable delegated subtree on an ephemeral hosted Ubuntu runner. It does
+not make systemd, sudo, or a privileged service part of the analyzer worker.
+After the service manager creates the boundary, an unprivileged supervisor
+moves itself into a supervisor child cgroup, enables only CPU, memory, and pids
+controllers at the now-empty delegation root, and creates one leaf per
+synthetic job. `CLONE_INTO_CGROUP` makes placement atomic. Every leaf receives
+frozen limits and must reach `populated 0` before removal. See the
+[delegated-cgroup checkpoint](../verification/iar-1b-linux-cgroup-feasibility.md).
+
 ## Trust Zones
 
 ### IAR-Z1 — Context control plane

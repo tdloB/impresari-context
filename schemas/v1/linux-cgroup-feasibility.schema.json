@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-cgroup-feasibility.schema.json",
+  "title": "ADR-0074 delegated cgroup resource and lifecycle evidence",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "prototype_id", "profile_id", "profile_digest", "observed_host", "result", "preflight", "checks", "limitations", "resource_lifecycle_confined", "os_confined", "production_admitted", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "linux-cgroup-feasibility"},
+    "schema_version": {"const": "1.0.0"},
+    "prototype_id": {"const": "iar-linux-cgroup-feasibility-v1"},
+    "profile_id": {"const": "iar-linux-cgroup-synthetic-v1"},
+    "profile_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "observed_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system", "kernel_release", "architecture", "delegation_provider"],
+      "properties": {
+        "operating_system": {"const": "linux"},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$", "maxLength": 96},
+        "architecture": {"enum": ["x86_64", "aarch64"]},
+        "delegation_provider": {"const": "systemd-transient-service"}
+      }
+    },
+    "result": {"enum": ["candidate_passed", "unsupported", "failed"]},
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cgroup_v2", "cpu_controller", "memory_controller", "pids_controller", "delegated_subtree", "clone_into_cgroup", "cgroup_kill", "cgroup_empty_verification"],
+      "properties": {
+        "cgroup_v2": {"type": "boolean"},
+        "cpu_controller": {"type": "boolean"},
+        "memory_controller": {"type": "boolean"},
+        "pids_controller": {"type": "boolean"},
+        "delegated_subtree": {"type": "boolean"},
+        "clone_into_cgroup": {"type": "boolean"},
+        "cgroup_kill": {"type": "boolean"},
+        "cgroup_empty_verification": {"type": "boolean"}
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cpu_limit", "memory_limit", "process_count_limit", "exact_cgroup_kill", "cgroup_empty_after_job", "bounded_output", "timeout", "crash_relaunch", "cleanup", "cross_job_isolation"],
+      "properties": {
+        "cpu_limit": {"type": "boolean"},
+        "memory_limit": {"type": "boolean"},
+        "process_count_limit": {"type": "boolean"},
+        "exact_cgroup_kill": {"type": "boolean"},
+        "cgroup_empty_after_job": {"type": "boolean"},
+        "bounded_output": {"type": "boolean"},
+        "timeout": {"type": "boolean"},
+        "crash_relaunch": {"type": "boolean"},
+        "cleanup": {"type": "boolean"},
+        "cross_job_isolation": {"type": "boolean"}
+      }
+    },
+    "limitations": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"enum": ["delegation-unavailable", "resource-lifecycle-check-failed", "single-host-evidence", "composite-linux-admission-pending", "synthetic-probe-no-analysis"]}
+    },
+    "resource_lifecycle_confined": {"type": "boolean"},
+    "os_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "candidate_passed"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "preflight": {"properties": {"cgroup_v2": {"const": true}, "cpu_controller": {"const": true}, "memory_controller": {"const": true}, "pids_controller": {"const": true}, "delegated_subtree": {"const": true}, "clone_into_cgroup": {"const": true}, "cgroup_kill": {"const": true}, "cgroup_empty_verification": {"const": true}}},
+          "checks": {"properties": {"cpu_limit": {"const": true}, "memory_limit": {"const": true}, "process_count_limit": {"const": true}, "exact_cgroup_kill": {"const": true}, "cgroup_empty_after_job": {"const": true}, "bounded_output": {"const": true}, "timeout": {"const": true}, "crash_relaunch": {"const": true}, "cleanup": {"const": true}, "cross_job_isolation": {"const": true}}},
+          "limitations": {"const": ["single-host-evidence", "composite-linux-admission-pending", "synthetic-probe-no-analysis"]},
+          "resource_lifecycle_confined": {"const": true}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"result": {"enum": ["unsupported", "failed"]}}, "required": ["result"]},
+      "then": {"properties": {"resource_lifecycle_confined": {"const": false}}}
+    }
+  ]
+}

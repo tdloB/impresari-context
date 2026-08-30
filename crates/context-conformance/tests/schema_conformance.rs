@@ -593,6 +593,23 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
         fs::read(root.join("tests/conformance/v1/valid/iar-linux-synthetic-profile.json"))
             .expect("Linux isolation profile fixture")
     );
+    let cgroup_profile_path = root.join("profiles/v1/iar-linux-cgroup-synthetic-v1.json");
+    let cgroup_profile_bytes = fs::read(&cgroup_profile_path).expect("Linux cgroup profile");
+    let cgroup_sidecar =
+        fs::read_to_string(root.join("profiles/v1/iar-linux-cgroup-synthetic-v1.sha256"))
+            .expect("Linux cgroup profile digest sidecar");
+    assert_eq!(
+        lowercase_hex(Sha256::digest(&cgroup_profile_bytes)),
+        cgroup_sidecar
+            .split_whitespace()
+            .next()
+            .expect("cgroup profile digest")
+    );
+    assert_eq!(
+        cgroup_profile_bytes,
+        fs::read(root.join("tests/conformance/v1/valid/iar-linux-cgroup-synthetic-profile.json"),)
+            .expect("Linux cgroup profile fixture")
+    );
     let provenance =
         read_json(&root.join("tests/conformance/v1/linux-isolation-fixture-provenance.json"));
     assert_eq!(
@@ -637,6 +654,8 @@ fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
                 Some(
                     "linux-isolation-resource-profile.schema.json"
                         | "linux-isolation-feasibility.schema.json"
+                        | "linux-cgroup-resource-profile.schema.json"
+                        | "linux-cgroup-feasibility.schema.json"
                 )
             )
         })

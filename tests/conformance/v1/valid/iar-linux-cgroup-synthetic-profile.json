@@ -1,0 +1,28 @@
+{
+  "schema_name": "linux-cgroup-resource-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-linux-cgroup-synthetic-v1",
+  "profile_version": "1.0.0",
+  "limits": {
+    "output_bytes": "65536",
+    "stderr_bytes": "16384",
+    "writable_filesystem_bytes": "0",
+    "cpu_seconds": "1",
+    "cpu_quota_us": "50000",
+    "cpu_period_us": "100000",
+    "memory_bytes": "33554432",
+    "processes": "1",
+    "elapsed_ms": "5000"
+  },
+  "controls": {
+    "delegated_cgroup_v2": true,
+    "clone_into_cgroup": true,
+    "cgroup_kill_required": true,
+    "empty_state_required": true,
+    "bounded_pipe_output": true,
+    "writable_filesystem": false,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

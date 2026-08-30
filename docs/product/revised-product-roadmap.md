@@ -120,6 +120,22 @@ kept `os_confined=false`. IAR-1B remains open until the complete delegated-
 cgroup resource and lifecycle corpus passes. A green measurement job is not
 itself an admission claim.
 
+The next checkpoint freezes a separate `iar-linux-cgroup-synthetic-v1`
+component profile and runs it only inside one CI-created, transient systemd
+service with `Delegate=yes`. The unprivileged probe owns only that service's
+cgroup subtree, places each synthetic worker atomically with
+`CLONE_INTO_CGROUP`, and measures CPU, memory, process count, exact kill and
+empty state, bounded output, timeout, crash/relaunch, cleanup, and cross-job
+isolation. The receipt keeps overall `os_confined=false` even when this
+component passes; admission requires a later source-free composition with the
+primitive suite and additional host evidence.
+
+PR 130 job `99194709845` passed that component checkpoint on hosted Ubuntu
+24.04, kernel `6.17.0-1022-azure`, x86_64. The next increment is therefore the
+source-free composite: one atomically placed worker must reproduce the primitive
+and resource/lifecycle boundaries together. A component pass alone does not
+advance Linux to IAR-1B.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
