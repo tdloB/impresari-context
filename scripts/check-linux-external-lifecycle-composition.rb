@@ -81,8 +81,11 @@ if RbConfig::CONFIG.fetch("host_os").include?("linux")
   )
   abort("executable withdrawal collector did not return its closed withdrawal status: #{collector_stderr}") unless
     collector_status.success?
+  expected_collector_receipt = JSON.parse(WITHDRAWAL_FIXTURE.read)
+  expected_collector_receipt["package_receipt_identity"] = Digest::SHA256.hexdigest(PACKAGE_FIXTURE.binread)
+  expected_collector_receipt["external_receipt_identity"] = Digest::SHA256.hexdigest(EXTERNAL_FIXTURE.binread)
   abort("executable withdrawal collector drift") unless
-    JSON.parse(collector_stdout) == JSON.parse(WITHDRAWAL_FIXTURE.read)
+    JSON.parse(collector_stdout) == expected_collector_receipt
 end
 
 cases = {"candidate" => candidate}
