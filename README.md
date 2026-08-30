@@ -133,6 +133,7 @@ cargo run -p context-cli -- search <workspace-root> <cache-root> literal <query>
 cargo run -p context-cli -- context build <workspace-root> <cache-root> lexical <query> <purpose>
 cargo run -p context-cli -- structure build <workspace-root> <cache-root> <worker> <worker-sha256> <empty-dir>
 cargo run -p context-cli -- structure query <workspace-root> <cache-root> <graph-json> <start-node> all
+cargo run -p context-cli -- dashboard serve <audit-cache-root> <policy-state-root>
 ```
 
 Each invocation receives the explicit workspace and cache roots. This avoids a
@@ -142,6 +143,14 @@ tests. See `--help` for evidence recovery, packet validation, snapshot status,
 handoff export, and structural forms. Structural build never downloads or
 discovers a parser: the embedding distribution must provide the exact worker,
 its expected SHA-256 identity, and an existing empty non-workspace directory.
+
+The post-`v0.1.0` dashboard command starts one foreground, loopback-only local
+metadata session and prints a one-use fragment-bearing `bootstrap_url`. Open
+that URL manually. The dashboard reads only validated audit metadata and an
+exact-owned, separate budget-policy state root; it does not display source or
+packets, open a browser, create a daemon, make outbound requests, or raise any
+governing limit. DBC-3 is implemented in the current source tree; the final
+native-browser DBC-4 rehearsal remains a release-admission gate.
 
 ## Local MCP
 

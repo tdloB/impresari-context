@@ -49,9 +49,13 @@ field-wise-minimum evaluator, metadata-only audit projection, bounded
 aggregates, and a concurrent read-only audit view. DBC-2 adds preview-first
 exact-owned policy apply/remove/rollback, optimistic concurrency, one atomic
 current/previous state, admission-time reload, actual operation narrowing, and
-limited/denied audit outcomes. The foreground loopback HTTP/SSE surface and the
-complete synthetic browser rehearsal remain staged next steps. No current release claims
-dashboard availability. Remote, hosted, organization, billing, telemetry, and
+limited/denied audit outcomes. DBC-3 adds the source-free `dashboard serve`
+command, an isolated std-only verified-loopback listener, one-use fragment
+bootstrap, bundled digest-addressed assets, exact Host/Origin/CSRF/session
+checks, preview-receipt-bound policy writes, bounded SSE recovery, and exact
+foreground shutdown. The complete synthetic native-browser rehearsal remains
+the next DBC-4 gate, so the current claim is implementation availability rather
+than browser-rehearsed release admission. Remote, hosted, organization, billing, telemetry, and
 source-viewing surfaces remain outside the roadmap without a separate founder
 decision and external-data boundary.
 

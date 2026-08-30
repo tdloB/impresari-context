@@ -1,0 +1,7 @@
+{
+  "schema_name": "dashboard-ready",
+  "schema_version": "1.0.0",
+  "origin": "http://127.0.0.1:49152",
+  "bootstrap_url": "http://127.0.0.1:49152/#aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "asset_sha256": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+}

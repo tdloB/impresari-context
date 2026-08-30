@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Impresari Context Dashboard</title>
+  <link rel="stylesheet" href="/app.css">
+</head>
+<body>
+  <main>
+    <header>
+      <p class="eyebrow">Local metadata only</p>
+      <h1>Impresari Context</h1>
+      <p id="connection" role="status">Establishing this local session…</p>
+    </header>
+    <section aria-labelledby="summary-title">
+      <h2 id="summary-title">Request summary</h2>
+      <dl id="summary"></dl>
+    </section>
+    <section aria-labelledby="events-title">
+      <div class="section-heading">
+        <h2 id="events-title">Recent activity</h2>
+        <label>Outcome <select id="outcome-filter"><option value="">All</option></select></label>
+        <label>Capability <select id="capability-filter"><option value="">All</option></select></label>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Time</th><th>Capability</th><th>Outcome</th><th>Duration</th><th>Workspace</th></tr></thead>
+          <tbody id="events"></tbody>
+        </table>
+      </div>
+    </section>
+    <section aria-labelledby="policy-title">
+      <h2 id="policy-title">Local budget policy</h2>
+      <pre id="policy-state" tabindex="0"></pre>
+      <label for="policy-draft">Canonical policy draft JSON</label>
+      <textarea id="policy-draft" rows="12" spellcheck="false"></textarea>
+      <div class="actions">
+        <button id="preview-policy" type="button">Preview apply</button>
+        <button id="apply-policy" type="button">Apply exact preview</button>
+        <button id="preview-remove" type="button">Preview remove</button>
+        <button id="apply-remove" type="button">Apply exact removal</button>
+        <button id="preview-rollback" type="button">Preview rollback</button>
+        <button id="apply-rollback" type="button">Apply exact rollback</button>
+        <button id="shutdown" type="button" class="quiet">End local session</button>
+      </div>
+      <pre id="policy-result" tabindex="0"></pre>
+    </section>
+  </main>
+  <script src="/app.js" defer></script>
+</body>
+</html>
