@@ -1,0 +1,151 @@
+{
+  "schema_name": "independent-security-review-scope",
+  "schema_version": "1.0.0",
+  "scope_id": "impresari-context-v0-2-0-candidate-review-v1",
+  "target_version": "0.2.0",
+  "product_source_commit": "1a9923c0e5d671581f6b7da3bc4248b604971d63",
+  "status": "manual_review_required",
+  "triggered_boundaries": [
+    "external_service_delivery_via_client_process",
+    "authentication_configuration_reference",
+    "child_process_supervision",
+    "os_isolation_candidate",
+    "local_browser_dashboard_boundary",
+    "release_candidate_supply_chain"
+  ],
+  "review_areas": [
+    "workspace_and_cache_isolation",
+    "untrusted_repository_input",
+    "parser_worker_process_boundary",
+    "external_client_delivery_and_consent",
+    "credential_reference_and_redaction",
+    "configuration_install_update_remove",
+    "analyzer_supervisor_and_linux_isolation",
+    "local_dashboard_and_budget_policy",
+    "release_supply_chain_and_claim_accuracy"
+  ],
+  "required_artifacts": [
+    "docs/security/threat-model.md",
+    "docs/security/residual-risks.md",
+    "docs/boundaries.md",
+    "docs/product/client-integration-roadmap.md",
+    "docs/product/hostile-repository-admission-prd.md",
+    "docs/architecture/hostile-repository-admission-ard.md",
+    "docs/product/isolated-analyzer-runner-prd.md",
+    "docs/architecture/isolated-analyzer-runner-ard.md",
+    "docs/product/local-dashboard-budget-control-prd.md",
+    "docs/architecture/local-dashboard-budget-control-ard.md",
+    "docs/product/macos-hybrid-xpc-distribution-prd.md",
+    "docs/architecture/macos-hybrid-xpc-distribution-ard.md",
+    "docs/decisions/0017-v0.1-release-assurance-policy.md",
+    "docs/decisions/0072-local-metadata-dashboard-and-narrowing-budget-policy.md",
+    "docs/decisions/0073-evidence-only-hostile-repository-admission.md",
+    "docs/decisions/0074-separate-isolated-analyzer-runner.md",
+    "docs/decisions/0076-macos-hybrid-xpc-cask.md",
+    "docs/decisions/0082-linux-external-production-support-admission.md",
+    "docs/decisions/0083-v0-2-independent-security-review-gate.md",
+    "docs/decisions/0084-defer-independent-review-to-release-candidate.md",
+    "docs/product/v0-2-independent-security-review-prd.md",
+    "docs/architecture/v0-2-independent-security-review-ard.md",
+    "docs/reference/compatibility-matrix.md",
+    "docs/verification/release-evidence.md",
+    "SECURITY.md"
+  ],
+  "candidate_evidence": {
+    "workflow_run_id": 33323269945,
+    "workflow_url": "https://github.com/tdloB/impresari-context/actions/runs/33323269945",
+    "status": "success",
+    "source_commit": "1a9923c0e5d671581f6b7da3bc4248b604971d63",
+    "completed_at": "2026-08-30T16:54:25Z",
+    "artifacts": [
+      {
+        "artifact_id": 9735541652,
+        "target": "aarch64-apple-darwin",
+        "name": "impresari-context-0.2.0-aarch64-apple-darwin",
+        "workflow_artifact_sha256": "da900fdf4a2a51678f230a0f7d77d8f4c2e38c26d5bb0263a7eec314abd98b2c",
+        "archive_sha256": "a301eabd1706fa8d7d1a291cb6766d4931aa9cd55927f70aeaffdae671f94e82",
+        "manifest_sha256": "779533327548d030ad47e3519f8fee8f82215c9d6a92bb6e5a4d7516ea706464",
+        "expires_at": "2026-09-06T16:47:41Z"
+      },
+      {
+        "artifact_id": 9735552146,
+        "target": "x86_64-unknown-linux-gnu",
+        "name": "impresari-context-0.2.0-x86_64-unknown-linux-gnu",
+        "workflow_artifact_sha256": "b3d6e4d04b5b40b6b740940670ab68cbd7326fecba82060c6dacaef21fb4804e",
+        "archive_sha256": "ce22eac4024237a71b3e77920343a403f86a128bc1cdbd3a70e18b87ada29fcd",
+        "manifest_sha256": "cd4b0a7c8029be485f5be424d29c7fb56c06fc6d70e35674b7e6a31da6f1ed87",
+        "expires_at": "2026-09-06T16:48:29Z"
+      },
+      {
+        "artifact_id": 9735624366,
+        "target": "x86_64-pc-windows-msvc",
+        "name": "impresari-context-0.2.0-x86_64-pc-windows-msvc",
+        "workflow_artifact_sha256": "fe382e7d46fa808b2c31f071bc27b2beecf15c40ac42010bf05a13d08ffee37a",
+        "archive_sha256": "404fbd7cc18c482b9695c382a81604b0f7d17497d0b245175789bc056cd27430",
+        "manifest_sha256": "deb8d148f3c23f39a996e5f4525ac884a13f7d78b1ca3a28edaa93e3ae9f7f6f",
+        "expires_at": "2026-09-06T16:54:20Z"
+      }
+    ]
+  },
+  "release_controls": [
+    {
+      "path": ".github/workflows/release.yml",
+      "sha256": "0575b2d98cfc18136efcbb0921382d98550ae0b0a1010fe25ab64ec1f181d2f0"
+    },
+    {
+      "path": "schemas/v1/independent-security-review.schema.json",
+      "sha256": "1cffb8a33ad8f3506dd423ebdc759efd974e7fab0dfa70900bb8d6401f6947b4"
+    },
+    {
+      "path": "scripts/enforce-v0-2-independent-review-release-gate.rb",
+      "sha256": "575cf72fa24a4d3b7ec1dbdde5b8e7775ecafaeea6f1d44dc0c0ea6ba75f31b4"
+    }
+  ],
+  "allowed_descendant_paths": [
+    ".github/workflows/release.yml",
+    "CHANGELOG.md",
+    "docs/architecture/v0-2-independent-security-review-ard.md",
+    "docs/decisions/0083-v0-2-independent-security-review-gate.md",
+    "docs/decisions/0084-defer-independent-review-to-release-candidate.md",
+    "docs/product/revised-product-roadmap.md",
+    "docs/product/v0-2-independent-security-review-prd.md",
+    "docs/security/independent-review-guide.md",
+    "docs/verification/release-evidence.md",
+    "docs/verification/v0-2-independent-security-review-candidate-brief.md",
+    "docs/verification/v0-2-independent-security-review-readiness.md",
+    "release-review/v0.2.0-independent-review-candidate-scope.json",
+    "release-review/v0.2.0-independent-review-record.json",
+    "schemas/v1/independent-security-review.schema.json",
+    "scripts/check-independent-security-review-readiness.rb",
+    "scripts/check-v0-2-independent-review-release-gate.rb",
+    "scripts/enforce-v0-2-independent-review-release-gate.rb",
+    "scripts/independent-security-review-readiness.rb",
+    "tests/conformance/v1/manifest.json",
+    "tests/conformance/v1/valid/independent-security-review-candidate-receipt.json",
+    "tests/conformance/v1/valid/independent-security-review-candidate-record.json",
+    "tests/conformance/v1/valid/independent-security-review-candidate-scope.json"
+  ],
+  "reviewer_requirements": {
+    "human": true,
+    "independent_of_implementation": true,
+    "security_experience_required": true,
+    "conflict_disclosure_required": true,
+    "ai_assistance_may_not_be_the_reviewer": true,
+    "attributable_report_required": true
+  },
+  "finding_policy": {
+    "critical_open_allowed": false,
+    "high_open_allowed": false,
+    "medium_open_requires_owner_disposition": true,
+    "low_open_requires_documentation": true,
+    "unknown_severity_allowed": false
+  },
+  "claim": {
+    "review_gate_satisfied": false,
+    "release_ready": false,
+    "publication_authorized": false,
+    "production_support_admitted": false,
+    "real_analyzer_authorized": false
+  },
+  "safe_next_step": "Give the exact candidate commit, scope identity, reviewer brief, and candidate evidence to an attributable independent human security reviewer; record the returned report identity and finding dispositions separately."
+}

@@ -5,7 +5,7 @@ require "digest"
 require "json"
 require "optparse"
 
-PINNED_SCOPE_SHA256 = "98a248d7133c85366a16b0a443dab15f131529d1bc4e3d8587b0adfc7925a45c"
+PINNED_SCOPE_SHA256 = "aa96ad705335d86948ad61810c39f06e5901faf1b0e9ab2e7f437d17f1acd9d3"
 AUTHORITY = %w[source_read source_write network credential_access process_execution tag_creation release_publication risk_acceptance].to_h { |key| [key, "denied"] }.freeze
 
 class ContractError < StandardError; end
@@ -18,10 +18,17 @@ def load_scope(path)
   bytes = File.binread(path)
   raise ContractError, "scope identity is not the tracked review package" unless Digest::SHA256.hexdigest(bytes) == PINNED_SCOPE_SHA256
   scope = JSON.parse(bytes)
-  exact_keys!(scope, %w[schema_name schema_version scope_id target_version product_source_commit status triggered_boundaries review_areas required_artifacts reviewer_requirements finding_policy claim safe_next_step], "scope")
+  exact_keys!(scope, %w[schema_name schema_version scope_id target_version product_source_commit status triggered_boundaries review_areas required_artifacts candidate_evidence release_controls allowed_descendant_paths reviewer_requirements finding_policy claim safe_next_step], "scope")
   raise ContractError, "scope contract is unsupported" unless scope.values_at("schema_name", "schema_version", "scope_id", "target_version", "status") == [
-    "independent-security-review-scope", "1.0.0", "impresari-context-v0-2-0-review-v1", "0.2.0", "manual_review_required"
+    "independent-security-review-scope", "1.0.0", "impresari-context-v0-2-0-candidate-review-v1", "0.2.0", "manual_review_required"
   ]
+  evidence = scope.fetch("candidate_evidence")
+  exact_keys!(evidence, %w[workflow_run_id workflow_url status source_commit completed_at artifacts], "candidate evidence")
+  raise ContractError, "candidate evidence is not exact" unless evidence.fetch("workflow_run_id") == 33_323_269_945 && evidence.fetch("status") == "success" && evidence.fetch("source_commit") == scope.fetch("product_source_commit")
+  artifacts = evidence.fetch("artifacts")
+  raise ContractError, "candidate artifact evidence is incomplete" unless artifacts.is_a?(Array) && artifacts.length == 3 && artifacts.map { |artifact| artifact.fetch("target") }.sort == %w[aarch64-apple-darwin x86_64-pc-windows-msvc x86_64-unknown-linux-gnu]
+  raise ContractError, "release controls are not pinned" unless scope.fetch("release_controls").is_a?(Array) && scope.fetch("release_controls").length >= 3
+  raise ContractError, "release descendant path policy is unavailable" unless scope.fetch("allowed_descendant_paths").is_a?(Array) && !scope.fetch("allowed_descendant_paths").empty?
   raise ContractError, "scope claim overreaches" unless scope.fetch("claim") == {
     "review_gate_satisfied" => false, "release_ready" => false, "publication_authorized" => false,
     "production_support_admitted" => false, "real_analyzer_authorized" => false,

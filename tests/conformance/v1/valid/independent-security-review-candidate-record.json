@@ -1,0 +1,27 @@
+{
+  "schema_name": "independent-security-review-record",
+  "schema_version": "1.0.0",
+  "scope_id": "impresari-context-v0-2-0-candidate-review-v1",
+  "target_version": "0.2.0",
+  "scope_identity": "aa96ad705335d86948ad61810c39f06e5901faf1b0e9ab2e7f437d17f1acd9d3",
+  "product_source_commit": "1a9923c0e5d671581f6b7da3bc4248b604971d63",
+  "status": "review_recorded",
+  "reviewer_reference": "Synthetic independent reviewer fixture",
+  "independence_statement": "Did not implement the reviewed source.",
+  "conflict_disclosure": "No conflict disclosed.",
+  "report_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reviewed_at": "2026-08-30",
+  "critical_open": 0,
+  "high_open": 0,
+  "unknown_open": 0,
+  "medium_dispositions_complete": true,
+  "low_documentation_complete": true,
+  "claim": {
+    "review_gate_satisfied": true,
+    "release_ready": false,
+    "publication_authorized": false,
+    "production_support_admitted": false,
+    "real_analyzer_authorized": false
+  },
+  "safe_next_step": "Run the remaining release gates and obtain separate owner approval before tagging or publication."
+}

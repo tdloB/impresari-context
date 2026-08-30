@@ -300,6 +300,13 @@ may occur first. At candidate freeze, the project must refresh the exact source
 scope and reviewer brief, obtain the attributable independent human report,
 remediate or disposition findings, and then run the remaining release gates.
 
+The candidate-freeze portion is complete. PR 156 froze product source at
+`1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run
+`33323269945` passed on macOS arm64, Linux x86-64, and Windows x86-64. The
+refreshed candidate scope pins the package evidence and release controls. The
+next roadmap boundary is now the attributable independent human report; no tag
+or publication is authorized.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

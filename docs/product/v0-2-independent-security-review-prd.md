@@ -53,3 +53,9 @@ remain blocked until the refreshed candidate review is admitted.
 - A separate backlog receipt proves that roadmap development may continue while
   review admission, tagging, publication, production support, and real-analyzer
   authorization remain false.
+- The final candidate scope pins the exact successful native candidate run,
+  three package/archive/manifest identities, release-control hashes, and the
+  only review/release metadata paths permitted after the product freeze.
+- The human report is recorded in a separate schema-validated record bound to
+  the immutable scope digest and product commit; the scope is never rewritten
+  to manufacture a self-referential reviewed commit.

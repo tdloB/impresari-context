@@ -52,3 +52,13 @@ until their review policy is recorded.
 - Product changes accumulate into one refreshed release-candidate assessment.
 - A later review may still require remediation and a bounded delta review.
 - Ordinary CI can pass with the review backlogged; the release workflow cannot.
+
+## Candidate-freeze completion
+
+The scheduling trigger has now fired. Product source is frozen at
+`1a9923c0e5d671581f6b7da3bc4248b604971d63`, and exact candidate run
+`33323269945` succeeded on macOS arm64, Linux x86-64, and Windows x86-64. The
+refreshed candidate scope and reviewer brief are frozen separately from the
+unchanged prepared scope. Further product development belongs after v0.2.0 or
+requires a new scope; the current next step is the attributable independent
+human review.
