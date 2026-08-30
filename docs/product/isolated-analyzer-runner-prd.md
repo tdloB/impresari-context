@@ -346,6 +346,17 @@ cross-job-container isolation failures for that exact topology. macOS remains
 IAR-1A, and the next IAR-1B feasibility increment moves to Linux rather than
 weakening either hard requirement.
 
+Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
+Because cgroup v2 does not provide a portable aggregate file-storage quota,
+this profile grants read-only staged input and zero writable path-backed
+filesystem; result and diagnostics use bounded pipes. The first source-free
+native checkpoint verifies `no_new_privs`, Landlock read-only input,
+architecture-pinned default-deny seccomp, network and descendant denial, and
+unrelated-descriptor closure. It inventories cgroup v2 but cannot claim IAR-1B
+until delegated CPU, memory, process-count, exact-kill, empty-state, timeout,
+crash, cleanup, and cross-job checks all pass. Missing delegation is
+`unsupported`, never application-supervisor fallback.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.

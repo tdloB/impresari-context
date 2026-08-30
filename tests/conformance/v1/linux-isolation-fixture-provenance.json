@@ -1,0 +1,16 @@
+{
+  "schema_name": "linux-isolation-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T01:51:02Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/iar-linux-synthetic-profile.json", "sha256": "67d04cc852f9167fe4389d6038638f92a36fc4254bd9183591a782d9944fe19d", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "frozen authority-denying Linux synthetic isolation resource profile"},
+    {"path": "valid/linux-isolation-feasibility-unsupported.json", "sha256": "899dd621d49a9dc80415755a412cc912330d5dd2a34bd80abca0e08b25f05f25", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "source-free unsupported receipt when delegated cgroup resource and lifecycle gates remain unavailable"},
+    {"path": "invalid/linux-isolation-feasibility-overclaim.json", "sha256": "21546c065786d3943395ef11a348e1ade740731a0d63b2dfe583341dea606628", "origin": "original_synthetic", "license": "Apache-2.0", "purpose": "reject an OS-confinement claim while delegated cgroup and resource/lifecycle evidence is incomplete"}
+  ]
+}

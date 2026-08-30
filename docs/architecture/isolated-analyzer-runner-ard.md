@@ -146,6 +146,18 @@ mitigations. Neither candidate is selected: missing kernel/API/controller,
 delegation, signing, packaging, or effective-policy evidence must produce an
 unsupported state rather than a weaker confinement claim.
 
+The first Linux checkpoint additionally corrects the disk-control boundary:
+cgroup v2 does not supply an aggregate file-storage quota. The frozen
+`iar-linux-synthetic-v1` profile therefore admits read-only staged input and no
+writable path-backed filesystem; bounded pipes are the only output channels.
+This yields a hard aggregate writable-filesystem budget of zero for the
+synthetic and later YARA-shaped candidate. A test-only native probe verifies
+`no_new_privs`, read-only Landlock access, an `x86_64` default-deny seccomp
+filter, network/descendant denial, and unrelated-descriptor closure. CPU,
+memory, process-count, exact-kill, empty-state, and lifecycle checks remain
+false until a real delegated cgroup v2 leaf passes. See the
+[Linux feasibility checkpoint](../verification/iar-1b-linux-feasibility.md).
+
 ## Trust Zones
 
 ### IAR-Z1 — Context control plane

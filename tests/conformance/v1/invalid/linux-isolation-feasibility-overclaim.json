@@ -1,0 +1,60 @@
+{
+  "schema_name": "linux-isolation-feasibility",
+  "schema_version": "1.0.0",
+  "prototype_id": "iar-linux-isolation-feasibility-v1",
+  "profile_id": "iar-linux-synthetic-v1",
+  "profile_digest": "sha256:67d04cc852f9167fe4389d6038638f92a36fc4254bd9183591a782d9944fe19d",
+  "observed_host": {
+    "operating_system": "linux",
+    "kernel_release": "6.8.0-1018-azure",
+    "architecture": "x86_64",
+    "landlock_abi": "6"
+  },
+  "result": "candidate_passed",
+  "preflight": {
+    "no_new_privs": true,
+    "landlock": true,
+    "seccomp_filter": true,
+    "seccomp_kill_process": true,
+    "architecture_filter": true,
+    "cgroup_v2": true,
+    "cpu_controller": true,
+    "memory_controller": true,
+    "pids_controller": true,
+    "delegated_leaf": false,
+    "cgroup_kill": true,
+    "cgroup_empty_verification": true
+  },
+  "checks": {
+    "no_new_privs_effective": true,
+    "landlock_read_only_input": true,
+    "external_filesystem_denial": true,
+    "credential_denial": true,
+    "device_denial": true,
+    "network_denial": true,
+    "unrelated_descriptors_closed": true,
+    "descendant_denial": true,
+    "zero_writable_filesystem": true,
+    "cpu_limit": false,
+    "memory_limit": false,
+    "process_count_limit": false,
+    "exact_cgroup_kill": false,
+    "cgroup_empty_after_job": false,
+    "bounded_output": false,
+    "timeout": false,
+    "crash_relaunch": false,
+    "cleanup": false,
+    "cross_job_isolation": false
+  },
+  "limitations": [
+    "cgroup-delegation-unavailable",
+    "cgroup-resource-suite-pending",
+    "lifecycle-suite-pending",
+    "single-host-evidence",
+    "synthetic-probe-no-analysis"
+  ],
+  "os_confined": true,
+  "production_admitted": false,
+  "source_retained": false,
+  "authority_added": false
+}
