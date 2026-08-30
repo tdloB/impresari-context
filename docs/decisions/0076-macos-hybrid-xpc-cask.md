@@ -60,3 +60,13 @@ Reopen the decision if Homebrew cannot expose the embedded CLI without
 invalidating signatures, Gatekeeper rejects the independently distributed
 App Sandbox/XPC topology, a supported macOS release removes a required public
 resource primitive, or the full Tier A corpus demonstrates an escape.
+
+## 2026-08-29 Tier A review
+
+The review trigger fired: bounded synthetic probes demonstrated an aggregate-
+disk escape and cross-job persistence in the selected XPC runtime. This does
+not invalidate the one-cask/CLI-compatible packaging decision; it does prevent
+that package from being represented as an IAR-1B backend. Production signing
+and publication for the security claim are deferred while Linux advances as
+the next independent IAR-1B candidate. Any future macOS confinement layer must
+re-enter this ADR before publication.

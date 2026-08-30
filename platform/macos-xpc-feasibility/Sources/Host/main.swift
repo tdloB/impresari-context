@@ -171,6 +171,28 @@ struct ProbeHost {
                 !decoded.sourceRetained &&
                 !decoded.authorityAdded
         }
+        if let decoded = try? JSONDecoder().decode(
+            ProbeTierAReceipt.self,
+            from: output
+        ) {
+            let common = decoded.schemaName == "macos-xpc-tier-a-probe-receipt" &&
+                decoded.schemaVersion == "1.0.0" &&
+                decoded.probeMode == mode &&
+                decoded.serviceProcessID > 1 &&
+                !decoded.osConfined &&
+                !decoded.productionAdmitted &&
+                !decoded.authorityAdded
+            switch mode {
+            case .aggregateDisk:
+                return common && decoded.cleanupVerified && !decoded.sourceRetained
+            case .crossJobSeed:
+                return common && decoded.sourceRetained
+            case .crossJobObserve:
+                return common && decoded.cleanupVerified && !decoded.sourceRetained
+            default:
+                break
+            }
+        }
         guard let decoded = try? JSONDecoder().decode(
             ProbeResourceReceipt.self,
             from: output

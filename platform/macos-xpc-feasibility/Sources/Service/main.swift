@@ -16,7 +16,7 @@ final class ProbeService: NSObject, ImpresariSandboxProbeProtocol {
 
         let limitResult: (applied: Bool, errorNumber: Int32)
         switch decoded.probeMode {
-        case .baseline, .supervisorTimeout:
+        case .baseline, .crossJobSeed, .crossJobObserve, .supervisorTimeout:
             limitResult = (true, 0)
         case .cpuLimit:
             limitResult = applyLimit(resource: RLIMIT_CPU, value: 1)
@@ -44,6 +44,11 @@ final class ProbeService: NSObject, ImpresariSandboxProbeProtocol {
                 productionAddressSpaceLimit = addressSpaceLimit
                 limitResult = (true, 0)
             }
+        case .aggregateDisk:
+            limitResult = applyLimit(
+                resource: RLIMIT_FSIZE,
+                value: 8 * 1_024 * 1_024
+            )
         }
 
         let receipt = ProbePreparationReceipt(
@@ -76,6 +81,12 @@ final class ProbeService: NSObject, ImpresariSandboxProbeProtocol {
             runDescendantProbe(reply: reply)
         case .productionProfile:
             runProductionProfileProbe(reply: reply)
+        case .aggregateDisk:
+            runAggregateDiskProbe(reply: reply)
+        case .crossJobSeed:
+            runCrossJobSeedProbe(decoded, reply: reply)
+        case .crossJobObserve:
+            runCrossJobObserveProbe(decoded, reply: reply)
         case .cpuLimit:
             runCPUExhaustion()
         case .supervisorTimeout:
@@ -211,6 +222,103 @@ final class ProbeService: NSObject, ImpresariSandboxProbeProtocol {
             authorityAdded: false
         )
         reply(canonicalJSON(receipt) ?? Data())
+    }
+
+    private func runAggregateDiskProbe(reply: @escaping (Data) -> Void) {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("tier-a-aggregate-disk", isDirectory: true)
+        let chunk = Data(repeating: 0x41, count: 1_024 * 1_024)
+        var aggregateBytesWritten: UInt64 = 0
+        do {
+            try FileManager.default.createDirectory(
+                at: directory,
+                withIntermediateDirectories: false
+            )
+            for index in 0..<9 {
+                let file = directory.appendingPathComponent("chunk-\(index)")
+                try chunk.write(to: file, options: .withoutOverwriting)
+                aggregateBytesWritten += UInt64(chunk.count)
+            }
+        } catch {
+            // The exact successfully written total is the evidence.
+        }
+        try? FileManager.default.removeItem(at: directory)
+        let cleanupVerified = !FileManager.default.fileExists(atPath: directory.path)
+        let receipt = ProbeTierAReceipt(
+            schemaName: "macos-xpc-tier-a-probe-receipt",
+            schemaVersion: "1.0.0",
+            probeMode: .aggregateDisk,
+            serviceProcessID: getpid(),
+            aggregateBytesWritten: aggregateBytesWritten,
+            aggregateDiskBoundVerified: aggregateBytesWritten <= 8 * 1_024 * 1_024,
+            crossJobMarkerObserved: false,
+            crossJobIsolationVerified: false,
+            cleanupVerified: cleanupVerified,
+            osConfined: false,
+            productionAdmitted: false,
+            sourceRetained: !cleanupVerified,
+            authorityAdded: false
+        )
+        reply(canonicalJSON(receipt) ?? Data())
+    }
+
+    private func runCrossJobSeedProbe(
+        _ decoded: ProbeRequest,
+        reply: @escaping (Data) -> Void
+    ) {
+        let marker = crossJobMarkerURL()
+        try? FileManager.default.removeItem(at: marker)
+        let written = (try? decoded.syntheticPayload.write(
+            to: marker,
+            options: .withoutOverwriting
+        )) != nil
+        let receipt = ProbeTierAReceipt(
+            schemaName: "macos-xpc-tier-a-probe-receipt",
+            schemaVersion: "1.0.0",
+            probeMode: .crossJobSeed,
+            serviceProcessID: getpid(),
+            aggregateBytesWritten: 0,
+            aggregateDiskBoundVerified: false,
+            crossJobMarkerObserved: false,
+            crossJobIsolationVerified: false,
+            cleanupVerified: false,
+            osConfined: false,
+            productionAdmitted: false,
+            sourceRetained: written,
+            authorityAdded: false
+        )
+        reply(canonicalJSON(receipt) ?? Data())
+    }
+
+    private func runCrossJobObserveProbe(
+        _ decoded: ProbeRequest,
+        reply: @escaping (Data) -> Void
+    ) {
+        let marker = crossJobMarkerURL()
+        let observed = (try? Data(contentsOf: marker)) == decoded.syntheticPayload
+        try? FileManager.default.removeItem(at: marker)
+        let cleanupVerified = !FileManager.default.fileExists(atPath: marker.path)
+        let receipt = ProbeTierAReceipt(
+            schemaName: "macos-xpc-tier-a-probe-receipt",
+            schemaVersion: "1.0.0",
+            probeMode: .crossJobObserve,
+            serviceProcessID: getpid(),
+            aggregateBytesWritten: 0,
+            aggregateDiskBoundVerified: false,
+            crossJobMarkerObserved: observed,
+            crossJobIsolationVerified: !observed,
+            cleanupVerified: cleanupVerified,
+            osConfined: false,
+            productionAdmitted: false,
+            sourceRetained: !cleanupVerified,
+            authorityAdded: false
+        )
+        reply(canonicalJSON(receipt) ?? Data())
+    }
+
+    private func crossJobMarkerURL() -> URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("tier-a-cross-job-marker", isDirectory: false)
     }
 
     private func runCPUExhaustion() -> Never {

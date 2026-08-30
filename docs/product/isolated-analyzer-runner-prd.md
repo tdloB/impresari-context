@@ -341,6 +341,11 @@ clean-machine Gatekeeper, the complete Tier A corpus, OS-managed container
 removal, and multi-host evidence remain unverified. It neither admits macOS nor
 opens IAR-2.
 
+The decisive Tier A checkpoint now records material aggregate-disk and
+cross-job-container isolation failures for that exact topology. macOS remains
+IAR-1A, and the next IAR-1B feasibility increment moves to Linux rather than
+weakening either hard requirement.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.

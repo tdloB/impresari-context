@@ -254,6 +254,13 @@ native/Rust/schema checks. Signing/notarization/cask lifecycle, clean-machine
 Gatekeeper, complete Tier A, OS-managed removal, and every claimed host remain
 false or unverified, so macOS is still not admitted.
 
+The first Tier A checkpoint additionally records native negative evidence:
+nine separately closed 1 MiB files bypass any 8 MiB aggregate interpretation
+of the per-file limit, and a fresh XPC service process observes a synthetic
+marker retained by its predecessor. `aggregate_disk_bound` and
+`cross_job_isolation` remain false. The candidate cannot progress to IAR-1B by
+signing or packaging alone.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

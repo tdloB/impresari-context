@@ -28,6 +28,9 @@ enum ProbeMode: String, Codable {
     case memoryLimit = "memory_limit"
     case descendantLimit = "descendant_limit"
     case productionProfile = "production_profile"
+    case aggregateDisk = "aggregate_disk"
+    case crossJobSeed = "cross_job_seed"
+    case crossJobObserve = "cross_job_observe"
     case supervisorTimeout = "supervisor_timeout"
 }
 
@@ -173,6 +176,38 @@ struct ProbeProductionProfileReceipt: Codable, Equatable {
         case fileDescriptors = "file_descriptors"
         case temporaryFileBytes = "temporary_file_bytes"
         case effectiveProfileVerified = "effective_profile_verified"
+        case osConfined = "os_confined"
+        case productionAdmitted = "production_admitted"
+        case sourceRetained = "source_retained"
+        case authorityAdded = "authority_added"
+    }
+}
+
+struct ProbeTierAReceipt: Codable, Equatable {
+    let schemaName: String
+    let schemaVersion: String
+    let probeMode: ProbeMode
+    let serviceProcessID: Int32
+    let aggregateBytesWritten: UInt64
+    let aggregateDiskBoundVerified: Bool
+    let crossJobMarkerObserved: Bool
+    let crossJobIsolationVerified: Bool
+    let cleanupVerified: Bool
+    let osConfined: Bool
+    let productionAdmitted: Bool
+    let sourceRetained: Bool
+    let authorityAdded: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case schemaName = "schema_name"
+        case schemaVersion = "schema_version"
+        case probeMode = "probe_mode"
+        case serviceProcessID = "service_process_id"
+        case aggregateBytesWritten = "aggregate_bytes_written"
+        case aggregateDiskBoundVerified = "aggregate_disk_bound_verified"
+        case crossJobMarkerObserved = "cross_job_marker_observed"
+        case crossJobIsolationVerified = "cross_job_isolation_verified"
+        case cleanupVerified = "cleanup_verified"
         case osConfined = "os_confined"
         case productionAdmitted = "production_admitted"
         case sourceRetained = "source_retained"
