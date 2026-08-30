@@ -48,7 +48,7 @@
 #elif defined(__aarch64__)
 #define PROBE_ARCHITECTURE "aarch64"
 #define PROBE_AUDIT_ARCH AUDIT_ARCH_AARCH64
-#define PROBE_ARCHITECTURE_FILTER false
+#define PROBE_ARCHITECTURE_FILTER true
 #else
 #define PROBE_ARCHITECTURE "unsupported"
 #define PROBE_AUDIT_ARCH 0
@@ -314,7 +314,7 @@ static void close_unrelated_descriptors(void) {
     }
 }
 
-#if defined(__x86_64__)
+#if defined(__x86_64__) || defined(__aarch64__)
 #define ALLOW_SYSCALL(name)                                                   \
     BPF_JUMP(BPF_JMP | BPF_JEQ | BPF_K, SYS_##name, 0, 1),                  \
         BPF_STMT(BPF_RET | BPF_K, SECCOMP_RET_ALLOW)

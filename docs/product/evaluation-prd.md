@@ -299,6 +299,15 @@ PR 131 job `99197119262` passed this composite on kernel
 candidate receipt's `os_confined=true`; broader Linux and production admission
 remain false pending independently reproduced target coverage.
 
+The next held-out architecture unit is `ubuntu-24.04-arm`. Its AArch64 seccomp
+filter is independently pinned, and only a fresh composite receipt from that
+ephemeral runner may establish its exact-host candidate. Emulation and the
+existing x86_64 receipt are not accepted as substitutes.
+
+PR 132 job `99198568879` independently passed the AArch64 composite on kernel
+`6.17.0-1022-azure` with Landlock ABI 7. Architecture coverage is now native on
+x86_64 and arm64, while kernel diversity and production admission remain open.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

@@ -11,6 +11,21 @@ permissions:
   contents: read
 
 jobs:
+  linux-arm64-iar:
+    name: Linux arm64 IAR-1B candidate
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run Linux primitive feasibility check
+        shell: bash
+        run: ./scripts/check-linux-isolation-feasibility.sh
+      - name: Run Linux arm64 composite feasibility check
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: ./scripts/check-linux-composite-feasibility.sh
+
   dependency-audit:
     name: Dependency security and licenses
     runs-on: ubuntu-24.04

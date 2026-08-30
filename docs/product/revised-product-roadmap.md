@@ -151,6 +151,19 @@ It does not admit Linux broadly, enable a real analyzer, or open IAR-2; the next
 roadmap checkpoint is independent kernel and architecture coverage without
 weakening any Tier A gate.
 
+The first independent architecture increment targets GitHub's standard
+ephemeral `ubuntu-24.04-arm` runner. Its AArch64 seccomp audit identity and
+syscall filter are separately pinned, and a dedicated synthetic-only job must
+reproduce both the ordinary primitive receipt and the one-service composite.
+It cannot inherit the x86_64 result and is admitted only by its own hosted
+receipt.
+
+PR 132 job `99198568879` passed that native arm64 checkpoint on kernel
+`6.17.0-1022-azure` with Landlock ABI 7. Both x86_64 and arm64 therefore have
+independent exact-host composite candidates on this one Azure kernel line.
+Broader Linux and IAR-2 remain closed until a materially independent kernel
+target passes and the production support scope is frozen.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
