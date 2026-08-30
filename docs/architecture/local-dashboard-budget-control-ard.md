@@ -126,8 +126,9 @@ maxima remain compiled/release policy. The new layer can only deny or reduce.
 ADR-0072 was accepted on 2026-08-30. DBC-1 freezes the shared pure evaluator,
 closed public contracts, safe metadata projection, deterministic bounded
 aggregates, and concurrent read-only audit view before any HTTP listener or
-policy write exists. DBC-2 adds exact-owned policy lifecycle and runtime
-composition. DBC-3 adds the foreground loopback server only after those
+policy write exists. DBC-2 implements the exact-owned atomic policy lifecycle,
+admission-time reload, effective-budget enforcement, and audit composition.
+DBC-3 adds the foreground loopback server only after those
 boundaries pass independently. DBC-4 records the complete synthetic local
 rehearsal. A future remote or hosted mode cannot be added by extending this
 local server; it requires an independent architecture and decision record.

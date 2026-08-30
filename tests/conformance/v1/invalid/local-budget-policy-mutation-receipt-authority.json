@@ -1,0 +1,11 @@
+{
+  "schema_name": "local-budget-policy-mutation-receipt",
+  "schema_version": "1.0.0",
+  "receipt_id": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "operation": "remove",
+  "before": {"schema_name": "local-budget-policy-store-state", "schema_version": "1.0.0"},
+  "after": {"schema_name": "local-budget-policy-store-state", "schema_version": "1.0.0"},
+  "external_write_performed": false,
+  "state": "preview",
+  "authority_added": true
+}

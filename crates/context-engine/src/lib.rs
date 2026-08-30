@@ -17,6 +17,9 @@ use context_core::{
     RecoveryAction, ResourceBudget, audit_event, build_packet, decide, error_envelope,
     packet_bytes, packet_validation_result, validate_packet,
 };
+use context_dashboard::{
+    DashboardErrorCode, EffectiveBudgetOutcome, PolicyStore, dashboard_purpose, evaluate_budget,
+};
 use context_retrieval::{
     RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_for_span,
     evidence_record, expand_evidence_record, lookup_exact_path, search_filename, search_lexical,
@@ -576,6 +579,7 @@ pub struct LocalEngine {
     cache: Option<WorkspaceCache>,
     audit: AuditStore,
     handle: String,
+    budget_policy_root: Option<PathBuf>,
 }
 
 impl LocalEngine {
@@ -589,10 +593,66 @@ impl LocalEngine {
         context: &RequestContext,
         root: &Path,
     ) -> Result<(Self, WorkspaceHandle), EngineError> {
+        Self::open_internal(config, context, root, None)
+    }
+
+    /// Opens an explicit workspace with an exact-owned local budget policy store.
+    ///
+    /// The policy is reloaded and revalidated at every capability admission so
+    /// an applied update is immediately effective for a long-lived engine.
+    ///
+    /// # Errors
+    ///
+    /// Returns a safe structured failure for policy-store, policy, workspace,
+    /// cache, or audit errors.
+    pub fn open_with_budget_policy_store(
+        config: EngineConfig,
+        context: &RequestContext,
+        root: &Path,
+        budget_policy_root: &Path,
+    ) -> Result<(Self, WorkspaceHandle), EngineError> {
+        Self::open_internal(
+            config,
+            context,
+            root,
+            Some(budget_policy_root.to_path_buf()),
+        )
+    }
+
+    fn open_internal(
+        config: EngineConfig,
+        context: &RequestContext,
+        root: &Path,
+        budget_policy_root: Option<PathBuf>,
+    ) -> Result<(Self, WorkspaceHandle), EngineError> {
         let started = Instant::now();
-        let decision = authorize(context, None, Capability::WorkspaceOpen, None)?;
+        if let Some(policy_root) = budget_policy_root.as_deref() {
+            validate_policy_store_separation(policy_root, root, &config.cache_root)
+                .map_err(|code| dashboard_error(context, Capability::WorkspaceOpen, code, None))?;
+        }
         let mut audit = AuditStore::open(&config.cache_root)
             .map_err(|error| cache_error(context, Capability::WorkspaceOpen, error.code(), None))?;
+        let decision = authorize(
+            context,
+            None,
+            Capability::WorkspaceOpen,
+            None,
+            budget_policy_root.as_deref(),
+        )?;
+        if decision.outcome == PolicyOutcome::Deny {
+            record_event(
+                &mut audit,
+                &config.audit_retention,
+                context,
+                &decision,
+                Capability::WorkspaceOpen,
+                AuditOutcome::Denied,
+                None,
+                None,
+                elapsed_ms(started),
+            )?;
+            return Err(policy_denied(context, Capability::WorkspaceOpen, None));
+        }
         let workspace = match AuthorizedWorkspace::open(root) {
             Ok(workspace) => workspace,
             Err(error) => {
@@ -621,6 +681,7 @@ impl LocalEngine {
             cache: None,
             audit,
             handle: handle.clone(),
+            budget_policy_root,
         };
         engine.record(
             context,
@@ -651,9 +712,10 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<SnapshotStatus, EngineError> {
         let started = Instant::now();
+        let decision = self.authorize(context, Capability::SnapshotBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::SnapshotBuild, &decision, self.ids())?;
         let (discovery, max_elapsed) = bounded_discovery(self.config.discovery, &budget)
             .map_err(|code| core_error(context, Capability::SnapshotBuild, code, self.ids()))?;
-        let decision = self.authorize(context, Capability::SnapshotBuild, Some(budget))?;
         let result = self
             .workspace
             .snapshot_bounded(discovery, max_elapsed)
@@ -694,6 +756,7 @@ impl LocalEngine {
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        let budget = admitted_budget(context, Capability::StructureBuild, &decision, self.ids())?;
         if self.cache.is_none() {
             self.cache = Some(
                 WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
@@ -709,7 +772,7 @@ impl LocalEngine {
             );
         }
         let result = self
-            .build_structure_internal(context, budget, launcher, started)
+            .build_structure_internal(context, &budget, launcher, started)
             .and_then(|graph| {
                 let payload = serde_json::to_vec(&graph).map_err(|_| {
                     failure(
@@ -781,8 +844,9 @@ impl LocalEngine {
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
+        let budget = admitted_budget(context, Capability::StructureBuild, &decision, self.ids())?;
         let result =
-            self.apply_incremental_structural_update_internal(context, update, budget, started);
+            self.apply_incremental_structural_update_internal(context, update, &budget, started);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, |graph| {
             if graph.completeness == "partial" {
                 AuditOutcome::Limited
@@ -1349,7 +1413,8 @@ impl LocalEngine {
     ) -> Result<StructuralQueryResult, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureQuery, Some(budget.clone()))?;
-        let result = self.query_structure_internal(context, graph, start_node, edge_kinds, budget);
+        let budget = admitted_budget(context, Capability::StructureQuery, &decision, self.ids())?;
+        let result = self.query_structure_internal(context, graph, start_node, edge_kinds, &budget);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, |value| {
             if value.truncated {
                 AuditOutcome::Limited
@@ -1544,7 +1609,8 @@ impl LocalEngine {
     ) -> Result<SearchResponse, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::CodeSearch, Some(budget.clone()))?;
-        let result = self.search_internal(context, Capability::CodeSearch, kind, query, budget);
+        let budget = admitted_budget(context, Capability::CodeSearch, &decision, self.ids())?;
+        let result = self.search_internal(context, Capability::CodeSearch, kind, query, &budget);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, audit_outcome);
         self.finalize(
             context,
@@ -1599,7 +1665,8 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = self.build_profiled_context_internal(
             context,
             profile,
@@ -1657,7 +1724,8 @@ impl LocalEngine {
         let structural_query = structural_planner_query(&structural_request.edge_kinds, traversal)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = self.build_profiled_context_internal(
             context,
             profile,
@@ -1690,6 +1758,7 @@ impl LocalEngine {
     ///
     /// Returns a structured failure when the supplied graph is malformed or stale,
     /// the map exceeds a declared bound, or ordinary packet retrieval fails.
+    #[allow(clippy::too_many_lines)]
     pub fn build_profiled_repository_orientation_context(
         &mut self,
         context: &RequestContext,
@@ -1704,6 +1773,16 @@ impl LocalEngine {
             Capability::StructureQuery,
             Some(budget.clone()),
         )?;
+        let structure_budget = admitted_budget(
+            &structure_context,
+            Capability::StructureQuery,
+            &structure_decision,
+            self.ids(),
+        )?;
+        let maximum_entries = u32::try_from(structure_budget.max_files_u64().map_err(|code| {
+            core_error(context, Capability::StructureQuery, code.code(), self.ids())
+        })?)
+        .unwrap_or(u32::MAX);
         let orientation = (|| {
             let snapshot = self.snapshot.as_ref().ok_or_else(|| {
                 failure(
@@ -1727,7 +1806,8 @@ impl LocalEngine {
                     Some(RecoveryAction::RebuildIndex),
                 ));
             }
-            let result = repository_map(&request.graph, request.max_entries).map_err(|error| {
+            let result = repository_map(&request.graph, request.max_entries.min(maximum_entries))
+                .map_err(|error| {
                 structural_query_failure(
                     &structure_context,
                     error,
@@ -1764,7 +1844,8 @@ impl LocalEngine {
             orientation,
             elapsed_ms(started),
         )?;
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = self.build_profiled_context_internal(
             context,
             TaskProfile::Orientation,
@@ -1810,7 +1891,8 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = (|| {
             let declared_change_set =
                 self.verify_declared_change_set(context, declaration, &budget)?;
@@ -1856,7 +1938,8 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = (|| {
             let associated =
                 self.verify_declared_associated_tests(context, declaration, &budget)?;
@@ -1901,7 +1984,8 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = (|| {
             let conventions =
                 self.verify_declared_convention_exemplars(context, declaration, &budget)?;
@@ -2055,7 +2139,8 @@ impl LocalEngine {
         budget: ResourceBudget,
     ) -> Result<ContextPacket, EngineError> {
         let started = Instant::now();
-        let decision = self.authorize(context, Capability::ContextBuild, Some(budget.clone()))?;
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
         let result = self.build_planned_context_internal(
             context,
             plan,
@@ -2852,6 +2937,14 @@ impl LocalEngine {
     ) -> Result<EvidenceRecord, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::EvidenceExpand, Some(budget))?;
+        let budget = admitted_budget(context, Capability::EvidenceExpand, &decision, self.ids())?;
+        let admitted_max = budget
+            .requested
+            .parse::<u64>()
+            .ok()
+            .zip(budget.max_excerpt_bytes_per_item.parse::<u64>().ok())
+            .map_or(0, |(requested, excerpt)| requested.min(excerpt));
+        let max_bytes = max_bytes.min(admitted_max);
         let result = self
             .snapshot
             .as_ref()
@@ -2908,13 +3001,25 @@ impl LocalEngine {
     ) -> Result<PacketValidationResult, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextValidate, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextValidate, &decision, self.ids())?;
+        let evidence_ceiling = budget
+            .max_excerpt_bytes_per_item
+            .parse::<u64>()
+            .unwrap_or(0);
         let snapshot = self.snapshot.as_ref();
         let authorized = packet.workspace_identity == self.workspace.identity();
         let evidence_available = authorized
             && snapshot.is_some_and(|snapshot| {
                 packet.observed_evidence.iter().all(|evidence| {
-                    expand_evidence_record(&self.workspace, snapshot, evidence, 0, 0, 65_536)
-                        .is_ok()
+                    expand_evidence_record(
+                        &self.workspace,
+                        snapshot,
+                        evidence,
+                        0,
+                        0,
+                        evidence_ceiling,
+                    )
+                    .is_ok()
                 })
             });
         let result = packet_validation_result(
@@ -2969,8 +3074,9 @@ impl LocalEngine {
     ) -> Result<HandoffReceipt, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::HandoffExport, Some(budget.clone()))?;
+        let budget = admitted_budget(context, Capability::HandoffExport, &decision, self.ids())?;
         let result =
-            self.export_handoff_inner(context, packet, budget, export_root, destination_name);
+            self.export_handoff_inner(context, packet, &budget, export_root, destination_name);
         self.finalize(
             context,
             &decision,
@@ -3232,12 +3338,28 @@ impl LocalEngine {
     }
 
     fn authorize(
-        &self,
+        &mut self,
         context: &RequestContext,
         capability: Capability,
         budget: Option<ResourceBudget>,
     ) -> Result<PolicyDecision, EngineError> {
-        authorize(context, Some(self.workspace.identity()), capability, budget)
+        let decision = authorize(
+            context,
+            Some(self.workspace.identity()),
+            capability,
+            budget,
+            self.budget_policy_root.as_deref(),
+        )?;
+        if decision.outcome == PolicyOutcome::Deny {
+            self.record(context, &decision, capability, AuditOutcome::Denied, 0)?;
+            Err(policy_denied(
+                context,
+                capability,
+                Some(self.workspace.identity()),
+            ))
+        } else {
+            Ok(decision)
+        }
     }
 
     fn record(
@@ -3273,7 +3395,11 @@ impl LocalEngine {
         duration_ms: u64,
     ) -> Result<T, EngineError> {
         let outcome = if result.is_ok() {
-            success_outcome
+            if decision.outcome == PolicyOutcome::Limit {
+                AuditOutcome::Limited
+            } else {
+                success_outcome
+            }
         } else {
             AuditOutcome::Failed
         };
@@ -3319,29 +3445,148 @@ fn authorize(
     workspace: Option<&str>,
     capability: Capability,
     budget: Option<ResourceBudget>,
+    budget_policy_root: Option<&Path>,
 ) -> Result<PolicyDecision, EngineError> {
-    let decision = decide(
+    let mut decision = decide(
         &context.request_id,
         &context.subject,
         workspace,
         capability,
-        budget,
+        budget.clone(),
         &context.occurred_at,
     )
     .map_err(|error| core_error(context, capability, error.code(), (workspace, None)))?;
-    if decision.outcome == PolicyOutcome::Deny {
-        Err(failure(
+    if let Some(root) = budget_policy_root {
+        let policy = PolicyStore::open(root)
+            .and_then(|store| store.current())
+            .map_err(|error| dashboard_error(context, capability, error.code(), workspace))?;
+        let engine_maximum = engine_budget_maximum();
+        let caller_budget = budget.unwrap_or_else(|| engine_maximum.clone());
+        let authorized_budget = decision
+            .effective_budget
+            .as_ref()
+            .unwrap_or(&caller_budget)
+            .clone();
+        let effective = evaluate_budget(
+            &engine_maximum,
+            &authorized_budget,
+            policy.as_ref(),
+            &caller_budget,
+            dashboard_purpose(&context.subject.purpose),
+            capability,
+            &context.occurred_at,
+        )
+        .map_err(|error| dashboard_error(context, capability, error.code(), workspace))?;
+        decision.decision_id = effective.decision_id;
+        decision.effective_budget = effective.effective_budget;
+        decision.reason_codes.extend(effective.reason_codes);
+        decision.policy_profile = format!("{}+local-budget-policy-v1", decision.policy_profile);
+        decision.outcome = match effective.outcome {
+            EffectiveBudgetOutcome::Allow => PolicyOutcome::Allow,
+            EffectiveBudgetOutcome::Limit => PolicyOutcome::Limit,
+            EffectiveBudgetOutcome::Deny => PolicyOutcome::Deny,
+        };
+    }
+    Ok(decision)
+}
+
+fn policy_denied(
+    context: &RequestContext,
+    capability: Capability,
+    workspace: Option<&str>,
+) -> EngineError {
+    failure(
+        context,
+        capability,
+        PublicErrorCode::PolicyDenied,
+        "capability denied by local policy",
+        workspace,
+        None,
+        Some(RecoveryAction::RequestAuthorization),
+    )
+}
+
+fn validate_policy_store_separation(
+    policy_root: &Path,
+    workspace_root: &Path,
+    cache_root: &Path,
+) -> Result<(), DashboardErrorCode> {
+    PolicyStore::open(policy_root).map_err(|error| error.code())?;
+    let policy = policy_root
+        .canonicalize()
+        .map_err(|_| DashboardErrorCode::StorageFailure)?;
+    let workspace = workspace_root
+        .canonicalize()
+        .map_err(|_| DashboardErrorCode::StorageFailure)?;
+    let cache = cache_root
+        .canonicalize()
+        .map_err(|_| DashboardErrorCode::StorageFailure)?;
+    if paths_overlap(&policy, &workspace) || paths_overlap(&policy, &cache) {
+        return Err(DashboardErrorCode::InvalidInput);
+    }
+    Ok(())
+}
+
+fn paths_overlap(left: &Path, right: &Path) -> bool {
+    left == right || left.starts_with(right) || right.starts_with(left)
+}
+
+fn dashboard_error(
+    context: &RequestContext,
+    capability: Capability,
+    code: DashboardErrorCode,
+    workspace: Option<&str>,
+) -> EngineError {
+    let public = match code {
+        DashboardErrorCode::InvalidInput => PublicErrorCode::InvalidInput,
+        DashboardErrorCode::ResourceLimit => PublicErrorCode::ResourceLimit,
+        DashboardErrorCode::IntegrityFailure => PublicErrorCode::IntegrityFailure,
+        DashboardErrorCode::IncompatibleData => PublicErrorCode::IncompatibleCache,
+        DashboardErrorCode::StaleState => PublicErrorCode::StaleState,
+        DashboardErrorCode::StorageFailure => PublicErrorCode::InternalFailure,
+    };
+    failure(
+        context,
+        capability,
+        public,
+        "local budget policy admission failed",
+        workspace,
+        None,
+        Some(RecoveryAction::None),
+    )
+}
+
+fn engine_budget_maximum() -> ResourceBudget {
+    ResourceBudget::conservative(
+        4_194_304,
+        10_000,
+        1_000_000,
+        65_536,
+        10_000,
+        256,
+        300_000,
+        2_147_483_648,
+    )
+    .expect("versioned engine maximum budget")
+}
+
+fn admitted_budget(
+    context: &RequestContext,
+    capability: Capability,
+    decision: &PolicyDecision,
+    ids: (Option<&str>, Option<&str>),
+) -> Result<ResourceBudget, EngineError> {
+    decision.effective_budget.clone().ok_or_else(|| {
+        failure(
             context,
             capability,
             PublicErrorCode::PolicyDenied,
-            "capability denied by local policy",
-            workspace,
-            None,
+            "effective budget is unavailable",
+            ids.0,
+            ids.1,
             Some(RecoveryAction::RequestAuthorization),
-        ))
-    } else {
-        Ok(decision)
-    }
+        )
+    })
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -4582,6 +4827,9 @@ fn valid_sha256(value: &str) -> bool {
 mod tests {
     use super::*;
     use context_core::validate_packet;
+    use context_dashboard::{
+        BudgetCeilings, BudgetSelector, LocalBudgetPolicyDraft, LocalBudgetRule, compile_policy,
+    };
     use jsonschema::Registry;
     use serde::Serialize;
     use std::{
@@ -4625,6 +4873,108 @@ mod tests {
     fn budget() -> ResourceBudget {
         ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
             .expect("budget")
+    }
+
+    #[test]
+    fn exact_owned_local_policy_narrows_runtime_and_audit_limits() {
+        let source = TestRoot::new("budget-policy-source");
+        let cache = TestRoot::new("budget-policy-cache");
+        let state_parent = TestRoot::new("budget-policy-state");
+        fs::write(source.0.join("one.rs"), b"fn one() {}\n").expect("one");
+        fs::write(source.0.join("two.rs"), b"fn two() {}\n").expect("two");
+        let policy = compile_policy(LocalBudgetPolicyDraft {
+            schema_name: "local-budget-policy".into(),
+            schema_version: "1.0.0".into(),
+            revision: "1".into(),
+            created_at: "2026-08-21T00:00:00Z".into(),
+            expires_at: None,
+            rules: vec![LocalBudgetRule {
+                rule_id: "snapshot_one_file".into(),
+                selector: BudgetSelector {
+                    purpose: None,
+                    capability: Some(Capability::SnapshotBuild),
+                },
+                deny: false,
+                ceilings: BudgetCeilings {
+                    max_files: Some("1".into()),
+                    ..BudgetCeilings::default()
+                },
+            }],
+        })
+        .expect("policy");
+        let policy_root = state_parent.0.join("policy");
+        PolicyStore::apply(&policy_root, policy, None, None).expect("policy apply");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) = LocalEngine::open_with_budget_policy_store(
+            config,
+            &request(1, "workspace_open"),
+            &source.0,
+            &policy_root,
+        )
+        .expect("open");
+        let status = engine
+            .build_snapshot(&request(2, "snapshot_build"), budget())
+            .expect("snapshot");
+        assert_eq!(status.eligible_files, "1");
+        assert_eq!(status.completeness, "partial");
+        let denied_policy = compile_policy(LocalBudgetPolicyDraft {
+            schema_name: "local-budget-policy".into(),
+            schema_version: "1.0.0".into(),
+            revision: "2".into(),
+            created_at: "2026-08-21T00:00:00Z".into(),
+            expires_at: None,
+            rules: vec![LocalBudgetRule {
+                rule_id: "deny_search".into(),
+                selector: BudgetSelector {
+                    purpose: None,
+                    capability: Some(Capability::CodeSearch),
+                },
+                deny: true,
+                ceilings: BudgetCeilings::default(),
+            }],
+        })
+        .expect("denied policy");
+        let current = PolicyStore::open(&policy_root)
+            .expect("store")
+            .current()
+            .expect("current")
+            .expect("installed");
+        PolicyStore::apply(
+            &policy_root,
+            denied_policy,
+            Some(&current.policy_id),
+            Some(&current.revision),
+        )
+        .expect("live policy update");
+        let denied = engine
+            .search(
+                &request(3, "implementation"),
+                QueryKind::Filename,
+                "one.rs",
+                &budget(),
+            )
+            .expect_err("search denied after live update");
+        assert_eq!(denied.envelope().code, PublicErrorCode::PolicyDenied);
+        drop(engine);
+
+        let audit = context_store::AuditReader::open(&cache.0).expect("audit reader");
+        let events = audit.recent(10).expect("events").events;
+        let event = events
+            .iter()
+            .find(|event| event.capability == Capability::SnapshotBuild)
+            .expect("snapshot event");
+        assert_eq!(event.outcome, AuditOutcome::Limited);
+        assert_eq!(event.limits.max_files, "1");
+        let denied_event = events
+            .iter()
+            .find(|event| event.capability == Capability::CodeSearch)
+            .expect("denied event");
+        assert_eq!(denied_event.outcome, AuditOutcome::Denied);
     }
 
     #[test]

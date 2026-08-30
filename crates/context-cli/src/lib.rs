@@ -35,6 +35,7 @@ use context_cursor_agent::{
     CursorDeliveryError, CursorDeliveryPreparation, StdioCursorCliTransport,
     deliver_cursor_preview, prepare_cursor_delivery, rehydrate_cursor_delivery_preview,
 };
+use context_dashboard::{DashboardError, DashboardErrorCode, LocalBudgetPolicy, PolicyStore};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, EngineConfig, EngineError, IncrementalStructuralUpdate,
@@ -77,6 +78,10 @@ Usage:\n\
   impresari-context [global-options] evidence expand <root> <cache-root> <evidence-json> <before> <after> <max>\n\
   impresari-context [global-options] packet validate <root> <cache-root> <packet-json>\n\
   impresari-context [global-options] handoff export <root> <cache-root> <packet-json> <export-root> <filename>\n\
+  impresari-context [global-options] budget policy inspect <state-root>\n\
+  impresari-context [global-options] budget policy apply <state-root> <policy-json> <expected-policy-id|absent> <expected-revision|absent>\n\
+  impresari-context [global-options] budget policy remove <state-root> <expected-policy-id> <expected-revision>\n\
+  impresari-context [global-options] budget policy rollback <state-root> <expected-policy-id|absent> <expected-revision|absent>\n\
   impresari-context [global-options] quickstart <codex|claude|cursor|copilot|vscode> <workspace> <cache-root> <config-file>\n\
   impresari-context [global-options] client kit render <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root>\n\
   impresari-context [global-options] client kit inspect <codex|claude|cursor|copilot|vscode> <mcp-binary> <workspace> <cache-root> <config-file>\n\
@@ -113,7 +118,8 @@ Global options:\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
   --cutoff <UTC>          Explicit audit retention cutoff.\n\
   --id-seed <8-64 chars>  Deterministic request/event identifier seed.\n\
-  --apply                 Permit an explicit client-kit write or separately previewed Codex delivery.\n\
+  --budget-policy-root <path>  Apply an existing exact-owned local budget policy store at every engine admission.\n\
+  --apply                 Permit an explicit preview-first owned configuration, policy, or delivery mutation.\n\
   --help                  Show this help.\n";
 
 #[derive(Debug)]
@@ -123,6 +129,7 @@ struct GlobalOptions {
     cutoff: String,
     id_seed: String,
     apply: bool,
+    budget_policy_root: Option<PathBuf>,
     command: Vec<String>,
 }
 
@@ -646,6 +653,85 @@ fn dispatch(
                 filename,
             )?;
             Output::new("handoff export", &result)
+        }
+        ["budget", "policy", "inspect", state_root] => {
+            let state = PolicyStore::open(Path::new(state_root))
+                .and_then(|store| store.state())
+                .map_err(dashboard_cli_error)?;
+            Output::new("budget policy inspect", &state)
+        }
+        [
+            "budget",
+            "policy",
+            "apply",
+            state_root,
+            policy_path,
+            expected_policy_id,
+            expected_revision,
+        ] => {
+            let policy: LocalBudgetPolicy =
+                read_json(Path::new(policy_path), Capability::ContextBuild)?;
+            let expected_policy_id = optional_expected(expected_policy_id);
+            let expected_revision = optional_expected(expected_revision);
+            let receipt = if options.apply {
+                PolicyStore::apply(
+                    Path::new(state_root),
+                    policy,
+                    expected_policy_id,
+                    expected_revision,
+                )
+            } else {
+                PolicyStore::preview_apply(
+                    Path::new(state_root),
+                    &policy,
+                    expected_policy_id,
+                    expected_revision,
+                )
+            }
+            .map_err(dashboard_cli_error)?;
+            Output::new("budget policy apply", &receipt)
+        }
+        [
+            "budget",
+            "policy",
+            "remove",
+            state_root,
+            expected_policy_id,
+            expected_revision,
+        ] => {
+            let receipt = if options.apply {
+                PolicyStore::remove(Path::new(state_root), expected_policy_id, expected_revision)
+            } else {
+                PolicyStore::preview_remove(
+                    Path::new(state_root),
+                    expected_policy_id,
+                    expected_revision,
+                )
+            }
+            .map_err(dashboard_cli_error)?;
+            Output::new("budget policy remove", &receipt)
+        }
+        [
+            "budget",
+            "policy",
+            "rollback",
+            state_root,
+            expected_policy_id,
+            expected_revision,
+        ] => {
+            let expected_policy_id = optional_expected(expected_policy_id);
+            let expected_revision = optional_expected(expected_revision);
+            let receipt = if options.apply {
+                PolicyStore::rollback(Path::new(state_root), expected_policy_id, expected_revision)
+            } else {
+                PolicyStore::preview_rollback(
+                    Path::new(state_root),
+                    expected_policy_id,
+                    expected_revision,
+                )
+            }
+            .map_err(dashboard_cli_error)?;
+            Output::new("budget policy rollback", &receipt)
         }
         ["quickstart", client, root, cache, target] => {
             let mcp_binary = sibling_mcp_binary()?;
@@ -3123,11 +3209,13 @@ fn open_engine(
     options: &GlobalOptions,
     contexts: &mut ContextSequence,
 ) -> Result<(LocalEngine, context_engine::WorkspaceHandle), EngineError> {
-    LocalEngine::open(
-        config(Path::new(cache), &options.cutoff)?,
-        &contexts.next("workspace_open"),
-        Path::new(root),
-    )
+    let config = config(Path::new(cache), &options.cutoff)?;
+    let context = contexts.next("workspace_open");
+    if let Some(policy_root) = options.budget_policy_root.as_deref() {
+        LocalEngine::open_with_budget_policy_store(config, &context, Path::new(root), policy_root)
+    } else {
+        LocalEngine::open(config, &context, Path::new(root))
+    }
 }
 
 fn prepared_engine(
@@ -3314,6 +3402,7 @@ fn parse_globals(arguments: &[String]) -> Result<GlobalOptions, String> {
         cutoff: timestamp(now.saturating_sub(7 * 24 * 60 * 60)),
         id_seed: unique_seed()?,
         apply: false,
+        budget_policy_root: None,
         command: Vec::new(),
     };
     let mut index = 0;
@@ -3321,7 +3410,7 @@ fn parse_globals(arguments: &[String]) -> Result<GlobalOptions, String> {
         match arguments[index].as_str() {
             "--human" => options.human = true,
             "--apply" => options.apply = true,
-            "--at" | "--cutoff" | "--id-seed" => {
+            "--at" | "--cutoff" | "--id-seed" | "--budget-policy-root" => {
                 let flag = arguments[index].as_str();
                 index += 1;
                 let value = arguments
@@ -3331,6 +3420,9 @@ fn parse_globals(arguments: &[String]) -> Result<GlobalOptions, String> {
                     "--at" => options.at.clone_from(value),
                     "--cutoff" => options.cutoff.clone_from(value),
                     "--id-seed" => options.id_seed.clone_from(value),
+                    "--budget-policy-root" => {
+                        options.budget_policy_root = Some(PathBuf::from(value));
+                    }
                     _ => unreachable!(),
                 }
             }
@@ -3368,6 +3460,40 @@ fn synthetic_error(capability: Capability, code: PublicErrorCode, message: &str)
     )
     .expect("constant CLI error");
     engine_error(envelope)
+}
+
+fn optional_expected(value: &str) -> Option<&str> {
+    (value != "absent").then_some(value)
+}
+
+fn dashboard_cli_error(error: DashboardError) -> EngineError {
+    let (code, message) = match error.code() {
+        DashboardErrorCode::InvalidInput => (
+            PublicErrorCode::InvalidInput,
+            "invalid local budget policy input",
+        ),
+        DashboardErrorCode::ResourceLimit => (
+            PublicErrorCode::ResourceLimit,
+            "local budget policy resource limit exceeded",
+        ),
+        DashboardErrorCode::IntegrityFailure => (
+            PublicErrorCode::IntegrityFailure,
+            "local budget policy identity verification failed",
+        ),
+        DashboardErrorCode::IncompatibleData => (
+            PublicErrorCode::IncompatibleCache,
+            "local budget policy state is incompatible",
+        ),
+        DashboardErrorCode::StaleState => (
+            PublicErrorCode::StaleState,
+            "local budget policy state changed",
+        ),
+        DashboardErrorCode::StorageFailure => (
+            PublicErrorCode::InternalFailure,
+            "local budget policy storage failed",
+        ),
+    };
+    synthetic_error(Capability::ContextBuild, code, message)
 }
 
 fn codex_delivery_error(error: CodexDeliveryError) -> EngineError {
@@ -5060,5 +5186,120 @@ env_vars = ["HOME"]
         assert_eq!(code, 0);
         assert_eq!(receipt["packet_id"], packet.packet_id);
         assert!(export.0.join("handoff.json").is_file());
+    }
+
+    #[test]
+    fn budget_policy_cli_is_preview_first_exact_and_reversible() {
+        let state = TestRoot::new("budget-policy-state");
+        let input = TestRoot::new("budget-policy-input");
+        let store = state.0.join("policy");
+        let policy = context_dashboard::compile_policy(context_dashboard::LocalBudgetPolicyDraft {
+            schema_name: "local-budget-policy".into(),
+            schema_version: "1.0.0".into(),
+            revision: "1".into(),
+            created_at: "2026-08-21T00:00:00Z".into(),
+            expires_at: None,
+            rules: vec![context_dashboard::LocalBudgetRule {
+                rule_id: "cli_limit".into(),
+                selector: context_dashboard::BudgetSelector {
+                    purpose: Some(context_dashboard::DashboardPurpose::Implementation),
+                    capability: Some(Capability::ContextBuild),
+                },
+                deny: false,
+                ceilings: context_dashboard::BudgetCeilings {
+                    requested: Some("8192".into()),
+                    ..context_dashboard::BudgetCeilings::default()
+                },
+            }],
+        })
+        .expect("policy");
+        let policy_path = input.0.join("policy.json");
+        fs::write(
+            &policy_path,
+            serde_json::to_vec(&policy).expect("policy JSON"),
+        )
+        .expect("policy input");
+        let base = vec![
+            "budget".into(),
+            "policy".into(),
+            "apply".into(),
+            store.to_string_lossy().into_owned(),
+            policy_path.to_string_lossy().into_owned(),
+            "absent".into(),
+            "absent".into(),
+        ];
+        let (code, preview) = invoke(&base, "budgetpre");
+        assert_eq!(code, 0);
+        assert_eq!(preview["state"], "preview");
+        assert_eq!(preview["external_write_performed"], false);
+        assert!(!store.exists());
+        let mut apply = base;
+        apply.push("--apply".into());
+        let (code, applied) = invoke(&apply, "budgetapp");
+        assert_eq!(code, 0);
+        assert_eq!(applied["state"], "applied");
+        assert_eq!(applied["after"]["current_policy_id"], policy.policy_id);
+
+        let (code, inspected) = invoke(
+            &[
+                "budget".into(),
+                "policy".into(),
+                "inspect".into(),
+                store.to_string_lossy().into_owned(),
+            ],
+            "budgetins",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(inspected["current_policy_id"], policy.policy_id);
+
+        let remove = vec![
+            "budget".into(),
+            "policy".into(),
+            "remove".into(),
+            store.to_string_lossy().into_owned(),
+            policy.policy_id.clone(),
+            policy.revision.clone(),
+            "--apply".into(),
+        ];
+        let (code, removed) = invoke(&remove, "budgetrem");
+        assert_eq!(code, 0);
+        assert_eq!(removed["state"], "removed");
+        let rollback = vec![
+            "budget".into(),
+            "policy".into(),
+            "rollback".into(),
+            store.to_string_lossy().into_owned(),
+            "absent".into(),
+            "absent".into(),
+            "--apply".into(),
+        ];
+        let (code, restored) = invoke(&rollback, "budgetrol");
+        assert_eq!(code, 0);
+        assert_eq!(restored["state"], "rolled_back");
+        assert_eq!(restored["after"]["current_policy_id"], policy.policy_id);
+
+        assert_runtime_uses_budget_policy(&store);
+    }
+
+    fn assert_runtime_uses_budget_policy(store: &Path) {
+        let source = TestRoot::new("budget-policy-source");
+        let cache = TestRoot::new("budget-policy-cache");
+        fs::write(source.0.join("lib.rs"), b"pub fn bounded() {}\n").expect("source");
+        let (code, packet) = invoke(
+            &[
+                "--budget-policy-root".into(),
+                store.to_string_lossy().into_owned(),
+                "context".into(),
+                "build".into(),
+                source.0.to_string_lossy().into_owned(),
+                cache.0.to_string_lossy().into_owned(),
+                "literal".into(),
+                "bounded".into(),
+                "implementation".into(),
+            ],
+            "budgetrun",
+        );
+        assert_eq!(code, 0);
+        assert_eq!(packet["budget"]["requested"], "8192");
     }
 }

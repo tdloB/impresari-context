@@ -1,0 +1,23 @@
+{
+  "schema_name": "local-budget-policy-mutation-receipt",
+  "schema_version": "1.0.0",
+  "receipt_id": "sha256:3333333333333333333333333333333333333333333333333333333333333333",
+  "operation": "apply",
+  "expected_policy_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "expected_revision": "2",
+  "before": {
+    "schema_name": "local-budget-policy-store-state",
+    "schema_version": "1.0.0",
+    "current_policy_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "current_revision": "2"
+  },
+  "after": {
+    "schema_name": "local-budget-policy-store-state",
+    "schema_version": "1.0.0",
+    "current_policy_id": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "current_revision": "3",
+    "previous_policy_id": "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+  },
+  "external_write_performed": false,
+  "state": "preview"
+}

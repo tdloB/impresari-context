@@ -71,6 +71,8 @@
     {"fixture": "valid/local-budget-policy.json", "schema": "local-budget-policy.schema.json", "valid": true},
     {"fixture": "valid/effective-budget-decision.json", "schema": "effective-budget-decision.schema.json", "valid": true},
     {"fixture": "valid/dashboard-snapshot.json", "schema": "dashboard-snapshot.schema.json", "valid": true},
+    {"fixture": "valid/local-budget-policy-store-state.json", "schema": "local-budget-policy-store-state.schema.json", "valid": true},
+    {"fixture": "valid/local-budget-policy-mutation-receipt.json", "schema": "local-budget-policy-mutation-receipt.schema.json", "valid": true},
     {"fixture": "invalid/evidence-unknown-field.json", "schema": "evidence.schema.json", "valid": false},
     {"fixture": "invalid/path-platform-mismatch.json", "schema": "path-identity.schema.json", "valid": false},
     {"fixture": "invalid/search-leading-zero-budget.json", "schema": "search.schema.json#/$defs/request", "valid": false},
@@ -115,6 +117,7 @@
     {"fixture": "invalid/linux-cgroup-feasibility-overclaim.json", "schema": "linux-cgroup-feasibility.schema.json", "valid": false},
     {"fixture": "invalid/local-budget-policy-path-selector.json", "schema": "local-budget-policy.schema.json", "valid": false},
     {"fixture": "invalid/effective-budget-decision-authority.json", "schema": "effective-budget-decision.schema.json", "valid": false},
-    {"fixture": "invalid/dashboard-snapshot-source-field.json", "schema": "dashboard-snapshot.schema.json", "valid": false}
+    {"fixture": "invalid/dashboard-snapshot-source-field.json", "schema": "dashboard-snapshot.schema.json", "valid": false},
+    {"fixture": "invalid/local-budget-policy-mutation-receipt-authority.json", "schema": "local-budget-policy-mutation-receipt.schema.json", "valid": false}
   ]
 }
