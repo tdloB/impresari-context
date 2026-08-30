@@ -278,6 +278,15 @@ The first hosted Ubuntu 24.04 run observed kernel `6.17.0-1022-azure`,
 was not delegated. The receipt therefore returned `unsupported` with
 `os_confined=false`; this is valid fail-closed evidence, not an IAR-1B pass.
 
+The separate delegated-cgroup component checkpoint then passed on the same
+kernel and architecture in PR 130 job `99194709845`. Under one ephemeral
+systemd `Delegate=yes` service, the unprivileged synthetic supervisor reproduced
+CPU, memory, process-count, exact-kill, empty-state, bounded-output, timeout,
+crash/relaunch, cleanup, and cross-job checks using atomic
+`CLONE_INTO_CGROUP`. Its receipt claims only
+`resource_lifecycle_confined=true`; overall `os_confined` and production
+admission remain false pending source-free composition and multi-host evidence.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

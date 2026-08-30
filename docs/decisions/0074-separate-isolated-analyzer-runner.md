@@ -177,6 +177,15 @@ backend until a delegated cgroup v2 leaf passes the complete resource and
 lifecycle suite. Absence of delegation or any required primitive remains an
 explicit unsupported state.
 
+The accepted Linux follow-up uses a CI-only transient systemd service to grant
+one cgroup v2 subtree to an unprivileged synthetic supervisor. The trusted
+setup is limited to `Delegate=yes` on an ephemeral GitHub-hosted Ubuntu runner;
+it creates no persistent service and is not a production packaging decision.
+Workers enter leaves atomically through `CLONE_INTO_CGROUP`. The separate
+closed receipt can claim only the resource/lifecycle component; it fixes
+overall OS confinement and production admission false until composed with the
+primitive checkpoint and repeated on every claimed Linux target.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

@@ -1,0 +1,17 @@
+{
+  "schema_name": "linux-cgroup-feasibility",
+  "schema_version": "1.0.0",
+  "prototype_id": "iar-linux-cgroup-feasibility-v1",
+  "profile_id": "iar-linux-cgroup-synthetic-v1",
+  "profile_digest": "sha256:63d127ecd53523b087811e41d36695343a60ca05f74e83e0276aa38830e24705",
+  "observed_host": {"operating_system": "linux", "kernel_release": "6.17.0-1022-azure", "architecture": "x86_64", "delegation_provider": "systemd-transient-service"},
+  "result": "candidate_passed",
+  "preflight": {"cgroup_v2": true, "cpu_controller": true, "memory_controller": true, "pids_controller": true, "delegated_subtree": true, "clone_into_cgroup": true, "cgroup_kill": true, "cgroup_empty_verification": true},
+  "checks": {"cpu_limit": false, "memory_limit": true, "process_count_limit": true, "exact_cgroup_kill": true, "cgroup_empty_after_job": true, "bounded_output": true, "timeout": true, "crash_relaunch": true, "cleanup": true, "cross_job_isolation": true},
+  "limitations": ["single-host-evidence", "composite-linux-admission-pending", "synthetic-probe-no-analysis"],
+  "resource_lifecycle_confined": true,
+  "os_confined": false,
+  "production_admitted": false,
+  "source_retained": false,
+  "authority_added": false
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/linux-cgroup-resource-profile.schema.json",
+  "title": "ADR-0074 delegated cgroup synthetic resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "linux-cgroup-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-linux-cgroup-synthetic-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["output_bytes", "stderr_bytes", "writable_filesystem_bytes", "cpu_seconds", "cpu_quota_us", "cpu_period_us", "memory_bytes", "processes", "elapsed_ms"],
+      "properties": {
+        "output_bytes": {"const": "65536"},
+        "stderr_bytes": {"const": "16384"},
+        "writable_filesystem_bytes": {"const": "0"},
+        "cpu_seconds": {"const": "1"},
+        "cpu_quota_us": {"const": "50000"},
+        "cpu_period_us": {"const": "100000"},
+        "memory_bytes": {"const": "33554432"},
+        "processes": {"const": "1"},
+        "elapsed_ms": {"const": "5000"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["delegated_cgroup_v2", "clone_into_cgroup", "cgroup_kill_required", "empty_state_required", "bounded_pipe_output", "writable_filesystem", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "delegated_cgroup_v2": {"const": true},
+        "clone_into_cgroup": {"const": true},
+        "cgroup_kill_required": {"const": true},
+        "empty_state_required": {"const": true},
+        "bounded_pipe_output": {"const": true},
+        "writable_filesystem": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

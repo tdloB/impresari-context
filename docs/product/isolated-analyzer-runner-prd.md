@@ -357,6 +357,14 @@ until delegated CPU, memory, process-count, exact-kill, empty-state, timeout,
 crash, cleanup, and cross-job checks all pass. Missing delegation is
 `unsupported`, never application-supervisor fallback.
 
+The delegated-cgroup follow-up is an independently scored component checkpoint.
+Its trusted CI setup may create one ephemeral systemd transient service with
+`Delegate=yes`; the synthetic supervisor then operates without privilege and
+only below that service subtree. It must use atomic `CLONE_INTO_CGROUP`
+placement rather than a racy fork-and-move sequence. A component pass proves
+resource and lifecycle enforcement only and leaves overall `os_confined`, real
+analyzer execution, and production admission false.
+
 ### IAR-2 — YARA reference adapter
 
 - Add one pinned YARA version and one small reviewed Impresari ruleset.
