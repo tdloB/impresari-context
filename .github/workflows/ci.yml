@@ -91,6 +91,8 @@ jobs:
       - name: Run Linux composite IAR-1B feasibility check
         if: matrix.os == 'ubuntu-24.04' && matrix.rust == '1.98.0'
         shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: ./scripts/check-linux-composite-feasibility.sh
       - name: Record bounded platform evidence
         shell: bash

@@ -31,6 +31,7 @@ if [ "${1:-}" != "--delegated" ]; then
   unit="impresari-iar-composite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}-$$"
   exec sudo systemd-run --quiet --wait --pipe --collect --service-type=exec \
     --unit="$unit" --property=Delegate=yes \
+    --setenv=GITHUB_ACTIONS=true --setenv=RUNNER_ENVIRONMENT=github-hosted \
     --uid="$(id -u)" --gid="$(id -g)" \
     --working-directory="$repository_root" \
     "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated
