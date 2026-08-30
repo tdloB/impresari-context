@@ -39,7 +39,7 @@ def build_package(directory, label, source_commit)
   FileUtils.mkdir_p(File.join(root, "bin"))
   entries = BINARIES.map do |name|
     content = if name == "impresari-context"
-      "#!/bin/sh\nprintf '%s\\n' '{\"status\":\"#{label}\"}'\n"
+      "#!/bin/sh\nprintf '%s\\n' '{\"schema_name\":\"error-envelope\",\"schema_version\":\"1.0.0\",\"code\":\"invalid_input\",\"retryable\":false,\"partial_result\":false,\"recovery_action\":\"none\"}'\nexit 1\n"
     else
       "#!/bin/sh\nexit 0\n"
     end

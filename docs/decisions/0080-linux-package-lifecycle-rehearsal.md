@@ -21,7 +21,8 @@ verify the three-binary package scope through clean install, candidate
 replacement, baseline rollback, and uninstall.
 
 For profile C, verify operator relaunch by starting the rolled-back CLI as a new
-foreground process and parsing its machine-readable output. For profile A,
+foreground process and requiring its exact machine-readable safe usage failure
+(`error-envelope`, `invalid_input`, exit status 1). For profile A,
 record `logout_login` as `not_observed` and require a genuine fresh login
 session. Never substitute a process restart or user-unit restart for that gate.
 
