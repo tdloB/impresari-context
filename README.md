@@ -179,14 +179,15 @@ exact difference between discovery, lexical evidence, and structural language
 support, and between generic local-MCP compatibility and a first-class client
 integration. In the current source tree, TypeScript/JavaScript, Python, Java,
 Kotlin, C#, Scala, Elixir, Clojure, Haskell, Go, Rust, strict JSON, JSONC, TOML,
-and YAML have bounded structural support; Swift remains lexical-only. Codex,
+YAML, C, C++, Ruby, PHP, and Swift have bounded structural support. Codex,
 Claude Code, Cursor, GitHub Copilot CLI, and VS Code Copilot are first-class
 only for their recorded client/version/OS scopes. Gemini CLI remains a generic
 local-MCP integration.
 
 Codex, Claude Code, Cursor, GitHub Copilot CLI, and VS Code Copilot also have
-recorded-scope L2 native guidance. GitHub Copilot CLI additionally has bounded
-L4 lifecycle-health evidence for its exact recorded guidance artifact. These
+recorded-scope L2 native guidance and L4 lifecycle-health evidence for their
+exact recorded artifacts. Their independently versioned L3 claims remain
+separate, and Codex L4 does not cover its App Server L3 version. These
 claims describe the current source tree, not the earlier `v0.1.0` binaries.
 Native guidance is opt-in and does not make conversational tool selection
 deterministic. See the [compatibility matrix](docs/reference/compatibility-matrix.md),
@@ -196,12 +197,12 @@ the [Cursor L2 record](docs/verification/phase-2-cursor-native-guidance.md),
 the [Copilot CLI L2 record](docs/verification/phase-2-copilot-cli-native-guidance.md),
 and the [VS Code L2 record](docs/verification/ci-2-vscode-copilot-native-guidance.md).
 
-Codex also has an **experimental CI-3b guided-delivery preview/apply path** for
-its exact recorded App Server version. It is disabled by default, requires an
-explicit consented intent, a separately inspected packet preview, the displayed
-packet ID, and `--apply`. It starts only an ephemeral read-only/no-network
-session and denies authority requests. The first isolated live record timed out
-safely, so this is not an L3 or deterministic-delivery claim; see the
+Codex has a recorded-scope CI-3b guided-delivery preview/apply path for its exact
+App Server `0.150.0-alpha.8` macOS arm64 scope. It is disabled by default,
+requires an explicit consented intent, a separately inspected packet preview,
+the displayed packet ID, and `--apply`. It starts only an ephemeral read-only/
+no-network session and denies authority requests. Two isolated deliveries
+completed with immutable source and no added authority; see the
 [CI-3b verification record](docs/verification/ci-3b-codex-guided-delivery.md).
 
 The [local MCP connection guides](docs/reference/local-mcp-connection-guides.md)

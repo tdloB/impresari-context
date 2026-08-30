@@ -1,0 +1,35 @@
+{
+  "schema_name": "client-lifecycle-compatibility-manifest",
+  "schema_version": "1.0.0",
+  "manifest_id": "codex-native-guidance-v1",
+  "client": "Codex",
+  "surface": "native_guidance_v2",
+  "supported_versions": ["0.149.0-alpha.4.1"],
+  "supported_os": ["macos"],
+  "supported_arch": ["aarch64"],
+  "artifact": {
+    "kind": "native_guidance",
+    "owned_relative_path": "AGENTS.md",
+    "ownership_marker": "ownership=exact_fixed_artifact:impresari-context",
+    "sha256": "e60bda25fb78f52d40e31a763d6204e19036d9d3cb80cf2a2ec09d3e7b7043c7"
+  },
+  "evidence": {
+    "record": "docs/verification/phase-2-codex-native-guidance.md",
+    "sha256": "94ae3068a9bc2b966f6c9977c9970947ae2f870e9479e71f2b97e7ac9d0139dd",
+    "observed_at": "2026-08-26",
+    "fresh_through": "2026-11-24"
+  },
+  "lifecycle": {
+    "health_check": "explicit_read_only",
+    "automatic_repair": "denied",
+    "background_monitoring": "denied",
+    "exact_removal": "explicit_owned_artifact_only"
+  },
+  "safe_next_steps": {
+    "compatible": "Retain the current owned AGENTS.md artifact; recheck after a Codex CLI, instruction-format, MCP, or platform change.",
+    "degraded": "Use manual MCP operation or explicitly remove only the exact owned AGENTS.md after reviewing its path and identity.",
+    "stale_evidence": "Withdraw the Codex L4 claim and run a new isolated native-guidance rehearsal before restoring it.",
+    "unknown": "Use generic manual MCP operation; do not retain an L4 claim for this unrecorded Codex scope.",
+    "unsupported": "No Codex CI-4 assertion is available for this platform; use the documented generic local MCP path where applicable."
+  }
+}
