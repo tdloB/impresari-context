@@ -136,6 +136,21 @@ source-free composite: one atomically placed worker must reproduce the primitive
 and resource/lifecycle boundaries together. A component pass alone does not
 advance Linux to IAR-1B.
 
+That composite is now implemented as a replacement for the standalone
+delegated-cgroup CI step, preserving the authorization ceiling of one ephemeral
+`Delegate=yes` service. It applies the frozen `iar-linux-synthetic-v1` limits
+before atomic worker placement, runs the primitive boundary inside that exact
+worker, and repeats the source-free resource/lifecycle corpus below the same
+delegation. Its exact-host status is determined only by new hosted composite
+evidence; the earlier component receipts cannot be combined to produce it.
+
+PR 131 job `99197119262` then passed that single-service composite on hosted
+Ubuntu 24.04, kernel `6.17.0-1022-azure`, x86_64, with Landlock ABI 7. The closed
+receipt may therefore set `os_confined=true` for that exact observed candidate.
+It does not admit Linux broadly, enable a real analyzer, or open IAR-2; the next
+roadmap checkpoint is independent kernel and architecture coverage without
+weakening any Tier A gate.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

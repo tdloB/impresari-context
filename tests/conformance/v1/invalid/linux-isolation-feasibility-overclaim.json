@@ -26,6 +26,8 @@
     "cgroup_empty_verification": true
   },
   "checks": {
+    "atomic_cgroup_placement": false,
+    "resource_profile_applied": false,
     "no_new_privs_effective": true,
     "landlock_read_only_input": true,
     "external_filesystem_denial": true,

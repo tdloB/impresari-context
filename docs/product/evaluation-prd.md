@@ -287,6 +287,18 @@ crash/relaunch, cleanup, and cross-job checks using atomic
 `resource_lifecycle_confined=true`; overall `os_confined` and production
 admission remain false pending source-free composition and multi-host evidence.
 
+The composition checkpoint is scored only from one receipt produced inside one
+transient delegation. It must show that the profile was applied before atomic
+worker placement, the worker itself reproduced the primitive suite, and the
+resource/lifecycle corpus passed in the same delegated service. The standalone
+component receipts remain historical evidence and cannot be combined after the
+fact to manufacture a pass.
+
+PR 131 job `99197119262` passed this composite on kernel
+`6.17.0-1022-azure`, x86_64, Landlock ABI 7. This admits only the exact-host
+candidate receipt's `os_confined=true`; broader Linux and production admission
+remain false pending independently reproduced target coverage.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.
