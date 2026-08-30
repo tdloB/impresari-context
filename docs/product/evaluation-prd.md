@@ -308,6 +308,14 @@ PR 132 job `99198568879` independently passed the AArch64 composite on kernel
 `6.17.0-1022-azure` with Landlock ABI 7. Architecture coverage is now native on
 x86_64 and arm64, while kernel diversity and production admission remain open.
 
+PR 133 jobs `99200027090` and `99200027056` independently passed the native
+`ubuntu-22.04` and `ubuntu-26.04` held-out units. Their exact receipts bind
+`6.8.0-1064-azure`/Landlock ABI 4 and
+`7.0.0-1012-azure`/Landlock ABI 8, respectively. They establish kernel
+diversity for the candidate but do not by themselves define a production
+support promise; admission now requires a frozen support, freshness,
+withdrawal, and maintenance contract.
+
 ## Evaluation Principles
 
 1. Freeze the corpus and task manifest before scoring a release candidate.

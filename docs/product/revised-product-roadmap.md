@@ -164,6 +164,15 @@ independent exact-host composite candidates on this one Azure kernel line.
 Broader Linux and IAR-2 remain closed until a materially independent kernel
 target passes and the production support scope is frozen.
 
+PR 133 jobs `99200027090` and `99200027056` passed the held-out native
+GitHub-hosted Ubuntu 22.04 and 26.04 checkpoints on materially different
+`6.8.0-1064-azure`/Landlock ABI 4 and
+`7.0.0-1012-azure`/Landlock ABI 8 kernels. Each invocation retained the
+one-transient-service ceiling and produced its own source-free composite
+receipt. Kernel and architecture diversity are now demonstrated for the
+candidate; production admission remains closed until an exact support,
+freshness, withdrawal, and release-maintenance contract is frozen.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

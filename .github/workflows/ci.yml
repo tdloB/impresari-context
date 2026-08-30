@@ -26,6 +26,25 @@ jobs:
           RUNNER_ENVIRONMENT: ${{ runner.environment }}
         run: ./scripts/check-linux-composite-feasibility.sh
 
+  linux-kernel-iar:
+    name: Linux IAR-1B candidate / ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, ubuntu-26.04]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Run Linux primitive feasibility check
+        shell: bash
+        run: ./scripts/check-linux-isolation-feasibility.sh
+      - name: Run Linux composite feasibility check
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+        run: ./scripts/check-linux-composite-feasibility.sh
+
   dependency-audit:
     name: Dependency security and licenses
     runs-on: ubuntu-24.04

@@ -175,8 +175,12 @@ before any synthetic observation. The parent remains outside the hostile leaf,
 retains only bounded-pipe and exact-lifecycle authority, and removes the leaf
 only after `populated 0`. See the
 [composite checkpoint](../verification/iar-1b-linux-composite-feasibility.md).
-The exact-host composite passed in PR 131 job `99197119262`; additional kernel
-and architecture targets remain separate admission units.
+The exact-host composite passed in PR 131 job `99197119262`; PR 132 job
+`99198568879` independently passed arm64, and PR 133 jobs `99200027090` and
+`99200027056` passed materially different 6.8 and 7.0 x86_64 kernel lines.
+Every receipt remains an exact-host admission unit. Production use remains
+closed until support, freshness, withdrawal, and maintenance contracts are
+frozen.
 
 ## Trust Zones
 

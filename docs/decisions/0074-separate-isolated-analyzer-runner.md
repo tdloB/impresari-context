@@ -202,6 +202,13 @@ PR 131 job `99197119262` passed that composition on hosted Ubuntu 24.04 kernel
 exact observed candidate to `os_confined=true`; it does not admit a production
 Linux backend or authorize a real analyzer.
 
+PR 132 job `99198568879` independently passed arm64 on the same kernel line.
+PR 133 jobs `99200027090` and `99200027056` then passed x86_64 on held-out
+`6.8.0-1064-azure`/Landlock ABI 4 and
+`7.0.0-1012-azure`/Landlock ABI 8 hosts. This satisfies candidate architecture
+and kernel-diversity evidence. Production admission remains false pending an
+exact support, freshness, withdrawal, and maintenance contract.
+
 ## Review Triggers
 
 Review or supersede before long-lived/shared workers, repository path access,

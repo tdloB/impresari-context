@@ -239,6 +239,7 @@ static void print_capabilities(void) {
 }
 
 static uint64_t handled_filesystem_access(const int abi) {
+    (void)abi;
     uint64_t access = LANDLOCK_ACCESS_FS_EXECUTE |
                       LANDLOCK_ACCESS_FS_WRITE_FILE |
                       LANDLOCK_ACCESS_FS_READ_FILE |
