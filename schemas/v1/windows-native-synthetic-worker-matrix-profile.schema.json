@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/windows-native-synthetic-worker-matrix-profile.schema.json",
+  "title": "ADR-0093 Windows native synthetic-worker matrix profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "base_profile_id", "base_profile_digest", "target", "launch", "scenarios", "controls"],
+  "properties": {
+    "schema_name": {"const": "windows-native-synthetic-worker-matrix-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-windows-native-synthetic-worker-matrix-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "base_profile_id": {"const": "iar-windows-native-feasibility-v1"},
+    "base_profile_digest": {"const": "sha256:6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runner_environment", "runner_label", "os_family", "architecture", "filesystem"],
+      "properties": {
+        "runner_environment": {"const": "github-hosted"},
+        "runner_label": {"const": "windows-2025"},
+        "os_family": {"const": "windows"},
+        "architecture": {"const": "x86_64"},
+        "filesystem": {"const": "ntfs"}
+      }
+    },
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create_suspended", "assign_job_before_resume", "lpac_required", "capability_count", "all_application_packages_opt_out", "exact_inherited_handles", "child_process_policy", "caller_environment_inherited", "arbitrary_arguments"],
+      "properties": {
+        "create_suspended": {"const": true},
+        "assign_job_before_resume": {"const": true},
+        "lpac_required": {"const": true},
+        "capability_count": {"const": "0"},
+        "all_application_packages_opt_out": {"const": true},
+        "exact_inherited_handles": {"const": "3"},
+        "child_process_policy": {"const": "restricted"},
+        "caller_environment_inherited": {"const": false},
+        "arbitrary_arguments": {"const": false}
+      }
+    },
+    "scenarios": {"const": ["success", "input-mutation", "worker-mutation", "sibling-read", "user-profile-canary-read", "profile-storage-write", "synthetic-registry-canary-read", "loopback-connect", "unrelated-handle", "unrelated-process", "child-process", "cpu-pressure", "memory-pressure", "timeout", "output-flood", "crash", "cancellation", "malformed-result", "cross-job-read"]},
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["synthetic_worker_only", "worker_identity_pinned", "profile_storage_write_denied", "external_network_destination", "existing_credentials_inspected", "repository_input", "real_analyzer", "os_confined", "production_admitted", "authority_added"],
+      "properties": {
+        "synthetic_worker_only": {"const": true},
+        "worker_identity_pinned": {"const": true},
+        "profile_storage_write_denied": {"const": true},
+        "external_network_destination": {"const": false},
+        "existing_credentials_inspected": {"const": false},
+        "repository_input": {"const": false},
+        "real_analyzer": {"const": false},
+        "os_confined": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

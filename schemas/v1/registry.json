@@ -126,6 +126,8 @@
     {"name": "roadmap-maintenance", "path": "roadmap-maintenance.schema.json", "identity_object_kind": null},
     {"name": "handoff-export", "path": "handoff-export.schema.json", "identity_object_kind": null},
     {"name": "error-envelope", "path": "error-envelope.schema.json", "identity_object_kind": null},
-    {"name": "audit-event", "path": "audit-event.schema.json", "identity_object_kind": null}
+    {"name": "audit-event", "path": "audit-event.schema.json", "identity_object_kind": null},
+    {"name": "windows-native-synthetic-worker-matrix-profile", "path": "windows-native-synthetic-worker-matrix-profile.schema.json", "identity_object_kind": null},
+    {"name": "windows-native-synthetic-worker-matrix-receipt", "path": "windows-native-synthetic-worker-matrix-receipt.schema.json", "identity_object_kind": null}
   ]
 }

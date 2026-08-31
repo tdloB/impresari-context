@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/windows-native-synthetic-worker-matrix-receipt.schema.json",
+  "title": "ADR-0093 Windows native synthetic-worker matrix receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "base_profile_id", "base_profile_digest", "status", "reason_code", "host", "identity", "launch", "observations", "cleanup", "claims"],
+  "properties": {
+    "schema_name": {"const": "windows-native-synthetic-worker-matrix-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-windows-native-synthetic-worker-matrix-v1"},
+    "profile_digest": {"const": "sha256:82ab5c5c0cff76079ae19925b92da23b2d86e3a31e7cfc58626e17cb01c14678"},
+    "base_profile_id": {"const": "iar-windows-native-feasibility-v1"},
+    "base_profile_digest": {"const": "sha256:6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73"},
+    "status": {"enum": ["contract_fixture", "candidate_passed", "unsupported", "failed"]},
+    "reason_code": {"enum": ["contract_fixture", "synthetic_matrix_passed", "unsupported_host", "launch_failed", "boundary_failed", "resource_failed", "cleanup_failed", "invalid_output"]},
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runner_environment", "runner_label", "os_family", "windows_build", "architecture", "filesystem", "broker_digest", "worker_digest"],
+      "properties": {
+        "runner_environment": {"const": "github-hosted"},
+        "runner_label": {"const": "windows-2025"},
+        "os_family": {"const": "windows"},
+        "windows_build": {"type": "string", "pattern": "^[0-9]{1,10}$"},
+        "architecture": {"const": "x86_64"},
+        "filesystem": {"const": "ntfs"},
+        "broker_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+        "worker_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fresh_profile_created", "worker_sid_matched", "capability_count", "lpac_verified", "profile_storage_hardened", "profile_deleted"],
+      "properties": {
+        "fresh_profile_created": {"type": "boolean"},
+        "worker_sid_matched": {"type": "boolean"},
+        "capability_count": {"const": "0"},
+        "lpac_verified": {"type": "boolean"},
+        "profile_storage_hardened": {"type": "boolean"},
+        "profile_deleted": {"type": "boolean"}
+      }
+    },
+    "launch": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["worker_created_suspended", "job_limits_set_and_queried", "job_assigned_before_resume", "exact_handle_list", "mitigations_applied", "child_policy_applied", "worker_resumed"],
+      "properties": {
+        "worker_created_suspended": {"type": "boolean"},
+        "job_limits_set_and_queried": {"type": "boolean"},
+        "job_assigned_before_resume": {"type": "boolean"},
+        "exact_handle_list": {"type": "boolean"},
+        "mitigations_applied": {"type": "boolean"},
+        "child_policy_applied": {"type": "boolean"},
+        "worker_resumed": {"type": "boolean"}
+      }
+    },
+    "observations": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_count", "success", "exact_input_read", "input_mutation_denied", "worker_mutation_denied", "sibling_read_denied", "user_profile_canary_read_denied", "profile_storage_write_denied", "synthetic_registry_canary_read_denied", "loopback_connect_denied", "unrelated_handle_absent", "unrelated_process_open_denied", "child_process_denied", "active_process_peak_one", "process_memory_limit_exercised", "job_memory_limit_queried", "cpu_limit_exercised", "timeout_contained", "output_flood_contained", "crash_contained", "cancellation_contained", "malformed_result_rejected", "cross_job_read_denied"],
+      "properties": {
+        "scenario_count": {"const": "19"},
+        "success": {"type": "boolean"},
+        "exact_input_read": {"type": "boolean"},
+        "input_mutation_denied": {"type": "boolean"},
+        "worker_mutation_denied": {"type": "boolean"},
+        "sibling_read_denied": {"type": "boolean"},
+        "user_profile_canary_read_denied": {"type": "boolean"},
+        "profile_storage_write_denied": {"type": "boolean"},
+        "synthetic_registry_canary_read_denied": {"type": "boolean"},
+        "loopback_connect_denied": {"type": "boolean"},
+        "unrelated_handle_absent": {"type": "boolean"},
+        "unrelated_process_open_denied": {"type": "boolean"},
+        "child_process_denied": {"type": "boolean"},
+        "active_process_peak_one": {"type": "boolean"},
+        "process_memory_limit_exercised": {"type": "boolean"},
+        "job_memory_limit_queried": {"type": "boolean"},
+        "cpu_limit_exercised": {"type": "boolean"},
+        "timeout_contained": {"type": "boolean"},
+        "output_flood_contained": {"type": "boolean"},
+        "crash_contained": {"type": "boolean"},
+        "cancellation_contained": {"type": "boolean"},
+        "malformed_result_rejected": {"type": "boolean"},
+        "cross_job_read_denied": {"type": "boolean"}
+      }
+    },
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_terminated", "zero_active_processes", "handles_closed", "staging_removed", "canaries_removed", "profile_deleted", "cross_job_clean"],
+      "properties": {
+        "job_terminated": {"type": "boolean"},
+        "zero_active_processes": {"type": "boolean"},
+        "handles_closed": {"type": "boolean"},
+        "staging_removed": {"type": "boolean"},
+        "canaries_removed": {"type": "boolean"},
+        "profile_deleted": {"type": "boolean"},
+        "cross_job_clean": {"type": "boolean"}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["external_network_contacted", "existing_credentials_inspected", "repository_input", "real_analyzer", "os_confined", "production_admitted", "authority_added"],
+      "properties": {
+        "external_network_contacted": {"const": false},
+        "existing_credentials_inspected": {"const": false},
+        "repository_input": {"const": false},
+        "real_analyzer": {"const": false},
+        "os_confined": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "contract_fixture"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "reason_code": {"const": "contract_fixture"},
+          "host": {"properties": {"windows_build": {"const": "0"}, "broker_digest": {"const": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}, "worker_digest": {"const": "sha256:0000000000000000000000000000000000000000000000000000000000000000"}}},
+          "identity": {"properties": {"fresh_profile_created": {"const": false}, "worker_sid_matched": {"const": false}, "lpac_verified": {"const": false}, "profile_storage_hardened": {"const": false}, "profile_deleted": {"const": false}}},
+          "launch": {"properties": {"worker_created_suspended": {"const": false}, "job_limits_set_and_queried": {"const": false}, "job_assigned_before_resume": {"const": false}, "exact_handle_list": {"const": false}, "mitigations_applied": {"const": false}, "child_policy_applied": {"const": false}, "worker_resumed": {"const": false}}},
+          "observations": {"properties": {"success": {"const": false}, "exact_input_read": {"const": false}, "input_mutation_denied": {"const": false}, "worker_mutation_denied": {"const": false}, "sibling_read_denied": {"const": false}, "user_profile_canary_read_denied": {"const": false}, "profile_storage_write_denied": {"const": false}, "synthetic_registry_canary_read_denied": {"const": false}, "loopback_connect_denied": {"const": false}, "unrelated_handle_absent": {"const": false}, "unrelated_process_open_denied": {"const": false}, "child_process_denied": {"const": false}, "active_process_peak_one": {"const": false}, "process_memory_limit_exercised": {"const": false}, "job_memory_limit_queried": {"const": false}, "cpu_limit_exercised": {"const": false}, "timeout_contained": {"const": false}, "output_flood_contained": {"const": false}, "crash_contained": {"const": false}, "cancellation_contained": {"const": false}, "malformed_result_rejected": {"const": false}, "cross_job_read_denied": {"const": false}}},
+          "cleanup": {"properties": {"job_terminated": {"const": false}, "zero_active_processes": {"const": false}, "handles_closed": {"const": false}, "staging_removed": {"const": false}, "canaries_removed": {"const": false}, "profile_deleted": {"const": false}, "cross_job_clean": {"const": false}}}
+        }
+      }
+    },
+    {
+      "if": {"properties": {"status": {"const": "candidate_passed"}}, "required": ["status"]},
+      "then": {
+        "properties": {
+          "reason_code": {"const": "synthetic_matrix_passed"},
+          "host": {"properties": {"windows_build": {"pattern": "^[1-9][0-9]{0,9}$"}}},
+          "identity": {"properties": {"fresh_profile_created": {"const": true}, "worker_sid_matched": {"const": true}, "lpac_verified": {"const": true}, "profile_storage_hardened": {"const": true}, "profile_deleted": {"const": true}}},
+          "launch": {"properties": {"worker_created_suspended": {"const": true}, "job_limits_set_and_queried": {"const": true}, "job_assigned_before_resume": {"const": true}, "exact_handle_list": {"const": true}, "mitigations_applied": {"const": true}, "child_policy_applied": {"const": true}, "worker_resumed": {"const": true}}},
+          "observations": {"properties": {"success": {"const": true}, "exact_input_read": {"const": true}, "input_mutation_denied": {"const": true}, "worker_mutation_denied": {"const": true}, "sibling_read_denied": {"const": true}, "user_profile_canary_read_denied": {"const": true}, "profile_storage_write_denied": {"const": true}, "synthetic_registry_canary_read_denied": {"const": true}, "loopback_connect_denied": {"const": true}, "unrelated_handle_absent": {"const": true}, "unrelated_process_open_denied": {"const": true}, "child_process_denied": {"const": true}, "active_process_peak_one": {"const": true}, "process_memory_limit_exercised": {"const": true}, "job_memory_limit_queried": {"const": true}, "cpu_limit_exercised": {"const": true}, "timeout_contained": {"const": true}, "output_flood_contained": {"const": true}, "crash_contained": {"const": true}, "cancellation_contained": {"const": true}, "malformed_result_rejected": {"const": true}, "cross_job_read_denied": {"const": true}}},
+          "cleanup": {"properties": {"job_terminated": {"const": true}, "zero_active_processes": {"const": true}, "handles_closed": {"const": true}, "staging_removed": {"const": true}, "canaries_removed": {"const": true}, "profile_deleted": {"const": true}, "cross_job_clean": {"const": true}}}
+        }
+      }
+    }
+  ]
+}

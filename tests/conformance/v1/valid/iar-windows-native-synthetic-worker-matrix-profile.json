@@ -1,0 +1,59 @@
+{
+  "schema_name": "windows-native-synthetic-worker-matrix-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-windows-native-synthetic-worker-matrix-v1",
+  "profile_version": "1.0.0",
+  "base_profile_id": "iar-windows-native-feasibility-v1",
+  "base_profile_digest": "sha256:6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73",
+  "target": {
+    "runner_environment": "github-hosted",
+    "runner_label": "windows-2025",
+    "os_family": "windows",
+    "architecture": "x86_64",
+    "filesystem": "ntfs"
+  },
+  "launch": {
+    "create_suspended": true,
+    "assign_job_before_resume": true,
+    "lpac_required": true,
+    "capability_count": "0",
+    "all_application_packages_opt_out": true,
+    "exact_inherited_handles": "3",
+    "child_process_policy": "restricted",
+    "caller_environment_inherited": false,
+    "arbitrary_arguments": false
+  },
+  "scenarios": [
+    "success",
+    "input-mutation",
+    "worker-mutation",
+    "sibling-read",
+    "user-profile-canary-read",
+    "profile-storage-write",
+    "synthetic-registry-canary-read",
+    "loopback-connect",
+    "unrelated-handle",
+    "unrelated-process",
+    "child-process",
+    "cpu-pressure",
+    "memory-pressure",
+    "timeout",
+    "output-flood",
+    "crash",
+    "cancellation",
+    "malformed-result",
+    "cross-job-read"
+  ],
+  "controls": {
+    "synthetic_worker_only": true,
+    "worker_identity_pinned": true,
+    "profile_storage_write_denied": true,
+    "external_network_destination": false,
+    "existing_credentials_inspected": false,
+    "repository_input": false,
+    "real_analyzer": false,
+    "os_confined": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

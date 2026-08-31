@@ -414,6 +414,16 @@ validated receipt keeps worker launch, network/path/resource/descendant denial,
 complete cleanup, OS confinement, production, and analyzer execution false.
 Windows feasibility has therefore advanced without claiming a sandbox; the
 suspended synthetic-worker matrix remains the next Windows gate.
+ADR-0093 now freezes that next gate. Its digest-bound profile requires a
+first-party worker created suspended under a fresh zero-capability LPAC
+identity, exact ACL staging with AppContainer profile-storage write removed,
+three exact inherited protocol handles, compatible mitigations, child-process
+denial, and a pre-resume Job Object assignment. Nineteen source-free scenarios
+cover positive input, path/network/registry/handle/process denials, resources,
+faults, cleanup, and cross-job isolation. Contract fixtures retain every
+measured field false; native execution remains pending. Even a complete first
+matrix keeps OS confinement, production, and analyzer execution false until a
+later independent-host and lifecycle admission decision.
 
 ## Parallel Client Integration Depth Track
 
