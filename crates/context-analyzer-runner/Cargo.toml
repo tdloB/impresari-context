@@ -29,3 +29,7 @@ path = "src/macos_vm_supervisor.rs"
 [[bin]]
 name = "impresari-context-macos-vm-resource-canary"
 path = "src/macos_vm_resource_canary.rs"
+
+[[bin]]
+name = "impresari-context-macos-vm-host-interruption"
+path = "src/macos_vm_host_interruption.rs"

@@ -55,6 +55,8 @@ prove host sleep/reboot/power-loss recovery, sealed Developer ID identity,
 guest supply-chain update policy, multi-host compatibility, signed cask
 lifecycle, real-analyzer behavior, or independent review.
 
-The next dependency is host sleep/interruption recovery, followed by sealed
-supply-chain/distribution and multi-host evidence. macOS remains publicly at
-IAR-1A.
+The next dependency was the bounded host-interruption implementation. Its
+synthetic checkpoint is recorded separately and does not replace genuine
+sleep/wake evidence. Genuine host sleep/wake and restart recovery are followed
+by sealed supply-chain/distribution and multi-host evidence. macOS remains
+publicly at IAR-1A.

@@ -1,0 +1,34 @@
+{
+  "schema_name": "macos-local-vm-interruption-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-interruption-profile.json",
+      "sha256": "e5f54da3e1fbce7ea7f839dc723e4b288ff7113fd9c85950df3970ae18737fd1",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen host-interruption profile distinguishing automated and manual evidence"
+    },
+    {
+      "path": "valid/macos-local-vm-host-interruption.json",
+      "sha256": "4ad7abdd63fa991b7e853459b55e4af9d6fa5e147f19b30aece2534a4231d87a",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free synthetic interruption and recovery receipt"
+    },
+    {
+      "path": "invalid/macos-local-vm-host-interruption-overclaim.json",
+      "sha256": "40dde2f951b8be3850659fd632c8d32598f251102e00369fd8f3454f0a2f7ee7",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject a real-host-sleep claim from synthetic interruption evidence"
+    }
+  ]
+}

@@ -62,6 +62,11 @@ pub const MACOS_VM_RESOURCE_CANARY_PROFILE_ID: &str = "iar-macos-local-vm-resour
 /// Digest of the exact committed resource and host-canary profile bytes.
 pub const MACOS_VM_RESOURCE_CANARY_PROFILE_DIGEST: &str =
     "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e";
+/// Frozen macOS local-VM host-interruption profile.
+pub const MACOS_VM_HOST_INTERRUPTION_PROFILE_ID: &str = "iar-macos-local-vm-interruption-v1";
+/// Digest of the exact committed host-interruption profile bytes.
+pub const MACOS_VM_HOST_INTERRUPTION_PROFILE_DIGEST: &str =
+    "sha256:e5f54da3e1fbce7ea7f839dc723e4b288ff7113fd9c85950df3970ae18737fd1";
 const MACOS_VM_KERNEL_DIGEST: &str =
     "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd";
 const MACOS_VM_INITRAMFS_DIGEST: &str =
@@ -547,6 +552,58 @@ pub struct MacOsVmResourceCanaryReceipt {
     pub authority_added: bool,
 }
 
+/// Source-free Rust-supervised synthetic host-interruption evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MacOsVmHostInterruptionReceipt {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Frozen interruption profile.
+    pub profile_id: String,
+    /// Exact interruption profile bytes digest.
+    pub profile_digest: String,
+    /// Frozen profile exposed by the child controller.
+    pub controller_profile_id: String,
+    /// Exact frozen child-controller profile digest.
+    pub controller_profile_digest: String,
+    /// Runtime digest of the exact launched controller bytes.
+    pub controller_digest: String,
+    /// Caller-owned source-free job identifier.
+    pub job_id: String,
+    /// Exact automated trigger; never represents a real host sleep.
+    pub interruption_source: String,
+    /// The controller installed the macOS will-sleep observer.
+    pub sleep_observer_installed: bool,
+    /// Synthetic and operating-system events enter one stop handler.
+    pub shared_stop_handler_used: bool,
+    /// The job-private synthetic interruption request was created.
+    pub synthetic_interruption_requested: bool,
+    /// The virtual machine stopped through the shared handler.
+    pub virtual_machine_stopped: bool,
+    /// The exact child controller was reaped.
+    pub controller_reaped: bool,
+    /// Exact stale job state was absent before recovery.
+    pub stale_job_removed: bool,
+    /// A fresh post-interruption VM job completed successfully.
+    pub recovery_job_succeeded: bool,
+    /// Both interruption and recovery job roots were absent before return.
+    pub all_job_state_removed: bool,
+    /// Automated evidence intentionally does not claim actual system sleep.
+    pub real_host_sleep_observed: bool,
+    /// Partial feasibility never establishes VM confinement.
+    pub vm_confined: bool,
+    /// Partial feasibility never admits production execution.
+    pub production_admitted: bool,
+    /// No analyzer runs in this synthetic checkpoint.
+    pub analyzer_execution: bool,
+    /// The source-free receipt retains no source bytes.
+    pub source_retained: bool,
+    /// The supervisor adds no authority.
+    pub authority_added: bool,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct MacOsVmControllerFailure {
@@ -630,6 +687,30 @@ struct MacOsVmControllerResourceCanaryReceipt {
     pids_peak: String,
     job_cgroup_removed: bool,
     job_removed: bool,
+    vm_confined: bool,
+    production_admitted: bool,
+    analyzer_execution: bool,
+    source_retained: bool,
+    authority_added: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MacOsVmControllerInterruptionReceipt {
+    schema_name: String,
+    schema_version: String,
+    profile_id: String,
+    profile_digest: String,
+    job_id: String,
+    result: String,
+    interruption_source: String,
+    sleep_observer_installed: bool,
+    shared_stop_handler_used: bool,
+    virtualization_supported: bool,
+    configuration_validated: bool,
+    virtual_machine_stopped: bool,
+    job_removed: bool,
+    real_host_sleep_observed: bool,
     vm_confined: bool,
     production_admitted: bool,
     analyzer_execution: bool,
@@ -974,6 +1055,95 @@ impl MacOsVmSyntheticSupervisor {
         })
     }
 
+    /// Exercises the production-shaped host-interruption stop path with a
+    /// source-free synthetic trigger, then completes a fresh recovery VM.
+    ///
+    /// This automated method never claims that the host actually slept. The
+    /// same controller handler is registered for macOS will-sleep delivery,
+    /// but that operating-system path requires a separate manual rehearsal.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source-free category if identity, readiness, interruption,
+    /// reaping, exact cleanup, complete output, or recovery validation fails.
+    pub fn execute_host_interruption(
+        &self,
+        job_id: &str,
+    ) -> Result<MacOsVmHostInterruptionReceipt, RunnerError> {
+        self.validate(job_id)?;
+        let output_root = self
+            .asset_root
+            .parent()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+        let jobs_root = output_root.join("jobs");
+        let action_job = jobs_root.join(job_id);
+        let recovery_id = format!("{job_id}-recovery");
+        let recovery_job = jobs_root.join(&recovery_id);
+        if action_job.exists() || recovery_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+        let _action_cleanup = VmJobCleanupGuard {
+            path: action_job.clone(),
+        };
+        let _recovery_cleanup = VmJobCleanupGuard {
+            path: recovery_job.clone(),
+        };
+
+        let mut process = self.spawn_controller(job_id, "host-interruption")?;
+        let ready = action_job.join("controller.ready");
+        wait_for_controller_ready(&mut process.child, &ready, self.timeout)?;
+        OpenOptions::new()
+            .write(true)
+            .create_new(true)
+            .open(action_job.join("host-interruption.request"))
+            .and_then(|mut file| file.write_all(b"IMPRESARI_VM_HOST_INTERRUPTION_V1\n"))
+            .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+        let (status, stdout, _stderr) = wait_for_captured_child(process, self.timeout)?;
+        if !status.success() {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+        }
+        let interruption = validate_vm_host_interruption(&stdout, job_id)?;
+        if action_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+
+        let recovery = self.spawn_controller(&recovery_id, "success")?;
+        let (status, stdout, _stderr) = wait_for_captured_child(recovery, self.timeout)?;
+        if !status.success() {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+        }
+        validate_vm_recovery(&stdout, &recovery_id)?;
+        if action_job.exists() || recovery_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+
+        Ok(MacOsVmHostInterruptionReceipt {
+            schema_name: "macos-local-vm-host-interruption-receipt".to_owned(),
+            schema_version: "1.0.0".to_owned(),
+            profile_id: MACOS_VM_HOST_INTERRUPTION_PROFILE_ID.to_owned(),
+            profile_digest: MACOS_VM_HOST_INTERRUPTION_PROFILE_DIGEST.to_owned(),
+            controller_profile_id: MACOS_VM_CONTROLLER_PROFILE_ID.to_owned(),
+            controller_profile_digest: MACOS_VM_CONTROLLER_PROFILE_DIGEST.to_owned(),
+            controller_digest: self.expected_controller_digest.clone(),
+            job_id: job_id.to_owned(),
+            interruption_source: interruption.interruption_source,
+            sleep_observer_installed: interruption.sleep_observer_installed,
+            shared_stop_handler_used: interruption.shared_stop_handler_used,
+            synthetic_interruption_requested: true,
+            virtual_machine_stopped: interruption.virtual_machine_stopped,
+            controller_reaped: true,
+            stale_job_removed: true,
+            recovery_job_succeeded: true,
+            all_job_state_removed: true,
+            real_host_sleep_observed: false,
+            vm_confined: false,
+            production_admitted: false,
+            analyzer_execution: false,
+            source_retained: false,
+            authority_added: false,
+        })
+    }
+
     fn validate(&self, job_id: &str) -> Result<(), RunnerError> {
         if !cfg!(target_os = "macos")
             || self.timeout.is_zero()
@@ -1240,6 +1410,37 @@ fn validate_vm_resource_canary(
         || pids_peak != 1
         || !receipt.job_cgroup_removed
         || !receipt.job_removed
+        || receipt.vm_confined
+        || receipt.production_admitted
+        || receipt.analyzer_execution
+        || receipt.source_retained
+        || receipt.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    Ok(receipt)
+}
+
+fn validate_vm_host_interruption(
+    stdout: &[u8],
+    job_id: &str,
+) -> Result<MacOsVmControllerInterruptionReceipt, RunnerError> {
+    let receipt = serde_json::from_slice::<MacOsVmControllerInterruptionReceipt>(stdout)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    if receipt.schema_name != "macos-local-vm-interruption-controller-receipt"
+        || receipt.schema_version != "1.0.0"
+        || receipt.profile_id != MACOS_VM_CONTROLLER_PROFILE_ID
+        || receipt.profile_digest != MACOS_VM_CONTROLLER_PROFILE_DIGEST
+        || receipt.job_id != job_id
+        || receipt.result != "synthetic_interruption_handled"
+        || receipt.interruption_source != "synthetic-job-private-trigger"
+        || !receipt.sleep_observer_installed
+        || !receipt.shared_stop_handler_used
+        || !receipt.virtualization_supported
+        || !receipt.configuration_validated
+        || !receipt.virtual_machine_stopped
+        || !receipt.job_removed
+        || receipt.real_host_sleep_observed
         || receipt.vm_confined
         || receipt.production_admitted
         || receipt.analyzer_execution

@@ -355,6 +355,12 @@ identity absence, byte-exact host-canary retention, and exact job cleanup
 through the same Rust launch boundary. Host sleep/interruption, sealed guest
 supply-chain and distribution, multi-host evidence, independent review,
 production, and real analyzers remain closed.
+The next checkpoint installed the macOS will-sleep observer and proved the
+shared fail-closed stop, exact cleanup, and fresh recovery path using only a
+job-private synthetic interruption trigger. Its contract fixes
+`real_host_sleep_observed=false`; genuine sleep/wake, reboot, power loss,
+sealed supply chain and distribution, multi-host evidence, independent review,
+production, and real analyzers remain closed.
 
 ## Parallel Client Integration Depth Track
 

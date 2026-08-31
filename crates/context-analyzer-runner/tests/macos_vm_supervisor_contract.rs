@@ -4,10 +4,59 @@
 
 use context_analyzer_runner::{
     MACOS_VM_CONTROLLER_PROFILE_DIGEST, MACOS_VM_CONTROLLER_PROFILE_ID,
+    MACOS_VM_HOST_INTERRUPTION_PROFILE_DIGEST, MACOS_VM_HOST_INTERRUPTION_PROFILE_ID,
     MACOS_VM_RESOURCE_CANARY_PROFILE_DIGEST, MACOS_VM_RESOURCE_CANARY_PROFILE_ID,
     MACOS_VM_SUPERVISOR_PROFILE_DIGEST, MACOS_VM_SUPERVISOR_PROFILE_ID,
-    MacOsVmResourceCanaryReceipt, MacOsVmSupervisorAction, MacOsVmSupervisorReceipt,
+    MacOsVmHostInterruptionReceipt, MacOsVmResourceCanaryReceipt, MacOsVmSupervisorAction,
+    MacOsVmSupervisorReceipt,
 };
+
+#[test]
+fn host_interruption_receipt_distinguishes_simulation_from_real_sleep() {
+    let receipt = MacOsVmHostInterruptionReceipt {
+        schema_name: "macos-local-vm-host-interruption-receipt".into(),
+        schema_version: "1.0.0".into(),
+        profile_id: MACOS_VM_HOST_INTERRUPTION_PROFILE_ID.into(),
+        profile_digest: MACOS_VM_HOST_INTERRUPTION_PROFILE_DIGEST.into(),
+        controller_profile_id: MACOS_VM_CONTROLLER_PROFILE_ID.into(),
+        controller_profile_digest: MACOS_VM_CONTROLLER_PROFILE_DIGEST.into(),
+        controller_digest:
+            "sha256:1111111111111111111111111111111111111111111111111111111111111111".into(),
+        job_id: "interrupt-contract".into(),
+        interruption_source: "synthetic-job-private-trigger".into(),
+        sleep_observer_installed: true,
+        shared_stop_handler_used: true,
+        synthetic_interruption_requested: true,
+        virtual_machine_stopped: true,
+        controller_reaped: true,
+        stale_job_removed: true,
+        recovery_job_succeeded: true,
+        all_job_state_removed: true,
+        real_host_sleep_observed: false,
+        vm_confined: false,
+        production_admitted: false,
+        analyzer_execution: false,
+        source_retained: false,
+        authority_added: false,
+    };
+    let value = serde_json::to_value(&receipt).expect("serialize receipt");
+    assert_eq!(
+        value["interruption_source"],
+        "synthetic-job-private-trigger"
+    );
+    assert_eq!(value["real_host_sleep_observed"], false);
+    assert_eq!(value["vm_confined"], false);
+    assert_eq!(value["production_admitted"], false);
+    assert_eq!(value["analyzer_execution"], false);
+    assert!(value.get("workspace_path").is_none());
+
+    let mut expanded = value;
+    expanded
+        .as_object_mut()
+        .expect("receipt object")
+        .insert("host_sleep_observed".into(), serde_json::json!(true));
+    assert!(serde_json::from_value::<MacOsVmHostInterruptionReceipt>(expanded).is_err());
+}
 
 fn receipt(action: MacOsVmSupervisorAction) -> MacOsVmSupervisorReceipt {
     let cancellation = action == MacOsVmSupervisorAction::ExternalCancellation;

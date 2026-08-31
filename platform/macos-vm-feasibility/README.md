@@ -26,6 +26,7 @@ Run the explicit preparation step once, then the offline check:
 ./scripts/check-macos-vm-feasibility.sh
 ./scripts/check-macos-vm-supervisor-lifecycle.sh
 ./scripts/check-macos-vm-resource-canary.sh
+./scripts/check-macos-vm-host-interruption.sh
 ```
 
 Preparation downloads only the two exact official Alpine artifacts listed in
@@ -41,6 +42,11 @@ and forced controller termination through the Rust runner crate, proves child
 reaping and exact stale-job removal, and completes a fresh recovery VM after
 each action. The separate resource/canary check builds a second frozen guest,
 proves exact guest cgroup v2 memory/CPU/process enforcement, and exercises six
-host-only canary classes through the same Rust launch boundary. Host
-sleep/interruption, sealed supply-chain/distribution, multi-host, and
-independent-review evidence remain future gates.
+host-only canary classes through the same Rust launch boundary. The separate
+host-interruption check installs the macOS will-sleep observer, drives its
+shared fail-closed VM-stop path with an exact job-private synthetic trigger,
+reaps the controller, removes both job roots, and completes a fresh recovery
+VM. It deliberately records `real_host_sleep_observed=false`: it does not put
+the Mac to sleep and cannot replace a later manual operating-system sleep
+rehearsal. Real sleep/reboot/power-loss evidence, sealed supply-chain and
+distribution, multi-host, and independent-review evidence remain future gates.

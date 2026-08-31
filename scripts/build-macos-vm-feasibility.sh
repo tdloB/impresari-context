@@ -60,7 +60,7 @@ ruby "$repo_root/scripts/build-macos-vm-initramfs.rb" \
 
 xcrun swiftc -swift-version 5 -O \
   -module-cache-path "$output_root/swift-module-cache" \
-  -framework Virtualization -framework CryptoKit \
+  -framework Virtualization -framework CryptoKit -framework AppKit \
   -o "$controller" \
   "$repo_root/platform/macos-vm-feasibility/Sources/Controller/main.swift"
 codesign --force --sign - \

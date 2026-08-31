@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Synthetic feasibility in progress; storage, fault, lifecycle, and resource/canary checkpoints passed
+- Status: Synthetic feasibility in progress; storage, fault, lifecycle, resource/canary, and simulated-interruption checkpoints passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -93,6 +93,14 @@ same Rust launch boundary. It retained no job state and added no production or
 confinement claim. Host sleep/interruption, sealed supply chain and
 distribution, multi-host evidence, and independent review remain open. See the
 [resource/canary evidence](../verification/iar-1b-macos-local-vm-resource-canary.md).
+
+The host-interruption checkpoint then installed the macOS will-sleep observer
+and proved its shared fail-closed VM-stop, cleanup, and recovery path with a
+source-free job-private synthetic trigger. The receipt cannot claim actual
+host sleep. A coordinated manual sleep/wake rehearsal, reboot and abrupt
+power-loss recovery, sealed supply chain and distribution, multi-host evidence,
+and independent review remain open. See the
+[host-interruption evidence](../verification/iar-1b-macos-local-vm-host-interruption.md).
 
 ## Packaging Direction
 

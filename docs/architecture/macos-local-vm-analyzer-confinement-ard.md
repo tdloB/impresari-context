@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Synthetic feasibility in progress; partial resource/canary checkpoint passed
+- Status: Synthetic feasibility in progress; partial simulated-interruption checkpoint passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -98,3 +98,12 @@ to the guest disks. Guest device, raw-disk marker, prohibited-path, and process-
 identity observations are combined with host byte-integrity and exact cleanup.
 The Rust supervisor validates the complete source-free receipt. This closes
 only the guest-resource and host-canary checkpoint.
+
+The fifth checkpoint adds a macOS will-sleep observer to the controller. The
+observer and an exact job-private synthetic trigger invoke one locked,
+first-event-wins stop handler. The controller stops the VM and removes its job;
+the Rust supervisor validates the synthetic source, reaps the controller,
+requires both exact roots absent, and boots a fresh recovery VM. The profile
+and schema freeze `real_host_sleep_observed=false`, so this automated path
+cannot satisfy the genuine sleep/wake gate. No automatic sleep command is
+included in routine checks.
