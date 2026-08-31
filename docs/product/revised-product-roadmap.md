@@ -497,6 +497,14 @@ ephemeral. Repository inputs, live parsing, signatures, uploads, production
 admission, detection claims, and IAR-2 remain closed pending separate review of
 the hosted evidence.
 
+Run `33406541396`, job `99535422988`, completed that hosted review input on
+2026-08-31. The exact patched v1.20.0 candidate passed the Linux composite,
+all five original-synthetic compatibility cases, and mandatory cleanup on
+Ubuntu 24.04 x86-64. No artifact was uploaded or admitted. The next roadmap
+checkpoint is a separately frozen live NDJSON adapter and production-artifact
+pipeline design; repository-derived execution, signatures, publication,
+production admission, and IAR-2 remain closed.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

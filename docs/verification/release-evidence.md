@@ -216,3 +216,25 @@ runs no analyzer or compatibility corpus.
   timestamp source and added a regression guard.
 - These runs created no compatibility admission, manifest repair, merge, tag,
   release, package publication, signature, or risk acceptance.
+
+## 2026-08-31 — ADR-0099 YARA-X synthetic compatibility
+
+- Workflow commit: `f73803d2e37cc261a414c4b23ec52ce316df7968`.
+- Immutable Impresari source root:
+  `9a69e1e0d3fff58676ef91f33b8dd9f6b8330ae7`.
+- Successful manual run:
+  [GitHub Actions 33406541396](https://github.com/tdloB/impresari-context/actions/runs/33406541396),
+  job `99535422988`.
+- Exact host: GitHub `ubuntu-24.04` image `20260823.283.1`, kernel
+  `6.17.0-1022-azure`, x86-64, Landlock ABI 7.
+- The frozen v1.20.0 patched build passed the Linux composite, five
+  Impresari-owned synthetic cases, and the separate mandatory cleanup step.
+- Bounded executable SHA-256:
+  `f238098b1351303ad53cd240ffe1b591f4a0d7f625ac26ba9d22a7ac1ab3b718`.
+- Bounded compiled-rules SHA-256:
+  `010ea0e190fa5bf8f07fa08b6cb594ad154fa352fa53931e9eb85e1bf5847f35`.
+- The workflow uploaded no source, executable, rules, raw output, or receipt
+  artifact and scanned no repository content.
+- This is compatibility evidence only. Reproducibility, signatures, live
+  parsing, artifact/ruleset admission, production, IAR-2, detection quality,
+  safety, and malware-free claims remain false.

@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0099 synthetic artifact compatibility implementation in progress; production artifacts, live adapter, and IAR-2 remain gated
+- Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md)
@@ -147,3 +147,7 @@ ephemeral temporary/target paths and are deleted after validation. CI may
 print only bounded digests, state, and claim-denial metadata. No upload action,
 signature, release asset, cache publication, production process launch, or
 ordinary host integration is introduced.
+
+Run `33406541396`, job `99535422988`, passed this architecture on the exact
+hosted candidate, including the separate mandatory cleanup step. Its executable
+identity is per-run evidence and is not an admitted or reproducible artifact.

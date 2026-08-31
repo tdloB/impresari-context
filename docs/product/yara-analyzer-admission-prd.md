@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0099 synthetic artifact compatibility implementation in progress; production artifacts, live adapter, and IAR-2 remain gated
+- Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097 and bounded compatibility by ADR-0099
@@ -105,3 +105,6 @@ output, or receipt may be uploaded or retained. The checkpoint is successful
 only as compatibility evidence; it does not admit an executable or ruleset,
 scan repository content, implement the live parser, measure detection quality,
 open IAR-2, or claim production or safety.
+
+Run `33406541396`, job `99535422988`, satisfied this checkpoint on the exact
+Ubuntu 24.04 hosted candidate. The result admits compatibility evidence only.
