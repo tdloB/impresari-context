@@ -10,7 +10,7 @@
     "schema_version": {"const": "1.0.0"},
     "receipt_id": {"type": "string", "pattern": "^yara-x-compatibility-[0-9]+-[0-9]+$"},
     "profile_id": {"const": "yara-x-artifact-compatibility-v1"},
-    "profile_digest": {"const": "sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41"},
+    "profile_digest": {"const": "sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8"},
     "recorded_at": {"type": "string", "format": "date-time"},
     "source_archive_sha256": {"const": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee"},
     "patch_sha256": {"const": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd"},

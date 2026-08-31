@@ -13,7 +13,7 @@ abort "YARA-X live receipt identity changed" unless
   receipt.fetch("schema_name") == "yara-x-artifact-compatibility-receipt" &&
   receipt.fetch("schema_version") == "1.0.0" &&
   receipt.fetch("profile_id") == "yara-x-artifact-compatibility-v1" &&
-  receipt.fetch("profile_digest") == "sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41" &&
+  receipt.fetch("profile_digest") == "sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8" &&
   receipt.fetch("source_archive_sha256") == "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee" &&
   receipt.fetch("patch_sha256") == "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd" &&
   receipt.fetch("ruleset_source_sha256") == "sha256:5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b"

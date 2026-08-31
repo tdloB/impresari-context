@@ -271,7 +271,7 @@ if [ "$yara_mode" = true ]; then
   yara_stage="$repository_root/target/yara-x-artifact-compatibility"
   yara_output="$output_root/yara-x"
   yara_profile="$repository_root/profiles/v1/yara-x-artifact-compatibility-v1.json"
-  [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41 ] || {
+  [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8 ] || {
     echo "YARA-X compatibility profile digest changed" >&2
     exit 8
   }
@@ -404,7 +404,7 @@ if [ "$yara_mode" = true ]; then
     {
       schema_name:"yara-x-artifact-compatibility-receipt",schema_version:"1.0.0",
       receipt_id:$receipt_id,profile_id:"yara-x-artifact-compatibility-v1",
-      profile_digest:"sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41",
+      profile_digest:"sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
       recorded_at:$recorded_at,
       source_archive_sha256:"sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
       patch_sha256:"sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
