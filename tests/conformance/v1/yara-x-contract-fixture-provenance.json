@@ -1,0 +1,49 @@
+{
+  "schema_name": "fixture-provenance-record",
+  "schema_version": "1.0.0",
+  "record_id": "yara-x-contract-fixtures-v1",
+  "source_class": "original_synthetic_and_public_metadata",
+  "review_status": "reviewed",
+  "fixtures": [
+    {
+      "path": "invalid/yara-x-contract-candidate-command.json",
+      "sha256": "a92d0e6122a9072f1da13553ef8452bf33318079c3b78688851dab18c8fac5a1"
+    },
+    {
+      "path": "invalid/yara-x-contract-candidate-overclaim.json",
+      "sha256": "10cf1b579df121e0d0de46aab2e03f609c6a2952d4ef66fc8bb5660e4b897a74"
+    },
+    {
+      "path": "invalid/yara-x-contract-profile-asset-drift.json",
+      "sha256": "a2ce99bb0105bbb40f2b1f392eee9889032a09744dcd90840ce3294ab1df60d4"
+    },
+    {
+      "path": "valid/yara-x-contract-candidate-receipt.json",
+      "sha256": "09b6f2c089f064a4ff348525df1f7833c8882cbbf2990070edae031cd2f43703"
+    },
+    {
+      "path": "valid/yara-x-contract-profile.json",
+      "sha256": "827c4e1f99e5175369fc4347bbc20c21a63b45884313c8292feb55dcd0ab5574"
+    }
+  ],
+  "public_metadata_sources": [
+    "https://github.com/VirusTotal/yara-x/releases/tag/v1.20.0",
+    "https://github.com/VirusTotal/yara-x/tree/v1.20.0",
+    "https://github.com/VirusTotal/yara-x/blob/v1.20.0/.github/workflows/release.yaml",
+    "https://github.com/VirusTotal/yara-x/blob/v1.20.0/Cargo.toml",
+    "https://virustotal.github.io/yara-x/docs/cli/commands/",
+    "https://virustotal.github.io/yara-x/docs/cli/config-file/",
+    "https://virustotal.github.io/yara-x/docs/writing_rules/differences-with-yara/",
+    "https://virustotal.github.io/yara-x/docs/modules/"
+  ],
+  "yara_x_source_content": false,
+  "release_asset_content": false,
+  "executable_content": false,
+  "rule_content": false,
+  "malware_content": false,
+  "repository_source_content": false,
+  "matched_byte_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}

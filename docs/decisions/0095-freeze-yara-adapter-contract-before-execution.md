@@ -1,6 +1,6 @@
 # ADR-0095: Freeze The YARA Adapter Contract Before Execution
 
-- Status: Accepted for contract-only implementation
+- Status: Superseded for engine-specific identity by ADR-0098; evidence principles retained
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive
 
@@ -59,3 +59,8 @@ executing YARA; compiling or loading rules; accepting live analyzer output;
 reading repository-derived analyzer input; adding a parser or process launch;
 using network or credentials; or claiming IAR-2, production, safety, or broad
 platform support.
+
+ADR-0098 replaces the legacy `impresari.yara` engine/profile identity with a
+new YARA-X contract. The digest binding, exact range, complete accounting,
+bounded normalization, raw-source exclusion, and non-authority requirements in
+this record remain mandatory and cannot be re-labeled as live YARA-X evidence.

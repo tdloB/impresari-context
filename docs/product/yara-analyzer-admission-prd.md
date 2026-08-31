@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: Legacy adapter/source contracts superseded by ADR-0097; YARA-X replacement contracts pending; execution gated on IAR-1B
+- Status: YARA-X contract-only boundary implemented by ADR-0098; artifacts, live adapter, and execution gated on IAR-1B
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0089
@@ -81,3 +81,11 @@ artifact, ruleset, module subset, or live output contract until replacement
 YARA-X contracts are frozen. The selection retains every confinement,
 supply-chain, coverage, accuracy, hosted-evidence, and independent-review
 acceptance criterion above.
+
+ADR-0098 completes the replacement contract-only checkpoint. It pins YARA-X
+v1.20.0 and every official asset digest as metadata, selects separately rebuilt
+and Impresari-signed production artifacts, freezes a module-free project-owned
+ruleset surface, and closes the exact single-file NDJSON invocation and
+zero-byte output boundary. It downloads or admits no artifact, authors no rule,
+implements no live parser, and runs no analyzer. Those remain later acceptance
+gates.

@@ -100,6 +100,8 @@
     {"name": "yara-adapter-normalization-receipt", "path": "yara-adapter-normalization-receipt.schema.json", "identity_object_kind": null},
     {"name": "yara-supply-chain-admission-profile", "path": "yara-supply-chain-admission-profile.schema.json", "identity_object_kind": null},
     {"name": "yara-supply-chain-candidate-receipt", "path": "yara-supply-chain-candidate-receipt.schema.json", "identity_object_kind": null},
+    {"name": "yara-x-contract-profile", "path": "yara-x-contract-profile.schema.json", "identity_object_kind": null},
+    {"name": "yara-x-contract-candidate-receipt", "path": "yara-x-contract-candidate-receipt.schema.json", "identity_object_kind": null},
     {"name": "workspace-handle", "path": "workspace-handle.schema.json", "identity_object_kind": null},
     {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
     {"name": "search", "path": "search.schema.json", "identity_object_kind": null},
