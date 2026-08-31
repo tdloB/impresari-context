@@ -12,7 +12,7 @@ rule impresari_synthetic_literal_v1 : impresari synthetic
 rule impresari_synthetic_hex_v1 : impresari synthetic
 {
     strings:
-        $hex = { 49 4D 50 52 45 53 41 52 49 5F 53 59 4E 54 48 45 54 49 43 5F 48 45 58 5F 34 44 32 38 }
+        $hex = { 49 4D 50 00 FF 52 45 53 41 52 49 7F 58 31 }
     condition:
         $hex
 }

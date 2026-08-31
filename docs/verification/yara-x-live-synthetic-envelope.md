@@ -3,7 +3,7 @@
 - Date: 2026-08-31
 - Decision: [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md)
 - Profile: `yara-x-live-synthetic-envelope-v1`
-- Profile SHA-256: `b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0`
+- Profile SHA-256: `2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26`
 - State: implemented; hosted synthetic matrix pending
 
 ## Implemented Boundary

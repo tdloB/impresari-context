@@ -10,9 +10,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOURCE_SHA: 892110789a73c8944a6c4c4258508bf36dd6c75e
-  SOURCE_ARCHIVE_BYTES: "27932605"
-  SOURCE_ARCHIVE_SHA256: cb6c97e0a806c74722995e8a1c9b6ca5cd44ed3393020e5ebe7af5daf3cefa1f
+  SOURCE_SHA: bf547a2783d92aa6ba44a95905533943d4c9d61a
+  SOURCE_ARCHIVE_BYTES: "27932586"
+  SOURCE_ARCHIVE_SHA256: 6a2c32387f897e735ffc2efb8970afec8dde5dbf386ee4b002c4c62e05a31b79
 
 jobs:
   rehearse:
@@ -38,7 +38,7 @@ jobs:
             --strip-components=1 -C "$GITHUB_WORKSPACE"
           rm -f -- "$archive"
           test "$(sha256sum profiles/v1/yara-x-artifact-compatibility-v1.json | cut -d ' ' -f 1)" = \
-            ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8
+            a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391
       - name: Install exact Rust toolchains
         run: |
           rustup toolchain install 1.93.0 --profile minimal

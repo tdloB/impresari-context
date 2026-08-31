@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "job_id": "live-literal",
   "profile_id": "yara-x-live-synthetic-envelope-v1",
-  "profile_digest": "sha256:b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0",
+  "profile_digest": "sha256:2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26",
   "case_id": "literal",
   "launcher_path": "/synthetic/literal/launcher",
   "launcher_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",

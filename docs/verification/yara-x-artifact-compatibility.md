@@ -28,9 +28,9 @@ The build then enforced these existing ADR-0099 identities:
 - patched CLI manifest SHA-256:
   `a141a064f49eedc1d2bd079e95f1ce187d7d9fba845f6e801ed7c44eaa378402`;
 - compatibility profile SHA-256:
-  `ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8`;
+  `a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391`;
 - rule-source SHA-256:
-  `5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b`.
+  `7769b61b7570e62f3b55eb615ffb5a6249862b9f267d1ad6305eda02e10d2c68`.
 
 The build used Rust `1.93.0`, locked dependencies, the frozen feature graph,
 the `release-lto` profile, static CRT flags, and the Pulley interpreter feature.

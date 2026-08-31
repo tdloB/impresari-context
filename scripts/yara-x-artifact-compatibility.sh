@@ -63,7 +63,7 @@ verify_digest "$source_root/Cargo.toml" 932156f9dde9714993c26659f44335a69d37eb91
 verify_digest "$source_root/Cargo.lock" 2b58dd867d95c8854bc150fd8065bb443f368783e010adbbd5a6587d71f0039d
 verify_digest "$source_root/LICENSE" fdf05444c9178e662fa28810d94a1fa6ec32d7be798241c98094213317265880
 verify_digest "$patch_file" b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd
-verify_digest "$rule_source" 5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b
+verify_digest "$rule_source" 7769b61b7570e62f3b55eb615ffb5a6249862b9f267d1ad6305eda02e10d2c68
 
 patch --batch --forward -p1 -d "$source_root" < "$patch_file"
 verify_digest "$source_root/Cargo.toml" 4c250ee2588e0d46b8e83f5bc683c230d212e44cf2851b8f259e51752f85d24d
@@ -120,7 +120,7 @@ export RUSTFLAGS='-C target-feature=+crt-static'
 cargo +1.93.0 build --frozen --locked --profile release-lto \
   --package yara-x-cli --features pulley --target x86_64-unknown-linux-gnu
 yr="$source_root/target/x86_64-unknown-linux-gnu/release-lto/yr"
-verify_digest "$profile" ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8
+verify_digest "$profile" a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391
 [ -x "$yr" ] || { echo "YARA-X CLI build is missing" >&2; exit 8; }
 
 compile_home="$stage_root/compile-home"
@@ -147,7 +147,7 @@ for case_id in empty hex literal near_miss wide; do
   chmod 0555 "$case_root/yr"
   case "$case_id" in
     empty) : > "$case_root/input" ;;
-    hex) printf '%s' 'IMPRESARI_SYNTHETIC_HEX_4D28' > "$case_root/input" ;;
+    hex) printf '\111\115\120\000\377\122\105\123\101\122\111\177\130\061' > "$case_root/input" ;;
     literal) printf '%s' 'IMPRESARI_SYNTHETIC_LITERAL_7A31C9' > "$case_root/input" ;;
     near_miss) printf '%s' 'IMPRESARI_SYNTHETIC_LITERAL_7A31C8' > "$case_root/input" ;;
     wide) ruby -e 'File.binwrite(ARGV.fetch(0), "IMPRESARI_SYNTHETIC_WIDE_91B6".encode("UTF-16LE"))' "$case_root/input" ;;
