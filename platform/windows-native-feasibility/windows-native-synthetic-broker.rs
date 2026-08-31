@@ -880,7 +880,12 @@ fn harden_profile(profile: &Profile, user_sid: &str) -> Result<(), String> {
     }
     entries.sort_by_key(|path| std::cmp::Reverse(path.components().count()));
     for path in entries {
-        set_dacl(&path, user_sid, &[], path.is_dir())?;
+        let app_sids = if path == profile.path {
+            vec![profile.sid_string.as_str()]
+        } else {
+            Vec::new()
+        };
+        set_dacl(&path, user_sid, &app_sids, path.is_dir())?;
     }
     Ok(())
 }
