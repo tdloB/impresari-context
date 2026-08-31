@@ -104,7 +104,10 @@ abort "Windows broker launch sequence drifted" unless
 abort "Windows broker boundary corpus drifted" unless
   expected_scenarios.all? { |scenario| broker.include?(%Q{"#{scenario}"}) } &&
     broker.include?("GetAppContainerFolderPath") &&
-    broker.include?("CreateEnvironmentBlock(&raw mut environment, null_mut(), 0)") &&
+    broker.include?("EnvironmentBlock::exact_system()") &&
+    broker.include?("GetWindowsDirectoryW") &&
+    broker.include?(%q{format!("SystemDrive={system_drive}")}) &&
+    broker.include?(%q{format!("SystemRoot={system_root}")}) &&
     broker.include?("PROTECTED_DACL_SECURITY_INFORMATION") &&
     broker.include?("EXPECTED_WORKER_SHA256") &&
     broker.include?("EXPECTED_BROKER_SHA256") &&

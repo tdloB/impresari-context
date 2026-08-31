@@ -316,6 +316,7 @@ unsafe extern "system" {
         filesystem_name_buffer: *mut u16,
         filesystem_name_size: u32,
     ) -> i32;
+    fn GetWindowsDirectoryW(buffer: *mut u16, size: u32) -> u32;
     fn LocalFree(memory: *mut c_void) -> *mut c_void;
 }
 
@@ -336,8 +337,6 @@ unsafe extern "system" {
     ) -> i32;
     fn DeleteAppContainerProfile(appcontainer_name: *const u16) -> i32;
     fn GetAppContainerFolderPath(appcontainer_sid: *const u16, path: *mut *mut u16) -> i32;
-    fn CreateEnvironmentBlock(environment: *mut *mut c_void, token: Handle, inherit: i32) -> i32;
-    fn DestroyEnvironmentBlock(environment: *mut c_void) -> i32;
 }
 
 #[link(name = "ole32")]
@@ -468,28 +467,39 @@ struct LaunchAttributes {
     mitigation: Box<u64>,
 }
 
-struct EnvironmentBlock(*mut c_void);
+struct EnvironmentBlock(Vec<u16>);
 
 impl EnvironmentBlock {
-    fn system_only() -> Result<Self, String> {
-        let mut environment = null_mut();
-        // SAFETY: a null token with inherit=false requests system variables only;
-        // no caller or user-profile environment is copied.
-        if unsafe { CreateEnvironmentBlock(&raw mut environment, null_mut(), 0) } == 0
-            || environment.is_null()
-        {
-            return Err("CreateEnvironmentBlock(system-only) failed".into());
+    fn exact_system() -> Result<Self, String> {
+        let mut windows = vec![0_u16; 32_768];
+        // SAFETY: windows is writable for the capacity passed to the API.
+        let length = unsafe { GetWindowsDirectoryW(windows.as_mut_ptr(), windows.len() as u32) };
+        if length == 0 || length as usize >= windows.len() {
+            return Err(format!("GetWindowsDirectoryW failed: win32={}", unsafe {
+                GetLastError()
+            }));
         }
-        Ok(Self(environment))
-    }
-}
-
-impl Drop for EnvironmentBlock {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            // SAFETY: this pointer was returned by CreateEnvironmentBlock.
-            unsafe { DestroyEnvironmentBlock(self.0) };
+        windows.truncate(length as usize);
+        if windows.len() < 2 || windows[1] != b':' as u16 {
+            return Err("Windows directory did not identify a local system drive".into());
         }
+        let system_drive =
+            String::from_utf16(&windows[..2]).map_err(|_| "system drive was invalid UTF-16")?;
+        let system_root =
+            String::from_utf16(&windows).map_err(|_| "Windows directory was invalid UTF-16")?;
+        let mut block = Vec::new();
+        // CreateProcess requires an alphabetically sorted, double-null-terminated
+        // Unicode block. These values come from Windows itself, never the caller,
+        // and deliberately exclude user, repository, credential, and CI variables.
+        for entry in [
+            format!("SystemDrive={system_drive}"),
+            format!("SystemRoot={system_root}"),
+        ] {
+            block.extend(entry.encode_utf16());
+            block.push(0);
+        }
+        block.push(0);
+        Ok(Self(block))
     }
 }
 
@@ -1203,7 +1213,7 @@ fn run_scenario(
     let application = wide(worker.as_os_str());
     let mut command = wide(worker.as_os_str());
     let current_directory = wide(stage.as_os_str());
-    let environment = EnvironmentBlock::system_only()?;
+    let mut environment = EnvironmentBlock::exact_system()?;
     let mut startup = StartupInfoExW::default();
     startup.StartupInfo.cb = size_of::<StartupInfoExW>() as u32;
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -1221,7 +1231,7 @@ fn run_scenario(
             null(),
             1,
             CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
-            environment.0,
+            environment.0.as_mut_ptr().cast(),
             current_directory.as_ptr(),
             (&raw mut startup.StartupInfo).cast(),
             &raw mut process,
