@@ -241,6 +241,7 @@ struct JobObjectBasicAccountingInformation {
 unsafe extern "system" {
     fn GetCurrentProcess() -> Handle;
     fn GetCurrentProcessId() -> u32;
+    fn GetLastError() -> u32;
     fn GetTickCount64() -> u64;
     fn CreatePipe(
         read_pipe: *mut Handle,
@@ -1199,6 +1200,12 @@ fn run_scenario(
             &raw mut process,
         )
     };
+    // SAFETY: GetLastError is read immediately after the failed launch call.
+    let create_error = if created == 0 {
+        unsafe { GetLastError() }
+    } else {
+        0
+    };
     std::hint::black_box((
         &attributes.capabilities,
         &attributes.handles,
@@ -1207,7 +1214,9 @@ fn run_scenario(
         &attributes.mitigation,
     ));
     if created == 0 || process.hProcess.is_null() || process.hThread.is_null() {
-        return Err(format!("CreateProcessW({scenario}) failed"));
+        return Err(format!(
+            "CreateProcessW({scenario}) failed: win32={create_error}"
+        ));
     }
     let process_handle = HandleGuard(process.hProcess);
     let thread_handle = HandleGuard(process.hThread);
