@@ -21,6 +21,15 @@ retained candidate must therefore define its storage, contents, lifetime,
 permissions, verification, deletion, and non-claims before any workflow is
 allowed to create it.
 
+An authorized no-upload revalidation in run `33439251952`, job `99643176845`,
+passed all five synthetic cases and cleanup but produced executable SHA-256
+`b75b3fdd1133424cb3c9fea10d7eed7e7327b33cd260bf3afda490f5ef539721`,
+which differs from the earlier live run's executable despite the same pinned
+source root, patch, toolchains, runner-image version, kernel, architecture, and
+rules identity. This proposal therefore cannot treat rebuilds as
+byte-reproducible. Its required reproducibility disposition must investigate
+or explicitly account for that difference before any later admission.
+
 ## Proposed decision
 
 If approved, create one manually dispatched, no-secret GitHub Actions workflow
@@ -129,3 +138,7 @@ seven-day GitHub Actions artifact boundary. Selecting a signing identity,
 requesting `id-token` or attestation permissions, publishing any asset,
 creating production rules, executing the retained candidate, or admitting it
 requires a later separate decision.
+
+The 2026-08-31 authorization to download and build YARA-X and execute only the
+synthetic corpus expressly prohibited uploads. It authorized the revalidation
+above, not this retained-artifact proposal; this decision gate remains closed.

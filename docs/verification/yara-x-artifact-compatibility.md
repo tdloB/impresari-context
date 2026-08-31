@@ -79,3 +79,15 @@ The next checkpoint may freeze and implement a synthetic-only live NDJSON
 adapter contract and design a separate production artifact pipeline. Actual
 repository-derived input and production analyzer execution remain separately
 gated.
+
+## Later Revalidation
+
+Run
+[33439251952](https://github.com/tdloB/impresari-context/actions/runs/33439251952),
+job `99643176845`, repeated the exact pinned build and five-case synthetic
+corpus under the admitted Linux boundary on 2026-08-31. It passed compatibility
+and cleanup, uploaded no artifact, and produced executable SHA-256
+`b75b3fdd1133424cb3c9fea10d7eed7e7327b33cd260bf3afda490f5ef539721`.
+The exact live composition evidence and the resulting reproducibility gap are
+recorded in the
+[YARA-X live synthetic envelope evidence](yara-x-live-synthetic-envelope.md).
