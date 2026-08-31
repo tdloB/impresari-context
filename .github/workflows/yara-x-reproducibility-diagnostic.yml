@@ -42,7 +42,7 @@ jobs:
       - name: Install exact dependency auditor
         run: cargo +1.93.0 install cargo-audit --version 0.22.2 --locked
       - name: Run four-build offline diagnostic
-        run: ./scripts/yara-x-reproducibility-diagnostic.sh
+        run: bash ./scripts/yara-x-reproducibility-diagnostic.sh
       - name: Verify ephemeral cleanup
         if: always()
         shell: bash
