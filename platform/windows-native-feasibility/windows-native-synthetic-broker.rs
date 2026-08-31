@@ -464,7 +464,7 @@ struct LaunchAttributes {
     handles: Box<[Handle; 3]>,
     child_policy: Box<u32>,
     all_packages: Box<u32>,
-    mitigation: Box<u64>,
+    mitigation: Box<[u64; 2]>,
 }
 
 struct EnvironmentBlock(Vec<u16>);
@@ -1106,7 +1106,7 @@ fn attribute_list(sid: Sid, handles: [Handle; 3]) -> Result<LaunchAttributes, St
     let mut handles = Box::new(handles);
     let mut child_policy = Box::new(PROCESS_CREATION_CHILD_PROCESS_RESTRICTED);
     let mut all_packages = Box::new(PROCESS_CREATION_ALL_APPLICATION_PACKAGES_OPT_OUT);
-    let mut mitigation = Box::new(MITIGATION_POLICY);
+    let mut mitigation = Box::new([MITIGATION_POLICY, 0]);
     for (attribute, value, value_size) in [
         (
             PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES,
@@ -1130,8 +1130,8 @@ fn attribute_list(sid: Sid, handles: [Handle; 3]) -> Result<LaunchAttributes, St
         ),
         (
             PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY,
-            (&raw mut *mitigation).cast(),
-            size_of::<u64>(),
+            mitigation.as_mut_ptr().cast(),
+            size_of::<[u64; 2]>(),
         ),
     ] {
         // SAFETY: list is initialized and every value remains alive through CreateProcessW.
