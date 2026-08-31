@@ -1,0 +1,48 @@
+{
+  "schema_name": "yara-x-live-synthetic-envelope-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-live-synthetic-envelope-v1",
+  "source_profile_id": "yara-x-artifact-compatibility-v1",
+  "source_profile_digest": "sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
+  "adapter_profile_id": "yara-x-ndjson-adapter-v1",
+  "adapter_profile_digest": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c",
+  "runner_profile_id": "iar-linux-synthetic-v1",
+  "cases": ["empty", "hex", "literal", "near-miss", "wide"],
+  "input_origin": "impresari-original-synthetic-generated",
+  "process_launch_site": "crates/context-analyzer-runner/src/lib.rs",
+  "isolation_backend": "linux-cgroup-v2-landlock-seccomp",
+  "limits": {
+    "artifact_bytes": "262144",
+    "stdout_bytes": "131072",
+    "stderr_bytes": "203",
+    "elapsed_seconds": "10",
+    "memory_bytes": "536870912",
+    "processes": "4"
+  },
+  "composition": {
+    "capture_in_memory": true,
+    "raw_output_retained": false,
+    "exact_executable_identity": true,
+    "exact_ruleset_identity": true,
+    "exact_artifact_identity": true,
+    "exact_launcher_identity": true,
+    "complete_adapter_result_required": true,
+    "job_cleanup_required": true,
+    "cgroup_cleanup_required": true
+  },
+  "claims": {
+    "yara_x_executed": true,
+    "os_confined": true,
+    "synthetic_input_only": true,
+    "executable_admitted": false,
+    "ruleset_admitted": false,
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "repository_scan_authorized": false,
+    "credential_access_authorized": false,
+    "artifact_upload_authorized": false,
+    "authority_added": false
+  }
+}

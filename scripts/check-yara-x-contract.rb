@@ -210,7 +210,15 @@ allowed_runner_refs = [
   /YARA_X_SYNTHETIC_OUTPUT_BYTES/,
   /YARA_X_SYNTHETIC_PREFLIGHT/,
   /original-synthetic YARA-X-shaped record/,
-  /capture_yara_x_synthetic_process/
+  /capture_yara_x_synthetic_process/,
+  /YaraXCompatibilityProcess/,
+  /real-YARA-X/,
+  /Real YARA-X/,
+  /YARA-X executable/,
+  /one real YARA-X/,
+  /real YARA-X synthetic compatibility scan/,
+  /yara_x_succeeded/,
+  /capture_yara_x_compatibility_process/
 ].freeze
 
 production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).flat_map do |path|

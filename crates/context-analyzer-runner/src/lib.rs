@@ -294,6 +294,66 @@ pub struct YaraXSyntheticProcessCapture {
     pub unrelated_descriptors_closed: bool,
 }
 
+/// Closed real-YARA-X process configuration for synthetic-only compatibility.
+#[derive(Clone, Debug)]
+pub struct YaraXCompatibilityProcessConfig {
+    /// Exact prebuilt Linux isolation launcher.
+    pub launcher: PathBuf,
+    /// Expected launcher SHA-256.
+    pub launcher_digest: String,
+    /// Exact ephemeral YARA-X executable.
+    pub executable: PathBuf,
+    /// Expected executable SHA-256.
+    pub executable_digest: String,
+    /// Exact ephemeral compiled synthetic ruleset.
+    pub ruleset: PathBuf,
+    /// Expected compiled-rules SHA-256.
+    pub ruleset_digest: String,
+    /// Exact generated original-synthetic artifact.
+    pub artifact: PathBuf,
+    /// Expected artifact SHA-256.
+    pub artifact_digest: String,
+    /// Exact generated artifact length.
+    pub artifact_bytes: u64,
+    /// Existing read-only synthetic job root.
+    pub job_root: PathBuf,
+    /// Fresh delegated cgroup leaf for this one analyzer process.
+    pub cgroup_leaf: PathBuf,
+    /// Synthetic canary outside the job root.
+    pub external_canary: PathBuf,
+    /// Synthetic credential-shaped canary outside the job root.
+    pub credential_canary: PathBuf,
+    /// Nonexistent path beneath the job used to prove write denial.
+    pub write_probe: PathBuf,
+    /// Fixed wall-time ceiling, no more than ten seconds.
+    pub timeout: Duration,
+}
+
+/// Exact in-memory capture from one real YARA-X synthetic compatibility scan.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct YaraXCompatibilityProcessCapture {
+    /// Complete analyzer stdout, retained only in memory by the caller.
+    pub stdout: Vec<u8>,
+    /// Exact stdout byte length.
+    pub stdout_bytes: u64,
+    /// Exact stdout SHA-256.
+    pub stdout_digest: String,
+    /// Exact verified executable identity.
+    pub executable_digest: String,
+    /// Exact verified compiled-rules identity.
+    pub ruleset_digest: String,
+    /// Exact verified artifact identity.
+    pub artifact_digest: String,
+    /// Exact verified artifact length.
+    pub artifact_bytes: u64,
+    /// Exact verified isolation-launcher identity.
+    pub launcher_digest: String,
+    /// Real YARA-X exited successfully.
+    pub yara_x_succeeded: bool,
+    /// The fixed launcher preflight was exact.
+    pub confinement_preflight_exact: bool,
+}
+
 /// Source-free Rust-to-host launch request for the selected macOS XPC backend.
 ///
 /// This is a closed preparation handshake. It carries only immutable identity
@@ -1068,6 +1128,170 @@ pub fn capture_yara_x_synthetic_process(
         landlock_read_only_job: true,
         network_denied: true,
         unrelated_descriptors_closed: true,
+    })
+}
+
+/// Captures one real YARA-X scan over one generated original-synthetic artifact
+/// through the existing audited Analyzer Runner launch site.
+///
+/// # Errors
+///
+/// Returns a source-free runner category for every identity, path, confinement,
+/// process, timeout, or bounded-output mismatch.
+#[allow(clippy::too_many_lines)]
+pub fn capture_yara_x_compatibility_process(
+    config: &YaraXCompatibilityProcessConfig,
+) -> Result<YaraXCompatibilityProcessCapture, RunnerError> {
+    if !cfg!(all(target_os = "linux", target_arch = "x86_64"))
+        || config.timeout.is_zero()
+        || config.timeout > Duration::from_secs(10)
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    for (path, expected) in [
+        (&config.launcher, &config.launcher_digest),
+        (&config.executable, &config.executable_digest),
+        (&config.ruleset, &config.ruleset_digest),
+        (&config.artifact, &config.artifact_digest),
+    ] {
+        let metadata = fs::symlink_metadata(path)
+            .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?;
+        if !path.is_absolute()
+            || !metadata.is_file()
+            || metadata.file_type().is_symlink()
+            || fs::canonicalize(path)
+                .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?
+                != *path
+            || sha256(
+                &fs::read(path).map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?,
+            ) != **expected
+        {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerIdentity));
+        }
+    }
+    for path in [
+        &config.job_root,
+        &config.cgroup_leaf,
+        &config.external_canary,
+        &config.credential_canary,
+    ] {
+        if !path.is_absolute() {
+            return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+        }
+    }
+    let job = fs::symlink_metadata(&config.job_root)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+    let cgroup = fs::symlink_metadata(&config.cgroup_leaf)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+    if !job.is_dir()
+        || job.file_type().is_symlink()
+        || !cgroup.is_dir()
+        || cgroup.file_type().is_symlink()
+        || !config.launcher.starts_with(&config.job_root)
+        || !config.executable.starts_with(&config.job_root)
+        || !config.ruleset.starts_with(&config.job_root)
+        || !config.artifact.starts_with(&config.job_root)
+        || !config.write_probe.starts_with(&config.job_root)
+        || config.external_canary.starts_with(&config.job_root)
+        || config.credential_canary.starts_with(&config.job_root)
+        || config.write_probe.exists()
+        || fs::metadata(&config.artifact)
+            .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?
+            .len()
+            != config.artifact_bytes
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    let cpu_max = fs::read_to_string(config.cgroup_leaf.join("cpu.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    let memory_max = fs::read_to_string(config.cgroup_leaf.join("memory.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    let pids_max = fs::read_to_string(config.cgroup_leaf.join("pids.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    if cpu_max.trim() != "100000 100000"
+        || memory_max.trim() != "536870912"
+        || pids_max.trim() != "4"
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+
+    let arguments = [
+        config.cgroup_leaf.as_os_str(),
+        config.job_root.as_os_str(),
+        config.executable.as_os_str(),
+        config.ruleset.as_os_str(),
+        config.artifact.as_os_str(),
+        config.external_canary.as_os_str(),
+        config.credential_canary.as_os_str(),
+        config.write_probe.as_os_str(),
+    ];
+    let child = spawn_exact_process(
+        &config.launcher,
+        &config.job_root,
+        &arguments,
+        Stdio::null(),
+        Stdio::piped(),
+        Stdio::piped(),
+    )?;
+    let mut child = ChildGuard::new(child);
+    let stdout = child
+        .child_mut()?
+        .stdout
+        .take()
+        .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+    let stderr = child
+        .child_mut()?
+        .stderr
+        .take()
+        .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+    let stdout_reader = thread::spawn(move || read_capped(stdout, YARA_X_SYNTHETIC_OUTPUT_BYTES));
+    let stderr_reader =
+        thread::spawn(move || read_capped(stderr, YARA_X_SYNTHETIC_PREFLIGHT.len()));
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child
+            .child_mut()?
+            .try_wait()
+            .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?
+        {
+            break status;
+        }
+        if started.elapsed() >= config.timeout {
+            let _ = child.child_mut()?.kill();
+            let _ = child.child_mut()?.wait();
+            child.mark_reaped();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(RunnerError::new(RunnerErrorCode::Timeout));
+        }
+        thread::sleep(Duration::from_millis(2));
+    };
+    child.mark_reaped();
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    if !status.success() {
+        return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+    }
+    if stdout.is_empty() || stderr != YARA_X_SYNTHETIC_PREFLIGHT {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    let stdout_bytes =
+        u64::try_from(stdout.len()).map_err(|_| RunnerError::new(RunnerErrorCode::OutputLimit))?;
+    Ok(YaraXCompatibilityProcessCapture {
+        stdout_digest: sha256(&stdout),
+        stdout,
+        stdout_bytes,
+        executable_digest: config.executable_digest.clone(),
+        ruleset_digest: config.ruleset_digest.clone(),
+        artifact_digest: config.artifact_digest.clone(),
+        artifact_bytes: config.artifact_bytes,
+        launcher_digest: config.launcher_digest.clone(),
+        yara_x_succeeded: true,
+        confinement_preflight_exact: true,
     })
 }
 

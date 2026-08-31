@@ -532,6 +532,15 @@ boundary. YARA-X did not execute and no artifact or ruleset was admitted.
 Production artifact creation and signing remain the following independent
 gate.
 
+ADR-0102 implements the next narrow checkpoint: real output from the exact
+ephemeral YARA-X v1.20.0 candidate is captured through the single audited
+Analyzer Runner site, inside the admitted Linux boundary, and passed in memory
+to the ADR-0100 adapter. Only the five generated Impresari synthetic cases are
+eligible. The contracts and local non-executing suite are complete; the manual
+empty-workspace hosted matrix is pending. Executable and ruleset admission,
+repository scanning, production, IAR-2, detection quality, and safety remain
+closed regardless of the compatibility result.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

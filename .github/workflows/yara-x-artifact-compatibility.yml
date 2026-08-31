@@ -39,8 +39,10 @@ jobs:
           rm -f -- "$archive"
           test "$(sha256sum profiles/v1/yara-x-artifact-compatibility-v1.json | cut -d ' ' -f 1)" = \
             ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8
-      - name: Install exact Rust toolchain
-        run: rustup toolchain install 1.93.0 --profile minimal
+      - name: Install exact Rust toolchains
+        run: |
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup toolchain install 1.98.0 --profile minimal
       - name: Install exact dependency auditor
         run: cargo +1.93.0 install cargo-audit --version 0.22.2 --locked
       - name: Build and run the isolated synthetic compatibility corpus

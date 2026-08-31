@@ -20,6 +20,7 @@ required = [
   "ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
   "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA",
   "rustup toolchain install 1.93.0 --profile minimal",
+  "rustup toolchain install 1.98.0 --profile minimal",
   "cargo +1.93.0 install cargo-audit --version 0.22.2 --locked",
   "./scripts/yara-x-artifact-compatibility.sh",
   "Verify ephemeral cleanup",

@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0101 hosted synthetic envelope passed; production artifacts and IAR-2 remain gated
+- Status: ADR-0102 live synthetic composition implemented; hosted matrix, production artifacts, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md)
 
 ## Architecture
 
@@ -220,3 +220,33 @@ Run `33419412353`, job `99577842304`, passed both closed cases on the admitted
 Ubuntu 24.04 synthetic boundary and passed its separate cleanup assertion. The
 result proves this synthetic runner-to-adapter architecture only. The receipt
 correctly records `yara_x_executed=false` and `production_admitted=false`.
+
+## ADR-0102 Real-Engine Synthetic Composition
+
+```text
+pinned source-built yr + compiled Impresari synthetic rules + generated case
+                                  |
+                    single audited Runner launch site
+                                  |
+              fresh cgroup + Landlock + seccomp launcher
+                                  |
+                    bounded stdout held in memory
+                                  |
+                       ADR-0100 pure adapter
+                                  |
+          source-free execution receipt + path-free result
+```
+
+The runner verifies canonical regular files and exact SHA-256 identities for
+the launcher, executable, compiled rules, and artifact before launch. The
+launcher receives only the frozen argument vector and reports the exact
+confinement preflight. The coordinator requires process success, bounded
+output, exact preflight, exact expected rule identifiers, complete parser
+accounting, and removal of the job directory and empty cgroup before emitting
+the outer receipt.
+
+This is test-only composition, not a production runner surface. The pure
+adapter continues to state that it cannot prove execution; the outer
+domain-separated receipt records real YARA-X execution and confinement. It
+fixes artifact/ruleset admission, production, IAR-2, detection, safety, and
+authority claims to false.

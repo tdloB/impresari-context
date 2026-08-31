@@ -16,7 +16,7 @@
     "probe_path": "platform/linux-isolation-feasibility/probe.c",
     "probe_sha256": "6bfb14a78caf15530d7236051965ea604ba55940b83fd3d9a61d86f84fe0694d",
     "composite_check_path": "scripts/check-linux-composite-feasibility.sh",
-    "composite_check_sha256": "ad32c8bb5eb737a9ffc8d5f9d779b89c3f1f7e266dfa5c54377f9edce80f2d5f"
+    "composite_check_sha256": "efeed671b5768ac93b95a9c86d0394164fac68f141e03329ca82528f8402beb4"
   },
   "targets": [
     {

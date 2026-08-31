@@ -48,6 +48,7 @@ if [ "${1:-}" != "--delegated" ]; then
     set -- \
       --setenv=ImageOS="${ImageOS:-unknown}" --setenv=ImageVersion="${ImageVersion:-unknown}" \
       --setenv=GITHUB_RUN_ID="${GITHUB_RUN_ID:-0}" --setenv=GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}" \
+      --setenv=YARA_X_LIVE_COORDINATOR="${YARA_X_LIVE_COORDINATOR:?}" \
       "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated --yara-x-compatibility
   else
     set -- "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated
@@ -271,15 +272,25 @@ if [ "$yara_mode" = true ]; then
   yara_stage="$repository_root/target/yara-x-artifact-compatibility"
   yara_output="$output_root/yara-x"
   yara_profile="$repository_root/profiles/v1/yara-x-artifact-compatibility-v1.json"
+  live_profile="$repository_root/profiles/v1/yara-x-live-synthetic-envelope-v1.json"
   [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8 ] || {
     echo "YARA-X compatibility profile digest changed" >&2
     exit 8
   }
+  [ "$(sha256sum "$live_profile" | cut -d ' ' -f 1)" = b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0 ] || {
+    echo "YARA-X live synthetic profile digest changed" >&2
+    exit 8
+  }
+  live_coordinator=${YARA_X_LIVE_COORDINATOR:?}
+  [ -x "$live_coordinator" ] || { echo "YARA-X live coordinator is missing" >&2; exit 8; }
   [ -x "$yara_launcher" ] || { echo "YARA-X launcher is missing" >&2; exit 8; }
   [ -f "$yara_stage/external/canary" ] || { echo "YARA-X external canary is missing" >&2; exit 8; }
   [ -f "$yara_stage/credential/canary" ] || { echo "YARA-X credential canary is missing" >&2; exit 8; }
   mkdir -p -- "$yara_output"
   printf '%s\n' '[]' > "$yara_output/cases.json"
+  printf '%s\n' '[]' > "$yara_output/live-cases.json"
+  executable_digest="sha256:$(sha256sum "$yara_stage/cases/literal/yr" | cut -d ' ' -f 1)"
+  rules_digest="sha256:$(sha256sum "$yara_stage/cases/literal/rules.yarc" | cut -d ' ' -f 1)"
 
   for case_id in empty hex literal near_miss wide; do
     case_root="$yara_stage/cases/$case_id"
@@ -387,12 +398,65 @@ if [ "$yara_mode" = true ]; then
     fi
     remove_leaf "$leaf"
     rm -f -- "$output_path" "$preflight_path"
+
+    live_case_id=$case_id
+    if [ "$case_id" = near_miss ]; then live_case_id=near-miss; fi
+    live_leaf="$delegation_root/job-yara-live-$case_id"
+    create_leaf "$live_leaf"
+    cp "$yara_launcher" "$case_root/launcher"
+    chmod 0555 "$case_root/launcher"
+    artifact_digest="sha256:$(sha256sum "$artifact_path" | cut -d ' ' -f 1)"
+    artifact_bytes=$(wc -c < "$artifact_path" | tr -d ' ')
+    launcher_digest="sha256:$(sha256sum "$case_root/launcher" | cut -d ' ' -f 1)"
+    completed_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+    live_control="$yara_output/$case_id.live-control.json"
+    live_output="$yara_output/$case_id.live-output.json"
+    jq -n \
+      --arg job_id "live-$live_case_id" --arg case_id "$live_case_id" \
+      --arg launcher_path "$case_root/launcher" --arg launcher_digest "$launcher_digest" \
+      --arg executable_path "$yr_path" --arg executable_digest "$executable_digest" \
+      --arg ruleset_path "$rules_path" --arg ruleset_digest "$rules_digest" \
+      --arg artifact_path "$artifact_path" --arg artifact_digest "$artifact_digest" \
+      --arg artifact_bytes "$artifact_bytes" --arg job_root "$case_root" \
+      --arg cgroup_leaf "$live_leaf" --arg external_canary "$yara_stage/external/canary" \
+      --arg credential_canary "$yara_stage/credential/canary" \
+      --arg write_probe "$case_root/forbidden-live-write" --arg completed_at "$completed_at" '
+      {schema_name:"yara-x-live-synthetic-envelope-control",schema_version:"1.0.0",
+       job_id:$job_id,profile_id:"yara-x-live-synthetic-envelope-v1",
+       profile_digest:"sha256:b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0",
+       case_id:$case_id,launcher_path:$launcher_path,launcher_digest:$launcher_digest,
+       executable_path:$executable_path,executable_digest:$executable_digest,
+       ruleset_path:$ruleset_path,ruleset_digest:$ruleset_digest,
+       artifact_path:$artifact_path,artifact_digest:$artifact_digest,artifact_bytes:$artifact_bytes,
+       job_root:$job_root,cgroup_leaf:$cgroup_leaf,external_canary:$external_canary,
+       credential_canary:$credential_canary,write_probe:$write_probe,
+       workspace_snapshot:"sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+       manifest_id:"sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+       completed_at:$completed_at,authority_added:false}' > "$live_control"
+    "$live_coordinator" < "$live_control" > "$live_output"
+    jq -e --arg case_id "$live_case_id" '
+      .receipt.schema_name == "yara-x-live-synthetic-envelope-receipt" and
+      .receipt.case_id == $case_id and .receipt.yara_x_executed and
+      .receipt.os_confined and .receipt.in_memory_composition_complete and
+      .receipt.synthetic_input_only and .receipt.job_removed and
+      .receipt.cgroup_removed and (.receipt.raw_output_retained | not) and
+      (.receipt.executable_admitted | not) and (.receipt.ruleset_admitted | not) and
+      (.receipt.production_admitted | not) and (.receipt.iar_2_admitted | not) and
+      (.receipt.detection_quality_claimed | not) and (.receipt.safety_claimed | not) and
+      (.receipt.authority_added | not) and .normalized_result.complete_accounting and
+      (.normalized_result.path_emitted | not)
+    ' "$live_output" >/dev/null
+    jq --arg case_id "$live_case_id" \
+      --arg receipt_id "$(jq -r '.receipt.receipt_id' "$live_output")" \
+      --arg result_id "$(jq -r '.receipt.normalized_result_id' "$live_output")" \
+      '. + [{case_id:$case_id,receipt_id:$receipt_id,normalized_result_id:$result_id}]' \
+      "$yara_output/live-cases.json" > "$yara_output/live-cases.next"
+    mv "$yara_output/live-cases.next" "$yara_output/live-cases.json"
+    rm -f -- "$live_control" "$live_output"
   done
 
   yara_remaining=$(find "$delegation_root" -mindepth 1 -maxdepth 1 -type d -name 'job-yara-*' | wc -l | tr -d ' ')
   [ "$yara_remaining" = 0 ] || { echo "YARA-X cgroup cleanup failed" >&2; exit 8; }
-  executable_digest="sha256:$(sha256sum "$yara_stage/cases/literal/yr" | cut -d ' ' -f 1)"
-  rules_digest="sha256:$(sha256sum "$yara_stage/cases/literal/rules.yarc" | cut -d ' ' -f 1)"
   recorded_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
   runner_image="${ImageOS:-unknown}-${ImageVersion:-unknown}"
   jq -n \
@@ -426,6 +490,10 @@ if [ "$yara_mode" = true ]; then
       detection_quality_claimed:false,malware_free_claimed:false,authority_added:false
     }' > "$yara_output/receipt.json"
   rm -f -- "$yara_output/cases.json"
+  live_count=$(jq 'length' "$yara_output/live-cases.json")
+  [ "$live_count" = 5 ] || { echo "YARA-X live composition case accounting failed" >&2; exit 8; }
+  rm -f -- "$yara_output/live-cases.json"
+  printf '%s\n' 'YARA-X live synthetic envelope passed: cases=5 os_confined=true yara_x_executed=true production_admitted=false'
 fi
 
 remaining=$(find "$delegation_root" -mindepth 1 -maxdepth 1 -type d ! -name impresari-supervisor | wc -l | tr -d ' ')
