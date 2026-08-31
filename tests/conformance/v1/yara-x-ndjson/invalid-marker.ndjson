@@ -1,0 +1,1 @@
+{"path":"/staged/artifact.bin","rules":[{"identifier":"SyntheticMarker","namespace":"impresari","strings":[{"identifier":"$marker","match":"synthetic bytes","offset":8}],"tags":["contract"]}]}

@@ -76,9 +76,10 @@ candidate without activating IAR-2.
 ## YARA-X Selection Gate
 
 ADR-0097 records the official upstream transition from maintenance-focused
-YARA to stable YARA-X and selects YARA-X. This PRD cannot name a production
-artifact, ruleset, module subset, or live output contract until replacement
-YARA-X contracts are frozen. The selection retains every confinement,
+YARA to stable YARA-X and selects YARA-X. At selection time, this PRD could not
+name a production artifact, ruleset, module subset, or live output contract;
+ADRs 0098–0100 now freeze those contract boundaries without admitting them for
+production. The selection retains every confinement,
 supply-chain, coverage, accuracy, hosted-evidence, and independent-review
 acceptance criterion above.
 
@@ -111,7 +112,7 @@ Ubuntu 24.04 hosted candidate. The result admits compatibility evidence only.
 
 ## Pure NDJSON Adapter Checkpoint
 
-ADR-0100 is the next independently reviewable boundary. It implements only a
+ADR-0100 completes the next independently reviewable boundary. It implements only a
 pure Rust transformation over bounded committed original-synthetic YARA-X
 NDJSON fixtures. It must validate exact one-line framing, UTF-8, the staged
 path, closed fields, identifiers, tags, zero-byte match markers, integer and
@@ -122,3 +123,11 @@ The checkpoint has no filesystem, process, network, environment, clock, or
 credential capability. Parser success cannot claim analyzer execution. No
 repository-derived bytes, live runner linkage, production artifact/ruleset,
 IAR-2, detection quality, safety, or malware-free status enters this step.
+
+The implemented profile is
+`sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c`.
+Its pure Rust API consumes only an in-memory byte slice and explicit control
+metadata. Closed schemas and digest-bound original-synthetic fixtures cover the
+profile, controls, output, positive/no-match records, and fail-closed cases.
+Runner-envelope linkage and the production artifact pipeline remain separate
+future decisions.

@@ -1,0 +1,15 @@
+{
+  "schema_name": "yara-x-ndjson-adapter-control",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-ndjson-adapter-v1",
+  "profile_digest": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "artifact_bytes": "64",
+  "expected_staged_path": "/staged/artifact.bin",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "completed_at": "2026-08-31T00:00:00Z",
+  "authority_added": false
+}

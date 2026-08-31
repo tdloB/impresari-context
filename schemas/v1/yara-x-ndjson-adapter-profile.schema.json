@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-ndjson-adapter-profile.schema.json",
+  "title": "ADR-0100 pure YARA-X NDJSON adapter profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "adapter", "limits", "input_contract", "runtime_capabilities", "claims"],
+  "properties": {
+    "schema_name": {"const": "yara-x-ndjson-adapter-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "yara-x-ndjson-adapter-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "adapter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["analyzer_id", "input_format", "result_schema", "result_origin", "normalization_method", "result_identity_domain"],
+      "properties": {
+        "analyzer_id": {"const": "impresari.yara-x"},
+        "input_format": {"const": "yara-x-v1.20.0-one-line-ndjson"},
+        "result_schema": {"const": "yara-x-normalized-result@1.0.0"},
+        "result_origin": {"const": "original_synthetic_fixture"},
+        "normalization_method": {"const": "yara_x_ndjson_rule_observation_v1"},
+        "result_identity_domain": {"const": "impresari-context/yara-x-normalized-result/v1"}
+      }
+    },
+    "limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["max_input_bytes", "max_staged_path_bytes", "max_rules", "max_observations", "max_tags_per_observation", "max_ranges_per_observation", "max_total_ranges", "max_identifier_bytes", "max_normalized_output_bytes"],
+      "properties": {
+        "max_input_bytes": {"const": "131072"},
+        "max_staged_path_bytes": {"const": "4096"},
+        "max_rules": {"const": "256"},
+        "max_observations": {"const": "256"},
+        "max_tags_per_observation": {"const": "32"},
+        "max_ranges_per_observation": {"const": "32"},
+        "max_total_ranges": {"const": "8192"},
+        "max_identifier_bytes": {"const": "128"},
+        "max_normalized_output_bytes": {"const": "2097152"}
+      }
+    },
+    "input_contract": {"$ref": "#/$defs/inputContract"},
+    "runtime_capabilities": {"$ref": "#/$defs/runtimeCapabilities"},
+    "claims": {"$ref": "#/$defs/claims"}
+  },
+  "$defs": {
+    "inputContract": {
+      "type": "object", "additionalProperties": false,
+      "required": ["one_utf8_json_object_plus_lf", "exact_staged_path_required", "repository_source_bytes", "matched_bytes", "raw_output_retention", "commands", "arguments", "rule_source", "network_destinations", "credentials"],
+      "properties": {
+        "one_utf8_json_object_plus_lf": {"const": true},
+        "exact_staged_path_required": {"const": true},
+        "repository_source_bytes": {"const": false},
+        "matched_bytes": {"const": false},
+        "raw_output_retention": {"const": false},
+        "commands": {"const": false},
+        "arguments": {"const": false},
+        "rule_source": {"const": false},
+        "network_destinations": {"const": false},
+        "credentials": {"const": false}
+      }
+    },
+    "runtimeCapabilities": {
+      "type": "object", "additionalProperties": false,
+      "required": ["filesystem", "process", "network", "environment", "clock", "credentials"],
+      "properties": {
+        "filesystem": {"const": false},
+        "process": {"const": false},
+        "network": {"const": false},
+        "environment": {"const": false},
+        "clock": {"const": false},
+        "credentials": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["analyzer_executed", "os_confined", "production_admitted", "iar_2_admitted", "safety_claimed", "authority_added"],
+      "properties": {
+        "analyzer_executed": {"const": false},
+        "os_confined": {"const": false},
+        "production_admitted": {"const": false},
+        "iar_2_admitted": {"const": false},
+        "safety_claimed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

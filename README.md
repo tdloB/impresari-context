@@ -321,6 +321,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [YARA-X artifact compatibility](docs/verification/yara-x-artifact-compatibility.md):
   the exact v1.20.0 hosted synthetic build, isolation, five-case corpus, cleanup
   evidence, and explicit non-production/non-IAR-2 boundary.
+- [YARA-X NDJSON adapter](docs/verification/yara-x-ndjson-adapter.md): the pure
+  bounded parser, closed schemas, deterministic path-free output, synthetic
+  provenance, and explicit no-execution/no-production boundary.
 - [macOS hybrid XPC distribution](docs/product/macos-hybrid-xpc-distribution-prd.md):
   the accepted Option C target—one signed/notarized cask with CLI compatibility—
   and the evidence required before it becomes a supported release path.

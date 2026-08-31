@@ -1,0 +1,44 @@
+{
+  "schema_name": "yara-x-normalized-result",
+  "schema_version": "1.0.0",
+  "result_id": "sha256:4ecda20553a22cf88027a1f230ea401358912fa980da8c518fec86a84127a180",
+  "profile_id": "yara-x-ndjson-adapter-v1",
+  "profile_digest": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "analyzer_id": "impresari.yara-x",
+  "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "artifact_bytes": "64",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "completed_at": "2026-08-31T00:00:00Z",
+  "observations": [
+    {
+      "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "namespace": "impresari",
+      "rule_identifier": "SyntheticMarker",
+      "tags": ["contract", "synthetic"],
+      "ranges": [
+        {"string_identifier": "$marker", "offset": "8", "length": "12"}
+      ],
+      "classification": "untrusted_derived_data",
+      "method": "yara_x_ndjson_rule_observation_v1",
+      "trust": "untrusted_derived_data",
+      "limitations": ["original-synthetic-fixture", "rule-match-is-not-a-safety-verdict"],
+      "authority_added": false
+    }
+  ],
+  "complete_accounting": true,
+  "limitations": ["adapter-only", "no-live-analyzer", "not-a-safety-verdict", "original-synthetic-fixture"],
+  "result_origin": "original_synthetic_fixture",
+  "raw_output_retained": false,
+  "source_bytes_retained": false,
+  "matched_bytes_retained": false,
+  "path_emitted": false,
+  "analyzer_executed": false,
+  "os_confined": false,
+  "production_admitted": false,
+  "iar_2_admitted": false,
+  "safety_claimed": false,
+  "authority_added": false
+}

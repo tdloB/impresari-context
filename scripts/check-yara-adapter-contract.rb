@@ -176,7 +176,10 @@ expected_receipt = {
 receipt = read_json(FIXTURE_ROOT.join(RECEIPT_RELATIVE))
 abort "committed YARA normalization receipt is not the deterministic result" unless receipt == expected_receipt
 
-rust_sources = ROOT.join("crates").glob("**/*.rs").reject { |path| path.to_s.include?("/target/") }
+allowed_yara_source = ROOT.join("crates/context-yara-x-adapter/src/lib.rs")
+rust_sources = ROOT.join("crates").glob("**/*.rs").reject do |path|
+  path.to_s.include?("/target/") || path == allowed_yara_source
+end
 abort "production Rust code gained a YARA implementation or launch reference" if
   rust_sources.any? { |path| path.read.match?(/\byara\b/i) }
 

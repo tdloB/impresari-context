@@ -513,6 +513,14 @@ linkage, artifact/ruleset admission, production, or IAR-2 authority. Production
 artifact design and synthetic runner-envelope linkage remain separate later
 decisions after the parser corpus passes.
 
+The ADR-0100 parser corpus now passes. The content-addressed profile, closed
+schemas, pure Rust implementation, deterministic normalized result, and
+original-synthetic provenance are implemented without adding any runtime
+capability. The next analyzer checkpoint must independently choose either a
+production artifact pipeline or a synthetic runner-to-adapter envelope. It may
+not introduce repository-derived input or production/IAR-2 claims by
+implication.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

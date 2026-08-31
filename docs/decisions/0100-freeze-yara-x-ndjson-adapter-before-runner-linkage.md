@@ -1,6 +1,6 @@
 # ADR-0100: Freeze The YARA-X NDJSON Adapter Before Runner Linkage
 
-- Status: Accepted for pure original-synthetic parser implementation
+- Status: Implemented for pure original-synthetic parsing; execution and production remain gated
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive and ADR-0099 activation gate
 - Related: ADR-0013, ADR-0074, ADR-0082, ADR-0095, ADR-0098, ADR-0099
@@ -92,3 +92,21 @@ status.
 After implementation, the next decision must independently choose between the
 production artifact pipeline and synthetic runner-to-adapter envelope linkage.
 Neither may carry repository-derived bytes until all of its own gates pass.
+
+## Implementation Evidence
+
+The `context-yara-x-adapter` crate implements the frozen transformation as an
+in-memory-only library. The profile digest is
+`sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c`.
+Closed schemas cover the profile, separate control metadata, and normalized
+result. A provenance record binds every committed original-synthetic positive
+and negative fixture by exact digest.
+
+Unit tests prove the valid match and no-match paths, deterministic ordering and
+identity, closed-field and duplicate rejection, framing and UTF-8 failures,
+path mismatch, identifier, marker, and range failures, and a byte-mutation
+corpus without panics. Repository checks freeze the dependency list and reject
+filesystem, process, network, environment, clock, credential, and embedded-file
+capability tokens from production parser code. The result schema fixes every
+execution, confinement, production, IAR-2, safety, and authority claim to
+false.

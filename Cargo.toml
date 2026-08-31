@@ -25,6 +25,7 @@ members = [
     "crates/context-store",
     "crates/context-structural",
     "crates/context-workspace",
+    "crates/context-yara-x-adapter",
 ]
 resolver = "3"
 
