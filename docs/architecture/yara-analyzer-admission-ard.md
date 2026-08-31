@@ -84,11 +84,11 @@ artifact.
 
 ## ADR-0097 YARA-X Direction
 
-YARA-X is selected, but no engine-specific build architecture is frozen yet.
-The replacement requires new engine/profile identities, documented
-rule-compatibility constraints, and a bounded JSON/NDJSON adapter. It may not
+YARA-X was selected before its engine-specific build architecture was frozen.
+ADRs 0098–0100 now provide new engine/profile identities, documented
+rule-compatibility constraints, and a bounded NDJSON adapter. They may not
 reuse legacy YARA's executable, compiled-rules, module, or result-parser
-identity. The common artifact, ruleset, confinement, accounting, expiry,
+identities. The common artifact, ruleset, confinement, accounting, expiry,
 revocation, and non-safety requirements remain unchanged.
 
 ## ADR-0098 Closed YARA-X Boundary
@@ -177,3 +177,10 @@ state and returns only a stable source-free category.
 The library has no runner or analyzer dependency and cannot assert execution,
 confinement, production, IAR-2, or safety. Runner envelope linkage and the
 production artifact pipeline remain later architectural decisions.
+
+The implemented crate is `context-yara-x-adapter`. It depends only on the core
+UTC validator and locked Serde, JSON, and SHA-256 libraries. Its profile,
+control, and result schemas are registry members; its original-synthetic corpus
+is content-addressed by one closed provenance record. The parser returns a
+single stable content-free error code or a complete normalized result, never a
+partial result.

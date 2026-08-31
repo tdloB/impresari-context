@@ -487,6 +487,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "context-yara-x-adapter"
+version = "0.2.0"
+dependencies = [
+ "context-core",
+ "serde",
+ "serde_json",
+ "sha2",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"

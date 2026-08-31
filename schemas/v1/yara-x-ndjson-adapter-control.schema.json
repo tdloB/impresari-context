@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-ndjson-adapter-control.schema.json",
+  "title": "ADR-0100 source-free adapter control metadata",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "workspace_snapshot", "manifest_id", "artifact_hash", "artifact_bytes", "expected_staged_path", "executable_digest", "ruleset_digest", "completed_at", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "yara-x-ndjson-adapter-control"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "yara-x-ndjson-adapter-v1"},
+    "profile_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "manifest_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "artifact_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+    "artifact_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "expected_staged_path": {"type": "string", "minLength": 1, "maxLength": 4096, "pattern": "^[^\\u0000-\\u001f\\u007f]+$"},
+    "executable_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "ruleset_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "authority_added": {"const": false}
+  }
+}

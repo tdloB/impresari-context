@@ -1,0 +1,32 @@
+{
+  "schema_name": "fixture-provenance-record",
+  "schema_version": "1.0.0",
+  "record_id": "yara-x-ndjson-adapter-original-synthetic-v1",
+  "source_class": "original_synthetic",
+  "review_status": "reviewed",
+  "fixtures": [
+    {"path": "invalid/yara-x-ndjson-adapter-control-path.json", "sha256": "2bc485763282857f3815bfbccf115d0ed001576ad15502687f0a2b475eeca36b"},
+    {"path": "invalid/yara-x-normalized-result-overclaim.json", "sha256": "3c8b4e74b33786867bcb9b8b699e89a11ac100d4ab561fef1ba755a3db2e3e79"},
+    {"path": "valid/yara-x-ndjson-adapter-control.json", "sha256": "5d45c428eee8091caba0bc862681fac691fc33656a7e4f14222e25d6ed7de214"},
+    {"path": "valid/yara-x-ndjson-adapter-profile.json", "sha256": "e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c"},
+    {"path": "valid/yara-x-normalized-result.json", "sha256": "a479103ccdf721a64ed418dddc689b5422f1f43efdc9626dcf81339eb87185ab"},
+    {"path": "yara-x-ndjson/invalid-duplicate-field.ndjson", "sha256": "5c34b0f3ea1dc090dafef4e1793ef0dca14dd87617f3c98ff1ec8bb5c82132fa"},
+    {"path": "yara-x-ndjson/invalid-duplicate-tag.ndjson", "sha256": "3d5ee0591f300d49da7029c030d67d7512a10e2be0833885178a9bb96ddb4925"},
+    {"path": "yara-x-ndjson/invalid-extra-line.ndjson", "sha256": "4b6c94c0895bfd22731add5ce5f9f3faafd971949a94e9089fe570bca849232f"},
+    {"path": "yara-x-ndjson/invalid-marker.ndjson", "sha256": "defff7ea147403d1ca1478f4b604757a78749d658c2adbf825477e869d09a6bb"},
+    {"path": "yara-x-ndjson/invalid-path.ndjson", "sha256": "f56daa500ff5b848942b1a15fb6e00f0c9913ba898c4254c522c0fb4f4018614"},
+    {"path": "yara-x-ndjson/invalid-range.ndjson", "sha256": "47b0ec30f564c1a3f7486d70ebe03e825d0a2b044ecf59f0dcd96ceb40810651"},
+    {"path": "yara-x-ndjson/invalid-unknown-field.ndjson", "sha256": "6db1962b60adab2ea7ae718224c61d1de8b63a7a999da0da1f3e1cb11246cf28"},
+    {"path": "yara-x-ndjson/valid-match.ndjson", "sha256": "94e1dcb48bf00299178d75cfcf94a7551304a7a5d7b390e508d7a07079360499"},
+    {"path": "yara-x-ndjson/valid-no-match.ndjson", "sha256": "bc832c47989e5aaefbb5c43e9b04d5ac9ef790601b30257fff04bab1793ff6b0"}
+  ],
+  "malware_content": false,
+  "third_party_content": false,
+  "executable_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "analyzer_output_content": false,
+  "analyzer_executed": false,
+  "authority_added": false
+}

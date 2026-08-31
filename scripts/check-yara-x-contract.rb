@@ -193,7 +193,10 @@ end
 abort "unexpected YARA-X rule artifact entered the repository" unless
   allowed_rules == ["rules/yara-x/synthetic-compatibility-v1.yar"]
 
-production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).select do |path|
+allowed_parser = ROOT.join("crates/context-yara-x-adapter/src/lib.rs").to_s
+production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).reject do |path|
+  path == allowed_parser
+end.select do |path|
   File.read(path).match?(/yara[_-]x|\byr\s+scan\b/i)
 end
 abort "YARA-X implementation or launch reference entered production Rust: #{production_refs.join(', ')}" unless production_refs.empty?

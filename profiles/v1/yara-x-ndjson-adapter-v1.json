@@ -1,0 +1,53 @@
+{
+  "schema_name": "yara-x-ndjson-adapter-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-ndjson-adapter-v1",
+  "profile_version": "1.0.0",
+  "adapter": {
+    "analyzer_id": "impresari.yara-x",
+    "input_format": "yara-x-v1.20.0-one-line-ndjson",
+    "result_schema": "yara-x-normalized-result@1.0.0",
+    "result_origin": "original_synthetic_fixture",
+    "normalization_method": "yara_x_ndjson_rule_observation_v1",
+    "result_identity_domain": "impresari-context/yara-x-normalized-result/v1"
+  },
+  "limits": {
+    "max_input_bytes": "131072",
+    "max_staged_path_bytes": "4096",
+    "max_rules": "256",
+    "max_observations": "256",
+    "max_tags_per_observation": "32",
+    "max_ranges_per_observation": "32",
+    "max_total_ranges": "8192",
+    "max_identifier_bytes": "128",
+    "max_normalized_output_bytes": "2097152"
+  },
+  "input_contract": {
+    "one_utf8_json_object_plus_lf": true,
+    "exact_staged_path_required": true,
+    "repository_source_bytes": false,
+    "matched_bytes": false,
+    "raw_output_retention": false,
+    "commands": false,
+    "arguments": false,
+    "rule_source": false,
+    "network_destinations": false,
+    "credentials": false
+  },
+  "runtime_capabilities": {
+    "filesystem": false,
+    "process": false,
+    "network": false,
+    "environment": false,
+    "clock": false,
+    "credentials": false
+  },
+  "claims": {
+    "analyzer_executed": false,
+    "os_confined": false,
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "safety_claimed": false,
+    "authority_added": false
+  }
+}

@@ -238,3 +238,21 @@ runs no analyzer or compatibility corpus.
 - This is compatibility evidence only. Reproducibility, signatures, live
   parsing, artifact/ruleset admission, production, IAR-2, detection quality,
   safety, and malware-free claims remain false.
+
+## 2026-08-31 — ADR-0100 pure YARA-X NDJSON adapter
+
+- Frozen profile SHA-256:
+  `e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c`.
+- `context-yara-x-adapter` performs an all-or-nothing in-memory transform from
+  one bounded original-synthetic YARA-X record plus separate exact controls to
+  a deterministic path-free, source-free result.
+- Closed registered schemas cover the profile, control metadata, and output.
+  Every committed positive and negative fixture is bound by exact digest in a
+  reviewed original-synthetic provenance record.
+- Offline tests cover match/no-match, deterministic order and identity,
+  duplicate and unknown fields, framing, UTF-8, path substitution, marker
+  grammar, checked ranges, limits, and malformed mutations without panics.
+- The production crate has no filesystem, process, network, environment,
+  clock, credential, or embedded-file capability. It does not execute YARA-X
+  and fixes analyzer execution, confinement, production, IAR-2, safety, and
+  added-authority claims to false.
