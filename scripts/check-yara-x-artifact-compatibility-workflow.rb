@@ -17,7 +17,7 @@ required = [
   "SOURCE_SHA: 892110789a73c8944a6c4c4258508bf36dd6c75e",
   "SOURCE_ARCHIVE_BYTES: \"27932605\"",
   "SOURCE_ARCHIVE_SHA256: cb6c97e0a806c74722995e8a1c9b6ca5cd44ed3393020e5ebe7af5daf3cefa1f",
-  "ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
+  "a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391",
   "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA",
   "rustup toolchain install 1.93.0 --profile minimal",
   "rustup toolchain install 1.98.0 --profile minimal",

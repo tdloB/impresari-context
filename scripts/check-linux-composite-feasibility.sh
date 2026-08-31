@@ -273,11 +273,11 @@ if [ "$yara_mode" = true ]; then
   yara_output="$output_root/yara-x"
   yara_profile="$repository_root/profiles/v1/yara-x-artifact-compatibility-v1.json"
   live_profile="$repository_root/profiles/v1/yara-x-live-synthetic-envelope-v1.json"
-  [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8 ] || {
+  [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391 ] || {
     echo "YARA-X compatibility profile digest changed" >&2
     exit 8
   }
-  [ "$(sha256sum "$live_profile" | cut -d ' ' -f 1)" = b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0 ] || {
+  [ "$(sha256sum "$live_profile" | cut -d ' ' -f 1)" = 2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26 ] || {
     echo "YARA-X live synthetic profile digest changed" >&2
     exit 8
   }
@@ -423,7 +423,7 @@ if [ "$yara_mode" = true ]; then
       --arg write_probe "$case_root/forbidden-live-write" --arg completed_at "$completed_at" '
       {schema_name:"yara-x-live-synthetic-envelope-control",schema_version:"1.0.0",
        job_id:$job_id,profile_id:"yara-x-live-synthetic-envelope-v1",
-       profile_digest:"sha256:b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0",
+       profile_digest:"sha256:2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26",
        case_id:$case_id,launcher_path:$launcher_path,launcher_digest:$launcher_digest,
        executable_path:$executable_path,executable_digest:$executable_digest,
        ruleset_path:$ruleset_path,ruleset_digest:$ruleset_digest,
@@ -468,11 +468,11 @@ if [ "$yara_mode" = true ]; then
     {
       schema_name:"yara-x-artifact-compatibility-receipt",schema_version:"1.0.0",
       receipt_id:$receipt_id,profile_id:"yara-x-artifact-compatibility-v1",
-      profile_digest:"sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
+      profile_digest:"sha256:a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391",
       recorded_at:$recorded_at,
       source_archive_sha256:"sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
       patch_sha256:"sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
-      ruleset_source_sha256:"sha256:5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b",
+      ruleset_source_sha256:"sha256:7769b61b7570e62f3b55eb615ffb5a6249862b9f267d1ad6305eda02e10d2c68",
       executable_sha256:$executable_digest,compiled_rules_sha256:$rules_digest,
       observed_host:{runner_label:"ubuntu-24.04",runner_image:$runner_image,kernel_release:$kernel_release,architecture:"x86_64",landlock_abi:$landlock_abi},
       cases:$cases[0],

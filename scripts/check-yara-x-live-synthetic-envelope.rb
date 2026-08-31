@@ -7,12 +7,12 @@ require "json"
 require "pathname"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
-PROFILE_DIGEST = "b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0"
+PROFILE_DIGEST = "2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26"
 FIXTURES = {
-  "invalid/yara-x-live-synthetic-envelope-overclaim.json" => "17df3b75e6399e1108eba1237ce977311bd29b58eda69978bb5d431b5e8c8f38",
-  "valid/yara-x-live-synthetic-envelope-control.json" => "941325e5a37b06dc8ff91910f4eb92d622260c1c0302fd52d1a77a04cb3255b1",
+  "invalid/yara-x-live-synthetic-envelope-overclaim.json" => "89888ead51ab9fc94596dd98c268c2b2a79df2192ffd68a1750aaf0c1ffa81b7",
+  "valid/yara-x-live-synthetic-envelope-control.json" => "8936b40db4274e340eaf3056ce3c360701570f64988cd26aef69e57f06da5e6e",
   "valid/yara-x-live-synthetic-envelope-profile.json" => PROFILE_DIGEST,
-  "valid/yara-x-live-synthetic-envelope-receipt.json" => "088730779553445ff015b917f763568b5b796ce630bf43afd251aed2a3fc0b45"
+  "valid/yara-x-live-synthetic-envelope-receipt.json" => "3f35766b0dd28be6cc94dcd39b52dd593ddc6a87f11bee63778946005ba49ca0"
 }.freeze
 
 def json(path)

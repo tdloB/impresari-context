@@ -13,10 +13,10 @@ abort "YARA-X live receipt identity changed" unless
   receipt.fetch("schema_name") == "yara-x-artifact-compatibility-receipt" &&
   receipt.fetch("schema_version") == "1.0.0" &&
   receipt.fetch("profile_id") == "yara-x-artifact-compatibility-v1" &&
-  receipt.fetch("profile_digest") == "sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8" &&
+  receipt.fetch("profile_digest") == "sha256:a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391" &&
   receipt.fetch("source_archive_sha256") == "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee" &&
   receipt.fetch("patch_sha256") == "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd" &&
-  receipt.fetch("ruleset_source_sha256") == "sha256:5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b"
+  receipt.fetch("ruleset_source_sha256") == "sha256:7769b61b7570e62f3b55eb615ffb5a6249862b9f267d1ad6305eda02e10d2c68"
 
 Time.iso8601(receipt.fetch("recorded_at"))
 host = receipt.fetch("observed_host")

@@ -31,7 +31,7 @@ pub const PROFILE_DIGEST: &str =
 pub const LIVE_PROFILE_ID: &str = "yara-x-live-synthetic-envelope-v1";
 /// Digest of the exact committed live synthetic composition profile bytes.
 pub const LIVE_PROFILE_DIGEST: &str =
-    "sha256:b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0";
+    "sha256:2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26";
 /// Exact original-synthetic match record embedded in the emitter.
 pub const VALID_MATCH: &[u8] = b"{\"path\":\"/staged/artifact.bin\",\"rules\":[{\"identifier\":\"SyntheticMarker\",\"namespace\":\"impresari\",\"strings\":[{\"identifier\":\"$marker\",\"match\":\" ... 12 more bytes\",\"offset\":8}],\"tags\":[\"synthetic\",\"contract\"]}]}\n";
 /// Exact original-synthetic no-match record embedded in the emitter.
