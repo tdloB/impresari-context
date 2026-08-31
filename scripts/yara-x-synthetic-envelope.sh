@@ -22,6 +22,9 @@ cleanup() {
     fi
   done
   rm -rf -- "$stage_root" "$runtime_root"
+  rm -f -- \
+    "$repository_root/target/release/impresari-yara-x-synthetic-emitter" \
+    "$repository_root/target/release/impresari-yara-x-synthetic-envelope"
 }
 trap cleanup EXIT HUP INT TERM
 
