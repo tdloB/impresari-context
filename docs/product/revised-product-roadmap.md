@@ -488,6 +488,15 @@ ruleset plus one staged file with closed arguments and bounded NDJSON that
 retains zero matched bytes. The next checkpoint is exact artifact and ruleset
 creation/admission, still gated from execution.
 
+ADR-0099 opens only that synthetic compatibility checkpoint. It freezes the
+immutable source archive and a minimal module-free Impresari patch, authors an
+original-synthetic literal/hex/wide ruleset, and requires a locked Rust build
+plus synthetic positive/negative scans inside the existing Linux CI isolation
+boundary. The binary, compiled rules, raw results, and receipt remain
+ephemeral. Repository inputs, live parsing, signatures, uploads, production
+admission, detection claims, and IAR-2 remain closed pending separate review of
+the hosted evidence.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

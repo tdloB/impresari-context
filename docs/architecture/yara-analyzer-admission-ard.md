@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: YARA-X contract-only boundary implemented by ADR-0098; artifacts, live adapter, and execution gated on IAR-1B
-- Date: 2026-08-30
+- Status: ADR-0099 synthetic artifact compatibility implementation in progress; production artifacts, live adapter, and IAR-2 remain gated
+- Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md)
 
 ## Architecture
 
@@ -107,3 +107,43 @@ external variables, regex/base64/XOR patterns, repository rules, recursive or
 list scans, module data, relaxed syntax, ignored invalid rules, and arbitrary
 arguments are closed. Any future expansion requires a versioned ADR and
 compatibility/security evidence.
+
+## ADR-0099 Synthetic Build And Compatibility Architecture
+
+```text
+immutable v1.20.0 archive + exact Impresari patch + Cargo.lock
+                              |
+                  ephemeral no-secret build host
+                              |
+          narrowed static yr + compiled synthetic rules
+                              |
+     fresh delegated cgroup + Landlock + seccomp per scan
+                              |
+     generated synthetic input -> bounded NDJSON assertion
+                              |
+          digest-only ephemeral receipt -> mandatory cleanup
+```
+
+The patch is data, not a new build tool. It disables default modules and
+parallel compilation, then updates only `crossbeam-epoch` and `memmap2` to
+compatible fixed releases. A pre-build gate hashes the pristine source files,
+patch, and patched manifests/lock; an exact feature-tree gate proves RSA,
+X.509, spin, Wasmtime WASI, and cap-std absent from the selected CLI graph.
+RustSec ignores are enumerated by advisory ID and are valid only while those
+reachability assertions pass.
+
+Rule compilation consumes only the committed Impresari-owned synthetic rule
+source. Scan inputs are generated in the ephemeral job and never come from the
+checkout. Each scan uses the frozen ADR-0098 argument vector and a private
+empty `HOME`. The launcher atomically places the process into a fresh cgroup,
+installs the read-only staged-job Landlock policy and architecture-pinned
+seccomp policy, bounds tasks, memory, CPU, elapsed time, and output, and
+verifies an empty removed cgroup after completion. The existing composite CI
+script owns the one transient delegated service; the compatibility path cannot
+create another privileged launch site.
+
+Build output, compiled rules, raw NDJSON, and runtime receipts remain under
+ephemeral temporary/target paths and are deleted after validation. CI may
+print only bounded digests, state, and claim-denial metadata. No upload action,
+signature, release asset, cache publication, production process launch, or
+ordinary host integration is introduced.

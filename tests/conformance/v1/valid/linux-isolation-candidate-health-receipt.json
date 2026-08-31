@@ -16,7 +16,7 @@
     "landlock_abi": "7",
     "as_of": "2026-09-01"
   },
-  "manifest_identity": "47d6aabd8d8da944cffcebf4b2068ab07ea048b6602b2ee5a4201666f19bc61d",
+  "manifest_identity": "70339d40bc6b0b707dc6eafd7570c58dfd2c4a478b0d165d5984849098da836f",
   "evidence_identity": "9f7158ba367679d169693cbbc585bfa147536b200467e4170bb8086f138b3485",
   "checks": ["manifest_valid", "target_candidate_scoped", "target_available", "evidence_available", "evidence_current", "exact_identity_matches"],
   "safe_next_step": "Retain the narrow candidate claim; production admission and real-analyzer execution remain closed.",

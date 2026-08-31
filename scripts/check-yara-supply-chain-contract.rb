@@ -105,6 +105,9 @@ state_vectors.each do |as_of, tag_commit, revoked, artifacts_complete, expected|
 end
 
 yara_artifacts = Dir.glob(ROOT.join("{platform,profiles,rules,crates}/**/*.{yar,yara}").to_s)
-abort "YARA source rule artifact entered the repository" unless yara_artifacts.empty?
+  .map { |path| Pathname.new(path).relative_path_from(ROOT).to_s }
+  .sort
+allowed_yara_x_artifacts = ["rules/yara-x/synthetic-compatibility-v1.yar"]
+abort "unexpected YARA source rule artifact entered the repository" unless yara_artifacts == allowed_yara_x_artifacts
 
-puts "YARA supply-chain contract verified: source=v4.5.8@#{EXPECTED_TAG_COMMIT} artifacts=absent state=contract_fixture_only"
+puts "YARA supply-chain contract verified: source=v4.5.8@#{EXPECTED_TAG_COMMIT} legacy_artifacts=absent yara_x_synthetic_rules=1 state=contract_fixture_only"

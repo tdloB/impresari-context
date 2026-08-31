@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: YARA-X contract-only boundary implemented by ADR-0098; artifacts, live adapter, and execution gated on IAR-1B
-- Date: 2026-08-30
+- Status: ADR-0099 synthetic artifact compatibility implementation in progress; production artifacts, live adapter, and IAR-2 remain gated
+- Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089
+- Decision: ADR-0089, superseded engine direction by ADR-0097 and bounded compatibility by ADR-0099
 
 ## Objective
 
@@ -89,3 +89,19 @@ ruleset surface, and closes the exact single-file NDJSON invocation and
 zero-byte output boundary. It downloads or admits no artifact, authors no rule,
 implements no live parser, and runs no analyzer. Those remain later acceptance
 gates.
+
+## Synthetic Artifact Compatibility Checkpoint
+
+ADR-0099 authorizes only the next evidence step. It creates a digest-pinned,
+module-free patch over the exact v1.20.0 source, applies two compatible
+lockfile security updates, authors one original-synthetic Impresari ruleset,
+and runs a bounded compatibility corpus on generated synthetic bytes inside
+the existing Linux delegated-cgroup, Landlock, and seccomp boundary.
+
+Acceptance for this checkpoint requires exact source, patch, toolchain, lock,
+feature-graph, rule-source, executable, compiled-rule, invocation, output,
+host, isolation, and cleanup identities. No source, binary, compiled rule,
+output, or receipt may be uploaded or retained. The checkpoint is successful
+only as compatibility evidence; it does not admit an executable or ruleset,
+scan repository content, implement the live parser, measure detection quality,
+open IAR-2, or claim production or safety.

@@ -1,0 +1,19 @@
+{
+  "schema_name": "fixture-provenance",
+  "schema_version": "1.0.0",
+  "record_id": "yara-x-artifact-compatibility-fixtures-v1",
+  "recorded_at": "2026-08-31T12:41:29Z",
+  "fixtures": [
+    {"path": "invalid/yara-x-artifact-compatibility-overclaim.json", "sha256": "d90e205994f06fc485206de3c7877b6ec0ffc2b547e60f050f939dd84efc8f67", "provenance": "original-synthetic"},
+    {"path": "valid/yara-x-artifact-compatibility-receipt.json", "sha256": "d74f7ece2fe9dcce3c0fa6102e8cf82178e44617210095cd9b5114085cb8ac13", "provenance": "original-synthetic"}
+  ],
+  "yara_x_source_content": false,
+  "yara_x_executable_content": false,
+  "compiled_rule_content": false,
+  "malware_content": false,
+  "repository_scan_input_content": false,
+  "matched_byte_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}
