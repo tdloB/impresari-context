@@ -4,6 +4,7 @@
 - Decision: [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md)
 - Policy: `yara-x-production-admission-v1`
 - Policy SHA-256: `fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`
+- Candidate schema SHA-256: `eda3497fcc6a56a07ded32c5bec3b3f2f922af6d1d4c02792827fb425d2deb54`
 - State: `release_pending`; activation closed
 
 ## Implemented Boundary
@@ -18,6 +19,14 @@ The evaluator reads only the explicit policy and observation files. It rejects
 symlinks, unknown or missing fields, policy-identity drift, invalid dates, and
 non-boolean observations. It has no process, network, environment, clock,
 credential, build, signing, publication, repair, or analyzer capability.
+
+The schema registry now contains three closed candidate definitions: engine
+bundle, project-owned ruleset bundle, and release binding. Three valid fixtures
+represent only absent or pending evidence. Three negative fixtures establish
+that the contract rejects engine admission, synthetic ruleset provenance, and
+release activation. All six fixtures and the schema are exact-digest inputs to
+the production-admission checker and participate in the repository-wide Draft
+2020-12 conformance suite.
 
 ## Deterministic States
 

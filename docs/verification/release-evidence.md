@@ -280,3 +280,17 @@ runs no analyzer or compatibility corpus.
   uploaded or retained. No repository content or credential was scanned. This
   evidence does not admit artifacts or rules, open production or IAR-2, or
   establish detection-quality, safety, or malware-free claims.
+
+## 2026-08-31 — ADR-0103 production-admission candidate contracts
+
+- Policy SHA-256:
+  `fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
+- Registered candidate schema SHA-256:
+  `eda3497fcc6a56a07ded32c5bec3b3f2f922af6d1d4c02792827fb425d2deb54`.
+- Closed engine, ruleset, and release-binding definitions reject engine
+  admission, synthetic production-rule provenance, and release activation.
+- Six exact-digest positive/negative fixtures pass the repository Draft
+  2020-12 conformance suite and the dedicated source-free checker.
+- Current state remains `release_pending`; no executable or ruleset is
+  retained, signed, uploaded, published, or admitted, and production and IAR-2
+  remain false.

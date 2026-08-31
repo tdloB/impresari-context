@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0103 production-admission architecture accepted; schemas, bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md)
@@ -278,3 +278,9 @@ managed delegation profile after ADR-0082's immutable-release gate passes.
 Contract schemas precede retained builds. Retained candidates precede signing;
 signing precedes lifecycle rehearsal; lifecycle evidence precedes activation;
 activation precedes any IAR-2 decision.
+
+The registered candidate schema closes all three pre-admission records with
+`additionalProperties=false`, exact policy identity, and authority claims fixed
+to false. The engine and ruleset records cannot be marked admitted, synthetic
+rules cannot satisfy production provenance, and the release binding cannot be
+activated. A future admission schema requires a separate reviewed decision.

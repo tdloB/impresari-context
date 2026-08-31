@@ -1,0 +1,42 @@
+{
+  "schema_name": "yara-x-ruleset-bundle-candidate",
+  "schema_version": "1.0.0",
+  "candidate_id": "yara_x_ruleset_missing_20260831",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_digest": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c",
+  "state": "missing_evidence",
+  "source": {"present": false, "sha256": null, "bytes": null, "provenance": null},
+  "compiled": {"present": false, "sha256": null, "bytes": null, "retained": false},
+  "evidence": {
+    "license_and_ownership": false,
+    "compatibility": false,
+    "human_review": false,
+    "signature": false,
+    "expiry": false,
+    "rollback_floor": false,
+    "revocation_identity": false
+  },
+  "forbidden_surfaces": {
+    "repository_rules": false,
+    "imports": false,
+    "includes": false,
+    "external_variables": false,
+    "regular_expressions": false,
+    "base64": false,
+    "xor": false,
+    "network_retrieval": false,
+    "runtime_compilation": false
+  },
+  "admitted": false,
+  "claims": {
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "repository_scan_authorized": false,
+    "credential_access_authorized": false,
+    "artifact_upload_authorized": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "malware_free_claimed": false,
+    "authority_added": false
+  }
+}
