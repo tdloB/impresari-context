@@ -494,6 +494,7 @@ impl EnvironmentBlock {
         for entry in [
             format!("SystemDrive={system_drive}"),
             format!("SystemRoot={system_root}"),
+            format!("windir={system_root}"),
         ] {
             block.extend(entry.encode_utf16());
             block.push(0);

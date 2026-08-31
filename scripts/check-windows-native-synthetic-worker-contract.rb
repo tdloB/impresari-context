@@ -108,6 +108,7 @@ abort "Windows broker boundary corpus drifted" unless
     broker.include?("GetWindowsDirectoryW") &&
     broker.include?(%q{format!("SystemDrive={system_drive}")}) &&
     broker.include?(%q{format!("SystemRoot={system_root}")}) &&
+    broker.include?(%q{format!("windir={system_root}")}) &&
     broker.include?("PROTECTED_DACL_SECURITY_INFORMATION") &&
     broker.include?("EXPECTED_WORKER_SHA256") &&
     broker.include?("EXPECTED_BROKER_SHA256") &&
