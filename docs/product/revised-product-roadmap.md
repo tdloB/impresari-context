@@ -558,8 +558,10 @@ The first ADR-0103 source-free evaluator is implemented under policy
 `sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
 It deterministically reports the current `release_pending` state and fixes
 `active` as unreachable while the policy's activation bit is false. Closed
-registered schemas for candidate bundle evidence are the next contract step;
-retained builds remain outside the current authorization.
+registered candidate schemas now cover the engine bundle, ruleset bundle, and
+release binding, including fail-closed negative fixtures. The contract stage is
+complete. The next ordered step is a retained candidate engine build, which
+remains outside the current authorization together with signing and upload.
 
 ## Parallel Client Integration Depth Track
 

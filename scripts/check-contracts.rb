@@ -8,7 +8,7 @@ ROOT = Pathname.new(__dir__).join("..").expand_path
 SCHEMA_ROOT = ROOT.join("schemas/v1")
 FIXTURE_ROOT = ROOT.join("tests/conformance/v1")
 METADATA_KEYS = %w[$schema $id title description $defs].freeze
-SUPPORTED_KEYS = (METADATA_KEYS + %w[$ref type const enum pattern format minLength maxLength minItems maxItems uniqueItems required properties additionalProperties items allOf if then dependentRequired]).freeze
+SUPPORTED_KEYS = (METADATA_KEYS + %w[$ref type const enum pattern format minimum maximum minLength maxLength minItems maxItems uniqueItems required properties additionalProperties items allOf oneOf if then else dependentRequired]).freeze
 
 def load_json(path)
   JSON.parse(path.read)
@@ -39,6 +39,8 @@ def resolve(reference, current_name)
 end
 
 def type_matches?(instance, type)
+  return type.any? { |candidate| type_matches?(instance, candidate) } if type.is_a?(Array)
+
   case type
   when "object" then instance.is_a?(Hash)
   when "array" then instance.is_a?(Array)
@@ -64,6 +66,11 @@ def validate(instance, schema, schema_name, at = "$")
   errors << "#{at}: wrong type" if schema["type"] && !type_matches?(instance, schema["type"])
   errors << "#{at}: does not equal const" if schema.key?("const") && instance != schema["const"]
   errors << "#{at}: is not in enum" if schema["enum"] && !schema["enum"].include?(instance)
+
+  if instance.is_a?(Numeric)
+    errors << "#{at}: below minimum" if schema["minimum"] && instance < schema["minimum"]
+    errors << "#{at}: above maximum" if schema["maximum"] && instance > schema["maximum"]
+  end
 
   if instance.is_a?(String)
     errors << "#{at}: below minLength" if schema["minLength"] && instance.length < schema["minLength"]
@@ -91,8 +98,14 @@ def validate(instance, schema, schema_name, at = "$")
   end
 
   Array(schema["allOf"]).each { |child| errors.concat(validate(instance, child, schema_name, at)) }
-  if schema["if"] && validate(instance, schema["if"], schema_name, at).empty? && schema["then"]
-    errors.concat(validate(instance, schema["then"], schema_name, at))
+  if schema["oneOf"]
+    matches = schema["oneOf"].count { |child| validate(instance, child, schema_name, at).empty? }
+    errors << "#{at}: must match exactly one schema in oneOf" unless matches == 1
+  end
+  if schema["if"]
+    condition_matches = validate(instance, schema["if"], schema_name, at).empty?
+    errors.concat(validate(instance, schema["then"], schema_name, at)) if condition_matches && schema["then"]
+    errors.concat(validate(instance, schema["else"], schema_name, at)) if !condition_matches && schema["else"]
   end
   errors
 end

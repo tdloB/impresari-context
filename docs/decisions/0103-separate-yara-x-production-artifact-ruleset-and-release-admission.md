@@ -1,6 +1,6 @@
 # ADR-0103: Separate YARA-X Artifact, Ruleset, And Release Admission
 
-- Status: Source-free contract evaluator implemented; activation not authorized
+- Status: Source-free evaluator and closed candidate schemas implemented; activation not authorized
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive
 - Related: ADR-0074, ADR-0082, ADR-0098, ADR-0099, ADR-0100, ADR-0102
@@ -130,3 +130,8 @@ The first contract-only implementation is
 `fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
 Its source-free evaluator returns `release_pending` for the current evidence
 and cannot emit `active` while the frozen policy keeps `activated=false`.
+The registered `yara-x-production-admission.schema.json`, SHA-256
+`eda3497fcc6a56a07ded32c5bec3b3f2f922af6d1d4c02792827fb425d2deb54`,
+now closes the engine-bundle candidate, ruleset-bundle candidate, and
+release-binding candidate shapes. Its negative fixtures prove that an admitted
+engine, synthetic production ruleset, or activated release binding is rejected.
