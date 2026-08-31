@@ -107,6 +107,20 @@ create_leaf() {
   fi
 }
 
+create_yara_leaf() {
+  leaf_path=$1
+  mkdir "$leaf_path"
+  printf '%s %s\n' '100000' '100000' > "$leaf_path/cpu.max"
+  printf '%s\n' '536870912' > "$leaf_path/memory.max"
+  printf '%s\n' '4' > "$leaf_path/pids.max"
+  if [ -f "$leaf_path/memory.swap.max" ]; then
+    printf '%s\n' '0' > "$leaf_path/memory.swap.max"
+  fi
+  if [ -f "$leaf_path/memory.oom.group" ]; then
+    printf '%s\n' '1' > "$leaf_path/memory.oom.group"
+  fi
+}
+
 wait_empty() {
   leaf_path=$1
   attempts=0
@@ -305,12 +319,7 @@ if [ "$yara_mode" = true ]; then
       exit 8
     }
     leaf="$delegation_root/job-yara-$case_id"
-    mkdir "$leaf"
-    printf '%s %s\n' '100000' '100000' > "$leaf/cpu.max"
-    printf '%s\n' '536870912' > "$leaf/memory.max"
-    printf '%s\n' '4' > "$leaf/pids.max"
-    if [ -f "$leaf/memory.swap.max" ]; then printf '%s\n' '0' > "$leaf/memory.swap.max"; fi
-    if [ -f "$leaf/memory.oom.group" ]; then printf '%s\n' '1' > "$leaf/memory.oom.group"; fi
+    create_yara_leaf "$leaf"
     if [ "$(cat "$leaf/cpu.max")" != '100000 100000' ] || \
        [ "$(cat "$leaf/memory.max")" != 536870912 ] || \
        [ "$(cat "$leaf/pids.max")" != 4 ]; then
@@ -402,7 +411,7 @@ if [ "$yara_mode" = true ]; then
     live_case_id=$case_id
     if [ "$case_id" = near_miss ]; then live_case_id=near-miss; fi
     live_leaf="$delegation_root/job-yara-live-$case_id"
-    create_leaf "$live_leaf"
+    create_yara_leaf "$live_leaf"
     cp "$yara_launcher" "$case_root/launcher"
     chmod 0555 "$case_root/launcher"
     artifact_digest="sha256:$(sha256sum "$artifact_path" | cut -d ' ' -f 1)"

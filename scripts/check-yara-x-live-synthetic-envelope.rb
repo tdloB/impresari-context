@@ -85,6 +85,11 @@ abort "live coordinator build is not locked and target-specific" unless
 abort "live coordinator was not handed into the admitted composite boundary" unless
   composite.include?('YARA_X_LIVE_COORDINATOR="${YARA_X_LIVE_COORDINATOR:?}"') &&
     composite.include?('"$live_coordinator" < "$live_control" > "$live_output"')
+abort "live YARA-X pass no longer uses the frozen analyzer resource profile" unless
+  composite.include?('create_yara_leaf "$leaf"') &&
+    composite.include?('create_yara_leaf "$live_leaf"') &&
+    composite.include?("printf '%s\\n' '536870912' > \"$leaf_path/memory.max\"") &&
+    composite.include?("printf '%s\\n' '4' > \"$leaf_path/pids.max\"")
 abort "live envelope permits repository or credential input" if
   composite.match?(/repository_content_scanned:true|credentials_used:true|production_admitted:true|iar_2_admitted:true/)
 
