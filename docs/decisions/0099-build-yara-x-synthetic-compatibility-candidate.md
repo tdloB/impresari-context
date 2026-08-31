@@ -1,6 +1,6 @@
 # ADR-0099: Build A Module-Free YARA-X Synthetic Compatibility Candidate
 
-- Status: Accepted for bounded synthetic implementation
+- Status: Accepted; bounded hosted synthetic compatibility passed
 - Date: 2026-08-31
 - Decider: Aaron Boldt through explicit checkpoint authorization
 - Related: ADR-0074, ADR-0077, ADR-0082, ADR-0089, ADR-0097, ADR-0098
@@ -107,8 +107,12 @@ or cleanup failure withdraws the candidate.
 
 ## Activation Gate
 
-The next decision must separately review the hosted evidence and determine
-whether to implement the live NDJSON adapter and production artifact pipeline.
+Run `33406541396`, job `99535422988`, passed the exact hosted compatibility
+corpus and mandatory cleanup on 2026-08-31. The bounded evidence is recorded in
+the [YARA-X artifact compatibility verification record](../verification/yara-x-artifact-compatibility.md).
+
+The next decision must separately determine whether to implement the live
+NDJSON adapter and production artifact pipeline.
 Repository-derived scan input, signatures, publication, production admission,
 IAR-2, detection, safety, and malware-free claims remain closed.
 
