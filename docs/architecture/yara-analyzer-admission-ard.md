@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0102 live synthetic composition implemented; hosted matrix, production artifacts, and IAR-2 remain gated
+- Status: ADR-0102 hosted synthetic candidate passed; production artifacts and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md)
@@ -250,3 +250,8 @@ adapter continues to state that it cannot prove execution; the outer
 domain-separated receipt records real YARA-X execution and confinement. It
 fixes artifact/ruleset admission, production, IAR-2, detection, safety, and
 authority claims to false.
+
+Run `33432469614`, job `99620875408`, passed all five generated cases on the
+admitted Ubuntu 24.04 synthetic boundary and passed mandatory cleanup. The
+ephemeral executable and compiled-rules identities are recorded in the
+verification record; neither artifact was uploaded, retained, or admitted.

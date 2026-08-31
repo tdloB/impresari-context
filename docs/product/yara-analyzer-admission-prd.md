@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0102 live synthetic composition implemented; hosted matrix, production artifacts, and IAR-2 remain gated
+- Status: ADR-0102 hosted synthetic candidate passed; production artifacts and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, and real-engine synthetic composition by ADR-0102
@@ -171,5 +171,7 @@ Acceptance requires exact executable, ruleset, launcher, artifact, profile,
 case-result, confinement, resource, and cleanup identities. The outer receipt
 may record real YARA-X execution and OS confinement. It must keep executable
 and ruleset admission, repository scanning, credentials, uploads, production,
-IAR-2, detection quality, safety, and authority false. Hosted evidence remains
-pending until the manual empty-workspace matrix passes.
+IAR-2, detection quality, safety, and authority false. Run `33432469614`, job
+`99620875408`, passed the manual empty-workspace Ubuntu 24.04 matrix for all
+five generated cases and mandatory cleanup. Its source-free receipt kept
+`production_admitted=false` and `iar_2=false`.
