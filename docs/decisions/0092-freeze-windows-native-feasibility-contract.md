@@ -1,6 +1,6 @@
 # ADR-0092: Freeze The Windows Native Confinement Contract Before Worker Launch
 
-- Status: Accepted for implementation; worker confinement remains gated
+- Status: No-worker native preflight passed; worker confinement remains gated
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the accepted ADR-0088 roadmap sequence
 
@@ -40,6 +40,14 @@ passing receipt is API and lifecycle preflight evidence only.
   mandatory and the VM is ephemeral.
 - Windows IAR-1B, OS confinement, network denial, resource enforcement,
   production admission, and analyzer execution remain false.
+
+## Implementation evidence
+
+PR 181 run `33361303368`, job `99393036278`, passed from source
+`393bc0b40d57fad0a5cb88cfe22394148f6bf464` on Windows Server 2025 build
+`26100` x86-64. The receipt bound the native checks to profile
+`sha256:6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73`
+and retained `worker_launched=false` and `os_confined=false`.
 
 ## Alternatives
 

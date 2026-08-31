@@ -404,15 +404,16 @@ attestation, Developer ID signing/notarization, one-cask lifecycle, genuine
 sleep/reboot/power-loss, multi-host evidence, complete advisory coverage,
 independent review, production, and real analyzers remain closed.
 ADR-0092 now freezes the complete intended Windows LPAC/AppContainer, Job
-Object, mitigation, resource, staging, output, and cleanup profile. Its first
-native checkpoint is deliberately smaller: one fresh GitHub-hosted Windows
-2025 x86-64 VM must prove exact build and NTFS identity, required API
-availability, empty Job Object set/query with kill-on-close and no breakaway,
+Object, mitigation, resource, staging, output, and cleanup profile. PR 181 run
+`33361303368`, job `99393036278`, passed its deliberately smaller native
+preflight on Windows Server 2025 build `26100` x86-64 from source
+`393bc0b40d57fad0a5cb88cfe22394148f6bf464`. It verified NTFS, the required
+API surface, empty Job Object set/query with kill-on-close and no breakaway,
 and a unique zero-capability AppContainer create/derive/delete lifecycle. The
-receipt keeps worker launch, network/path/resource/descendant denial, complete
-cleanup, OS confinement, production, and analyzer execution false. A passing
-preflight therefore advances Windows feasibility without claiming a sandbox;
-the suspended synthetic-worker matrix remains the next Windows gate.
+validated receipt keeps worker launch, network/path/resource/descendant denial,
+complete cleanup, OS confinement, production, and analyzer execution false.
+Windows feasibility has therefore advanced without claiming a sandbox; the
+suspended synthetic-worker matrix remains the next Windows gate.
 
 ## Parallel Client Integration Depth Track
 
