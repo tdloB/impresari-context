@@ -48,13 +48,14 @@ if [ "${1:-}" != --delegated ]; then
   printf '%s\n' synthetic-external-canary > "$stage_root/external/canary"
   printf '%s\n' synthetic-credential-canary > "$stage_root/credential/canary"
   unit="impresari-yara-envelope-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}-$$"
-  exec sudo systemd-run --quiet --wait --pipe --collect --service-type=exec \
+  sudo systemd-run --quiet --wait --pipe --collect --service-type=exec \
     --unit="$unit" --property=Delegate=yes \
     --setenv=GITHUB_ACTIONS=true --setenv=RUNNER_ENVIRONMENT=github-hosted \
     --setenv=RUNNER_TEMP="$RUNNER_TEMP" --setenv=GITHUB_RUN_ID="$GITHUB_RUN_ID" \
     --setenv=GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}" \
     --uid="$(id -u)" --gid="$(id -g)" --working-directory="$repository_root" \
-    "$repository_root/scripts/yara-x-synthetic-envelope.sh" --delegated
+    /bin/sh "$repository_root/scripts/yara-x-synthetic-envelope.sh" --delegated
+  exit 0
 fi
 
 cgroup_suffix=$(awk -F: '$1 == "0" { print $3 }' /proc/self/cgroup)
