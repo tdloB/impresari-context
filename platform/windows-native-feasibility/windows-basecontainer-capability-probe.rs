@@ -9,7 +9,7 @@ use std::{
     mem::{size_of, zeroed},
     os::windows::ffi::OsStrExt,
     path::Path,
-    ptr::{null, null_mut},
+    ptr::null_mut,
 };
 
 const PROFILE_ID: &str = "iar-windows-basecontainer-capability-v1";
