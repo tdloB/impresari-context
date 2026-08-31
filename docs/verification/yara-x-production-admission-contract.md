@@ -48,3 +48,11 @@ production rule is authored, compiled, signed, or admitted. No repository
 content or credential is accessed. Production, IAR-2, repository scanning,
 detection quality, safety, malware-free status, and added authority remain
 false.
+
+## Next Proposed Stage
+
+[ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md)
+defines, but does not authorize, a private seven-day retained Linux x86-64
+engine candidate. The proposal preserves the current false admission and
+authority claims and keeps signing, publication, rulesets, execution, and
+repository-derived input outside the stage.
