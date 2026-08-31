@@ -306,7 +306,8 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   capability/lifecycle probe, and explicit separation from OS confinement.
 - [IAR-1B Windows native synthetic worker matrix](docs/verification/iar-1b-windows-native-synthetic-worker-matrix.md):
   the closed suspended-worker launch, boundary, resource, cleanup, and
-  cross-job contract; native worker evidence and admission remain pending.
+  cross-job contract plus the fail-closed hosted `unsupported_host` result;
+  native worker evidence and admission remain pending.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.
