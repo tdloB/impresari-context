@@ -294,3 +294,27 @@ runs no analyzer or compatibility corpus.
 - Current state remains `release_pending`; no executable or ruleset is
   retained, signed, uploaded, published, or admitted, and production and IAR-2
   remain false.
+
+## 2026-08-31 — ADR-0105 YARA-X reproducibility diagnostic
+
+- Corrected workflow dispatch head:
+  `5155589b6821f3f9bf6c20ed8cc697cb46faa5d3`.
+- Successful manual run:
+  [GitHub Actions 33443483096](https://github.com/tdloB/impresari-context/actions/runs/33443483096),
+  job `99657000024`, completed in 21 minutes 4 seconds.
+- Exact host evidence: GitHub runner `2.337.0`, Ubuntu `24.04.4`,
+  `ubuntu-24.04` image version `20260823.283.1`; the job enforced x86-64
+  Linux.
+- Frozen diagnostic profile SHA-256:
+  `4948ca0a448f1083cc3fe52519b57f62555c319146e91ff0999f696d69a8dbf4`.
+- Baseline SHA-256 identities differed:
+  `748c2751180f895aaa5ef3585f82a837250ae5e66c345fd253711086c8d62d32`
+  and
+  `523e276e9e4b31f0d331027b8b179b5c335b840fa4d05a49ffabec7918033efd`.
+- Both canonicalized builds produced SHA-256
+  `a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`;
+  the closed result was `baseline_changed_canonical_same`.
+- Receipt verification and mandatory cleanup passed. The GitHub artifacts API
+  returned zero artifacts. No rules were compiled and no analyzer executed.
+- This is same-job evidence only. Cross-run, cross-host, retained-artifact,
+  signing, publication, production, and IAR-2 claims remain false.

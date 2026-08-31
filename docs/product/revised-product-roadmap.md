@@ -573,11 +573,14 @@ separate non-executing verifier. The proposal adds no retention or upload
 authority until founder approval. Signing, publication, production rules,
 activation, repository scans, and IAR-2 remain later independent decisions.
 
-ADR-0105 is the active pre-retention checkpoint. It performs four clean builds
-after one locked dependency fetch, compares the current build flags with a
-fixed time/path-remapped variant, emits only exact digests and a closed result,
-and removes all outputs. It does not compile rules, run the analyzer, upload an
-artifact, or alter ADR-0104's decision gate.
+ADR-0105 completed its active pre-retention diagnostic in run `33443483096`.
+The ordinary clean builds differed, while two fixed time/path-remapped clean
+builds were byte-identical at SHA-256
+`a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
+This proves only same-job canonical equality; cross-run, cross-host, retained
+artifact, and production reproducibility remain unproven. The run compiled no
+rules, executed no analyzer, uploaded no artifact, and did not alter ADR-0104's
+separate decision gate.
 
 ## Parallel Client Integration Depth Track
 
