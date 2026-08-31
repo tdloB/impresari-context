@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0102 live synthetic composition implemented; hosted matrix, production artifacts, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 same-job canonical equality passed; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, and real-engine synthetic composition by ADR-0102
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, proposed retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
 
 ## Objective
 
@@ -171,5 +171,46 @@ Acceptance requires exact executable, ruleset, launcher, artifact, profile,
 case-result, confinement, resource, and cleanup identities. The outer receipt
 may record real YARA-X execution and OS confinement. It must keep executable
 and ruleset admission, repository scanning, credentials, uploads, production,
-IAR-2, detection quality, safety, and authority false. Hosted evidence remains
-pending until the manual empty-workspace matrix passes.
+IAR-2, detection quality, safety, and authority false. Run `33432469614`, job
+`99620875408`, passed the manual empty-workspace Ubuntu 24.04 matrix for all
+five generated cases and mandatory cleanup. Its source-free receipt kept
+`production_admitted=false` and `iar_2=false`.
+
+## Production Admission Architecture
+
+ADR-0103 separates the next work into an engine bundle, a project-owned
+ruleset bundle, and a final release-binding manifest. Each bundle has its own
+content identity, review, signature, expiry, rollback, and revocation state.
+The binding manifest must also name the exact adapter and resource profiles and
+a fresh compatible ADR-0082 Linux production-support receipt.
+
+The three candidate shapes are implemented as one closed registered schema.
+They deliberately cannot represent an admitted engine, a synthetic production
+ruleset, or an activated release. Retained artifact creation, production rule
+authorship, signing, publication, and activation remain separate later gates.
+
+ADR-0104 proposes the first retained-artifact checkpoint. If separately
+approved, one manual no-secret workflow will build only the Linux x86-64
+engine from the exact frozen source, patch, lockfile, toolchain, feature, and
+digest-pinned build image. One private seven-day Actions artifact may contain
+only `yr`, its exact manifest/checksums, dependency closure, SPDX SBOM,
+provenance, licenses, review dispositions, and an explicitly unadmitted
+candidate record. Source, rules, scan inputs/outputs, credentials, signing
+material, and unrelated repository content remain ineligible.
+
+ADR-0105 inserts a no-upload diagnostic before that decision because two
+otherwise matching hosted builds produced different executable digests. Four
+clean builds in one ephemeral job compare the current flags with fixed
+time/path-remapped flags after one locked dependency acquisition. Only digests
+and a closed result are emitted; no binary is executed, retained, or uploaded.
+Run `33443483096` returned `baseline_changed_canonical_same`: the ordinary
+clean builds differed, while both canonicalized clean builds produced SHA-256
+`a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
+This narrows the reproducibility gap but cannot establish cross-run,
+cross-host, or production reproducibility.
+
+Contract and candidate-pipeline work may proceed while every production and
+IAR-2 claim remains false. Retained artifacts, production rules, signing,
+publication, final activation, and repository-derived scans are independent
+later gates. The first eligible scope is Linux x86-64 external delegation only;
+macOS, Windows, broad Linux, and the rootless profile remain independent.

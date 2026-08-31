@@ -1,0 +1,120 @@
+{
+  "schema_name": "yara-x-production-admission-policy",
+  "schema_version": "1.0.0",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_version": "1.0.0",
+  "prior_evidence": {
+    "contract_profile_sha256": "sha256:827c4e1f99e5175369fc4347bbc20c21a63b45884313c8292feb55dcd0ab5574",
+    "compatibility_profile_sha256": "sha256:a7757809eae545bea1fa08d64195262b4e99fae8c2f222af9c28dce04b195391",
+    "adapter_profile_sha256": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c",
+    "live_envelope_profile_sha256": "sha256:2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26",
+    "live_run_id": "33432469614",
+    "live_job_id": "99620875408",
+    "live_candidate_passed": true,
+    "live_candidate_production_admitted": false
+  },
+  "target_scope": {
+    "operating_system": "linux",
+    "architecture": "x86_64",
+    "target_triple": "x86_64-unknown-linux-gnu",
+    "isolation_profile": "externally_managed",
+    "support_surface": "github_actions_hosted",
+    "support_manifest_sha256": "sha256:1b0d35034d7020629a65e4e8358fae850c94f03644a87850b4bede8a4926e05d",
+    "support_evidence_fresh_through": "2026-09-13",
+    "support_release_state": "pending_publication",
+    "broad_linux_support": false,
+    "macos_eligible": false,
+    "windows_eligible": false
+  },
+  "engine_bundle": {
+    "required_members": [
+      "exact-source-archive",
+      "exact-impresari-patch",
+      "locked-build-definition",
+      "per-target-executable",
+      "dependency-closure",
+      "sbom",
+      "build-provenance",
+      "vulnerability-disposition",
+      "license-disposition",
+      "reproducibility-disposition",
+      "impresari-signature",
+      "expiry",
+      "revocation-identity"
+    ],
+    "source_archive_sha256": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
+    "patch_sha256": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
+    "retained_candidate_present": false,
+    "signature_present": false,
+    "admitted": false
+  },
+  "ruleset_bundle": {
+    "required_members": [
+      "project-owned-source",
+      "source-identity",
+      "compiled-rules",
+      "compiled-identity",
+      "license-and-ownership",
+      "compatibility-evidence",
+      "human-review-record",
+      "impresari-signature",
+      "expiry",
+      "rollback-floor",
+      "revocation-identity"
+    ],
+    "synthetic_compatibility_rules_eligible": false,
+    "repository_rules_allowed": false,
+    "runtime_compilation_allowed": false,
+    "network_retrieval_allowed": false,
+    "production_source_present": false,
+    "human_review_present": false,
+    "signature_present": false,
+    "admitted": false
+  },
+  "release_binding": {
+    "required_bindings": [
+      "engine-bundle-sha256",
+      "ruleset-bundle-sha256",
+      "adapter-profile-sha256",
+      "invocation-profile-sha256",
+      "resource-profile-sha256",
+      "linux-support-receipt-sha256",
+      "product-version",
+      "source-commit",
+      "release-archive-sha256",
+      "expiry",
+      "rollback-floor",
+      "revocation-set"
+    ],
+    "immutable_release_required": true,
+    "fresh_linux_support_required": true,
+    "lifecycle_rehearsal_required": true,
+    "separate_activation_review_required": true,
+    "binding_present": false,
+    "activated": false
+  },
+  "state_precedence": [
+    "revoked",
+    "missing_evidence",
+    "changed",
+    "stale",
+    "release_pending",
+    "unsupported",
+    "compatible_not_activated",
+    "active"
+  ],
+  "claims": {
+    "artifact_retained": false,
+    "executable_admitted": false,
+    "ruleset_admitted": false,
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "repository_scan_authorized": false,
+    "credential_access_authorized": false,
+    "artifact_upload_authorized": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "malware_free_claimed": false,
+    "authority_added": false
+  }
+}

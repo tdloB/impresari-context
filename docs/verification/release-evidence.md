@@ -256,3 +256,65 @@ runs no analyzer or compatibility corpus.
   clock, credential, or embedded-file capability. It does not execute YARA-X
   and fixes analyzer execution, confinement, production, IAR-2, safety, and
   added-authority claims to false.
+
+## 2026-08-31 — ADR-0102 live YARA-X synthetic composition
+
+- Workflow source commit: `04228fbfa1babfcf3bdba71dcba4cacaff006c40`.
+- Immutable Impresari source root:
+  `3b74648cbdf78453dcd71ab34da1ecd876093862`.
+- Successful manual run:
+  [GitHub Actions 33432469614](https://github.com/tdloB/impresari-context/actions/runs/33432469614),
+  job `99620875408`.
+- Exact host: GitHub `ubuntu-24.04` image `20260823.283.1`, Ubuntu `24.04.4`,
+  runner `2.337.0`, kernel `6.17.0-1022-azure`, x86-64, Landlock ABI 7.
+- Live-envelope profile SHA-256:
+  `2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26`.
+- YARA-X v1.20.0 executable SHA-256:
+  `9e7424e62b714ee7b7be9fb0b67367b12209a9ec6967ff8c9b4c4959d6a17549`.
+- Compiled Impresari synthetic-rules SHA-256:
+  `f92cda545be5514258a1d64f721522afbc960630212e2ddea50a3430847f86f0`.
+- Five generated cases passed real YARA-X execution, Linux confinement,
+  in-memory ADR-0100 adapter composition, exact accounting, and mandatory
+  cleanup. The receipt recorded `production_admitted=false` and `iar_2=false`.
+- No source, executable, compiled rules, raw output, or receipt artifact was
+  uploaded or retained. No repository content or credential was scanned. This
+  evidence does not admit artifacts or rules, open production or IAR-2, or
+  establish detection-quality, safety, or malware-free claims.
+
+## 2026-08-31 — ADR-0103 production-admission candidate contracts
+
+- Policy SHA-256:
+  `fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
+- Registered candidate schema SHA-256:
+  `eda3497fcc6a56a07ded32c5bec3b3f2f922af6d1d4c02792827fb425d2deb54`.
+- Closed engine, ruleset, and release-binding definitions reject engine
+  admission, synthetic production-rule provenance, and release activation.
+- Six exact-digest positive/negative fixtures pass the repository Draft
+  2020-12 conformance suite and the dedicated source-free checker.
+- Current state remains `release_pending`; no executable or ruleset is
+  retained, signed, uploaded, published, or admitted, and production and IAR-2
+  remain false.
+
+## 2026-08-31 — ADR-0105 YARA-X reproducibility diagnostic
+
+- Corrected workflow dispatch head:
+  `5155589b6821f3f9bf6c20ed8cc697cb46faa5d3`.
+- Successful manual run:
+  [GitHub Actions 33443483096](https://github.com/tdloB/impresari-context/actions/runs/33443483096),
+  job `99657000024`, completed in 21 minutes 4 seconds.
+- Exact host evidence: GitHub runner `2.337.0`, Ubuntu `24.04.4`,
+  `ubuntu-24.04` image version `20260823.283.1`; the job enforced x86-64
+  Linux.
+- Frozen diagnostic profile SHA-256:
+  `4948ca0a448f1083cc3fe52519b57f62555c319146e91ff0999f696d69a8dbf4`.
+- Baseline SHA-256 identities differed:
+  `748c2751180f895aaa5ef3585f82a837250ae5e66c345fd253711086c8d62d32`
+  and
+  `523e276e9e4b31f0d331027b8b179b5c335b840fa4d05a49ffabec7918033efd`.
+- Both canonicalized builds produced SHA-256
+  `a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`;
+  the closed result was `baseline_changed_canonical_same`.
+- Receipt verification and mandatory cleanup passed. The GitHub artifacts API
+  returned zero artifacts. No rules were compiled and no analyzer executed.
+- This is same-job evidence only. Cross-run, cross-host, retained-artifact,
+  signing, publication, production, and IAR-2 claims remain false.

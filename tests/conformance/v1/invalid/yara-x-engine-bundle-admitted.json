@@ -1,0 +1,13 @@
+{
+  "schema_name": "yara-x-engine-bundle-candidate",
+  "schema_version": "1.0.0",
+  "candidate_id": "yara_x_engine_overclaim_20260831",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_digest": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c",
+  "target": "x86_64-unknown-linux-gnu",
+  "state": "candidate_complete_not_admitted",
+  "artifact": {"present": false, "sha256": null, "bytes": null, "retained": false},
+  "evidence": {"locked_build": false, "dependency_closure": false, "sbom": false, "build_provenance": false, "vulnerability_disposition": false, "license_disposition": false, "reproducibility_disposition": false, "signature": false, "expiry": false, "revocation_identity": false},
+  "admitted": true,
+  "claims": {"production_admitted": false, "iar_2_admitted": false, "repository_scan_authorized": false, "credential_access_authorized": false, "artifact_upload_authorized": false, "detection_quality_claimed": false, "safety_claimed": false, "malware_free_claimed": false, "authority_added": false}
+}

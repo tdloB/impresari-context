@@ -1,0 +1,13 @@
+{
+  "schema_name": "yara-x-release-binding-candidate",
+  "schema_version": "1.0.0",
+  "candidate_id": "yara_x_binding_overclaim_20260831",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_digest": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c",
+  "state": "compatible_not_activated",
+  "bindings": {"engine_bundle": null, "ruleset_bundle": null, "adapter_profile": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c", "invocation_profile": null, "resource_profile": null, "linux_support_receipt": null},
+  "release": {"status": "pending_publication", "product_version": null, "source_commit": null, "archive_sha256": null},
+  "gates": {"fresh_linux_support": false, "complete_binding": false, "lifecycle_rehearsal": false, "activation_review": true},
+  "activated": true,
+  "claims": {"production_admitted": true, "iar_2_admitted": false, "repository_scan_authorized": false, "credential_access_authorized": false, "artifact_upload_authorized": false, "detection_quality_claimed": false, "safety_claimed": false, "malware_free_claimed": false, "authority_added": false}
+}

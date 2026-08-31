@@ -536,10 +536,51 @@ ADR-0102 implements the next narrow checkpoint: real output from the exact
 ephemeral YARA-X v1.20.0 candidate is captured through the single audited
 Analyzer Runner site, inside the admitted Linux boundary, and passed in memory
 to the ADR-0100 adapter. Only the five generated Impresari synthetic cases are
-eligible. The contracts and local non-executing suite are complete; the manual
-empty-workspace hosted matrix is pending. Executable and ruleset admission,
-repository scanning, production, IAR-2, detection quality, and safety remain
-closed regardless of the compatibility result.
+eligible. Run `33432469614`, job `99620875408`, passed the manual
+empty-workspace hosted matrix and mandatory cleanup on Ubuntu 24.04 x86-64.
+Executable and ruleset admission, repository scanning, production, IAR-2,
+detection quality, and safety remain closed regardless of the compatibility
+result. The next analyzer checkpoint is the separately reviewed production
+artifact and ruleset admission pipeline; hosted synthetic success does not
+activate it by implication.
+
+ADR-0103 now fixes that production-admission architecture before retained
+artifact work. The engine bundle, project-owned ruleset bundle, fresh Linux
+support receipt, and product release are independently content-addressed and
+joined only by a final source-free binding manifest. The ordered next work is:
+closed schemas/evaluators, retained candidate engine build, independently
+reviewed production ruleset, signing/publication and lifecycle rehearsal, then
+a separate activation review. Repository-derived IAR-2 input remains a later
+decision. Current authorization also covers the bounded no-upload build and
+synthetic compatibility work recorded by ADR-0102 and ADR-0105; no production
+artifact, rule, signing identity, upload, or activation is implied.
+
+The first ADR-0103 source-free evaluator is implemented under policy
+`sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
+It deterministically reports the current `release_pending` state and fixes
+`active` as unreachable while the policy's activation bit is false. Closed
+registered candidate schemas now cover the engine bundle, ruleset bundle, and
+release binding, including fail-closed negative fixtures. The contract stage is
+complete. Before a retained candidate is considered, ADR-0105 investigates the
+changed executable identities observed across otherwise matching hosted
+builds. That diagnostic is ephemeral, build-only, and no-upload; retention,
+signing, and publication remain outside the current authorization.
+
+ADR-0104 now proposes the exact boundary for that next step: one manually
+dispatched, no-secret, Linux x86-64 build; one private seven-day GitHub Actions
+artifact containing only the engine and bounded supply-chain evidence; and a
+separate non-executing verifier. The proposal adds no retention or upload
+authority until founder approval. Signing, publication, production rules,
+activation, repository scans, and IAR-2 remain later independent decisions.
+
+ADR-0105 completed its active pre-retention diagnostic in run `33443483096`.
+The ordinary clean builds differed, while two fixed time/path-remapped clean
+builds were byte-identical at SHA-256
+`a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
+This proves only same-job canonical equality; cross-run, cross-host, retained
+artifact, and production reproducibility remain unproven. The run compiled no
+rules, executed no analyzer, uploaded no artifact, and did not alter ADR-0104's
+separate decision gate.
 
 ## Parallel Client Integration Depth Track
 
