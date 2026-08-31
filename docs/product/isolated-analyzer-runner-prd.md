@@ -343,8 +343,14 @@ opens IAR-2.
 
 The decisive Tier A checkpoint now records material aggregate-disk and
 cross-job-container isolation failures for that exact topology. macOS remains
-IAR-1A, and the next IAR-1B feasibility increment moves to Linux rather than
-weakening either hard requirement.
+IAR-1A. ADR-0087 now replaces only that failed execution topology with a fresh
+local Linux VM per job. Its first native checkpoint passed the two failed
+requirements with a fixed-capacity scratch device and a second fresh guest
+that observed no first-job marker. Exact read-only synthetic input, absent
+guest networking, VM stop, and job cleanup also passed on macOS `26.5.1`
+arm64. The remaining Tier A escape, descendant/resource, lifecycle,
+malformed-result, supply-chain, multi-host, distribution, and independent-
+review gates keep `vm_confined=false`, macOS at IAR-1A, and IAR-2 closed.
 
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,

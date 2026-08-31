@@ -1,0 +1,34 @@
+{
+  "schema_name": "macos-local-vm-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-feasibility-profile.json",
+      "sha256": "a082df092d5180058f732d47ae99164316f3bfd3b12f4079de43575834314757",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen authority-denying macOS local-VM feasibility profile"
+    },
+    {
+      "path": "valid/macos-local-vm-feasibility.json",
+      "sha256": "20bd2c032fb5a9c00ae62200686e456f2f7a7e435501c666f7326277055d6c59",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free two-job storage and cross-job feasibility receipt"
+    },
+    {
+      "path": "invalid/macos-local-vm-feasibility-overclaim.json",
+      "sha256": "a2eb727f0384b50d9df8166e1f256b9f178d61a2f1e184c0010ec65c0dfe3cce",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject production and VM-confinement claims from incomplete feasibility evidence"
+    }
+  ]
+}
