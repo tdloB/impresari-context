@@ -72,6 +72,8 @@
     {"name": "macos-local-vm-release-metadata-seal-receipt", "path": "macos-local-vm-release-metadata-seal-receipt.schema.json", "identity_object_kind": null},
     {"name": "windows-native-feasibility-profile", "path": "windows-native-feasibility-profile.schema.json", "identity_object_kind": null},
     {"name": "windows-native-capability-preflight", "path": "windows-native-capability-preflight.schema.json", "identity_object_kind": null},
+    {"name": "windows-basecontainer-capability-profile", "path": "windows-basecontainer-capability-profile.schema.json", "identity_object_kind": null},
+    {"name": "windows-basecontainer-capability-receipt", "path": "windows-basecontainer-capability-receipt.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-resource-profile", "path": "linux-isolation-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-feasibility", "path": "linux-isolation-feasibility.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-maintenance", "path": "linux-isolation-maintenance.schema.json", "identity_object_kind": null},

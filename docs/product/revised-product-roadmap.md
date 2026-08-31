@@ -424,6 +424,29 @@ faults, cleanup, and cross-job isolation. Contract fixtures retain every
 measured field false; native execution remains pending. Even a complete first
 matrix keeps OS confinement, production, and analyzer execution false until a
 later independent-host and lifecycle admission decision.
+PR 183 then executed that exact matrix on GitHub-hosted Windows Server 2025
+build `26100`. Final run `33366224611`, job `99407325602`, from source
+`a402d25cb7d80351f7ff7c875c58849025f5ed8c` returned `unsupported_host` after
+`CreateProcessW` failed with error `5` before worker code ran. The validated
+receipt kept every denial, confinement, production, analyzer, and authority
+claim false, and cleanup completed. This closes the legacy no-admin LPAC path
+on that exact host without weakening it or adding privileged host preparation.
+ADR-0094 therefore opens a narrower BaseContainer capability-routing
+checkpoint. A dedicated Windows 11 arm64 job may read only the product type,
+build, filesystem, and trusted System32 `processmodel.dll` export set. It must
+return a deterministic unsupported state below build `26600` or when the exact
+experimental exports are absent. It cannot invoke the API, launch a worker,
+mutate ACLs or Windows features, elevate, install a service, claim IAR-1B, or
+admit production or real analyzers. A capability-ready result may authorize
+only a separately frozen synthetic-worker rehearsal.
+PR 184 run `33367923249`, job `99412379212`, completed that checkpoint from
+source `e74be1bda94c6285671120723610fd611a9fdd27`. Windows 11 Enterprise build
+`26200` arm64 exposed `processmodel.dll` and both exact experimental exports,
+but the frozen minimum is build `26600`; the validated result is therefore
+`unsupported_build`. No worker launched and every confinement, production,
+analyzer, and authority claim remained false. The Windows roadmap now waits
+for an independently available qualifying build rather than weakening the
+contract or introducing automatic administrator host preparation.
 
 ## Parallel Client Integration Depth Track
 

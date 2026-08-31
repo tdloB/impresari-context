@@ -1,0 +1,43 @@
+{
+  "schema_name": "windows-basecontainer-capability-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-windows-basecontainer-capability-v1",
+  "profile_version": "1.0.0",
+  "target": {
+    "os_family": "windows",
+    "os_product_type": "workstation",
+    "runner_environment": "github-hosted",
+    "runner_label": "windows-11-arm",
+    "architecture": "arm64",
+    "filesystem": "ntfs",
+    "minimum_windows_build": "26600"
+  },
+  "basecontainer": {
+    "module": "processmodel.dll",
+    "sandbox_specification_version": "0.1.0",
+    "required_exports": [
+      "Experimental_CreateProcessAsUserInSandbox",
+      "Experimental_CreateProcessInSandbox"
+    ]
+  },
+  "observation": {
+    "system_module_export_inspection": true,
+    "process_launch": false,
+    "sandbox_api_invocation": false,
+    "appcontainer_profile_mutation": false,
+    "host_acl_mutation": false,
+    "windows_feature_mutation": false,
+    "elevation_request": false,
+    "service_installation": false,
+    "network_access": false,
+    "credential_access": false,
+    "repository_content_access": false
+  },
+  "claims": {
+    "synthetic_worker_launched": false,
+    "os_confined": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}
