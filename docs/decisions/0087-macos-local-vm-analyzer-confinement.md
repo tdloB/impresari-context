@@ -98,3 +98,12 @@ have not been dispositioned, and no Developer ID signature or notarized bundle
 exists, its receipt requires `sealed_distribution=false` and
 `production_admitted=false`. This implements ADR-0087's existing supply-chain
 design without making a new topology decision.
+
+The seventh checkpoint verified the exact Alpine 3.24.1 aarch64 netboot
+archive's detached OpenPGP signature under fingerprint
+`0482D84022F52DF1C4E7CD43293ACD0907D9495A`, as published on Alpine's official
+downloads page. The two embedded guest inputs exactly match the frozen
+manifest. This closes upstream publisher authentication only. The archive is
+not committed and no runtime network is added; release-metadata sealing,
+vulnerability disposition, Developer ID signing/notarization, production, and
+analyzer execution remain closed.

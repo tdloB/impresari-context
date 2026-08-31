@@ -1,0 +1,41 @@
+{
+  "schema_name": "macos-local-vm-upstream-auth-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_metadata_with_provider_evidence",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": true,
+  "cases": [
+    {
+      "path": "valid/macos-local-vm-upstream-auth-record.json",
+      "sha256": "f1ef35d52427a15179777bafd67eddd2e545c8e853ddc425377544732b955476",
+      "origin": "original_metadata",
+      "license": "Apache-2.0",
+      "purpose": "frozen metadata describing the independently verified signed Alpine archive"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-upstream-auth-profile.json",
+      "sha256": "8118ca67549f145531697fbc4ffb60f571f7960f4d1e3ddf954d7931454b6785",
+      "origin": "original_metadata",
+      "license": "Apache-2.0",
+      "purpose": "frozen upstream-authentication profile"
+    },
+    {
+      "path": "valid/macos-local-vm-upstream-auth-receipt.json",
+      "sha256": "2805ff7f7552562c166bc29373500d917ac1787f87e6991b4f3f42d47a5516a0",
+      "origin": "original_metadata",
+      "license": "Apache-2.0",
+      "purpose": "source-free publisher-authentication receipt retaining distribution gates"
+    },
+    {
+      "path": "invalid/macos-local-vm-upstream-auth-overclaim.json",
+      "sha256": "b5874202727d09cf51db45ead6a8f75f17922c86abeec8815f91a96aac91f9ba",
+      "origin": "original_metadata",
+      "license": "Apache-2.0",
+      "purpose": "reject sealed release metadata from upstream authentication alone"
+    }
+  ]
+}

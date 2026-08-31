@@ -378,6 +378,13 @@ authentication, vulnerability disposition, Developer ID signing/notarization,
 and the distribution lifecycle remain open. It therefore does not change the
 macOS IAR-1A or IAR-2 posture.
 
+The following explicit release-time verification authenticated the exact
+Alpine 3.24.1 aarch64 netboot archive and proved that its two signed embedded
+guest inputs match the frozen manifest. The archive is not committed and no
+runtime network is added. This closes upstream publisher authentication only;
+it does not change the remaining release-sealing, vulnerability, distribution,
+macOS IAR-1A, or IAR-2 gates.
+
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,
 this profile grants read-only staged input and zero writable path-backed

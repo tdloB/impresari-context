@@ -1,0 +1,31 @@
+{
+  "schema_name": "macos-local-vm-upstream-auth-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-upstream-auth-v1",
+  "profile_version": "1.0.0",
+  "guest_release_manifest_digest": "sha256:02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6",
+  "authentication_record_path": "platform/macos-vm-feasibility/alpine-upstream-authentication.json",
+  "authentication_record_digest": "sha256:f1ef35d52427a15179777bafd67eddd2e545c8e853ddc425377544732b955476",
+  "release_key_fingerprint": "0482D84022F52DF1C4E7CD43293ACD0907D9495A",
+  "required_checks": [
+    "official-fingerprint-pin",
+    "exact-public-key-identity",
+    "exact-detached-signature-identity",
+    "exact-signed-archive-identity",
+    "valid-detached-signature",
+    "exact-embedded-kernel-identity",
+    "exact-embedded-initramfs-identity",
+    "guest-manifest-cross-binding"
+  ],
+  "controls": {
+    "live_archive_verification_explicit_only": true,
+    "archive_committed": false,
+    "runtime_network_required": false,
+    "upstream_publisher_authentication_verified": true,
+    "release_metadata_sealed": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

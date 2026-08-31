@@ -1,0 +1,25 @@
+{
+  "schema_name": "macos-local-vm-upstream-evidence-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "contains_executable_artifacts": false,
+  "contains_private_or_customer_source": false,
+  "files": [
+    {
+      "path": "platform/macos-vm-feasibility/alpine-ncopa-0482D84022F52DF1C4E7CD43293ACD0907D9495A.asc",
+      "source": "https://www.alpinelinux.org/keys/ncopa.asc",
+      "sha256": "75a9a7e0cc35bfa946ce40c26133b3ed29a204fbd98a3b33331b659d927b3027",
+      "origin": "third_party_public_release_key",
+      "license": "NOASSERTION",
+      "purpose": "offline verification of the exact Alpine release signature"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/alpine-netboot-3.24.1-aarch64.tar.gz.asc",
+      "source": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-netboot-3.24.1-aarch64.tar.gz.asc",
+      "sha256": "f0661d08a24d240fc14516e9814d6fc32bbc842473664c28b7a22fe32f751a06",
+      "origin": "third_party_detached_release_signature",
+      "license": "NOASSERTION",
+      "purpose": "authenticate the uncommitted exact Alpine netboot archive"
+    }
+  ]
+}

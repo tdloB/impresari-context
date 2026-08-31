@@ -112,12 +112,22 @@ cryptographic signature, notarization, sealed distribution, production, and
 analyzer execution to false. See the
 [guest supply-chain evidence](../verification/iar-1b-macos-local-vm-guest-supply-chain.md).
 
+The upstream-authentication checkpoint then verified the complete versioned
+Alpine 3.24.1 aarch64 netboot archive under the exact release-key fingerprint
+published by Alpine. The signed archive's two embedded guest inputs were
+byte-identical to the manifest. The large archive was not committed, routine
+checks remain offline, and the guest gains no network. Impresari release-
+metadata sealing, vulnerability disposition, Developer ID signing,
+notarization, distribution lifecycle, and production admission remain open.
+See the [upstream-authentication evidence](../verification/iar-1b-macos-local-vm-upstream-authentication.md).
+
 ## Packaging Direction
 
 ADR-0076's one CLI-compatible Homebrew cask remains the desired user topology.
 Its XPC execution payload is replaced only after the VM backend is admitted.
 The guest image may be bundled or explicitly downloaded later; that distribution
 choice requires exact signing, expiry, rollback, and offline behavior evidence.
-The candidate now has exact expiry, rollback, and offline behavior evidence;
-publisher authentication, vulnerability disposition, signing, notarization,
-and the final bundle/update lifecycle remain open.
+The candidate now has exact expiry, rollback, offline behavior, and upstream
+publisher-authentication evidence. Vulnerability disposition, Impresari release-
+metadata sealing, signing, notarization, and the final bundle/update lifecycle
+remain open.

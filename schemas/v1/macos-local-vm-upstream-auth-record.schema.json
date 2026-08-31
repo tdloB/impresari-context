@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-upstream-auth-record.schema.json",
+  "title": "ADR-0087 macOS local-VM upstream authentication record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "record_id", "reviewed_at", "official_fingerprint_source", "release_key", "signed_archive", "authenticated_embedded_artifacts", "verification"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-upstream-authentication-record"},
+    "schema_version": {"const": "1.0.0"},
+    "record_id": {"const": "alpine-netboot-3.24.1-aarch64-auth-v1"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "official_fingerprint_source": {"const": "https://www.alpinelinux.org/downloads/"},
+    "release_key": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "fingerprint"],
+      "properties": {
+        "path": {"const": "platform/macos-vm-feasibility/alpine-ncopa-0482D84022F52DF1C4E7CD43293ACD0907D9495A.asc"},
+        "bytes": {"const": "3092"},
+        "sha256": {"const": "sha256:75a9a7e0cc35bfa946ce40c26133b3ed29a204fbd98a3b33331b659d927b3027"},
+        "fingerprint": {"const": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"}
+      }
+    },
+    "signed_archive": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["url", "bytes", "sha256", "signature_path", "signature_bytes", "signature_sha256", "signature_created_at"],
+      "properties": {
+        "url": {"const": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-netboot-3.24.1-aarch64.tar.gz"},
+        "bytes": {"const": "431008592"},
+        "sha256": {"const": "sha256:54fe38fa41cce740ba379458ed63cfcd89ab06ae5e6a47a06dafe0a34e8427e8"},
+        "signature_path": {"const": "platform/macos-vm-feasibility/alpine-netboot-3.24.1-aarch64.tar.gz.asc"},
+        "signature_bytes": {"const": "833"},
+        "signature_sha256": {"const": "sha256:f0661d08a24d240fc14516e9814d6fc32bbc842473664c28b7a22fe32f751a06"},
+        "signature_created_at": {"const": "2026-06-14T00:06:26Z"}
+      }
+    },
+    "authenticated_embedded_artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["archive_path", "bytes", "sha256", "guest_asset_name"],
+        "properties": {
+          "archive_path": {"enum": ["boot/vmlinuz-virt", "boot/initramfs-virt"]},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+          "guest_asset_name": {"enum": ["vmlinuz-virt", "initramfs-virt"]}
+        }
+      }
+    },
+    "verification": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive_digest_verified", "detached_signature_verified", "signing_fingerprint_verified", "embedded_artifact_identities_verified", "upstream_publisher_authentication_verified", "archive_committed", "runtime_network_required", "release_metadata_sealed", "vulnerability_assessment_complete", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "archive_digest_verified": {"const": true},
+        "detached_signature_verified": {"const": true},
+        "signing_fingerprint_verified": {"const": true},
+        "embedded_artifact_identities_verified": {"const": true},
+        "upstream_publisher_authentication_verified": {"const": true},
+        "archive_committed": {"const": false},
+        "runtime_network_required": {"const": false},
+        "release_metadata_sealed": {"const": false},
+        "vulnerability_assessment_complete": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}
