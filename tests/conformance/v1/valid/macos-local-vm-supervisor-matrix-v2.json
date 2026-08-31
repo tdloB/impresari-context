@@ -1,0 +1,30 @@
+{
+  "schema_name": "macos-local-vm-supervisor-lifecycle-matrix",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-supervisor-v2",
+  "profile_digest": "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88",
+  "controller_digest": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "result": "partial_lifecycle_passed",
+  "checks": {
+    "external_cancellation": true,
+    "forced_controller_termination": true,
+    "exact_child_reap": true,
+    "exact_stale_job_removal": true,
+    "recovery_after_each_action": true,
+    "controller_digest_mismatch_rejected_before_staging": true,
+    "single_audited_process_launch_site": true
+  },
+  "remaining": [
+    "host_sleep_and_interruption",
+    "guest_memory_pressure",
+    "guest_cpu_accounting",
+    "host_canary_denial_corpus",
+    "multi_host_evidence",
+    "distribution_and_independent_review"
+  ],
+  "vm_confined": false,
+  "production_admitted": false,
+  "analyzer_execution": false,
+  "source_retained": false,
+  "authority_added": false
+}

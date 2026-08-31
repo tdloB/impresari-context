@@ -1,0 +1,98 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-upstream-auth-record-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM APKv2 upstream authentication record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "record_id", "reviewed_at", "trust_anchor", "apk_signing_key", "signed_index", "signed_package", "authenticated_components", "verification"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-upstream-authentication-record"},
+    "schema_version": {"const": "2.0.0"},
+    "record_id": {"const": "alpine-linux-virt-6.18.48-r0-aarch64-auth-v2"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "trust_anchor": {
+      "type": "object", "additionalProperties": false,
+      "required": ["record_path", "record_sha256", "openpgp_release_fingerprint", "authenticated_netboot_archive_sha256"],
+      "properties": {
+        "record_path": {"const": "platform/macos-vm-feasibility/alpine-upstream-authentication.json"},
+        "record_sha256": {"const": "sha256:f1ef35d52427a15179777bafd67eddd2e545c8e853ddc425377544732b955476"},
+        "openpgp_release_fingerprint": {"const": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"},
+        "authenticated_netboot_archive_sha256": {"const": "sha256:54fe38fa41cce740ba379458ed63cfcd89ab06ae5e6a47a06dafe0a34e8427e8"}
+      }
+    },
+    "apk_signing_key": {
+      "type": "object", "additionalProperties": false,
+      "required": ["path", "bytes", "sha256", "source"],
+      "properties": {
+        "path": {"const": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub"},
+        "bytes": {"const": "800"},
+        "sha256": {"const": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d"},
+        "source": {"type": "string", "minLength": 1}
+      }
+    },
+    "signed_index": {"$ref": "#/$defs/signed_artifact"},
+    "signed_package": {
+      "allOf": [
+        {"$ref": "#/$defs/signed_artifact"},
+        {
+          "type": "object",
+          "required": ["control_sha256", "datahash", "package_name", "package_version", "architecture", "origin", "commit"],
+          "properties": {
+            "control_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+            "datahash": {"$ref": "common.schema.json#/$defs/sha256"},
+            "package_name": {"const": "linux-virt"},
+            "package_version": {"const": "6.18.48-r0"},
+            "architecture": {"const": "aarch64"},
+            "origin": {"const": "linux-lts"},
+            "commit": {"const": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"}
+          }
+        }
+      ]
+    },
+    "authenticated_components": {
+      "type": "array", "minItems": 2, "maxItems": 2,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["package_path", "bytes", "sha256", "derived_sha256"],
+        "properties": {
+          "package_path": {"type": "string", "minLength": 1},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+          "derived_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+        }
+      }
+    },
+    "verification": {
+      "type": "object", "additionalProperties": false,
+      "required": ["trust_anchor_verified", "index_signature_verified", "package_signature_verified", "package_datahash_verified", "index_package_identity_matched", "component_identities_verified", "publisher_algorithm_deprecation_disclosed", "runtime_network_required", "release_metadata_sealed", "vulnerability_assessment_complete", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "trust_anchor_verified": {"const": true},
+        "index_signature_verified": {"const": true},
+        "package_signature_verified": {"const": true},
+        "package_datahash_verified": {"const": true},
+        "index_package_identity_matched": {"const": true},
+        "component_identities_verified": {"const": true},
+        "publisher_algorithm_deprecation_disclosed": {"const": true},
+        "runtime_network_required": {"const": false},
+        "release_metadata_sealed": {"const": false},
+        "vulnerability_assessment_complete": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "signed_artifact": {
+      "type": "object",
+      "required": ["url", "bytes", "sha256", "signature_sha256"],
+      "properties": {
+        "url": {"type": "string", "pattern": "^https://dl-cdn\\.alpinelinux\\.org/alpine/v3\\.24/main/aarch64/"},
+        "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "signature_sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+        "signed_body_sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+      }
+    }
+  }
+}

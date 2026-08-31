@@ -1,0 +1,54 @@
+{
+  "schema_name": "macos-local-vm-guest-assets",
+  "schema_version": "2.0.0",
+  "distribution": "Alpine Linux",
+  "release": "3.24",
+  "architecture": "aarch64",
+  "kernel_version": "6.18.48-0-virt",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "expires_at": "2026-09-30T00:00:00Z",
+  "artifacts": [
+    {
+      "name": "APKINDEX.tar.gz",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/APKINDEX.tar.gz",
+      "bytes": "529311",
+      "sha256": "db44420861bbe4b2ae28756f8fceee9ced313a8585c56fed85dc7667b722d0fc",
+      "purpose": "authenticate the exact current linux-virt package record"
+    },
+    {
+      "name": "linux-virt-6.18.48-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk",
+      "bytes": "41557960",
+      "sha256": "c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616",
+      "purpose": "extract the ARM64 Linux image and exact virtio_blk module"
+    }
+  ],
+  "publisher_authentication": {
+    "format": "APKv2 RSA PKCS#1 v1.5 with SHA-1",
+    "key_path": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub",
+    "key_sha256": "d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+    "index_signature_sha256": "a4e5f7e1b3d6a43e84ce7b825f12366a7c5f05183184bf2245990c1ab0d95e6f",
+    "package_signature_sha256": "bb8cf07336a154e23901069049e9ca6e6315c35104d829219711406033b4362e",
+    "package_datahash": "e2ec28de6d80fa2b3535fc29475a7657ed8375dec99d4da96871ffd5b1077263"
+  },
+  "package": {
+    "name": "linux-virt",
+    "version": "6.18.48-r0",
+    "origin": "linux-lts",
+    "commit": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"
+  },
+  "extracted_artifact": {
+    "path": "lib/modules/6.18.48-0-virt/kernel/drivers/block/virtio_blk.ko",
+    "bytes": "49687",
+    "sha256": "c8eb0f6b98a18a5cc237bc3019637551f46f964a5efd215253a0946889e3f31d"
+  },
+  "extracted_kernel": {
+    "format": "Linux kernel ARM64 boot executable Image, little-endian, 4K pages",
+    "bytes": "36175872",
+    "sha256": "4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
+  },
+  "license": "Alpine packages retain their upstream licenses; the Linux kernel and module are GPL-2.0-only",
+  "network_available_to_guest": false,
+  "production_admitted": false,
+  "authority_added": false
+}

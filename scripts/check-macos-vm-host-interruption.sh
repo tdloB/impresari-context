@@ -23,10 +23,10 @@ receipt="$output_root/host-interruption-receipt.json"
 jq -e --arg controller "$controller_digest" '
   .schema_name == "macos-local-vm-host-interruption-receipt" and
   .schema_version == "1.0.0" and
-  .profile_id == "iar-macos-local-vm-interruption-v1" and
-  .profile_digest == "sha256:e5f54da3e1fbce7ea7f839dc723e4b288ff7113fd9c85950df3970ae18737fd1" and
-  .controller_profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
-  .controller_profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
+  .profile_id == "iar-macos-local-vm-interruption-v2" and
+  .profile_digest == "sha256:f1b57b17d9de3b2b4de885732b6bef0f3cbf637bcba08dc1dda34724e9b18c4f" and
+  .controller_profile_id == "iar-macos-local-vm-synthetic-matrix-v2" and
+  .controller_profile_digest == "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888" and
   .controller_digest == $controller and
   .job_id == "interrupt-proof" and
   .interruption_source == "synthetic-job-private-trigger" and

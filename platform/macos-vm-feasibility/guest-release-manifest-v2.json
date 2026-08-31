@@ -1,0 +1,117 @@
+{
+  "schema_name": "macos-local-vm-guest-release-manifest",
+  "schema_version": "2.0.0",
+  "release_id": "iar-macos-local-vm-guest-2026-08-31.1",
+  "release_sequence": "2",
+  "release_state": "synthetic-candidate-only",
+  "platform": "linux",
+  "architecture": "aarch64",
+  "distribution": "Alpine Linux 3.24",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "valid_from": "2026-08-31T00:00:00Z",
+  "expires_at": "2026-09-30T00:00:00Z",
+  "component_set_digest": "sha256:8efcfea3386d6397ffb34cc27d6f14547b3c5f20e010dcd6d357348abae391fc",
+  "upstream_artifacts": [
+    {
+      "name": "APKINDEX.tar.gz",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/APKINDEX.tar.gz",
+      "bytes": "529311",
+      "sha256": "sha256:db44420861bbe4b2ae28756f8fceee9ced313a8585c56fed85dc7667b722d0fc",
+      "use": "authenticate-current-linux-virt-package-record"
+    },
+    {
+      "name": "linux-virt-6.18.48-r0.apk",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk",
+      "bytes": "41557960",
+      "sha256": "sha256:c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616",
+      "use": "extract-arm64-linux-image-and-exact-virtio-blk-module"
+    }
+  ],
+  "guest_components": [
+    {
+      "component_id": "linux-kernel-image",
+      "path": "assets/Image",
+      "bytes": "36175872",
+      "sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5",
+      "license_expression": "GPL-2.0-only",
+      "executable": true
+    },
+    {
+      "component_id": "virtio-blk-kernel-module",
+      "path": "assets/virtio_blk.ko",
+      "bytes": "49687",
+      "sha256": "sha256:c8eb0f6b98a18a5cc237bc3019637551f46f964a5efd215253a0946889e3f31d",
+      "license_expression": "GPL-2.0-only",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-guest-init",
+      "path": "bin/impresari-vm-init",
+      "bytes": "37616",
+      "sha256": "sha256:68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf",
+      "license_expression": "Apache-2.0",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-guest-initramfs",
+      "path": "assets/impresari-initramfs.gz",
+      "bytes": "38207",
+      "sha256": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b",
+      "license_expression": "GPL-2.0-only AND Apache-2.0",
+      "executable": false
+    },
+    {
+      "component_id": "synthetic-resource-guest-init",
+      "path": "bin/impresari-vm-resource-init",
+      "bytes": "59104",
+      "sha256": "sha256:7e5add284e63a059c5df32b66a2bd18b0d96a5e4b5809c00a02bd9a82e7fa3f6",
+      "license_expression": "Apache-2.0",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-resource-guest-initramfs",
+      "path": "assets/impresari-resource-initramfs.gz",
+      "bytes": "50047",
+      "sha256": "sha256:1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3",
+      "license_expression": "GPL-2.0-only AND Apache-2.0",
+      "executable": false
+    }
+  ],
+  "records": {
+    "sbom": {
+      "path": "platform/macos-vm-feasibility/guest-sbom-v2.spdx.json",
+      "format": "SPDX-2.3",
+      "sha256": "sha256:2bbcb8bdf70a9465e23a412e81967bd05bb4c8d1db61949f3fa37698595011ca"
+    },
+    "licenses": {
+      "path": "platform/macos-vm-feasibility/guest-license-record-v2.json",
+      "sha256": "sha256:99c5ce2f9964b6d9d210e414c895cd1fcc164dd433156599ca791322d7c1acf8"
+    },
+    "provenance": {
+      "path": "platform/macos-vm-feasibility/guest-provenance-v2.json",
+      "sha256": "sha256:f6cb034ed4e2608528bcbe9bed45facd6e893a43eae84290899d5079d09a96f9"
+    },
+    "vulnerability_policy": {
+      "path": "platform/macos-vm-feasibility/guest-vulnerability-policy-v2.json",
+      "sha256": "sha256:ca13d3d1a8517da38e16aa6a5888fc7c2c2827c109feee1cc962dfe345b0888b"
+    }
+  },
+  "rollback": {
+    "current_release_id": "iar-macos-local-vm-guest-2026-08-31.1",
+    "previous_release_id": "iar-macos-local-vm-guest-2026-08-30.1",
+    "anti_rollback_enforced": false,
+    "updates_between_jobs_only": true
+  },
+  "controls": {
+    "guest_self_update": false,
+    "guest_network_available": false,
+    "offline_admission": true,
+    "publisher_authentication_verified": true,
+    "cryptographic_signature_verified": true,
+    "notarized_distribution_verified": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

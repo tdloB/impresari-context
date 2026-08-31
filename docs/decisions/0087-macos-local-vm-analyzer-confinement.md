@@ -117,3 +117,13 @@ This is a fail-closed application of the existing supply-chain decision, not a
 new topology decision: review completion does not imply
 `vulnerability_assessment_complete`, production admission, or CVE
 applicability. See the [vulnerability disposition](../verification/iar-1b-macos-local-vm-vulnerability-disposition.md).
+
+The ninth checkpoint replaces the denied guest with the exact current Alpine
+`linux-virt-6.18.48-r0` package. A versioned v2 identity chain preserves all v1
+evidence, authenticates the package and index through the APK signing key from
+the OpenPGP-authenticated netboot archive, cross-binds the derived guest and
+release records, and repeats every native synthetic matrix successfully. The
+candidate is current and does not require another replacement at this
+checkpoint. Complete advisory coverage, sealed Impresari distribution,
+production admission, and analyzer execution remain closed. See the
+[current guest replacement](../verification/iar-1b-macos-local-vm-current-guest-replacement.md).

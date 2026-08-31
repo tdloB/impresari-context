@@ -32,7 +32,7 @@ if printf '%s\n' "$entitlements" | grep -q 'com.apple.security.network'; then
   exit 6
 fi
 
-if [ "$initramfs_sha256" != cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf ]; then
+if [ "$initramfs_sha256" != 89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b ]; then
   printf '%s\n' 'built initramfs does not match the frozen matrix identity' >&2
   exit 7
 fi
@@ -48,11 +48,11 @@ validate_receipt() {
     --arg initramfs "sha256:$initramfs_sha256" '
       .schema_name == "macos-local-vm-matrix-job-receipt" and
       .schema_version == "1.0.0" and
-      .profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
-      .profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
+      .profile_id == "iar-macos-local-vm-synthetic-matrix-v2" and
+      .profile_digest == "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888" and
       .job_id == $job_id and
       .result == "feasibility_passed" and
-      .kernel_digest == "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd" and
+      .kernel_digest == "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5" and
       .initramfs_digest == $initramfs and
       (.input_digest | test("^sha256:[0-9a-f]{64}$")) and
       .virtualization_supported == true and
@@ -106,8 +106,8 @@ expect_failure() {
   jq -e --arg category "$category" '
     .schema_name == "macos-local-vm-matrix-failure" and
     .schema_version == "1.0.0" and
-    .profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
-    .profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
+    .profile_id == "iar-macos-local-vm-synthetic-matrix-v2" and
+    .profile_digest == "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888" and
     .category == $category and
     .vm_confined == false and
     .production_admitted == false and
@@ -158,9 +158,9 @@ jq -n \
   '{
     schema_name:"macos-local-vm-synthetic-matrix-receipt",
     schema_version:"1.0.0",
-    profile_id:"iar-macos-local-vm-synthetic-matrix-v1",
-    profile_digest:"sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522",
-    kernel_digest:"sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd",
+    profile_id:"iar-macos-local-vm-synthetic-matrix-v2",
+    profile_digest:"sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888",
+    kernel_digest:"sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5",
     initramfs_digest:$initramfs,
     result:"partial_matrix_passed",
     checks:{

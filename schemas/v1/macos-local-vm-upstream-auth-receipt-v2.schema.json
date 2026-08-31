@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-upstream-auth-receipt-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM APKv2 upstream authentication receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "authentication_record_digest", "guest_release_manifest_digest", "apk_signing_key_digest", "index_signature_verified", "package_signature_verified", "package_datahash_verified", "component_identities_verified", "upstream_publisher_authentication_verified", "deprecated_provider_algorithm_disclosed", "package_committed", "runtime_network_required", "release_metadata_sealed", "vulnerability_assessment_complete", "production_admitted", "analyzer_execution", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-upstream-auth-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-upstream-auth-v2"},
+    "profile_digest": {"const": "sha256:c4840caf688d47fbc6d42fe4005c59dc1fd25b6b4e5fd5f3cc29d529077e7e88"},
+    "authentication_record_digest": {"const": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483"},
+    "guest_release_manifest_digest": {"const": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff"},
+    "apk_signing_key_digest": {"const": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d"},
+    "index_signature_verified": {"const": true},
+    "package_signature_verified": {"const": true},
+    "package_datahash_verified": {"const": true},
+    "component_identities_verified": {"const": true},
+    "upstream_publisher_authentication_verified": {"const": true},
+    "deprecated_provider_algorithm_disclosed": {"const": true},
+    "package_committed": {"const": false},
+    "runtime_network_required": {"const": false},
+    "release_metadata_sealed": {"const": false},
+    "vulnerability_assessment_complete": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

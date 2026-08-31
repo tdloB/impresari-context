@@ -1,0 +1,186 @@
+{
+  "schema_name": "macos-local-vm-current-guest-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_synthetic_and_public_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": true,
+  "cases": [
+    {
+      "path": "invalid/macos-local-vm-guest-supply-chain-overclaim-v2.json",
+      "sha256": "773338b5f593974d51dfe565e86f24a2524cd604488f39404af58cafe6c073f2",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-host-interruption-overclaim-v2.json",
+      "sha256": "48dd2c40a42a67b3cca4d750f3200cc766250fb0c8003872ee3d1b424ee12adc",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-resource-canary-overclaim-v2.json",
+      "sha256": "743a6d5ef38b217dbe08ac5334ce4ddf0017dc8f074dc19c02cbcc9522a07e44",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-supervisor-overclaim-v2.json",
+      "sha256": "683c0e1a66586076f88c2c38b41683615f72aebe6074d6ce6e322bc23a00c6b4",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-synthetic-matrix-overclaim-v2.json",
+      "sha256": "767f58ee888ee68643022c458c9d8aeafed74013372e4265a32c2d21c03772f8",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-upstream-auth-overclaim-v2.json",
+      "sha256": "2dd6080465e385bf65292f55f66ffcf43d9ac708e361d53bb7a022c1298dda37",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "invalid/macos-local-vm-vulnerability-review-overclaim-v2.json",
+      "sha256": "42afed046d138e173eeb0453755141b98079ffefb1d9a5a272a0ecbf59cc22f8",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-guest-supply-chain-profile-v2.json",
+      "sha256": "389e5c55dbc3573a69561a9b999eb173e7f15e46a9a77e007d7fdc6dec8e48a2",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-interruption-profile-v2.json",
+      "sha256": "f1b57b17d9de3b2b4de885732b6bef0f3cbf637bcba08dc1dda34724e9b18c4f",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-resource-canary-profile-v2.json",
+      "sha256": "82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-supervisor-profile-v2.json",
+      "sha256": "614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-synthetic-matrix-profile-v2.json",
+      "sha256": "090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-upstream-auth-profile-v2.json",
+      "sha256": "c4840caf688d47fbc6d42fe4005c59dc1fd25b6b4e5fd5f3cc29d529077e7e88",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-vulnerability-review-profile-v2.json",
+      "sha256": "2c7cbdf348941c861ef7bcea22f5e72c5571425451ab6087a3b2949baa73e5c7",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-guest-release-manifest-v2.json",
+      "sha256": "d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-guest-supply-chain-receipt-v2.json",
+      "sha256": "b98f6a8c949dda59ee0c826355c4584425665cbf18a747462f024ad54eb2d5a9",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-host-interruption-v2.json",
+      "sha256": "8f021ebf886b0b578ee025ca599e6fb65e53edc312adb58b78b61678581de089",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-matrix-failure-v2.json",
+      "sha256": "b5d8273f6da24817a0e1d6b14cb2c5ac4357ca75f7373c653cb8e5da8a68d3b6",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-matrix-job-v2.json",
+      "sha256": "559d1d31891727403a0a1694cb290f6d3a738569f224d48e5e8088859b8be89b",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-resource-canary-failure-v2.json",
+      "sha256": "d7c8d977e063e9c612ad67c318123e5e620405ac7c559c24aa71a505d2b3ae1b",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-resource-canary-receipt-v2.json",
+      "sha256": "528a9b25b190e60e327b10625e61184730914d550973760b418b22dde1a33162",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-cancellation-v2.json",
+      "sha256": "61c0e3eac1cf964146f7441e4c635743f49cd2148e1bbe27b40e03a745b7722c",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-forced-termination-v2.json",
+      "sha256": "ee43945d6e43a0515131b2ea83dcf1362f70631b69ec0847b3b174538c06cbbc",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-matrix-v2.json",
+      "sha256": "12c132cfadcc37508f5ab7260fdf574e90d5c5cd332c2f242f8a16f0752769d3",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-synthetic-matrix-v2.json",
+      "sha256": "832dd111b42c7ca42dc6d587380e5443e31542376eb2f8f04a317565065a062d",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-upstream-auth-receipt-v2.json",
+      "sha256": "7b7b81c9868ad7b3c83ed9b6bbbe23d60307d50f750c083c37de31dee4b83f48",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-upstream-auth-record-v2.json",
+      "sha256": "0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-vulnerability-assessment-record-v2.json",
+      "sha256": "0fe271154e259fec279dbf241885f18c4f534601e8e74fdb34d1363a612b7f2d",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    },
+    {
+      "path": "valid/macos-local-vm-vulnerability-review-receipt-v2.json",
+      "sha256": "446bc2a1056583ab173a4390c09774a43a11e15410d97c94920b9f8e2d6fe4e7",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0"
+    }
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema_name": "macos-local-vm-upstream-auth-profile",
+  "schema_version": "2.0.0",
+  "profile_id": "iar-macos-local-vm-upstream-auth-v2",
+  "profile_version": "2.0.0",
+  "guest_release_manifest_digest": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+  "authentication_record_path": "platform/macos-vm-feasibility/alpine-upstream-authentication-v2.json",
+  "authentication_record_digest": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483",
+  "apk_signing_key_digest": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+  "required_checks": [
+    "authenticated-trust-anchor",
+    "exact-apk-public-key-identity",
+    "exact-signed-index-identity",
+    "exact-signed-package-identity",
+    "valid-index-signature",
+    "valid-package-signature",
+    "exact-package-datahash",
+    "exact-index-package-identity",
+    "exact-component-identities",
+    "guest-manifest-cross-binding"
+  ],
+  "controls": {
+    "live_package_verification_explicit_only": true,
+    "package_committed": false,
+    "runtime_network_required": false,
+    "upstream_publisher_authentication_verified": true,
+    "deprecated_provider_algorithm_disclosed": true,
+    "release_metadata_sealed": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

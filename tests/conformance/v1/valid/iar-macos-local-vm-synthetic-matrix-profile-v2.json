@@ -1,0 +1,44 @@
+{
+  "schema_name": "macos-local-vm-matrix-resource-profile",
+  "schema_version": "2.0.0",
+  "profile_id": "iar-macos-local-vm-synthetic-matrix-v2",
+  "profile_version": "2.0.0",
+  "guest": {
+    "architecture": "aarch64",
+    "kernel_version": "6.18.48-0-virt",
+    "kernel_sha256": "4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5",
+    "guest_init_sha256": "68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf",
+    "initramfs_sha256": "89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b",
+    "synthetic_init_only": true
+  },
+  "scenarios": [
+    "success",
+    "malformed-result",
+    "output-flood",
+    "timeout",
+    "descendant-timeout",
+    "early-exit",
+    "cancellation"
+  ],
+  "limits": {
+    "virtual_cpus": "1",
+    "memory_bytes": "268435456",
+    "input_bytes": "4096",
+    "scratch_bytes": "1048576",
+    "accepted_serial_bytes": "65536",
+    "normal_elapsed_ms": "30000",
+    "fault_elapsed_ms": "2000"
+  },
+  "controls": {
+    "exact_guest_identity": true,
+    "serial_capture_memory_only": true,
+    "serial_overflow_rejected": true,
+    "malformed_result_rejected": true,
+    "whole_vm_timeout_stop": true,
+    "controller_cancellation_cleanup": true,
+    "fresh_vm_per_scenario": true,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

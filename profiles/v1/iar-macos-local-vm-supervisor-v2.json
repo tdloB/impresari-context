@@ -1,0 +1,30 @@
+{
+  "schema_name": "macos-local-vm-supervisor-resource-profile",
+  "schema_version": "2.0.0",
+  "profile_id": "iar-macos-local-vm-supervisor-v2",
+  "profile_version": "2.0.0",
+  "controller_profile_id": "iar-macos-local-vm-synthetic-matrix-v2",
+  "controller_profile_digest": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888",
+  "actions": [
+    "external-cancellation",
+    "forced-termination-recovery"
+  ],
+  "limits": {
+    "readiness_ms": "10000",
+    "completion_ms": "10000",
+    "captured_stdout_bytes": "65536",
+    "captured_stderr_bytes": "16384"
+  },
+  "controls": {
+    "single_audited_process_launch_site": true,
+    "prelaunch_controller_digest_verification": true,
+    "source_free_fixed_argv": true,
+    "external_cancellation_request": true,
+    "forced_controller_kill_and_reap": true,
+    "exact_stale_job_removal": true,
+    "post_action_recovery_job": true,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

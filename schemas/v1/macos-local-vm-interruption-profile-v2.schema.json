@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-interruption-profile-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM host-interruption profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "controller_profile_id", "controller_profile_digest", "automated_evidence", "manual_evidence_required", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-interruption-profile"},
+    "schema_version": {"const": "2.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-interruption-v2"},
+    "profile_version": {"const": "2.0.0"},
+    "controller_profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v2"},
+    "controller_profile_digest": {"const": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"},
+    "automated_evidence": {"const": "synthetic-job-private-trigger"},
+    "manual_evidence_required": {"const": "os-will-sleep"},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readiness_ms", "completion_ms", "captured_stdout_bytes", "captured_stderr_bytes"],
+      "properties": {
+        "readiness_ms": {"const": "10000"},
+        "completion_ms": {"const": "10000"},
+        "captured_stdout_bytes": {"const": "65536"},
+        "captured_stderr_bytes": {"const": "16384"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["operating_system_sleep_observer", "shared_fail_closed_stop_handler", "synthetic_interruption_trigger", "exact_child_reap", "exact_stale_job_removal", "post_interruption_recovery_job", "real_host_sleep_observed", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "operating_system_sleep_observer": {"const": true},
+        "shared_fail_closed_stop_handler": {"const": true},
+        "synthetic_interruption_trigger": {"const": true},
+        "exact_child_reap": {"const": true},
+        "exact_stale_job_removal": {"const": true},
+        "post_interruption_recovery_job": {"const": true},
+        "real_host_sleep_observed": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

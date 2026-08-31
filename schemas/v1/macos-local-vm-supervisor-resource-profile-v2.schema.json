@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-supervisor-resource-profile-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM Rust-supervisor lifecycle profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "controller_profile_id", "controller_profile_digest", "actions", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-supervisor-resource-profile"},
+    "schema_version": {"const": "2.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-supervisor-v2"},
+    "profile_version": {"const": "2.0.0"},
+    "controller_profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v2"},
+    "controller_profile_digest": {"const": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"},
+    "actions": {"const": ["external-cancellation", "forced-termination-recovery"]},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["readiness_ms", "completion_ms", "captured_stdout_bytes", "captured_stderr_bytes"],
+      "properties": {
+        "readiness_ms": {"const": "10000"},
+        "completion_ms": {"const": "10000"},
+        "captured_stdout_bytes": {"const": "65536"},
+        "captured_stderr_bytes": {"const": "16384"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["single_audited_process_launch_site", "prelaunch_controller_digest_verification", "source_free_fixed_argv", "external_cancellation_request", "forced_controller_kill_and_reap", "exact_stale_job_removal", "post_action_recovery_job", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "single_audited_process_launch_site": {"const": true},
+        "prelaunch_controller_digest_verification": {"const": true},
+        "source_free_fixed_argv": {"const": true},
+        "external_cancellation_request": {"const": true},
+        "forced_controller_kill_and_reap": {"const": true},
+        "exact_stale_job_removal": {"const": true},
+        "post_action_recovery_job": {"const": true},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

@@ -137,3 +137,15 @@ record does not establish complete 6.18 coverage, the receipt keeps both
 `advisory_coverage_complete` and `vulnerability_assessment_complete` false.
 Routine validation is offline and cannot admit production or analyzer
 execution.
+
+The ninth checkpoint introduces a versioned v2 active identity chain instead
+of mutating the frozen v1 evidence. It authenticates the current Alpine
+`linux-virt-6.18.48-r0` APK and repository index through the APK signing key
+carried by the already OpenPGP-authenticated netboot archive. The package
+`datahash`, extracted kernel and module, both initramfses, controller profile,
+Rust supervisor profiles, release metadata, and rollback predecessor are all
+cross-bound. Native fault, resource/canary, lifecycle, and interruption
+matrices pass again. The repeated review records `candidate_current=true` and
+`replacement_required=false`, while retaining
+`vulnerability_assessment_complete=false` and `production_admitted=false`
+because complete current advisory coverage is not established.

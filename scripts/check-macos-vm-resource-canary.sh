@@ -15,7 +15,7 @@ first_initramfs_sha256=$(cat "$asset_root/impresari-resource-initramfs.sha256")
 controller=$($repo_root/scripts/build-macos-vm-feasibility.sh)
 initramfs_sha256=$(cat "$asset_root/impresari-resource-initramfs.sha256")
 if [ "$first_initramfs_sha256" != "$initramfs_sha256" ] || \
-   [ "$initramfs_sha256" != f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c ]; then
+   [ "$initramfs_sha256" != 1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3 ]; then
   printf '%s\n' 'resource/canary initramfs did not reproduce its frozen identity' >&2
   exit 4
 fi
@@ -31,12 +31,12 @@ receipt="$output_root/resource-canary-supervisor-receipt.json"
 jq -e --arg controller "$controller_digest" '
   .schema_name == "macos-local-vm-resource-canary-supervisor-receipt" and
   .schema_version == "1.0.0" and
-  .profile_id == "iar-macos-local-vm-resource-canary-v1" and
-  .profile_digest == "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e" and
+  .profile_id == "iar-macos-local-vm-resource-canary-v2" and
+  .profile_digest == "sha256:82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0" and
   .controller_digest == $controller and
   .job_id == "resource-canary" and
-  .kernel_digest == "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd" and
-  .initramfs_digest == "sha256:f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c" and
+  .kernel_digest == "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5" and
+  .initramfs_digest == "sha256:1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3" and
   .input_digest == "sha256:3050d67653f05f1db0dcef073a64f6fc9f9ac2e55c7b1881e7372151b3e4fd99" and
   .controller_digest_verified_before_launch == true and
   .configuration_validated == true and
@@ -82,5 +82,5 @@ if find "$output_root/jobs" -mindepth 1 -maxdepth 1 -print -quit 2>/dev/null | g
 fi
 
 printf 'macOS local-VM resource/canary evidence passed: profile=sha256:%s controller=%s\n' \
-  b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e \
+  82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0 \
   "$controller_digest"

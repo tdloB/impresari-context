@@ -48,31 +48,31 @@ pub const MACOS_XPC_SERVICE_RELATIVE_PATH: &str =
 const MACOS_XPC_MAX_ARTIFACTS: u64 = 64;
 const MACOS_XPC_MAX_TOTAL_ARTIFACT_BYTES: u64 = 4_194_304;
 /// Frozen macOS local-VM supervisor lifecycle profile.
-pub const MACOS_VM_SUPERVISOR_PROFILE_ID: &str = "iar-macos-local-vm-supervisor-v1";
+pub const MACOS_VM_SUPERVISOR_PROFILE_ID: &str = "iar-macos-local-vm-supervisor-v2";
 /// Digest of the exact committed local-VM supervisor lifecycle profile.
 pub const MACOS_VM_SUPERVISOR_PROFILE_DIGEST: &str =
-    "sha256:f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85";
+    "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88";
 /// Frozen profile exposed by the synthetic macOS VM controller.
-pub const MACOS_VM_CONTROLLER_PROFILE_ID: &str = "iar-macos-local-vm-synthetic-matrix-v1";
+pub const MACOS_VM_CONTROLLER_PROFILE_ID: &str = "iar-macos-local-vm-synthetic-matrix-v2";
 /// Exact profile digest exposed by the synthetic macOS VM controller.
 pub const MACOS_VM_CONTROLLER_PROFILE_DIGEST: &str =
-    "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522";
+    "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888";
 /// Frozen macOS local-VM synthetic resource and host-canary profile.
-pub const MACOS_VM_RESOURCE_CANARY_PROFILE_ID: &str = "iar-macos-local-vm-resource-canary-v1";
+pub const MACOS_VM_RESOURCE_CANARY_PROFILE_ID: &str = "iar-macos-local-vm-resource-canary-v2";
 /// Digest of the exact committed resource and host-canary profile bytes.
 pub const MACOS_VM_RESOURCE_CANARY_PROFILE_DIGEST: &str =
-    "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e";
+    "sha256:82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0";
 /// Frozen macOS local-VM host-interruption profile.
-pub const MACOS_VM_HOST_INTERRUPTION_PROFILE_ID: &str = "iar-macos-local-vm-interruption-v1";
+pub const MACOS_VM_HOST_INTERRUPTION_PROFILE_ID: &str = "iar-macos-local-vm-interruption-v2";
 /// Digest of the exact committed host-interruption profile bytes.
 pub const MACOS_VM_HOST_INTERRUPTION_PROFILE_DIGEST: &str =
-    "sha256:e5f54da3e1fbce7ea7f839dc723e4b288ff7113fd9c85950df3970ae18737fd1";
+    "sha256:f1b57b17d9de3b2b4de885732b6bef0f3cbf637bcba08dc1dda34724e9b18c4f";
 const MACOS_VM_KERNEL_DIGEST: &str =
-    "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd";
+    "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5";
 const MACOS_VM_INITRAMFS_DIGEST: &str =
-    "sha256:cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf";
+    "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b";
 const MACOS_VM_RESOURCE_INITRAMFS_DIGEST: &str =
-    "sha256:f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c";
+    "sha256:1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3";
 const MACOS_VM_SYNTHETIC_INPUT_DIGEST: &str =
     "sha256:3050d67653f05f1db0dcef073a64f6fc9f9ac2e55c7b1881e7372151b3e4fd99";
 const MACOS_VM_STDOUT_BYTES: usize = 65_536;

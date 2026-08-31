@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-guest-release-manifest-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM guest release manifest",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "release_id", "release_sequence", "release_state", "platform", "architecture", "distribution", "reviewed_at", "valid_from", "expires_at", "component_set_digest", "upstream_artifacts", "guest_components", "records", "rollback", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-guest-release-manifest"},
+    "schema_version": {"const": "2.0.0"},
+    "release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+    "release_sequence": {"const": "2"},
+    "release_state": {"const": "synthetic-candidate-only"},
+    "platform": {"const": "linux"},
+    "architecture": {"const": "aarch64"},
+    "distribution": {"const": "Alpine Linux 3.24"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "valid_from": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "component_set_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "upstream_artifacts": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["name", "url", "bytes", "sha256", "use"],
+        "properties": {
+          "name": {"enum": ["APKINDEX.tar.gz", "linux-virt-6.18.48-r0.apk"]},
+          "url": {"type": "string", "pattern": "^https://dl-cdn\\.alpinelinux\\.org/alpine/v3\\.24/main/aarch64/(APKINDEX\\.tar\\.gz|linux-virt-6\\.18\\.48-r0\\.apk)$"},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+          "use": {"enum": ["authenticate-current-linux-virt-package-record", "extract-arm64-linux-image-and-exact-virtio-blk-module"]}
+        }
+      }
+    },
+    "guest_components": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["component_id", "path", "bytes", "sha256", "license_expression", "executable"],
+        "properties": {
+          "component_id": {"type": "string", "pattern": "^[a-z0-9-]+$"},
+          "path": {"type": "string", "pattern": "^(assets|bin)/[A-Za-z0-9._-]+$"},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+          "license_expression": {"enum": ["GPL-2.0-only", "Apache-2.0", "GPL-2.0-only AND Apache-2.0"]},
+          "executable": {"type": "boolean"}
+        }
+      }
+    },
+    "records": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["sbom", "licenses", "provenance", "vulnerability_policy"],
+      "properties": {
+        "sbom": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["path", "format", "sha256"],
+          "properties": {
+            "path": {"const": "platform/macos-vm-feasibility/guest-sbom-v2.spdx.json"},
+            "format": {"const": "SPDX-2.3"},
+            "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+          }
+        },
+        "licenses": {"$ref": "#/\u0024defs/record"},
+        "provenance": {"$ref": "#/\u0024defs/record"},
+        "vulnerability_policy": {"$ref": "#/\u0024defs/record"}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["current_release_id", "previous_release_id", "anti_rollback_enforced", "updates_between_jobs_only"],
+      "properties": {
+        "current_release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+        "previous_release_id": {"const": "iar-macos-local-vm-guest-2026-08-30.1"},
+        "anti_rollback_enforced": {"const": false},
+        "updates_between_jobs_only": {"const": true}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guest_self_update", "guest_network_available", "offline_admission", "publisher_authentication_verified", "cryptographic_signature_verified", "notarized_distribution_verified", "vulnerability_assessment_complete", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "guest_self_update": {"const": false},
+        "guest_network_available": {"const": false},
+        "offline_admission": {"const": true},
+        "publisher_authentication_verified": {"const": true},
+        "cryptographic_signature_verified": {"const": true},
+        "notarized_distribution_verified": {"const": false},
+        "vulnerability_assessment_complete": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  },
+  "$defs": {
+    "record": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": {"type": "string", "pattern": "^platform/macos-vm-feasibility/guest-[a-z0-9-]+\\.json$"},
+        "sha256": {"$ref": "common.schema.json#/$defs/sha256"}
+      }
+    }
+  }
+}

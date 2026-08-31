@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-supervisor-matrix-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM Rust-supervisor lifecycle matrix",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "controller_digest", "result", "checks", "remaining", "vm_confined", "production_admitted", "analyzer_execution", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-supervisor-lifecycle-matrix"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-supervisor-v2"},
+    "profile_digest": {"const": "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88"},
+    "controller_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "result": {"const": "partial_lifecycle_passed"},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["external_cancellation", "forced_controller_termination", "exact_child_reap", "exact_stale_job_removal", "recovery_after_each_action", "controller_digest_mismatch_rejected_before_staging", "single_audited_process_launch_site"],
+      "properties": {
+        "external_cancellation": {"const": true},
+        "forced_controller_termination": {"const": true},
+        "exact_child_reap": {"const": true},
+        "exact_stale_job_removal": {"const": true},
+        "recovery_after_each_action": {"const": true},
+        "controller_digest_mismatch_rejected_before_staging": {"const": true},
+        "single_audited_process_launch_site": {"const": true}
+      }
+    },
+    "remaining": {"const": ["host_sleep_and_interruption", "guest_memory_pressure", "guest_cpu_accounting", "host_canary_denial_corpus", "multi_host_evidence", "distribution_and_independent_review"]},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

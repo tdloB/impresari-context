@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-supervisor-lifecycle-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM Rust-supervisor lifecycle receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "controller_profile_id", "controller_profile_digest", "controller_digest", "job_id", "action", "controller_digest_verified_before_launch", "controller_ready", "external_cancellation_requested", "controller_cancellation_verified", "controller_forcibly_terminated", "controller_reaped", "stale_job_removed", "recovery_job_succeeded", "all_job_state_removed", "vm_confined", "production_admitted", "analyzer_execution", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-supervisor-lifecycle-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-supervisor-v2"},
+    "profile_digest": {"const": "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88"},
+    "controller_profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v2"},
+    "controller_profile_digest": {"const": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"},
+    "controller_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "job_id": {"type": "string", "pattern": "^[a-z0-9-]{1,20}$"},
+    "action": {"enum": ["external-cancellation", "forced-termination-recovery"]},
+    "controller_digest_verified_before_launch": {"const": true},
+    "controller_ready": {"const": true},
+    "external_cancellation_requested": {"type": "boolean"},
+    "controller_cancellation_verified": {"type": "boolean"},
+    "controller_forcibly_terminated": {"type": "boolean"},
+    "controller_reaped": {"const": true},
+    "stale_job_removed": {"const": true},
+    "recovery_job_succeeded": {"const": true},
+    "all_job_state_removed": {"const": true},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"action": {"const": "external-cancellation"}}},
+      "then": {"properties": {"external_cancellation_requested": {"const": true}, "controller_cancellation_verified": {"const": true}, "controller_forcibly_terminated": {"const": false}}}
+    },
+    {
+      "if": {"properties": {"action": {"const": "forced-termination-recovery"}}},
+      "then": {"properties": {"external_cancellation_requested": {"const": false}, "controller_cancellation_verified": {"const": false}, "controller_forcibly_terminated": {"const": true}}}
+    }
+  ]
+}
