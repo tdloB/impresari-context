@@ -16,8 +16,23 @@ repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 output_root="$repository_root/target/iar-linux-composite-feasibility"
 isolation_probe="$output_root/linux-isolation-probe"
 resource_probe="$output_root/linux-cgroup-probe"
+yara_launcher="$output_root/linux-yara-x-launcher"
 receipt="$output_root/receipt.json"
 profile="$repository_root/profiles/v1/iar-linux-synthetic-v1.json"
+yara_mode=false
+case "${1:-}" in
+  --yara-x-compatibility) yara_mode=true ;;
+  --delegated)
+    if [ "${2:-}" = "--yara-x-compatibility" ]; then
+      yara_mode=true
+    elif [ -n "${2:-}" ]; then
+      echo "unexpected delegated Linux composite argument" >&2
+      exit 3
+    fi
+    ;;
+  '') ;;
+  *) echo "unexpected Linux composite argument" >&2; exit 3 ;;
+esac
 
 if [ "${1:-}" != "--delegated" ]; then
   command -v systemd-run >/dev/null 2>&1 || {
@@ -29,12 +44,19 @@ if [ "${1:-}" != "--delegated" ]; then
     exit 3
   }
   unit="impresari-iar-composite-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT:-1}-$$"
+  if [ "$yara_mode" = true ]; then
+    set -- \
+      --setenv=ImageOS="${ImageOS:-unknown}" --setenv=ImageVersion="${ImageVersion:-unknown}" \
+      --setenv=GITHUB_RUN_ID="${GITHUB_RUN_ID:-0}" --setenv=GITHUB_RUN_ATTEMPT="${GITHUB_RUN_ATTEMPT:-1}" \
+      "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated --yara-x-compatibility
+  else
+    set -- "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated
+  fi
   exec sudo systemd-run --quiet --wait --pipe --collect --service-type=exec \
     --unit="$unit" --property=Delegate=yes \
     --setenv=GITHUB_ACTIONS=true --setenv=RUNNER_ENVIRONMENT=github-hosted \
     --uid="$(id -u)" --gid="$(id -g)" \
-    --working-directory="$repository_root" \
-    "$repository_root/scripts/check-linux-composite-feasibility.sh" --delegated
+    --working-directory="$repository_root" "$@"
 fi
 
 rm -rf -- "$output_root"
@@ -49,6 +71,11 @@ cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
 cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
   "$repository_root/platform/linux-cgroup-feasibility/probe.c" \
   -o "$resource_probe"
+if [ "$yara_mode" = true ]; then
+  cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
+    "$repository_root/platform/linux-yara-x-compatibility/launcher.c" \
+    -o "$yara_launcher"
+fi
 
 cgroup_suffix=$(awk -F: '$1 == "0" { print $3 }' /proc/self/cgroup)
 case "$cgroup_suffix" in /*) ;; *) echo "invalid cgroup identity" >&2; exit 4 ;; esac
@@ -235,6 +262,171 @@ printf '%s\n' '1' > "$second_leaf/cgroup.kill"
 wait "$second_parent"
 remove_leaf "$first_leaf"
 remove_leaf "$second_leaf"
+
+if [ "$yara_mode" = true ]; then
+  command -v timeout >/dev/null 2>&1 || {
+    echo "timeout is required for YARA-X compatibility" >&2
+    exit 8
+  }
+  yara_stage="$repository_root/target/yara-x-artifact-compatibility"
+  yara_output="$output_root/yara-x"
+  yara_profile="$repository_root/profiles/v1/yara-x-artifact-compatibility-v1.json"
+  [ "$(sha256sum "$yara_profile" | cut -d ' ' -f 1)" = a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41 ] || {
+    echo "YARA-X compatibility profile digest changed" >&2
+    exit 8
+  }
+  [ -x "$yara_launcher" ] || { echo "YARA-X launcher is missing" >&2; exit 8; }
+  [ -f "$yara_stage/external/canary" ] || { echo "YARA-X external canary is missing" >&2; exit 8; }
+  [ -f "$yara_stage/credential/canary" ] || { echo "YARA-X credential canary is missing" >&2; exit 8; }
+  mkdir -p -- "$yara_output"
+  printf '%s\n' '[]' > "$yara_output/cases.json"
+
+  for case_id in empty hex literal near_miss wide; do
+    case_root="$yara_stage/cases/$case_id"
+    yr_path="$case_root/yr"
+    rules_path="$case_root/rules.yarc"
+    artifact_path="$case_root/input"
+    output_path="$yara_output/$case_id.ndjson"
+    preflight_path="$yara_output/$case_id.preflight"
+    write_probe="$case_root/forbidden-write"
+    [ -x "$yr_path" ] && [ -f "$rules_path" ] && [ -f "$artifact_path" ] || {
+      echo "YARA-X staged case is incomplete: $case_id" >&2
+      exit 8
+    }
+    leaf="$delegation_root/job-yara-$case_id"
+    mkdir "$leaf"
+    printf '%s %s\n' '100000' '100000' > "$leaf/cpu.max"
+    printf '%s\n' '536870912' > "$leaf/memory.max"
+    printf '%s\n' '4' > "$leaf/pids.max"
+    if [ -f "$leaf/memory.swap.max" ]; then printf '%s\n' '0' > "$leaf/memory.swap.max"; fi
+    if [ -f "$leaf/memory.oom.group" ]; then printf '%s\n' '1' > "$leaf/memory.oom.group"; fi
+    if [ "$(cat "$leaf/cpu.max")" != '100000 100000' ] || \
+       [ "$(cat "$leaf/memory.max")" != 536870912 ] || \
+       [ "$(cat "$leaf/pids.max")" != 4 ]; then
+      echo "YARA-X cgroup resource profile was not applied" >&2
+      exit 8
+    fi
+
+    set +e
+    timeout --signal=KILL 10s "$yara_launcher" \
+      "$leaf" "$case_root" "$yr_path" "$rules_path" "$artifact_path" \
+      "$yara_stage/external/canary" "$yara_stage/credential/canary" \
+      "$write_probe" > "$output_path" 2> "$preflight_path"
+    yara_status=$?
+    set -e
+    if ! wait_empty "$leaf"; then
+      printf '%s\n' '1' > "$leaf/cgroup.kill"
+      wait_empty "$leaf" || { echo "YARA-X cgroup did not empty" >&2; exit 8; }
+    fi
+    if [ "$yara_status" -ne 0 ]; then
+      echo "YARA-X isolated scan failed for $case_id with status $yara_status" >&2
+      sed -n '1,32p' "$preflight_path" >&2
+      exit 8
+    fi
+    [ "$(wc -c < "$output_path" | tr -d ' ')" -le 131072 ] || {
+      echo "YARA-X output exceeded the compatibility limit" >&2
+      exit 8
+    }
+    [ "$(wc -l < "$output_path" | tr -d ' ')" = 1 ] || {
+      echo "YARA-X output was not exactly one NDJSON line" >&2
+      exit 8
+    }
+    for marker in atomic_cgroup_placement landlock_read_only_job external_filesystem_denied credential_denied writable_filesystem_denied network_denied unrelated_descriptors_closed; do
+      [ "$(grep -c "^${marker}=true$" "$preflight_path")" = 1 ] || {
+        echo "YARA-X isolation marker missing: $marker" >&2
+        exit 8
+      }
+    done
+    [ "$(wc -l < "$preflight_path" | tr -d ' ')" = 7 ] || {
+      echo "YARA-X emitted unexpected stderr" >&2
+      exit 8
+    }
+
+    case "$case_id" in
+      empty|near_miss) expected='[]' ;;
+      hex) expected='["impresari_synthetic_hex_v1"]' ;;
+      literal) expected='["impresari_synthetic_literal_v1"]' ;;
+      wide) expected='["impresari_synthetic_wide_v1"]' ;;
+    esac
+    jq -e --arg path "$artifact_path" --argjson expected "$expected" '
+      (keys | sort) == ["path", "rules"] and
+      .path == $path and
+      (.rules | type) == "array" and
+      ([.rules[].identifier] | sort) == $expected and
+      all(.rules[];
+        (keys | sort) == ["identifier", "namespace", "strings", "tags"] and
+        .namespace == "default" and
+        (.tags | type) == "array" and
+        (.tags | all(. == "impresari" or . == "synthetic")) and
+        (.strings | type) == "array" and
+        all(.strings[];
+          (keys | sort) == ["identifier", "match", "offset"] and
+          (.identifier | test("^\\$(hex|literal|wide)$")) and
+          (.offset | type) == "number" and .offset >= 0 and
+          (.match | test("^ \\.\\.\\. [1-9][0-9]* more bytes$"))))
+    ' "$output_path" >/dev/null || {
+      echo "YARA-X output contract mismatch for $case_id" >&2
+      exit 8
+    }
+
+    observed=$(jq -c '[.rules[].identifier] | sort' "$output_path")
+    output_digest="sha256:$(sha256sum "$output_path" | cut -d ' ' -f 1)"
+    jq --arg case_id "$case_id" --argjson expected "$expected" \
+      --argjson observed "$observed" --arg output_digest "$output_digest" \
+      '. + [{case_id:$case_id,expected_rule_identifiers:$expected,observed_rule_identifiers:$observed,output_sha256:$output_digest}]' \
+      "$yara_output/cases.json" > "$yara_output/cases.next"
+    mv "$yara_output/cases.next" "$yara_output/cases.json"
+
+    if [ -f "$leaf/pids.peak" ] && [ "$(cat "$leaf/pids.peak")" -gt 4 ]; then
+      echo "YARA-X exceeded the cgroup task limit" >&2
+      exit 8
+    fi
+    if [ -f "$leaf/memory.peak" ] && [ "$(cat "$leaf/memory.peak")" -gt 536870912 ]; then
+      echo "YARA-X exceeded the cgroup memory limit" >&2
+      exit 8
+    fi
+    remove_leaf "$leaf"
+    rm -f -- "$output_path" "$preflight_path"
+  done
+
+  yara_remaining=$(find "$delegation_root" -mindepth 1 -maxdepth 1 -type d -name 'job-yara-*' | wc -l | tr -d ' ')
+  [ "$yara_remaining" = 0 ] || { echo "YARA-X cgroup cleanup failed" >&2; exit 8; }
+  executable_digest="sha256:$(sha256sum "$yara_stage/cases/literal/yr" | cut -d ' ' -f 1)"
+  rules_digest="sha256:$(sha256sum "$yara_stage/cases/literal/rules.yarc" | cut -d ' ' -f 1)"
+  recorded_at=$(date -u '+%Y-%m-%dT%H:%M:%SZ')
+  runner_image="${ImageOS:-unknown}-${ImageVersion:-unknown}"
+  jq -n \
+    --arg receipt_id "yara-x-compatibility-${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-1}" \
+    --arg recorded_at "$recorded_at" --arg executable_digest "$executable_digest" \
+    --arg rules_digest "$rules_digest" --arg runner_image "$runner_image" \
+    --arg kernel_release "$kernel_release" --arg landlock_abi "$landlock_abi" \
+    --slurpfile cases "$yara_output/cases.json" '
+    {
+      schema_name:"yara-x-artifact-compatibility-receipt",schema_version:"1.0.0",
+      receipt_id:$receipt_id,profile_id:"yara-x-artifact-compatibility-v1",
+      profile_digest:"sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41",
+      recorded_at:$recorded_at,
+      source_archive_sha256:"sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
+      patch_sha256:"sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
+      ruleset_source_sha256:"sha256:5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b",
+      executable_sha256:$executable_digest,compiled_rules_sha256:$rules_digest,
+      observed_host:{runner_label:"ubuntu-24.04",runner_image:$runner_image,kernel_release:$kernel_release,architecture:"x86_64",landlock_abi:$landlock_abi},
+      cases:$cases[0],
+      checks:{archive_safe:true,patch_exact:true,locked_build:true,feature_graph_exact:true,
+        dependency_review_passed:true,rules_compiled:true,all_cases_exact:true,
+        atomic_cgroup_placement:true,landlock_read_only_job:true,network_denied:true,
+        unrelated_descriptors_closed:true,resource_profile_applied:true,output_bounded:true,
+        timeout_enforced:true,cgroup_empty_after_each_scan:true,cleanup_complete:true},
+      result:"candidate_passed",
+      limitations:["synthetic-only","single-host-evidence","mutable-runner-image","unsigned-artifacts","no-live-parser","not-production","not-iar-2","not-a-detection-quality-or-safety-verdict"],
+      source_retained:false,executable_retained:false,compiled_rules_retained:false,
+      raw_output_retained:false,network_used_by_analyzer:false,credentials_used:false,
+      repository_content_scanned:false,artifact_uploaded:false,executable_admitted:false,
+      ruleset_admitted:false,production_admitted:false,iar_2_admitted:false,
+      detection_quality_claimed:false,malware_free_claimed:false,authority_added:false
+    }' > "$yara_output/receipt.json"
+  rm -f -- "$yara_output/cases.json"
+fi
 
 remaining=$(find "$delegation_root" -mindepth 1 -maxdepth 1 -type d ! -name impresari-supervisor | wc -l | tr -d ' ')
 if [ "$remaining" = 0 ]; then cleanup=true; fi

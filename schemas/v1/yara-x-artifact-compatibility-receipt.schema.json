@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-artifact-compatibility-receipt.schema.json",
+  "title": "ADR-0099 YARA-X synthetic compatibility receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "receipt_id", "profile_id", "profile_digest", "recorded_at", "source_archive_sha256", "patch_sha256", "ruleset_source_sha256", "executable_sha256", "compiled_rules_sha256", "observed_host", "cases", "checks", "result", "limitations", "source_retained", "executable_retained", "compiled_rules_retained", "raw_output_retained", "network_used_by_analyzer", "credentials_used", "repository_content_scanned", "artifact_uploaded", "executable_admitted", "ruleset_admitted", "production_admitted", "iar_2_admitted", "detection_quality_claimed", "malware_free_claimed", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "yara-x-artifact-compatibility-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "receipt_id": {"type": "string", "pattern": "^yara-x-compatibility-[0-9]+-[0-9]+$"},
+    "profile_id": {"const": "yara-x-artifact-compatibility-v1"},
+    "profile_digest": {"const": "sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41"},
+    "recorded_at": {"type": "string", "format": "date-time"},
+    "source_archive_sha256": {"const": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee"},
+    "patch_sha256": {"const": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd"},
+    "ruleset_source_sha256": {"const": "sha256:5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b"},
+    "executable_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "compiled_rules_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "observed_host": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runner_label", "runner_image", "kernel_release", "architecture", "landlock_abi"],
+      "properties": {
+        "runner_label": {"const": "ubuntu-24.04"},
+        "runner_image": {"type": "string", "minLength": 1, "maxLength": 128},
+        "kernel_release": {"type": "string", "pattern": "^[A-Za-z0-9._+-]+$"},
+        "architecture": {"const": "x86_64"},
+        "landlock_abi": {"type": "string", "pattern": "^[1-9][0-9]{0,2}$"}
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["case_id", "expected_rule_identifiers", "observed_rule_identifiers", "output_sha256"],
+        "properties": {
+          "case_id": {"enum": ["empty", "hex", "literal", "near_miss", "wide"]},
+          "expected_rule_identifiers": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^impresari_synthetic_(hex|literal|wide)_v1$"}},
+          "observed_rule_identifiers": {"type": "array", "uniqueItems": true, "items": {"type": "string", "pattern": "^impresari_synthetic_(hex|literal|wide)_v1$"}},
+          "output_sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["archive_safe", "patch_exact", "locked_build", "feature_graph_exact", "dependency_review_passed", "rules_compiled", "all_cases_exact", "atomic_cgroup_placement", "landlock_read_only_job", "network_denied", "unrelated_descriptors_closed", "resource_profile_applied", "output_bounded", "timeout_enforced", "cgroup_empty_after_each_scan", "cleanup_complete"],
+      "properties": {
+        "archive_safe": {"const": true},
+        "patch_exact": {"const": true},
+        "locked_build": {"const": true},
+        "feature_graph_exact": {"const": true},
+        "dependency_review_passed": {"const": true},
+        "rules_compiled": {"const": true},
+        "all_cases_exact": {"const": true},
+        "atomic_cgroup_placement": {"const": true},
+        "landlock_read_only_job": {"const": true},
+        "network_denied": {"const": true},
+        "unrelated_descriptors_closed": {"const": true},
+        "resource_profile_applied": {"const": true},
+        "output_bounded": {"const": true},
+        "timeout_enforced": {"const": true},
+        "cgroup_empty_after_each_scan": {"const": true},
+        "cleanup_complete": {"const": true}
+      }
+    },
+    "result": {"const": "candidate_passed"},
+    "limitations": {"const": ["synthetic-only", "single-host-evidence", "mutable-runner-image", "unsigned-artifacts", "no-live-parser", "not-production", "not-iar-2", "not-a-detection-quality-or-safety-verdict"]},
+    "source_retained": {"const": false},
+    "executable_retained": {"const": false},
+    "compiled_rules_retained": {"const": false},
+    "raw_output_retained": {"const": false},
+    "network_used_by_analyzer": {"const": false},
+    "credentials_used": {"const": false},
+    "repository_content_scanned": {"const": false},
+    "artifact_uploaded": {"const": false},
+    "executable_admitted": {"const": false},
+    "ruleset_admitted": {"const": false},
+    "production_admitted": {"const": false},
+    "iar_2_admitted": {"const": false},
+    "detection_quality_claimed": {"const": false},
+    "malware_free_claimed": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

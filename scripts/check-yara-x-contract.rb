@@ -181,11 +181,17 @@ state_vectors.each do |as_of, tag_commit, assets_exact, revoked, complete, expec
 end
 
 artifact_globs = [
-  ROOT.join("{platform,profiles,rules,crates}/**/*.{yar,yara,yarc}"),
+  ROOT.join("{platform,profiles,crates}/**/*.{yar,yara,yarc}"),
   ROOT.join("{platform,profiles,rules,crates}/**/yr"),
   ROOT.join("{platform,profiles,rules,crates}/**/yr.exe")
 ]
 abort "YARA-X executable or rule artifact entered the repository" unless artifact_globs.flat_map { |glob| Dir.glob(glob.to_s) }.empty?
+
+allowed_rules = Dir.glob(ROOT.join("rules/**/*.{yar,yara,yarc}").to_s).map do |path|
+  Pathname.new(path).relative_path_from(ROOT).to_s
+end
+abort "unexpected YARA-X rule artifact entered the repository" unless
+  allowed_rules == ["rules/yara-x/synthetic-compatibility-v1.yar"]
 
 production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).select do |path|
   File.read(path).match?(/yara[_-]x|\byr\s+scan\b/i)

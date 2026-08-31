@@ -35,6 +35,7 @@ ruby ./scripts/check-v0-2-independent-review-release-gate.rb
 ruby ./scripts/check-yara-adapter-contract.rb
 ruby ./scripts/check-yara-supply-chain-contract.rb
 ruby ./scripts/check-yara-x-contract.rb
+ruby ./scripts/check-yara-x-artifact-compatibility.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -69,6 +70,17 @@ ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby -c ./scripts/check-windows-basecontainer-capability-contract.rb
 ruby -c ./scripts/check-yara-supply-chain-contract.rb
 ruby -c ./scripts/check-yara-x-contract.rb
+ruby -c ./scripts/check-yara-x-artifact-compatibility.rb
+ruby -c ./scripts/check-yara-x-source-archive.rb
+ruby -c ./scripts/check-yara-x-rule-policy.rb
+ruby -c ./scripts/check-yara-x-live-compatibility-receipt.rb
+sh -n ./scripts/yara-x-artifact-compatibility.sh
+if [ "$(uname -s)" = Linux ]; then
+  mkdir -p ./target/static-checks
+  cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
+    ./platform/linux-yara-x-compatibility/launcher.c \
+    -o ./target/static-checks/linux-yara-x-launcher
+fi
 rustfmt --check ./platform/windows-native-feasibility/windows-native-capability-probe.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-broker.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-worker.rs

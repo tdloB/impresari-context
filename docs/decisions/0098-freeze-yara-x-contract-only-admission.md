@@ -90,6 +90,11 @@ executing `yr`, accepting repository-derived analyzer input, using network or
 credentials, or claiming IAR-2, production, platform support, detection
 quality, safety, or malware-free status.
 
+ADR-0099 performs that revisit and authorizes only a narrowed, ephemeral,
+original-synthetic compatibility candidate. It does not retroactively add
+artifact, production, repository-scan, live-parser, detection, safety, or
+IAR-2 authority to this contract-only record.
+
 ## Official Sources
 
 - [YARA-X v1.20.0 release](https://github.com/VirusTotal/yara-x/releases/tag/v1.20.0)
