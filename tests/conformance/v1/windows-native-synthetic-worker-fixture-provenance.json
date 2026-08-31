@@ -1,0 +1,29 @@
+{
+  "schema_name": "windows-native-synthetic-worker-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_date": "2026-08-31",
+  "license": "Apache-2.0",
+  "fixtures": [
+    {
+      "path": "invalid/windows-native-synthetic-worker-matrix-overclaim.json",
+      "sha256": "dbf883daf5122032072534a18b5400192b39a98d6c23555ef6614bed889b83b2",
+      "origin": "repository-authored synthetic invalid admission overclaim"
+    },
+    {
+      "path": "valid/iar-windows-native-synthetic-worker-matrix-profile.json",
+      "sha256": "82ab5c5c0cff76079ae19925b92da23b2d86e3a31e7cfc58626e17cb01c14678",
+      "origin": "repository-authored synthetic worker-matrix profile"
+    },
+    {
+      "path": "valid/windows-native-synthetic-worker-matrix-contract.json",
+      "sha256": "316ae80acf202bda1f7e2dbeeed4f8c47723c072d036ab82dcb933d7a85636c6",
+      "origin": "repository-authored source-free unexecuted contract receipt"
+    }
+  ],
+  "third_party_content": false,
+  "executable_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}
