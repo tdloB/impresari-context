@@ -12,9 +12,9 @@ bytes = path.read
 required = [
   "on:\n  workflow_dispatch:\n", "permissions: {}", "runs-on: ubuntu-24.04",
   "github.repository == 'tdloB/impresari-context' && github.ref == 'refs/heads/main'",
-  "SOURCE_SHA: 104f8cc47c36c7365cd754ad4803d283bb5d4b01",
-  "SOURCE_ARCHIVE_BYTES: \"27920998\"",
-  "SOURCE_ARCHIVE_SHA256: cd0023558b9b929ca274e2f55615e7e84292a8d4e307de10c0dcabf9e9af00cb",
+  "SOURCE_SHA: 9a6bac4f8bda10b4b08ef3429587b9ae7f8bd1ce",
+  "SOURCE_ARCHIVE_BYTES: \"27920771\"",
+  "SOURCE_ARCHIVE_SHA256: 9dd03466b46fc1a882e39c2ce99c2d6ac0db18431a5c93ad2e24ab40922c0ef2",
   "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA",
   "rustup toolchain install 1.98.0 --profile minimal",
   "./scripts/yara-x-synthetic-envelope.sh", "Verify ephemeral cleanup", "if: always()"
