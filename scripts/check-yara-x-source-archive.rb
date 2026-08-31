@@ -11,6 +11,7 @@ abort "missing or symlinked YARA-X archive" unless archive.file? && !archive.sym
 
 entries = 0
 roots = []
+global_headers = 0
 Zlib::GzipReader.open(archive.to_s) do |gzip|
   Gem::Package::TarReader.new(gzip) do |tar|
     tar.each do |entry|
@@ -19,14 +20,20 @@ Zlib::GzipReader.open(archive.to_s) do |gzip|
       abort "unsafe YARA-X archive path" if
         name.empty? || name.start_with?("/") || name.include?("\0") ||
         Pathname.new(name).each_filename.any? { |part| part == ".." }
-      roots << name.split("/", 2).first
       type = entry.header.typeflag
       abort "unsupported YARA-X archive entry type #{type.inspect}" unless
         entry.file? || entry.directory? || type == "g"
+      if type == "g"
+        abort "unexpected YARA-X global header" unless name == "pax_global_header"
+        global_headers += 1
+        next
+      end
+      roots << name.split("/", 2).first
     end
   end
 end
 
 abort "YARA-X archive entry count changed" unless entries == 2292
+abort "YARA-X archive global header changed" unless global_headers == 1
 abort "YARA-X archive root changed" unless roots.uniq == [expected_root]
-puts "YARA-X source archive verified: entries=#{entries} root=#{expected_root}"
+puts "YARA-X source archive verified: entries=#{entries} global_headers=#{global_headers} root=#{expected_root}"
