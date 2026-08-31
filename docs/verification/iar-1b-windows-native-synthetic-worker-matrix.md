@@ -1,6 +1,6 @@
 # IAR-1B Windows Native Synthetic Worker Matrix
 
-- Status: Contract frozen; native worker evidence pending
+- Status: Hosted native launch attempted; exact host unsupported
 - Date: 2026-08-31
 - Decisions: [ADR-0088](../decisions/0088-windows-native-analyzer-confinement.md), [ADR-0092](../decisions/0092-freeze-windows-native-feasibility-contract.md), [ADR-0093](../decisions/0093-windows-native-synthetic-worker-matrix.md)
 
@@ -37,9 +37,36 @@ and a source-free checker are present. The contract fixture deliberately keeps
 every measured field false. Native execution cannot be inferred from schema or
 fixture validation.
 
+## Hosted Attempt
+
+PR 183 run `33365999004`, job `99406666156`, evaluated source `d01344c`
+on the `windows-2025` GitHub-hosted image: Windows Server 2025 build `26100`,
+x86-64, NTFS. The no-worker capability preflight passed. The broker then
+created and hardened fresh profiles, built the exact LPAC attributes, Job
+Object, handles, mitigations, child policy, and filtered non-caller environment,
+but `CreateProcessW` denied the first suspended worker with Win32 error `5`
+before worker code ran.
+
+The live receipt records `status=unsupported`,
+`reason_code=unsupported_host`, and keeps every measured and authority field
+false. The job passed because unsupported is an explicit fail-closed contract
+state, not because confinement was demonstrated. Exact staging and both
+profiles were removed before that receipt was emitted; uncertain cleanup would
+have failed the job.
+
+The observed boundary matches Microsoft's documented AppContainer host
+preparation limitation: least-privileged AppContainers may require a
+host-administered, non-inheriting system-drive-root access grant before common
+process images can start. This rehearsal did not alter the drive-root ACL,
+invoke an administrator helper, install a service, or weaken LPAC to ordinary
+AppContainer. A later decision must evaluate reversible host preparation,
+packaged activation, a newer BaseContainer host, or VM isolation as distinct
+authority and compatibility choices.
+
 ## Claim Boundary
 
-Even a complete first native matrix must keep `os_confined=false`,
+This hosted attempt does not establish any worker denial or resource result.
+Even a later complete native matrix must keep `os_confined=false`,
 `production_admitted=false`, and `analyzer_execution=false`. Independent-host
 repeatability, compatibility withdrawal, signing, packaging, lifecycle, and a
 later explicit admission decision remain required before Windows IAR-1B or a

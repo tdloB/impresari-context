@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   windows-native-iar:
-    name: Windows native IAR-1B contract preflight
+    name: Windows native IAR-1B synthetic candidate
     runs-on: windows-2025
     steps:
       - name: Check out source
@@ -32,6 +32,22 @@ jobs:
           rustc --edition=2024 -D warnings platform/windows-native-feasibility/windows-native-capability-probe.rs -o "$RUNNER_TEMP/windows-native-capability-probe.exe"
           "$RUNNER_TEMP/windows-native-capability-probe.exe" > "$RUNNER_TEMP/windows-native-capability-preflight.json"
           ruby scripts/check-windows-native-feasibility-contract.rb --receipt "$RUNNER_TEMP/windows-native-capability-preflight.json" | tee -a "$GITHUB_STEP_SUMMARY"
+      - name: Compile and run the fixed synthetic-worker matrix
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          EXPECTED_WINDOWS_RUNNER: windows-2025
+        run: |
+          rustfmt --check platform/windows-native-feasibility/windows-native-synthetic-broker.rs
+          rustfmt --check platform/windows-native-feasibility/windows-native-synthetic-worker.rs
+          rustc --edition=2024 -D warnings platform/windows-native-feasibility/windows-native-synthetic-worker.rs -o "$RUNNER_TEMP/windows-native-synthetic-worker.exe"
+          rustc --edition=2024 -D warnings platform/windows-native-feasibility/windows-native-synthetic-broker.rs -o "$RUNNER_TEMP/windows-native-synthetic-broker.exe"
+          export EXPECTED_WORKER_SHA256
+          EXPECTED_WORKER_SHA256=$(sha256sum < "$RUNNER_TEMP/windows-native-synthetic-worker.exe" | cut -d ' ' -f 1)
+          export EXPECTED_BROKER_SHA256
+          EXPECTED_BROKER_SHA256=$(sha256sum < "$RUNNER_TEMP/windows-native-synthetic-broker.exe" | cut -d ' ' -f 1)
+          "$RUNNER_TEMP/windows-native-synthetic-broker.exe" > "$RUNNER_TEMP/windows-native-synthetic-worker-matrix.json"
+          ruby scripts/check-windows-native-synthetic-worker-contract.rb --receipt "$RUNNER_TEMP/windows-native-synthetic-worker-matrix.json" | tee -a "$GITHUB_STEP_SUMMARY"
 
   linux-external-iar:
     name: Linux externally managed IAR-1B candidate

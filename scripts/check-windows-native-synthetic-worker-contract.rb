@@ -14,6 +14,8 @@ PROFILE_DIGEST = "82ab5c5c0cff76079ae19925b92da23b2d86e3a31e7cfc58626e17cb01c146
 BASE_PROFILE_RELATIVE = "profiles/v1/iar-windows-native-feasibility-v1.json"
 BASE_PROFILE_DIGEST = "6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73"
 ZERO_DIGEST = "sha256:" + ("0" * 64)
+BROKER_RELATIVE = "platform/windows-native-feasibility/windows-native-synthetic-broker.rs"
+WORKER_RELATIVE = "platform/windows-native-feasibility/windows-native-synthetic-worker.rs"
 
 options = {receipt: nil}
 OptionParser.new do |parser|
@@ -83,6 +85,63 @@ abort "Windows worker controls crossed an authority gate" unless
     %w[external_network_destination existing_credentials_inspected repository_input real_analyzer os_confined production_admitted authority_added]
       .none? { |key| profile.dig("controls", key) }
 
+broker_path = ROOT.join(BROKER_RELATIVE)
+worker_path = ROOT.join(WORKER_RELATIVE)
+abort "missing or symlinked Windows synthetic broker" unless broker_path.file? && !broker_path.symlink?
+abort "missing or symlinked Windows synthetic worker" unless worker_path.file? && !worker_path.symlink?
+broker = broker_path.read
+worker = worker_path.read
+abort "Windows broker launch sequence drifted" unless
+  broker.include?("PROC_THREAD_ATTRIBUTE_SECURITY_CAPABILITIES") &&
+    broker.include?("PROC_THREAD_ATTRIBUTE_ALL_APPLICATION_PACKAGES_POLICY") &&
+    broker.include?("PROC_THREAD_ATTRIBUTE_HANDLE_LIST") &&
+    broker.include?("PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY") &&
+    broker.include?("PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY") &&
+    broker.include?("size_of::<[u64; 2]>()") &&
+    broker.include?("CREATE_NO_WINDOW") &&
+    broker.include?("CREATE_SUSPENDED") &&
+    broker.include?("CREATE_UNICODE_ENVIRONMENT") &&
+    broker.include?("EXTENDED_STARTUPINFO_PRESENT") &&
+    broker.include?("AssignProcessToJobObject(job.0, process_handle.0)") &&
+    broker.include?("ResumeThread(thread_handle.0)") &&
+    broker.index("AssignProcessToJobObject(job.0, process_handle.0)") < broker.index("ResumeThread(thread_handle.0)")
+abort "Windows broker boundary corpus drifted" unless
+  expected_scenarios.all? { |scenario| broker.include?(%Q{"#{scenario}"}) } &&
+    broker.include?("GetAppContainerFolderPath") &&
+    broker.include?("path == profile.path") &&
+    broker.include?("profile.sid_string.as_str()") &&
+    broker.include?("let stage = first.path.join") &&
+    broker.include?("let second_worker = second_stage.join") &&
+    broker.include?("EnvironmentBlock::exact_system(stage)") &&
+    broker.include?("CreateEnvironmentBlock(&raw mut clean, token.0, 0)") &&
+    broker.include?(%q{"LOCALAPPDATA"}) &&
+    broker.include?(%q{"USERPROFILE"}) &&
+    broker.include?("GetWindowsDirectoryW") &&
+    broker.include?(%q{entries.insert("SystemDrive".into(), system_drive)}) &&
+    broker.include?(%q{entries.insert("SystemRoot".into(), system_root.clone())}) &&
+    broker.include?(%q{entries.insert("windir".into(), system_root)}) &&
+    broker.include?("PROTECTED_DACL_SECURITY_INFORMATION") &&
+    broker.include?("EXPECTED_WORKER_SHA256") &&
+    broker.include?("EXPECTED_BROKER_SHA256") &&
+    broker.include?("TerminateJobObject") &&
+    broker.include?("DeleteAppContainerProfile")
+abort "Windows worker protocol drifted" unless
+  expected_scenarios.all? { |scenario| worker.include?(%Q{"#{scenario}"}) } &&
+    worker.include?("TOKEN_IS_LESS_PRIVILEGED_APP_CONTAINER") &&
+    worker.include?("TOKEN_APP_CONTAINER_SID") &&
+    worker.include?("control frame exceeded 16384 bytes")
+abort "Windows synthetic sources added shell launch authority" if
+  [broker, worker].any? { |source| source.match?(/std::process::Command|Command::new/) }
+
+ci = ROOT.join(".github/workflows/ci.yml").read
+abort "Windows hosted live matrix job drifted" unless
+  ci.include?("name: Windows native IAR-1B synthetic candidate") &&
+    ci.include?("windows-native-synthetic-broker.rs") &&
+    ci.include?("windows-native-synthetic-worker.rs") &&
+    ci.include?("EXPECTED_WORKER_SHA256") &&
+    ci.include?("EXPECTED_BROKER_SHA256") &&
+    ci.include?("check-windows-native-synthetic-worker-contract.rb --receipt")
+
 provenance = read_json(FIXTURE_ROOT.join("windows-native-synthetic-worker-fixture-provenance.json"))
 expected_fixture_paths = %w[
   invalid/windows-native-synthetic-worker-matrix-overclaim.json
@@ -129,13 +188,20 @@ cleanup = boolean_values(receipt.fetch("cleanup"))
 measured = identity.merge(launch).merge(observations).merge(cleanup)
 
 if options[:receipt]
-  abort "Windows worker live matrix did not pass" unless
+  live_identity =
+    receipt.dig("host", "windows_build").match?(/\A[1-9][0-9]{0,9}\z/) &&
+    receipt.dig("host", "broker_digest") != ZERO_DIGEST &&
+    receipt.dig("host", "worker_digest") != ZERO_DIGEST
+  candidate_passed =
     receipt.fetch("status") == "candidate_passed" &&
-      receipt.fetch("reason_code") == "synthetic_matrix_passed" &&
-      receipt.dig("host", "windows_build").match?(/\A[1-9][0-9]{0,9}\z/) &&
-      receipt.dig("host", "broker_digest") != ZERO_DIGEST &&
-      receipt.dig("host", "worker_digest") != ZERO_DIGEST &&
-      measured.values.all?
+    receipt.fetch("reason_code") == "synthetic_matrix_passed" &&
+    measured.values.all?
+  unsupported_host =
+    receipt.fetch("status") == "unsupported" &&
+    receipt.fetch("reason_code") == "unsupported_host" &&
+    measured.values.none?
+  abort "Windows worker live matrix was invalid" unless
+    live_identity && (candidate_passed || unsupported_host)
 else
   abort "Windows worker contract fixture overclaimed execution" unless
     receipt.fetch("status") == "contract_fixture" &&

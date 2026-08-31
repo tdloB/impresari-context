@@ -32,14 +32,20 @@ path, repository bytes, analyzer, rule set, endpoint, arbitrary command,
 caller-supplied environment, or credential. Native execution occurs only in a
 dedicated hosted Windows job; non-Windows validation is source-free.
 
+The child environment is rebuilt rather than inherited. It retains only five
+default current-user path keys obtained with `CreateEnvironmentBlock` using
+`bInherit=false`, derives Windows loader paths from `GetWindowsDirectoryW`, and
+binds `TEMP`/`TMP` to the exact staged job. Process-level CI, repository,
+credential, proxy, and arbitrary user variables cannot cross the boundary.
+
 ## Launch Order
 
 1. Verify the exact target, base profile, matrix profile, and worker identity.
 2. Create one unique zero-capability AppContainer profile and derive its SID.
 3. Locate the profile directory and remove path-backed write access for the
    AppContainer SID; failure is unsupported.
-4. Stage original-synthetic input, worker, and host-only canaries with exact
-   DACLs and mandatory integrity compatible with LPAC.
+4. Stage one worker per fresh profile plus original-synthetic input and
+   host-only canaries with exact read/execute DACLs compatible with LPAC.
 5. Create an unnamed Job Object and set/query kill-on-close, active-process,
    process/job memory, and CPU controls with breakaway absent.
 6. Build one `STARTUPINFOEX` attribute list containing exact
