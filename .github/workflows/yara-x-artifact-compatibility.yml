@@ -1,0 +1,55 @@
+name: YARA-X synthetic artifact compatibility
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: yara-x-artifact-compatibility
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: 8b2c0163726e21174850f25cde13aaac2504101e
+  SOURCE_ARCHIVE_BYTES: "27883816"
+  SOURCE_ARCHIVE_SHA256: 9da79e8b576668c39554757eeff26db9b663f030696e6b3f0d0414eae1dc209e
+
+jobs:
+  rehearse:
+    name: YARA-X v1.20.0 / Ubuntu 24.04 x86-64 synthetic only
+    if: github.repository == 'tdloB/impresari-context' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Prepare exact public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          archive="$RUNNER_TEMP/impresari-context-source.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$archive" \
+            "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA"
+          test "$(wc -c < "$archive" | tr -d ' ')" = "$SOURCE_ARCHIVE_BYTES"
+          test "$(sha256sum "$archive" | cut -d ' ' -f 1)" = "$SOURCE_ARCHIVE_SHA256"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 -print -quit)"
+          tar -xzf "$archive" --no-same-owner --no-same-permissions \
+            --strip-components=1 -C "$GITHUB_WORKSPACE"
+          rm -f -- "$archive"
+          test "$(sha256sum profiles/v1/yara-x-artifact-compatibility-v1.json | cut -d ' ' -f 1)" = \
+            a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.93.0 --profile minimal
+      - name: Install exact dependency auditor
+        run: cargo +1.93.0 install cargo-audit --version 0.22.2 --locked
+      - name: Build and run the isolated synthetic compatibility corpus
+        run: ./scripts/yara-x-artifact-compatibility.sh
+      - name: Verify ephemeral cleanup
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$RUNNER_TEMP/impresari-yara-x-compatibility-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e target/yara-x-artifact-compatibility
+          test ! -e target/iar-linux-composite-feasibility/yara-x
+          test -z "$(find target -type f \( -name yr -o -name '*.yarc' \) -print -quit)"
