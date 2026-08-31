@@ -25,6 +25,7 @@ Run the explicit preparation step once, then the offline check:
 ./scripts/prepare-macos-vm-feasibility.sh
 ./scripts/check-macos-vm-feasibility.sh
 ./scripts/check-macos-vm-supervisor-lifecycle.sh
+./scripts/check-macos-vm-resource-canary.sh
 ```
 
 Preparation downloads only the two exact official Alpine artifacts listed in
@@ -38,5 +39,8 @@ recovery job. It builds the initramfs twice and rejects non-identical output.
 The separate supervisor-lifecycle check then runs exact external cancellation
 and forced controller termination through the Rust runner crate, proves child
 reaping and exact stale-job removal, and completes a fresh recovery VM after
-each action. Host sleep/interruption, guest memory/CPU, and the complete host-
-canary corpus remain future gates.
+each action. The separate resource/canary check builds a second frozen guest,
+proves exact guest cgroup v2 memory/CPU/process enforcement, and exercises six
+host-only canary classes through the same Rust launch boundary. Host
+sleep/interruption, sealed supply-chain/distribution, multi-host, and
+independent-review evidence remain future gates.

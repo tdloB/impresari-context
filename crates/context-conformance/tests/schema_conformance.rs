@@ -797,6 +797,81 @@ fn macos_local_vm_supervisor_profile_and_fixture_provenance_are_frozen() {
 }
 
 #[test]
+fn macos_local_vm_resource_canary_profile_and_fixture_provenance_are_frozen() {
+    let root = repository_root();
+    let profile_path = root.join("profiles/v1/iar-macos-local-vm-resource-canary-v1.json");
+    let profile_bytes = fs::read(&profile_path).expect("macOS local VM resource/canary profile");
+    let sidecar =
+        fs::read_to_string(root.join("profiles/v1/iar-macos-local-vm-resource-canary-v1.sha256"))
+            .expect("macOS local VM resource/canary profile digest sidecar");
+    assert_eq!(
+        lowercase_hex(Sha256::digest(&profile_bytes)),
+        sidecar.split_whitespace().next().expect("profile digest")
+    );
+    assert_eq!(
+        profile_bytes,
+        fs::read(
+            root.join(
+                "tests/conformance/v1/valid/iar-macos-local-vm-resource-canary-profile.json",
+            )
+        )
+        .expect("macOS local VM resource/canary profile fixture")
+    );
+    let provenance = read_json(
+        &root.join("tests/conformance/v1/macos-local-vm-resource-canary-fixture-provenance.json"),
+    );
+    assert_eq!(
+        provenance["review_status"],
+        "approved_original_synthetic_only"
+    );
+    for prohibited in [
+        "contains_executable_artifacts",
+        "contains_malware_or_live_signatures",
+        "contains_third_party_source",
+        "contains_private_or_customer_source",
+        "network_or_provider_data_used",
+    ] {
+        assert_eq!(provenance[prohibited], false);
+    }
+    let provenance_paths = provenance["cases"]
+        .as_array()
+        .expect("macOS local VM resource/canary provenance cases")
+        .iter()
+        .map(|case| {
+            assert_eq!(case["origin"], "original_synthetic");
+            assert_eq!(case["license"], "Apache-2.0");
+            let relative = case["path"].as_str().expect("fixture path");
+            assert!(!relative.starts_with('/') && !relative.contains(".."));
+            let bytes = fs::read(root.join("tests/conformance/v1").join(relative))
+                .unwrap_or_else(|error| panic!("provenance fixture {relative}: {error}"));
+            assert_eq!(
+                lowercase_hex(Sha256::digest(bytes)),
+                case["sha256"].as_str().expect("fixture digest")
+            );
+            relative
+        })
+        .collect::<BTreeSet<_>>();
+    let conformance = read_json(&root.join("tests/conformance/v1/manifest.json"));
+    let declared_paths = conformance["cases"]
+        .as_array()
+        .expect("conformance cases")
+        .iter()
+        .filter(|case| {
+            matches!(
+                case["schema"].as_str().expect("schema").split('#').next(),
+                Some(
+                    "macos-local-vm-resource-canary-profile.schema.json"
+                        | "macos-local-vm-resource-canary-receipt.schema.json"
+                        | "macos-local-vm-resource-canary-failure.schema.json"
+                )
+            )
+        })
+        .map(|case| case["fixture"].as_str().expect("fixture"))
+        .collect::<BTreeSet<_>>();
+    assert_eq!(provenance_paths, declared_paths);
+}
+
+#[test]
 fn linux_isolation_contract_profile_and_fixture_provenance_are_frozen() {
     let root = repository_root();
     let profile_path = root.join("profiles/v1/iar-linux-synthetic-v1.json");

@@ -25,3 +25,7 @@ path = "src/main.rs"
 [[bin]]
 name = "impresari-context-macos-vm-synthetic-supervisor"
 path = "src/macos_vm_supervisor.rs"
+
+[[bin]]
+name = "impresari-context-macos-vm-resource-canary"
+path = "src/macos_vm_resource_canary.rs"

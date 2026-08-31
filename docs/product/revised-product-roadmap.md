@@ -347,8 +347,14 @@ macOS IAR-1B remains closed. The following Rust-supervisor checkpoint then
 passed pre-launch controller-digest verification, exact external cancellation,
 forced controller kill/reap, exact stale-job removal, and a fresh recovery VM
 after each action while preserving the single audited analyzer launch site.
-The next checkpoint is guest memory/CPU and the complete host-canary corpus
-before any production, packaging, or real-analyzer claim.
+The following resource/canary checkpoint then froze a separate synthetic guest
+and passed exact cgroup v2 memory OOM containment, CPU throttling, process-count
+accounting, cgroup removal, exact attached-device enumeration, six host-only
+canary classes, prohibited host-path absence, host-controller process-
+identity absence, byte-exact host-canary retention, and exact job cleanup
+through the same Rust launch boundary. Host sleep/interruption, sealed guest
+supply-chain and distribution, multi-host evidence, independent review,
+production, and real analyzers remain closed.
 
 ## Parallel Client Integration Depth Track
 

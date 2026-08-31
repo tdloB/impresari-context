@@ -64,6 +64,26 @@ abort "macOS VM supervisor profile expands authority" unless
     supervisor_profile.dig("controls", "production_admitted") == false &&
     supervisor_profile.dig("controls", "authority_added") == false
 
+resource_profile_path = ROOT.join("profiles/v1/iar-macos-local-vm-resource-canary-v1.json")
+resource_profile_digest = Digest::SHA256.file(resource_profile_path).hexdigest
+abort "macOS VM resource/canary profile digest changed" unless
+  resource_profile_digest == "b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e"
+resource_sha_record = read("profiles/v1/iar-macos-local-vm-resource-canary-v1.sha256").strip
+abort "macOS VM resource/canary profile checksum record mismatch" unless
+  resource_sha_record == "#{resource_profile_digest}  iar-macos-local-vm-resource-canary-v1.json"
+abort "macOS VM resource/canary profile fixture differs from the frozen profile" unless
+  resource_profile_path.binread == ROOT.join("tests/conformance/v1/valid/iar-macos-local-vm-resource-canary-profile.json").binread
+resource_profile = json("profiles/v1/iar-macos-local-vm-resource-canary-v1.json")
+abort "macOS VM resource/canary profile expands authority" unless
+  resource_profile.dig("controls", "analyzer_execution") == false &&
+    resource_profile.dig("controls", "production_admitted") == false &&
+    resource_profile.dig("controls", "authority_added") == false
+abort "macOS VM resource/canary profile lost exact cgroup limits" unless
+  resource_profile.dig("limits", "job_memory_bytes") == "33554432" &&
+    resource_profile.dig("limits", "job_cpu_quota_usec") == "10000" &&
+    resource_profile.dig("limits", "job_cpu_period_usec") == "100000" &&
+    resource_profile.dig("limits", "job_pids") == "8"
+
 assets = json("platform/macos-vm-feasibility/guest-assets.json")
 abort "macOS VM guest asset source is not exact Alpine HTTPS" unless assets.fetch("artifacts").all? do |artifact|
   artifact.fetch("url").start_with?("https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/") &&
@@ -110,6 +130,9 @@ abort "Rust supervisor acquired a second child-process launch site" unless runne
 abort "Rust supervisor lost forced termination or exact cleanup" unless
   runner.include?("ForcedTerminationRecovery") && runner.include?("force_kill_and_collect") &&
     runner.include?("remove_exact_job(&action_job)")
+abort "Rust supervisor lost resource/canary validation" unless
+  runner.include?("execute_resource_canary") && runner.include?("validate_vm_resource_canary") &&
+    runner.include?("MACOS_VM_RESOURCE_INITRAMFS_DIGEST")
 
 guest = read("platform/macos-vm-feasibility/Sources/GuestInit/main.c")
 %w[execve( execl( system( popen( socket( connect(].each do |forbidden|
@@ -119,6 +142,17 @@ abort "synthetic guest descendant probe changed" unless guest.scan("fork(").leng
 abort "synthetic guest init lost raw scratch ceiling" unless guest.include?("#define SCRATCH_BYTES 1048576")
 abort "synthetic guest init lost read-only input probe" unless guest.include?("input_write_denied")
 abort "synthetic guest init lost network-device absence probe" unless guest.include?("network_device_absent")
+
+resource_guest = read("platform/macos-vm-feasibility/Sources/GuestResourceInit/main.c")
+%w[execve( execl( system( popen( socket( connect(].each do |forbidden|
+  abort "resource guest acquired forbidden execution/network surface: #{forbidden}" if resource_guest.include?(forbidden)
+end
+abort "resource guest lost exact cgroup controls" unless
+  resource_guest.include?("memory.max") && resource_guest.include?("cpu.max") &&
+    resource_guest.include?("pids.max") && resource_guest.include?("cgroup.kill")
+abort "resource guest lost host canary/path/process probes" unless
+  resource_guest.include?("canary_markers") && resource_guest.include?("host_paths_absent") &&
+    resource_guest.include?("host_process_invisible") && resource_guest.include?("exact_block_devices")
 
 initramfs_builder = read("scripts/build-macos-vm-initramfs.rb")
 abort "macOS VM initramfs build timestamp is not reproducible" unless initramfs_builder.include?("gzip.mtime = 1")

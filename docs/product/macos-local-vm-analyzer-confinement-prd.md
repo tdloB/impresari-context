@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Synthetic feasibility in progress; storage, fault, and supervisor lifecycle checkpoints passed
+- Status: Synthetic feasibility in progress; storage, fault, lifecycle, and resource/canary checkpoints passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -84,8 +84,15 @@ The Rust-supervisor lifecycle checkpoint then passed exact external
 cancellation, forced controller termination, child reaping, stale-job removal,
 and a fresh recovery VM after each action without adding another production
 process-launch site. A wrong controller digest failed before staging. Host
-sleep/interruption, guest memory/CPU, and the full host-canary corpus remain
-open. See the [supervisor lifecycle evidence](../verification/iar-1b-macos-local-vm-supervisor-lifecycle.md).
+sleep/interruption, guest memory/CPU, and the full host-canary corpus remained
+open at that checkpoint. See the [supervisor lifecycle evidence](../verification/iar-1b-macos-local-vm-supervisor-lifecycle.md).
+
+The resource/canary checkpoint then passed exact guest cgroup v2 memory, CPU,
+and process controls plus the frozen six-class host-canary corpus through the
+same Rust launch boundary. It retained no job state and added no production or
+confinement claim. Host sleep/interruption, sealed supply chain and
+distribution, multi-host evidence, and independent review remain open. See the
+[resource/canary evidence](../verification/iar-1b-macos-local-vm-resource-canary.md).
 
 ## Packaging Direction
 

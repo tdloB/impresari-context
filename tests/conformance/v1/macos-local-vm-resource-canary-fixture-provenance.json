@@ -1,0 +1,41 @@
+{
+  "schema_name": "macos-local-vm-resource-canary-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-resource-canary-profile.json",
+      "sha256": "b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen separate guest resource and host-canary profile"
+    },
+    {
+      "path": "valid/macos-local-vm-resource-canary-receipt.json",
+      "sha256": "c994d90093c99dee8f730c839e4ffd0a28251ae10e56307812bf1aa1ec02735d",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free Rust-supervised resource and host-canary receipt"
+    },
+    {
+      "path": "valid/macos-local-vm-resource-canary-failure.json",
+      "sha256": "dbe7eda7e322291ba990cbb56ff16ab5fa2c41ed72bc5ef942ea96452afbd76a",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free identity failure receipt"
+    },
+    {
+      "path": "invalid/macos-local-vm-resource-canary-overclaim.json",
+      "sha256": "6174837c8dedb8a6a80348edb9c025cba8f57a1233a6623008ecb096af0254b4",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject a confinement claim from partial resource/canary evidence"
+    }
+  ]
+}

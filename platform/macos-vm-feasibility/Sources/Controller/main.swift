@@ -8,12 +8,25 @@ private let profileID = "iar-macos-local-vm-synthetic-matrix-v1"
 private let profileDigest = "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522"
 private let kernelDigest = "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"
 private let initramfsDigest = "cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf"
+private let resourceProfileID = "iar-macos-local-vm-resource-canary-v1"
+private let resourceProfileDigest = "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e"
+private let resourceInitramfsDigest = "f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c"
 private let kernelBytes: UInt64 = 36_110_336
 private let inputBytes = 4_096
 private let scratchBytes: UInt64 = 1_048_576
 private let maximumInitramfsBytes: UInt64 = 2_097_152
 private let maximumSerialBytes = 65_536
 private let controllerTimeout: DispatchTimeInterval = .seconds(30)
+private let hostCanaryMarkers = [
+    "IMPRESARI_HOST_HOME_CANARY_V1",
+    "IMPRESARI_HOST_REPOSITORY_CANARY_V1",
+    "IMPRESARI_HOST_CACHE_CANARY_V1",
+    "IMPRESARI_HOST_CREDENTIAL_CANARY_V1",
+    "IMPRESARI_HOST_DEVICE_CANARY_V1",
+    "IMPRESARI_HOST_PROCESS_CANARY_V1",
+]
+private var activeProfileID = profileID
+private var activeProfileDigest = profileDigest
 
 private enum ControllerFailure: Error {
     case usage
@@ -37,6 +50,7 @@ private enum Scenario: String {
     case descendantTimeout = "descendant-timeout"
     case earlyExit = "early-exit"
     case cancellation
+    case resourceCanary = "resource-canary"
 
     var deadline: DispatchTimeInterval {
         switch self {
@@ -71,6 +85,44 @@ private struct GuestReceipt: Decodable {
         case scratchInitiallyClean = "scratch_initially_clean"
         case scratchCapacityVerified = "scratch_capacity_verified"
         case networkDeviceAbsent = "network_device_absent"
+        case sourceRetained = "source_retained"
+        case authorityAdded = "authority_added"
+    }
+}
+
+private struct ResourceGuestReceipt: Decodable {
+    let schemaName: String
+    let schemaVersion: String
+    let result: String
+    let attachedDeviceSetExact: Bool
+    let hostCanaryBytesAbsent: Bool
+    let hostPathsAbsent: Bool
+    let hostProcessInvisible: Bool
+    let memoryPressureContained: Bool
+    let memoryOOMKills: String
+    let cpuPressureBounded: Bool
+    let cpuUsageMicroseconds: String
+    let cpuThrottledPeriods: String
+    let pidsPeak: String
+    let jobCgroupRemoved: Bool
+    let sourceRetained: Bool
+    let authorityAdded: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case schemaName = "schema_name"
+        case schemaVersion = "schema_version"
+        case result
+        case attachedDeviceSetExact = "attached_device_set_exact"
+        case hostCanaryBytesAbsent = "host_canary_bytes_absent"
+        case hostPathsAbsent = "host_paths_absent"
+        case hostProcessInvisible = "host_process_invisible"
+        case memoryPressureContained = "memory_pressure_contained"
+        case memoryOOMKills = "memory_oom_kills"
+        case cpuPressureBounded = "cpu_pressure_bounded"
+        case cpuUsageMicroseconds = "cpu_usage_usec"
+        case cpuThrottledPeriods = "cpu_throttled_periods"
+        case pidsPeak = "pids_peak"
+        case jobCgroupRemoved = "job_cgroup_removed"
         case sourceRetained = "source_retained"
         case authorityAdded = "authority_added"
     }
@@ -139,6 +191,94 @@ private struct ControllerReceipt: Encodable {
         case productionAdmitted = "production_admitted"
         case sourceRetained = "source_retained"
         case authorityAdded = "authority_added"
+    }
+}
+
+private struct ResourceControllerReceipt: Encodable {
+    let schemaName = "macos-local-vm-resource-canary-receipt"
+    let schemaVersion = "1.0.0"
+    let profileID: String
+    let profileDigest: String
+    let jobID: String
+    let result: String
+    let kernelDigest: String
+    let initramfsDigest: String
+    let inputDigest: String
+    let virtualizationSupported: Bool
+    let configurationValidated: Bool
+    let cpuCount: String
+    let memoryBytes: String
+    let storageDevices: String
+    let networkDevices: String
+    let directoryShares: String
+    let hostCanaryCorpusCreated: Bool
+    let hostCanaryCorpusUnchanged: Bool
+    let attachedDeviceSetExact: Bool
+    let hostCanaryBytesAbsent: Bool
+    let hostPathsAbsent: Bool
+    let hostProcessInvisible: Bool
+    let memoryPressureContained: Bool
+    let memoryOOMKills: String
+    let cpuPressureBounded: Bool
+    let cpuUsageMicroseconds: String
+    let cpuThrottledPeriods: String
+    let pidsPeak: String
+    let jobCgroupRemoved: Bool
+    let jobRemoved: Bool
+    let vmConfined: Bool
+    let productionAdmitted: Bool
+    let analyzerExecution: Bool
+    let sourceRetained: Bool
+    let authorityAdded: Bool
+
+    enum CodingKeys: String, CodingKey {
+        case schemaName = "schema_name"
+        case schemaVersion = "schema_version"
+        case profileID = "profile_id"
+        case profileDigest = "profile_digest"
+        case jobID = "job_id"
+        case result
+        case kernelDigest = "kernel_digest"
+        case initramfsDigest = "initramfs_digest"
+        case inputDigest = "input_digest"
+        case virtualizationSupported = "virtualization_supported"
+        case configurationValidated = "configuration_validated"
+        case cpuCount = "cpu_count"
+        case memoryBytes = "memory_bytes"
+        case storageDevices = "storage_devices"
+        case networkDevices = "network_devices"
+        case directoryShares = "directory_shares"
+        case hostCanaryCorpusCreated = "host_canary_corpus_created"
+        case hostCanaryCorpusUnchanged = "host_canary_corpus_unchanged"
+        case attachedDeviceSetExact = "attached_device_set_exact"
+        case hostCanaryBytesAbsent = "host_canary_bytes_absent"
+        case hostPathsAbsent = "host_paths_absent"
+        case hostProcessInvisible = "host_process_invisible"
+        case memoryPressureContained = "memory_pressure_contained"
+        case memoryOOMKills = "memory_oom_kills"
+        case cpuPressureBounded = "cpu_pressure_bounded"
+        case cpuUsageMicroseconds = "cpu_usage_usec"
+        case cpuThrottledPeriods = "cpu_throttled_periods"
+        case pidsPeak = "pids_peak"
+        case jobCgroupRemoved = "job_cgroup_removed"
+        case jobRemoved = "job_removed"
+        case vmConfined = "vm_confined"
+        case productionAdmitted = "production_admitted"
+        case analyzerExecution = "analyzer_execution"
+        case sourceRetained = "source_retained"
+        case authorityAdded = "authority_added"
+    }
+}
+
+private enum ControllerOutput: Encodable {
+    case matrix(ControllerReceipt)
+    case resource(ResourceControllerReceipt)
+
+    func encode(to encoder: Encoder) throws {
+        switch self {
+        case let .matrix(receipt): try receipt.encode(to: encoder)
+        case let .resource(receipt): try receipt.encode(to: encoder)
+        }
     }
 }
 
@@ -280,6 +420,61 @@ private func guestReceipt(from serialData: Data) throws -> GuestReceipt {
     return receipt
 }
 
+private func resourceGuestReceipt(from serialData: Data) throws -> ResourceGuestReceipt {
+    guard serialData.count <= maximumSerialBytes,
+          let text = String(data: serialData, encoding: .utf8),
+          let line = text.split(separator: "\n").last(where: { $0.hasPrefix("IMPRESARI_VM_RECEIPT ") })
+    else {
+        throw ControllerFailure.guest
+    }
+    for marker in hostCanaryMarkers where serialData.range(of: Data(marker.utf8)) != nil {
+        throw ControllerFailure.guest
+    }
+    let json = line.dropFirst("IMPRESARI_VM_RECEIPT ".count)
+    let receipt = try JSONDecoder().decode(ResourceGuestReceipt.self, from: Data(json.utf8))
+    guard let oomKills = UInt64(receipt.memoryOOMKills), oomKills >= 1,
+          let cpuUsage = UInt64(receipt.cpuUsageMicroseconds),
+          (50_000 ... 400_000).contains(cpuUsage),
+          let throttled = UInt64(receipt.cpuThrottledPeriods), throttled >= 1,
+          let pidsPeak = UInt64(receipt.pidsPeak), pidsPeak <= 8,
+          receipt.schemaName == "macos-local-vm-resource-canary-guest-receipt",
+          receipt.schemaVersion == "1.0.0",
+          receipt.result == "passed",
+          receipt.attachedDeviceSetExact,
+          receipt.hostCanaryBytesAbsent,
+          receipt.hostPathsAbsent,
+          receipt.hostProcessInvisible,
+          receipt.memoryPressureContained,
+          receipt.cpuPressureBounded,
+          receipt.jobCgroupRemoved,
+          !receipt.sourceRetained,
+          !receipt.authorityAdded
+    else {
+        throw ControllerFailure.guest
+    }
+    return receipt
+}
+
+private func createHostCanaryCorpus(at root: URL) throws {
+    try FileManager.default.createDirectory(at: root, withIntermediateDirectories: false,
+                                            attributes: [.posixPermissions: 0o700])
+    for (index, marker) in hostCanaryMarkers.enumerated() {
+        let url = root.appendingPathComponent("canary-\(index).txt", isDirectory: false)
+        try Data("\(marker)\n".utf8).write(to: url, options: [.atomic])
+    }
+}
+
+private func hostCanaryCorpusUnchanged(at root: URL) -> Bool {
+    for (index, marker) in hostCanaryMarkers.enumerated() {
+        let url = root.appendingPathComponent("canary-\(index).txt", isDirectory: false)
+        guard let bytes = try? Data(contentsOf: url), bytes == Data("\(marker)\n".utf8) else {
+            return false
+        }
+    }
+    let entries = try? FileManager.default.contentsOfDirectory(atPath: root.path)
+    return entries?.count == hostCanaryMarkers.count
+}
+
 private func printFailure(_ failure: ControllerFailure) {
     let category: String
     switch failure {
@@ -295,7 +490,10 @@ private func printFailure(_ failure: ControllerFailure) {
     case .guest: category = "guest_failed"
     case .cleanup: category = "cleanup_failed"
     }
-    print("{\"schema_name\":\"macos-local-vm-matrix-failure\",\"schema_version\":\"1.0.0\",\"profile_id\":\"\(profileID)\",\"profile_digest\":\"\(profileDigest)\",\"category\":\"\(category)\",\"vm_confined\":false,\"production_admitted\":false,\"analyzer_execution\":false,\"source_retained\":false,\"authority_added\":false}")
+    let schemaName = activeProfileID == resourceProfileID
+        ? "macos-local-vm-resource-canary-failure"
+        : "macos-local-vm-matrix-failure"
+    print("{\"schema_name\":\"\(schemaName)\",\"schema_version\":\"1.0.0\",\"profile_id\":\"\(activeProfileID)\",\"profile_digest\":\"\(activeProfileDigest)\",\"category\":\"\(category)\",\"vm_confined\":false,\"production_admitted\":false,\"analyzer_execution\":false,\"source_retained\":false,\"authority_added\":false}")
 }
 
 private func printDiagnostic(_ error: Error) {
@@ -306,7 +504,7 @@ private func printDiagnostic(_ error: Error) {
 }
 
 @available(macOS 13.0, *)
-private func run() throws -> ControllerReceipt {
+private func run() throws -> ControllerOutput {
     guard CommandLine.arguments.count == 4 else { throw ControllerFailure.usage }
     guard VZVirtualMachine.isSupported else { throw ControllerFailure.unsupported }
 
@@ -317,12 +515,20 @@ private func run() throws -> ControllerReceipt {
         throw ControllerFailure.usage
     }
 
+    let resourceScenario = scenario == .resourceCanary
+    activeProfileID = resourceScenario ? resourceProfileID : profileID
+    activeProfileDigest = resourceScenario ? resourceProfileDigest : profileDigest
+
     let kernelURL = assetRoot.appendingPathComponent("Image", isDirectory: false)
-    let initramfsURL = assetRoot.appendingPathComponent("impresari-initramfs.gz", isDirectory: false)
+    let initramfsName = resourceScenario
+        ? "impresari-resource-initramfs.gz"
+        : "impresari-initramfs.gz"
+    let expectedInitramfsDigest = resourceScenario ? resourceInitramfsDigest : initramfsDigest
+    let initramfsURL = assetRoot.appendingPathComponent(initramfsName, isDirectory: false)
     guard try exactFileSize(kernelURL) == kernelBytes,
           try digest(kernelURL) == kernelDigest,
           try exactFileSize(initramfsURL) <= maximumInitramfsBytes,
-          try digest(initramfsURL) == initramfsDigest
+          try digest(initramfsURL) == expectedInitramfsDigest
     else {
         throw ControllerFailure.invalidIdentity
     }
@@ -347,9 +553,13 @@ private func run() throws -> ControllerReceipt {
     let scratchURL = jobRoot.appendingPathComponent("scratch.raw")
     let controllerReadyURL = jobRoot.appendingPathComponent("controller.ready")
     let externalCancellationURL = jobRoot.appendingPathComponent("cancel.request")
+    let hostCanaryRoot = jobRoot.appendingPathComponent("host-canaries", isDirectory: true)
     let input = makeInput()
     try input.write(to: inputURL, options: [.atomic])
     try createScratch(at: scratchURL)
+    if resourceScenario {
+        try createHostCanaryCorpus(at: hostCanaryRoot)
+    }
     let inputDigest = try digest(inputURL)
 
     let bootLoader = VZLinuxBootLoader(kernelURL: kernelURL)
@@ -440,10 +650,13 @@ private func run() throws -> ControllerReceipt {
 
     let (serialData, serialOverflow) = serialCapture.closeAndCollect()
     if serialOverflow { throw ControllerFailure.outputLimit }
-    let guest = try guestReceipt(from: serialData)
+    let guest = resourceScenario ? nil : try guestReceipt(from: serialData)
+    let resourceGuest = resourceScenario ? try resourceGuestReceipt(from: serialData) : nil
+    let canariesUnchanged = resourceScenario && hostCanaryCorpusUnchanged(at: hostCanaryRoot)
     guard try exactFileSize(inputURL) == UInt64(inputBytes),
           try digest(inputURL) == inputDigest,
-          try exactFileSize(scratchURL) == scratchBytes
+          try exactFileSize(scratchURL) == scratchBytes,
+          !resourceScenario || canariesUnchanged
     else {
         throw ControllerFailure.guest
     }
@@ -458,7 +671,45 @@ private func run() throws -> ControllerReceipt {
     }
     cleanupNeeded = false
 
-    return ControllerReceipt(
+    if let resourceGuest {
+        return .resource(ResourceControllerReceipt(
+            profileID: resourceProfileID,
+            profileDigest: resourceProfileDigest,
+            jobID: jobID,
+            result: "partial_resource_canary_passed",
+            kernelDigest: "sha256:\(kernelDigest)",
+            initramfsDigest: "sha256:\(resourceInitramfsDigest)",
+            inputDigest: "sha256:\(inputDigest)",
+            virtualizationSupported: true,
+            configurationValidated: true,
+            cpuCount: "1",
+            memoryBytes: "268435456",
+            storageDevices: "2",
+            networkDevices: "0",
+            directoryShares: "0",
+            hostCanaryCorpusCreated: true,
+            hostCanaryCorpusUnchanged: canariesUnchanged,
+            attachedDeviceSetExact: resourceGuest.attachedDeviceSetExact,
+            hostCanaryBytesAbsent: resourceGuest.hostCanaryBytesAbsent,
+            hostPathsAbsent: resourceGuest.hostPathsAbsent,
+            hostProcessInvisible: resourceGuest.hostProcessInvisible,
+            memoryPressureContained: resourceGuest.memoryPressureContained,
+            memoryOOMKills: resourceGuest.memoryOOMKills,
+            cpuPressureBounded: resourceGuest.cpuPressureBounded,
+            cpuUsageMicroseconds: resourceGuest.cpuUsageMicroseconds,
+            cpuThrottledPeriods: resourceGuest.cpuThrottledPeriods,
+            pidsPeak: resourceGuest.pidsPeak,
+            jobCgroupRemoved: resourceGuest.jobCgroupRemoved,
+            jobRemoved: true,
+            vmConfined: false,
+            productionAdmitted: false,
+            analyzerExecution: false,
+            sourceRetained: false,
+            authorityAdded: false
+        ))
+    }
+    guard let guest else { throw ControllerFailure.guest }
+    return .matrix(ControllerReceipt(
         profileID: profileID,
         profileDigest: profileDigest,
         jobID: jobID,
@@ -487,7 +738,7 @@ private func run() throws -> ControllerReceipt {
         productionAdmitted: false,
         sourceRetained: false,
         authorityAdded: false
-    )
+    ))
 }
 
 do {

@@ -1,0 +1,47 @@
+{
+  "schema_name": "macos-local-vm-resource-canary-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-resource-canary-v1",
+  "profile_version": "1.0.0",
+  "guest": {
+    "architecture": "aarch64",
+    "kernel_sha256": "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd",
+    "guest_init_sha256": "7e5add284e63a059c5df32b66a2bd18b0d96a5e4b5809c00a02bd9a82e7fa3f6",
+    "initramfs_sha256": "f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c",
+    "synthetic_init_only": true
+  },
+  "limits": {
+    "virtual_cpus": "1",
+    "vm_memory_bytes": "268435456",
+    "job_memory_bytes": "33554432",
+    "job_cpu_quota_usec": "10000",
+    "job_cpu_period_usec": "100000",
+    "job_pids": "8",
+    "input_bytes": "4096",
+    "scratch_bytes": "1048576",
+    "accepted_serial_bytes": "65536",
+    "elapsed_ms": "30000"
+  },
+  "host_canary_classes": [
+    "home",
+    "repository",
+    "cache",
+    "credential",
+    "device",
+    "process"
+  ],
+  "controls": {
+    "separate_frozen_guest_identity": true,
+    "exact_two_block_devices": true,
+    "no_directory_share": true,
+    "no_network_device": true,
+    "host_canary_bytes_absent_from_attached_disks": true,
+    "host_paths_absent": true,
+    "host_process_invisible": true,
+    "guest_cgroup_v2_memory_cpu_pids": true,
+    "job_cgroup_removed": true,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "authority_added": false
+  }
+}

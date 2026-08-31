@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-resource-canary-profile.schema.json",
+  "title": "ADR-0087 macOS local-VM resource and host-canary profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "guest", "limits", "host_canary_classes", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-resource-canary-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-resource-canary-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "guest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "kernel_sha256", "guest_init_sha256", "initramfs_sha256", "synthetic_init_only"],
+      "properties": {
+        "architecture": {"const": "aarch64"},
+        "kernel_sha256": {"const": "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"},
+        "guest_init_sha256": {"const": "7e5add284e63a059c5df32b66a2bd18b0d96a5e4b5809c00a02bd9a82e7fa3f6"},
+        "initramfs_sha256": {"const": "f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c"},
+        "synthetic_init_only": {"const": true}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["virtual_cpus", "vm_memory_bytes", "job_memory_bytes", "job_cpu_quota_usec", "job_cpu_period_usec", "job_pids", "input_bytes", "scratch_bytes", "accepted_serial_bytes", "elapsed_ms"],
+      "properties": {
+        "virtual_cpus": {"const": "1"},
+        "vm_memory_bytes": {"const": "268435456"},
+        "job_memory_bytes": {"const": "33554432"},
+        "job_cpu_quota_usec": {"const": "10000"},
+        "job_cpu_period_usec": {"const": "100000"},
+        "job_pids": {"const": "8"},
+        "input_bytes": {"const": "4096"},
+        "scratch_bytes": {"const": "1048576"},
+        "accepted_serial_bytes": {"const": "65536"},
+        "elapsed_ms": {"const": "30000"}
+      }
+    },
+    "host_canary_classes": {"const": ["home", "repository", "cache", "credential", "device", "process"]},
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["separate_frozen_guest_identity", "exact_two_block_devices", "no_directory_share", "no_network_device", "host_canary_bytes_absent_from_attached_disks", "host_paths_absent", "host_process_invisible", "guest_cgroup_v2_memory_cpu_pids", "job_cgroup_removed", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "separate_frozen_guest_identity": {"const": true},
+        "exact_two_block_devices": {"const": true},
+        "no_directory_share": {"const": true},
+        "no_network_device": {"const": true},
+        "host_canary_bytes_absent_from_attached_disks": {"const": true},
+        "host_paths_absent": {"const": true},
+        "host_process_invisible": {"const": true},
+        "guest_cgroup_v2_memory_cpu_pids": {"const": true},
+        "job_cgroup_removed": {"const": true},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

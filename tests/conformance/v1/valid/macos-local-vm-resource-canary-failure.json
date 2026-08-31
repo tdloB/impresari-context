@@ -1,0 +1,12 @@
+{
+  "schema_name": "macos-local-vm-resource-canary-failure",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-resource-canary-v1",
+  "profile_digest": "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e",
+  "category": "invalid_identity",
+  "vm_confined": false,
+  "production_admitted": false,
+  "analyzer_execution": false,
+  "source_retained": false,
+  "authority_added": false
+}
