@@ -121,13 +121,23 @@ metadata sealing, vulnerability disposition, Developer ID signing,
 notarization, distribution lifecycle, and production admission remain open.
 See the [upstream-authentication evidence](../verification/iar-1b-macos-local-vm-upstream-authentication.md).
 
+The bounded vulnerability-review checkpoint then dispositioned that exact
+candidate as denied: its `6.18.35-0-virt` kernel is thirteen stable patch
+releases behind Alpine 3.24 aarch64 `linux-virt` `6.18.48-r0`, and the
+published Alpine secdb record does not establish complete current 6.18
+advisory coverage. Replacement is mandatory. The review does not assert CVE
+applicability, vulnerability freedom, assessment completion, production
+admission, or analyzer authority. See the
+[vulnerability disposition](../verification/iar-1b-macos-local-vm-vulnerability-disposition.md).
+
 ## Packaging Direction
 
 ADR-0076's one CLI-compatible Homebrew cask remains the desired user topology.
 Its XPC execution payload is replaced only after the VM backend is admitted.
 The guest image may be bundled or explicitly downloaded later; that distribution
 choice requires exact signing, expiry, rollback, and offline behavior evidence.
-The candidate now has exact expiry, rollback, offline behavior, and upstream
-publisher-authentication evidence. Vulnerability disposition, Impresari release-
-metadata sealing, signing, notarization, and the final bundle/update lifecycle
-remain open.
+The candidate now has exact expiry, rollback, offline behavior, upstream
+publisher-authentication evidence, and a fail-closed vulnerability
+disposition. It was denied and must be replaced before a complete assessment.
+Impresari release-metadata sealing, signing, notarization, and the final
+bundle/update lifecycle remain open.

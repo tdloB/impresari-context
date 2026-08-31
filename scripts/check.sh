@@ -40,6 +40,7 @@ ruby ./scripts/check-roadmap-maintenance-automation.rb
 ruby ./scripts/check-macos-vm-contracts.rb
 ruby ./scripts/check-macos-vm-guest-supply-chain.rb
 ruby ./scripts/check-macos-vm-upstream-auth-contract.rb
+ruby ./scripts/check-macos-vm-vulnerability-review.rb
 sh -n ./scripts/prepare-macos-vm-feasibility.sh
 sh -n ./scripts/build-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-feasibility.sh
@@ -50,6 +51,7 @@ ruby -c ./scripts/build-macos-vm-initramfs.rb
 ruby -c ./scripts/extract-macos-vm-kernel.rb
 ruby -c ./scripts/check-macos-vm-guest-supply-chain.rb
 ruby -c ./scripts/check-macos-vm-upstream-auth-contract.rb
+ruby -c ./scripts/check-macos-vm-vulnerability-review.rb
 sh -n ./scripts/verify-macos-vm-alpine-archive.sh
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null

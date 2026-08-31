@@ -385,6 +385,13 @@ runtime network is added. This closes upstream publisher authentication only;
 it does not change the remaining release-sealing, vulnerability, distribution,
 macOS IAR-1A, or IAR-2 gates.
 
+The subsequent bounded vulnerability review denies the exact authenticated
+guest candidate because its kernel is thirteen stable patch releases behind
+the current Alpine 3.24 aarch64 package and the provider secdb record does not
+establish complete 6.18 advisory coverage. Replacement is required;
+`vulnerability_assessment_complete`, production admission, macOS IAR-1B, and
+IAR-2 remain false.
+
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,
 this profile grants read-only staged input and zero writable path-backed
