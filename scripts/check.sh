@@ -46,6 +46,7 @@ ruby ./scripts/check-macos-vm-vulnerability-review-v2.rb
 ruby ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby ./scripts/check-windows-native-feasibility-contract.rb
 ruby ./scripts/check-windows-native-synthetic-worker-contract.rb
+ruby ./scripts/check-windows-basecontainer-capability-contract.rb
 sh -n ./scripts/prepare-macos-vm-feasibility.sh
 sh -n ./scripts/build-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-feasibility.sh
@@ -62,9 +63,11 @@ ruby -c ./scripts/check-macos-vm-vulnerability-review-v2.rb
 ruby -c ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby -c ./scripts/check-windows-native-feasibility-contract.rb
 ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
+ruby -c ./scripts/check-windows-basecontainer-capability-contract.rb
 rustfmt --check ./platform/windows-native-feasibility/windows-native-capability-probe.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-broker.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-worker.rs
+rustfmt --check ./platform/windows-native-feasibility/windows-basecontainer-capability-probe.rs
 sh -n ./scripts/verify-macos-vm-alpine-archive.sh
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null

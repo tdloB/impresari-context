@@ -11,6 +11,29 @@ permissions:
   contents: read
 
 jobs:
+  windows-basecontainer-capability:
+    name: Windows BaseContainer no-worker capability
+    runs-on: windows-11-arm
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt
+          rustup override set 1.98.0
+      - name: Observe the no-worker BaseContainer capability
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          EXPECTED_WINDOWS_RUNNER: windows-11-arm
+        run: |
+          rustfmt --check platform/windows-native-feasibility/windows-basecontainer-capability-probe.rs
+          rustc --edition=2024 -D warnings platform/windows-native-feasibility/windows-basecontainer-capability-probe.rs -o "$RUNNER_TEMP/windows-basecontainer-capability-probe.exe"
+          cd "$RUNNER_TEMP"
+          ./windows-basecontainer-capability-probe.exe > windows-basecontainer-capability.json
+          ruby "$GITHUB_WORKSPACE/scripts/check-windows-basecontainer-capability-contract.rb" --receipt "$RUNNER_TEMP/windows-basecontainer-capability.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
   windows-native-iar:
     name: Windows native IAR-1B synthetic candidate
     runs-on: windows-2025

@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/windows-basecontainer-capability-profile.schema.json",
+  "title": "ADR-0094 Windows BaseContainer capability profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "target", "basecontainer", "observation", "claims"],
+  "properties": {
+    "schema_name": {"const": "windows-basecontainer-capability-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-windows-basecontainer-capability-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os_family", "os_product_type", "runner_environment", "runner_label", "architecture", "filesystem", "minimum_windows_build"],
+      "properties": {
+        "os_family": {"const": "windows"},
+        "os_product_type": {"const": "workstation"},
+        "runner_environment": {"const": "github-hosted"},
+        "runner_label": {"const": "windows-11-arm"},
+        "architecture": {"const": "arm64"},
+        "filesystem": {"const": "ntfs"},
+        "minimum_windows_build": {"const": "26600"}
+      }
+    },
+    "basecontainer": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["module", "sandbox_specification_version", "required_exports"],
+      "properties": {
+        "module": {"const": "processmodel.dll"},
+        "sandbox_specification_version": {"const": "0.1.0"},
+        "required_exports": {
+          "const": ["Experimental_CreateProcessAsUserInSandbox", "Experimental_CreateProcessInSandbox"]
+        }
+      }
+    },
+    "observation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["system_module_export_inspection", "process_launch", "sandbox_api_invocation", "appcontainer_profile_mutation", "host_acl_mutation", "windows_feature_mutation", "elevation_request", "service_installation", "network_access", "credential_access", "repository_content_access"],
+      "properties": {
+        "system_module_export_inspection": {"const": true},
+        "process_launch": {"const": false},
+        "sandbox_api_invocation": {"const": false},
+        "appcontainer_profile_mutation": {"const": false},
+        "host_acl_mutation": {"const": false},
+        "windows_feature_mutation": {"const": false},
+        "elevation_request": {"const": false},
+        "service_installation": {"const": false},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_content_access": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["synthetic_worker_launched", "os_confined", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "synthetic_worker_launched": {"const": false},
+        "os_confined": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}
