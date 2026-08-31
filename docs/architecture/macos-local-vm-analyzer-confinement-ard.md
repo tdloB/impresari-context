@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Synthetic feasibility in progress; partial simulated-interruption checkpoint passed
+- Status: Synthetic feasibility in progress; offline guest supply-chain checkpoint passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -107,3 +107,14 @@ requires both exact roots absent, and boots a fresh recovery VM. The profile
 and schema freeze `real_host_sleep_observed=false`, so this automated path
 cannot satisfy the genuine sleep/wake gate. No automatic sleep command is
 included in routine checks.
+
+The sixth checkpoint adds a source-free offline supply-chain admission gate.
+One exact manifest binds the upstream Alpine artifacts, all six prepared guest
+components, build inputs, SPDX SBOM, license record, provenance record,
+vulnerability policy, validity interval, component-set identity, and explicit
+initial rollback state. The checker rejects record, source, component, expiry,
+or policy drift and can optionally measure a prepared output root without
+network access. HTTPS plus frozen SHA-256 protects the reviewed byte identity;
+it does not authenticate the upstream publisher. The candidate therefore
+remains unsigned, unnotarized, vulnerability-unassessed, unsealed, and denied
+for production and analyzer execution.

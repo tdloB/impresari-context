@@ -361,6 +361,14 @@ job-private synthetic interruption trigger. Its contract fixes
 `real_host_sleep_observed=false`; genuine sleep/wake, reboot, power loss,
 sealed supply chain and distribution, multi-host evidence, independent review,
 production, and real analyzers remain closed.
+The following offline supply-chain checkpoint then froze the expiring guest
+release manifest, exact six-component inventory, SPDX SBOM, license record,
+source/build provenance, vulnerability policy, and explicit initial rollback
+identity. Both source-only CI validation and exact prepared-artifact validation
+passed. Publisher authentication, vulnerability disposition, Developer ID
+signing/notarization, one-cask lifecycle, genuine sleep/reboot/power-loss,
+multi-host evidence, independent review, production, and real analyzers remain
+closed.
 
 ## Parallel Client Integration Depth Track
 

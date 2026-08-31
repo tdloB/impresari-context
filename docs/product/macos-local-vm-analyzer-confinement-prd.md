@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Synthetic feasibility in progress; storage, fault, lifecycle, resource/canary, and simulated-interruption checkpoints passed
+- Status: Synthetic feasibility in progress; storage, fault, lifecycle, resource/canary, simulated-interruption, and offline supply-chain checkpoints passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -102,9 +102,22 @@ power-loss recovery, sealed supply chain and distribution, multi-host evidence,
 and independent review remain open. See the
 [host-interruption evidence](../verification/iar-1b-macos-local-vm-host-interruption.md).
 
+The guest supply-chain checkpoint then froze one expiring synthetic-candidate
+release manifest, the complete six-component guest inventory, SPDX SBOM,
+license record, exact source/build provenance, vulnerability policy, and an
+explicit initial rollback state. Its offline checker passed against both the
+committed metadata and every already-prepared component on the native host.
+The receipt fixes publisher authentication, vulnerability completion,
+cryptographic signature, notarization, sealed distribution, production, and
+analyzer execution to false. See the
+[guest supply-chain evidence](../verification/iar-1b-macos-local-vm-guest-supply-chain.md).
+
 ## Packaging Direction
 
 ADR-0076's one CLI-compatible Homebrew cask remains the desired user topology.
 Its XPC execution payload is replaced only after the VM backend is admitted.
 The guest image may be bundled or explicitly downloaded later; that distribution
 choice requires exact signing, expiry, rollback, and offline behavior evidence.
+The candidate now has exact expiry, rollback, and offline behavior evidence;
+publisher authentication, vulnerability disposition, signing, notarization,
+and the final bundle/update lifecycle remain open.

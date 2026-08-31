@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; partial synthetic interruption checkpoint passed
+- Status: Accepted; offline guest supply-chain checkpoint passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -88,3 +88,13 @@ all exact job state, and completed a fresh recovery VM through the same audited
 Rust launch site. Its closed receipt requires `real_host_sleep_observed=false`.
 Genuine host sleep/wake, reboot, power-loss, sealed supply-chain/distribution,
 multi-host, and independent-review gates remain mandatory before admission.
+
+The sixth checkpoint freezes an expiring synthetic guest release manifest,
+complete component inventory, SPDX SBOM, license and provenance records,
+vulnerability policy, and explicit initial rollback identity. Its offline gate
+passed against both repository metadata and every prepared guest component.
+Because the upstream publisher has not been authenticated, vulnerabilities
+have not been dispositioned, and no Developer ID signature or notarized bundle
+exists, its receipt requires `sealed_distribution=false` and
+`production_admitted=false`. This implements ADR-0087's existing supply-chain
+design without making a new topology decision.

@@ -370,6 +370,14 @@ canary corpus through the same Rust launch boundary. Host interruption, sealed
 supply chain and distribution, multi-host evidence, and independent review
 still keep macOS at IAR-1A and IAR-2 closed.
 
+A later offline supply-chain checkpoint now binds the exact guest component
+set to an expiring release manifest, SPDX SBOM, license record, source/build
+provenance, vulnerability policy, and explicit initial rollback state. The
+metadata and prepared components pass the offline verifier, but publisher
+authentication, vulnerability disposition, Developer ID signing/notarization,
+and the distribution lifecycle remain open. It therefore does not change the
+macOS IAR-1A or IAR-2 posture.
+
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,
 this profile grants read-only staged input and zero writable path-backed

@@ -1,0 +1,46 @@
+{
+  "schema_name": "macos-local-vm-guest-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "build_reproducibility": "same-host-byte-reproduction-observed",
+  "upstream_publisher_authentication": "not-verified",
+  "upstream_transport": "https-with-exact-size-and-sha256",
+  "toolchain": {
+    "zig": "0.16.0",
+    "target": "aarch64-linux-musl",
+    "initramfs_builder": "ruby-stdlib-canonical-cpio-gzip-mtime-1"
+  },
+  "build_inputs": [
+    {
+      "path": "scripts/prepare-macos-vm-feasibility.sh",
+      "sha256": "08d458c16048d225a5fa3e10e70763fa2daa51ad1dcc2ae9941bc8a465ff9be2"
+    },
+    {
+      "path": "scripts/build-macos-vm-feasibility.sh",
+      "sha256": "79aca92d02ab6c23130db9828c9032090a3c59e2739e087148e4562a2d28ea96"
+    },
+    {
+      "path": "scripts/build-macos-vm-initramfs.rb",
+      "sha256": "d48be1a09716e0fdfb230be32af09a2d04c695b476429bcae0ee85df55d40344"
+    },
+    {
+      "path": "scripts/extract-macos-vm-kernel.rb",
+      "sha256": "0bbf2d0be65d0bfcfa1eb7fa427440a08637d194a6f491cc386e541dd241c192"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/Sources/GuestInit/main.c",
+      "sha256": "53a0b2c35851927e3574631044369448fc2330150ecedeeea589c190db101fe3"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/Sources/GuestResourceInit/main.c",
+      "sha256": "0200bb24e3add830bfe6e780da974ace1416f2e05ae7d81c50c6d02f8a9873b2"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-assets.json",
+      "sha256": "3e04a2bd1b2b6cc495bc04723f1f296780d3c12fd71a08b415874abe3f005ba4"
+    }
+  ],
+  "network_used_by_offline_admission": false,
+  "production_admitted": false,
+  "authority_added": false
+}
