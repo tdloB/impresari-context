@@ -369,6 +369,14 @@ passed. Publisher authentication, vulnerability disposition, Developer ID
 signing/notarization, one-cask lifecycle, genuine sleep/reboot/power-loss,
 multi-host evidence, independent review, production, and real analyzers remain
 closed.
+The next explicit release-time check then verified Alpine's detached signature
+on the exact 3.24.1 aarch64 netboot archive under the fingerprint published on
+Alpine's official downloads page. Its embedded kernel and initramfs exactly
+match the frozen guest inputs. Upstream publisher authentication is therefore
+closed for this candidate; Impresari metadata sealing, vulnerability
+disposition, Apple signing/notarization, one-cask lifecycle, multi-host and
+disruptive lifecycle evidence, independent review, production, and real
+analyzers remain closed.
 
 ## Parallel Client Integration Depth Track
 

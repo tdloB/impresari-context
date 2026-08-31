@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-upstream-auth-profile.schema.json",
+  "title": "ADR-0087 macOS local-VM upstream authentication profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "guest_release_manifest_digest", "authentication_record_path", "authentication_record_digest", "release_key_fingerprint", "required_checks", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-upstream-auth-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-upstream-auth-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "guest_release_manifest_digest": {"const": "sha256:02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6"},
+    "authentication_record_path": {"const": "platform/macos-vm-feasibility/alpine-upstream-authentication.json"},
+    "authentication_record_digest": {"const": "sha256:f1ef35d52427a15179777bafd67eddd2e545c8e853ddc425377544732b955476"},
+    "release_key_fingerprint": {"const": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"},
+    "required_checks": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9-]+$"}},
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["live_archive_verification_explicit_only", "archive_committed", "runtime_network_required", "upstream_publisher_authentication_verified", "release_metadata_sealed", "vulnerability_assessment_complete", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "live_archive_verification_explicit_only": {"const": true},
+        "archive_committed": {"const": false},
+        "runtime_network_required": {"const": false},
+        "upstream_publisher_authentication_verified": {"const": true},
+        "release_metadata_sealed": {"const": false},
+        "vulnerability_assessment_complete": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

@@ -289,6 +289,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
   the exact expiring candidate manifest, SBOM/license/provenance/policy records,
   offline prepared-component verification, and explicit remaining signing and
   production gates.
+- [IAR-1B macOS local-VM upstream authentication](docs/verification/iar-1b-macos-local-vm-upstream-authentication.md):
+  the verified Alpine release-key/signature chain, exact embedded guest-input
+  binding, and explicit separation from Impresari distribution sealing.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.

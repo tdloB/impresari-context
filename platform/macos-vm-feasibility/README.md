@@ -29,6 +29,8 @@ Run the explicit preparation step once, then the offline check:
 ./scripts/check-macos-vm-host-interruption.sh
 ruby ./scripts/check-macos-vm-guest-supply-chain.rb \
   --prepared-assets target/iar-macos-vm-feasibility
+./scripts/verify-macos-vm-alpine-archive.sh \
+  /absolute/path/alpine-netboot-3.24.1-aarch64.tar.gz
 ```
 
 Preparation downloads only the two exact official Alpine artifacts listed in
@@ -61,3 +63,11 @@ It performs no download and the guest remains unable to update itself. This
 checkpoint does not authenticate the upstream publisher, complete a current
 vulnerability assessment, verify a Developer ID signature or notarization, or
 admit a sealed production distribution.
+
+The separate explicit Alpine-archive check closes only the upstream
+publisher-authentication sub-gate. It verifies the exact 3.24.1 archive using
+the frozen detached signature and Alpine release-key fingerprint, then extracts
+only the two required members and proves their exact correspondence to the
+guest manifest. The 411 MB archive stays outside the repository. This check
+does not seal Impresari release metadata or alter the remaining production
+gates.

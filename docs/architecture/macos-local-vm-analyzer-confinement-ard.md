@@ -118,3 +118,13 @@ network access. HTTPS plus frozen SHA-256 protects the reviewed byte identity;
 it does not authenticate the upstream publisher. The candidate therefore
 remains unsigned, unnotarized, vulnerability-unassessed, unsealed, and denied
 for production and analyzer execution.
+
+The seventh checkpoint adds explicit release-time upstream authentication. A
+development-only verifier accepts only the exact 431,008,592-byte Alpine
+3.24.1 aarch64 netboot archive, verifies its detached OpenPGP signature under
+the exact fingerprint published by Alpine, extracts only the two required
+members after signature success, and binds their sizes and hashes back to the
+guest manifest. The public key and detached signature are committed with exact
+third-party provenance; the archive is not. Routine and runtime checks do not
+retrieve it. This authenticates the upstream bytes but does not seal Impresari
+metadata, assess vulnerabilities, or satisfy Apple distribution gates.

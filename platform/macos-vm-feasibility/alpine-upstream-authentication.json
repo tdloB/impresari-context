@@ -1,0 +1,50 @@
+{
+  "schema_name": "macos-local-vm-upstream-authentication-record",
+  "schema_version": "1.0.0",
+  "record_id": "alpine-netboot-3.24.1-aarch64-auth-v1",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "official_fingerprint_source": "https://www.alpinelinux.org/downloads/",
+  "release_key": {
+    "path": "platform/macos-vm-feasibility/alpine-ncopa-0482D84022F52DF1C4E7CD43293ACD0907D9495A.asc",
+    "bytes": "3092",
+    "sha256": "sha256:75a9a7e0cc35bfa946ce40c26133b3ed29a204fbd98a3b33331b659d927b3027",
+    "fingerprint": "0482D84022F52DF1C4E7CD43293ACD0907D9495A"
+  },
+  "signed_archive": {
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-netboot-3.24.1-aarch64.tar.gz",
+    "bytes": "431008592",
+    "sha256": "sha256:54fe38fa41cce740ba379458ed63cfcd89ab06ae5e6a47a06dafe0a34e8427e8",
+    "signature_path": "platform/macos-vm-feasibility/alpine-netboot-3.24.1-aarch64.tar.gz.asc",
+    "signature_bytes": "833",
+    "signature_sha256": "sha256:f0661d08a24d240fc14516e9814d6fc32bbc842473664c28b7a22fe32f751a06",
+    "signature_created_at": "2026-06-14T00:06:26Z"
+  },
+  "authenticated_embedded_artifacts": [
+    {
+      "archive_path": "boot/vmlinuz-virt",
+      "bytes": "10351104",
+      "sha256": "sha256:47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756",
+      "guest_asset_name": "vmlinuz-virt"
+    },
+    {
+      "archive_path": "boot/initramfs-virt",
+      "bytes": "9385851",
+      "sha256": "sha256:e47d38bc88509a3db11affc09f9762f9643b026bd29441724a4729ad8e97add6",
+      "guest_asset_name": "initramfs-virt"
+    }
+  ],
+  "verification": {
+    "archive_digest_verified": true,
+    "detached_signature_verified": true,
+    "signing_fingerprint_verified": true,
+    "embedded_artifact_identities_verified": true,
+    "upstream_publisher_authentication_verified": true,
+    "archive_committed": false,
+    "runtime_network_required": false,
+    "release_metadata_sealed": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

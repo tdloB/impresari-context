@@ -70,8 +70,9 @@ separate explicit preparation step.
 
 ## Remaining Gates
 
-Authenticate the upstream publisher or an independently controlled release
-signature, complete and record the current vulnerability review, define a
+The subsequent upstream-authentication checkpoint now authenticates the exact
+Alpine archive and its two embedded guest inputs. Complete and record the
+current vulnerability review, seal Impresari's release metadata, define a
 signed replacement and rollback chain, sign and notarize the complete macOS
 bundle, rehearse the one-cask install/update/rollback/uninstall lifecycle, and
 collect multi-host evidence. Genuine sleep/wake, reboot, abrupt power-loss,
