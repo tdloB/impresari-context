@@ -1,0 +1,56 @@
+{
+  "schema_name": "yara-x-reproducibility-diagnostic-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-reproducibility-diagnostic-v1",
+  "profile_version": "1.0.0",
+  "source": {
+    "repository": "https://github.com/VirusTotal/yara-x",
+    "release_tag": "v1.20.0",
+    "tag_commit_sha1": "60ad06971467029e77967e59d580cbbe85a1474d",
+    "tree_sha1": "4ca76a9e411067422aecda3998b9297a254306f2",
+    "commit_timestamp": "2026-08-24T09:50:21Z",
+    "source_date_epoch": "1787565021",
+    "archive_bytes": "57759292",
+    "archive_sha256": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee"
+  },
+  "patch": {
+    "sha256": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
+    "patched_lock_sha256": "sha256:e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e"
+  },
+  "build": {
+    "target": "x86_64-unknown-linux-gnu",
+    "runner_label": "ubuntu-24.04",
+    "runner_environment": "github-hosted",
+    "rust_toolchain": "1.93.0",
+    "cargo_package": "yara-x-cli",
+    "cargo_profile": "release-lto",
+    "cargo_features": ["pulley"],
+    "baseline_rustflags": "-C target-feature=+crt-static",
+    "clean_source_roots": "4",
+    "clean_target_roots": "4",
+    "dependency_fetches": "1",
+    "builds_after_fetch_are_offline": true,
+    "incremental_compilation": false,
+    "canonical_source_path": "/usr/src/yara-x",
+    "canonical_target_path": "/usr/src/yara-x/target"
+  },
+  "closed_results": [
+    "baseline_same_canonical_same",
+    "baseline_changed_canonical_same",
+    "baseline_changed_canonical_changed",
+    "baseline_same_canonical_changed"
+  ],
+  "claims": {
+    "analyzer_executed": false,
+    "rules_compiled": false,
+    "repository_content_scanned": false,
+    "credentials_accessed": false,
+    "artifact_uploaded": false,
+    "artifact_retained": false,
+    "cross_run_reproducibility_claimed": false,
+    "cross_host_reproducibility_claimed": false,
+    "production_admitted": false,
+    "iar_2": false,
+    "authority_added": false
+  }
+}

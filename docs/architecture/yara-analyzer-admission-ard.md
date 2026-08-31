@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0104 retained-engine stage proposed; bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 no-upload reproducibility diagnostic in progress; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), proposed [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), proposed [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md), [ADR-0105](../decisions/0105-diagnose-yara-x-build-reproducibility-before-retention.md)
 
 ## Architecture
 
@@ -310,3 +310,25 @@ rulesets, scan material, logs, caches, credentials, and signing material. The
 same-run verifier treats it as untrusted bytes, rejects links and unknown
 members, and cannot run the executable. Expiry withdraws availability without
 turning the candidate into a release or admitted analyzer.
+
+## ADR-0105 Ephemeral Reproducibility Diagnostic
+
+```text
+one verified source archive + frozen patch + one locked dependency fetch
+                              |
+                              v
+       baseline A/B clean builds + canonical A/B clean builds
+                              |
+                              v
+       four SHA-256 identities + one closed source-free result
+                              |
+                              v
+          mandatory deletion; no execution and no upload
+```
+
+The baseline pair preserves the current build flags in distinct roots. The
+canonical pair fixes `SOURCE_DATE_EPOCH`, locale, time zone, incremental state,
+archive time, and compiler-visible source/target paths. All four builds run
+offline after one locked fetch. Equality establishes only same-job evidence;
+changed canonical bytes keep the reproducibility gate closed. The diagnostic
+has no artifact, analyzer, rule, signing, publication, or admission authority.

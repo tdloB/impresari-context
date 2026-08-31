@@ -1,0 +1,52 @@
+name: YARA-X reproducibility diagnostic
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: yara-x-reproducibility-diagnostic
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: __SOURCE_SHA__
+  SOURCE_ARCHIVE_BYTES: "__SOURCE_ARCHIVE_BYTES__"
+  SOURCE_ARCHIVE_SHA256: __SOURCE_ARCHIVE_SHA256__
+
+jobs:
+  diagnose:
+    name: YARA-X v1.20.0 / four ephemeral offline builds
+    if: github.repository == 'tdloB/impresari-context' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - name: Prepare exact public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          archive="$RUNNER_TEMP/impresari-context-source.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$archive" \
+            "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA"
+          test "$(wc -c < "$archive" | tr -d ' ')" = "$SOURCE_ARCHIVE_BYTES"
+          test "$(sha256sum "$archive" | cut -d ' ' -f 1)" = "$SOURCE_ARCHIVE_SHA256"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 -print -quit)"
+          tar -xzf "$archive" --no-same-owner --no-same-permissions \
+            --strip-components=1 -C "$GITHUB_WORKSPACE"
+          rm -f -- "$archive"
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.93.0 --profile minimal
+      - name: Install exact dependency auditor
+        run: cargo +1.93.0 install cargo-audit --version 0.22.2 --locked
+      - name: Run four-build offline diagnostic
+        run: ./scripts/yara-x-reproducibility-diagnostic.sh
+      - name: Verify ephemeral cleanup
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$RUNNER_TEMP/impresari-yara-x-reproducibility-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test -z "$(find target -type f -name yr -print -quit)"

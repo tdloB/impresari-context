@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0104 retained-engine stage proposed; bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 no-upload reproducibility diagnostic in progress; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, and proposed retained-engine custody by ADR-0104
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, proposed retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
 
 ## Objective
 
@@ -197,6 +197,14 @@ only `yr`, its exact manifest/checksums, dependency closure, SPDX SBOM,
 provenance, licenses, review dispositions, and an explicitly unadmitted
 candidate record. Source, rules, scan inputs/outputs, credentials, signing
 material, and unrelated repository content remain ineligible.
+
+ADR-0105 inserts a no-upload diagnostic before that decision because two
+otherwise matching hosted builds produced different executable digests. Four
+clean builds in one ephemeral job compare the current flags with fixed
+time/path-remapped flags after one locked dependency acquisition. Only digests
+and a closed result are emitted; no binary is executed, retained, or uploaded.
+Same-job canonical equality narrows the reproducibility gap but cannot establish
+cross-run, cross-host, or production reproducibility.
 
 Contract and candidate-pipeline work may proceed while every production and
 IAR-2 claim remains false. Retained artifacts, production rules, signing,
