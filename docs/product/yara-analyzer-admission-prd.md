@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0102 hosted synthetic candidate passed; production artifacts and IAR-2 remain gated
+- Status: ADR-0103 production-admission architecture accepted; schemas, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, and real-engine synthetic composition by ADR-0102
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, and separated production admission by ADR-0103
 
 ## Objective
 
@@ -175,3 +175,17 @@ IAR-2, detection quality, safety, and authority false. Run `33432469614`, job
 `99620875408`, passed the manual empty-workspace Ubuntu 24.04 matrix for all
 five generated cases and mandatory cleanup. Its source-free receipt kept
 `production_admitted=false` and `iar_2=false`.
+
+## Production Admission Architecture
+
+ADR-0103 separates the next work into an engine bundle, a project-owned
+ruleset bundle, and a final release-binding manifest. Each bundle has its own
+content identity, review, signature, expiry, rollback, and revocation state.
+The binding manifest must also name the exact adapter and resource profiles and
+a fresh compatible ADR-0082 Linux production-support receipt.
+
+Contract and candidate-pipeline work may proceed while every production and
+IAR-2 claim remains false. Retained artifacts, production rules, signing,
+publication, final activation, and repository-derived scans are independent
+later gates. The first eligible scope is Linux x86-64 external delegation only;
+macOS, Windows, broad Linux, and the rootless profile remain independent.
