@@ -284,6 +284,13 @@ The first hosted Ubuntu 24.04 run observed kernel `6.17.0-1022-azure`,
 was not delegated. The receipt therefore returned `unsupported` with
 `os_confined=false`; this is valid fail-closed evidence, not an IAR-1B pass.
 
+Guest supply-chain review evidence must distinguish a performed disposition
+from a complete vulnerability assessment. A stale component or incomplete
+advisory source must deterministically deny the exact candidate, require
+replacement, and retain `advisory_coverage_complete=false`,
+`vulnerability_assessment_complete=false`, and `production_admitted=false`.
+Zero enumerated advisories is never evidence of safety or completeness.
+
 The separate delegated-cgroup component checkpoint then passed on the same
 kernel and architecture in PR 130 job `99194709845`. Under one ephemeral
 systemd `Delegate=yes` service, the unprivileged synthetic supervisor reproduced

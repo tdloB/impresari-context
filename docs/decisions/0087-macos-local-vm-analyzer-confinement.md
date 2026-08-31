@@ -107,3 +107,13 @@ manifest. This closes upstream publisher authentication only. The archive is
 not committed and no runtime network is added; release-metadata sealing,
 vulnerability disposition, Developer ID signing/notarization, production, and
 analyzer execution remain closed.
+
+The eighth checkpoint performs the bounded vulnerability review against exact
+Alpine provider snapshots. It finds the authenticated `6.18.35-0-virt`
+candidate thirteen stable patch releases behind `linux-virt` `6.18.48-r0`,
+while the published `linux-lts` secdb entry does not establish complete 6.18
+advisory coverage. The exact candidate is denied and replacement is required.
+This is a fail-closed application of the existing supply-chain decision, not a
+new topology decision: review completion does not imply
+`vulnerability_assessment_complete`, production admission, or CVE
+applicability. See the [vulnerability disposition](../verification/iar-1b-macos-local-vm-vulnerability-disposition.md).

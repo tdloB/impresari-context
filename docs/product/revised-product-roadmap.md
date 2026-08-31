@@ -377,6 +377,14 @@ closed for this candidate; Impresari metadata sealing, vulnerability
 disposition, Apple signing/notarization, one-cask lifecycle, multi-host and
 disruptive lifecycle evidence, independent review, production, and real
 analyzers remain closed.
+The following bounded vulnerability review compared the exact authenticated
+`6.18.35-0-virt` guest kernel with Alpine 3.24 aarch64 `linux-virt`
+`6.18.48-r0`. Because the candidate is thirteen stable patch releases behind
+and Alpine's published `linux-lts` secdb record does not establish complete
+6.18 advisory coverage, the exact candidate is denied and must be replaced.
+The review is dispositioned, but `vulnerability_assessment_complete=false`;
+no specific CVE applicability or vulnerability-free claim is made. Current
+guest replacement and renewed review now precede release-metadata sealing.
 
 ## Parallel Client Integration Depth Track
 

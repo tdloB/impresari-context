@@ -128,3 +128,12 @@ guest manifest. The public key and detached signature are committed with exact
 third-party provenance; the archive is not. Routine and runtime checks do not
 retrieve it. This authenticates the upstream bytes but does not seal Impresari
 metadata, assess vulnerabilities, or satisfy Apple distribution gates.
+
+The eighth checkpoint binds the exact guest manifest, authenticated Alpine
+archive, SPDX SBOM, official package-index snapshot, and official secdb
+snapshot. Its deterministic result denies the stale `6.18.35-0-virt`
+candidate in favor of replacement by current `6.18.48-r0`. Because the secdb
+record does not establish complete 6.18 coverage, the receipt keeps both
+`advisory_coverage_complete` and `vulnerability_assessment_complete` false.
+Routine validation is offline and cannot admit production or analyzer
+execution.
