@@ -49,6 +49,21 @@ abort "macOS VM matrix expands authority" unless
     matrix_profile.dig("controls", "production_admitted") == false &&
     matrix_profile.dig("controls", "authority_added") == false
 
+supervisor_profile_path = ROOT.join("profiles/v1/iar-macos-local-vm-supervisor-v1.json")
+supervisor_profile_digest = Digest::SHA256.file(supervisor_profile_path).hexdigest
+abort "macOS VM supervisor profile digest changed" unless
+  supervisor_profile_digest == "f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85"
+supervisor_sha_record = read("profiles/v1/iar-macos-local-vm-supervisor-v1.sha256").strip
+abort "macOS VM supervisor profile checksum record mismatch" unless
+  supervisor_sha_record == "#{supervisor_profile_digest}  iar-macos-local-vm-supervisor-v1.json"
+abort "macOS VM supervisor profile fixture differs from the frozen profile" unless
+  supervisor_profile_path.binread == ROOT.join("tests/conformance/v1/valid/iar-macos-local-vm-supervisor-profile.json").binread
+supervisor_profile = json("profiles/v1/iar-macos-local-vm-supervisor-v1.json")
+abort "macOS VM supervisor profile expands authority" unless
+  supervisor_profile.dig("controls", "analyzer_execution") == false &&
+    supervisor_profile.dig("controls", "production_admitted") == false &&
+    supervisor_profile.dig("controls", "authority_added") == false
+
 assets = json("platform/macos-vm-feasibility/guest-assets.json")
 abort "macOS VM guest asset source is not exact Alpine HTTPS" unless assets.fetch("artifacts").all? do |artifact|
   artifact.fetch("url").start_with?("https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/") &&
@@ -83,7 +98,18 @@ abort "macOS VM controller lost bounded in-memory serial capture" unless
   controller.include?("BoundedSerialCapture") && controller.include?("serialOverflow") && !controller.include?("serial.log")
 abort "macOS VM controller accepts caller-selected guest identity" unless
   controller.include?("initramfsDigest = \"cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf\"")
+abort "macOS VM controller lost the exact external cancellation marker" unless
+  controller.include?("cancel.request") && controller.include?("IMPRESARI_VM_CANCEL_V1") == false
 abort "macOS VM controller can overclaim VM confinement" unless controller.include?("vmConfined: false")
+
+runner = read("crates/context-analyzer-runner/src/lib.rs")
+abort "Rust supervisor profile identity drifted" unless
+  runner.include?("iar-macos-local-vm-supervisor-v1") &&
+    runner.include?("sha256:f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85")
+abort "Rust supervisor acquired a second child-process launch site" unless runner.scan("Command::new").length == 1
+abort "Rust supervisor lost forced termination or exact cleanup" unless
+  runner.include?("ForcedTerminationRecovery") && runner.include?("force_kill_and_collect") &&
+    runner.include?("remove_exact_job(&action_job)")
 
 guest = read("platform/macos-vm-feasibility/Sources/GuestInit/main.c")
 %w[execve( execl( system( popen( socket( connect(].each do |forbidden|

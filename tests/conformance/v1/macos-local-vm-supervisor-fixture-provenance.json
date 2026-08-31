@@ -1,0 +1,48 @@
+{
+  "schema_name": "macos-local-vm-supervisor-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-supervisor-profile.json",
+      "sha256": "f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen Rust-supervisor lifecycle profile"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-cancellation.json",
+      "sha256": "4f1b19ebf2ebe940ca6a6eed7910ea53533c4f25e99360093ff082e1cce5035a",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free external-cancellation and recovery receipt"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-forced-termination.json",
+      "sha256": "942fadadffe72e1542e122c0254adef00d06b51dd2da34a42f0c1a638f1b31b3",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free forced-termination cleanup and recovery receipt"
+    },
+    {
+      "path": "valid/macos-local-vm-supervisor-matrix.json",
+      "sha256": "4af542c6bd600b119be81244f3f9dc40524ce511050d5fef6f2542a2ae35c928",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free partial Rust-supervisor lifecycle matrix"
+    },
+    {
+      "path": "invalid/macos-local-vm-supervisor-overclaim.json",
+      "sha256": "07686d7ddfc9c32ff516f16d26ee1a21fced640f839a8c81f7663cefa267fead",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject a VM-confinement claim from partial lifecycle evidence"
+    }
+  ]
+}

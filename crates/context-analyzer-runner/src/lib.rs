@@ -8,6 +8,7 @@
 use std::{
     collections::BTreeMap,
     error::Error,
+    ffi::OsStr,
     fmt,
     fs::{self, OpenOptions},
     io::{self, Read, Write},
@@ -46,6 +47,22 @@ pub const MACOS_XPC_SERVICE_RELATIVE_PATH: &str =
     "Contents/XPCServices/studio.boldthaus.impresari-context.Analyzer.xpc";
 const MACOS_XPC_MAX_ARTIFACTS: u64 = 64;
 const MACOS_XPC_MAX_TOTAL_ARTIFACT_BYTES: u64 = 4_194_304;
+/// Frozen macOS local-VM supervisor lifecycle profile.
+pub const MACOS_VM_SUPERVISOR_PROFILE_ID: &str = "iar-macos-local-vm-supervisor-v1";
+/// Digest of the exact committed local-VM supervisor lifecycle profile.
+pub const MACOS_VM_SUPERVISOR_PROFILE_DIGEST: &str =
+    "sha256:f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85";
+/// Frozen profile exposed by the synthetic macOS VM controller.
+pub const MACOS_VM_CONTROLLER_PROFILE_ID: &str = "iar-macos-local-vm-synthetic-matrix-v1";
+/// Exact profile digest exposed by the synthetic macOS VM controller.
+pub const MACOS_VM_CONTROLLER_PROFILE_DIGEST: &str =
+    "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522";
+const MACOS_VM_KERNEL_DIGEST: &str =
+    "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd";
+const MACOS_VM_INITRAMFS_DIGEST: &str =
+    "sha256:cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf";
+const MACOS_VM_STDOUT_BYTES: usize = 65_536;
+const MACOS_VM_STDERR_BYTES: usize = 16_384;
 
 /// Stable source-free supervisor failure categories.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -370,6 +387,131 @@ pub fn validate_macos_xpc_launch_preparation(
     Ok(())
 }
 
+/// Synthetic-only lifecycle action exercised by the macOS VM supervisor.
+#[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum MacOsVmSupervisorAction {
+    /// Request cancellation through the exact job-private control marker.
+    ExternalCancellation,
+    /// Kill and reap the controller, remove its exact stale job, then recover.
+    ForcedTerminationRecovery,
+}
+
+/// Exact synthetic macOS VM supervisor configuration.
+#[derive(Clone, Debug)]
+pub struct MacOsVmSyntheticSupervisor {
+    /// Absolute canonical path to the ad hoc signed feasibility controller.
+    pub controller: PathBuf,
+    /// Runtime digest of the exact controller bytes selected for this run.
+    pub expected_controller_digest: String,
+    /// Absolute canonical root containing only the pinned VM assets.
+    pub asset_root: PathBuf,
+    /// Fixed readiness and completion ceiling, no more than one minute.
+    pub timeout: Duration,
+}
+
+/// Source-free result of one external lifecycle action and recovery job.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MacOsVmSupervisorReceipt {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Frozen supervisor profile.
+    pub profile_id: String,
+    /// Exact supervisor profile bytes digest.
+    pub profile_digest: String,
+    /// Frozen profile exposed by the child controller.
+    pub controller_profile_id: String,
+    /// Exact frozen child-controller profile digest.
+    pub controller_profile_digest: String,
+    /// Runtime digest of the exact launched controller bytes.
+    pub controller_digest: String,
+    /// Caller-owned source-free job identifier.
+    pub job_id: String,
+    /// Exact synthetic action completed by the supervisor.
+    pub action: MacOsVmSupervisorAction,
+    /// The controller digest matched immediately before child launch.
+    pub controller_digest_verified_before_launch: bool,
+    /// The controller reached the job-private ready state.
+    pub controller_ready: bool,
+    /// The job-private external cancellation request was written.
+    pub external_cancellation_requested: bool,
+    /// The controller returned its exact cancellation receipt.
+    pub controller_cancellation_verified: bool,
+    /// The supervisor forcibly terminated the exact child controller.
+    pub controller_forcibly_terminated: bool,
+    /// The exact child controller was reaped.
+    pub controller_reaped: bool,
+    /// Exact stale job state was absent before recovery.
+    pub stale_job_removed: bool,
+    /// A fresh post-action VM job completed successfully.
+    pub recovery_job_succeeded: bool,
+    /// Both the action and recovery job roots were absent before return.
+    pub all_job_state_removed: bool,
+    /// Partial feasibility never establishes VM confinement.
+    pub vm_confined: bool,
+    /// Partial feasibility never admits production execution.
+    pub production_admitted: bool,
+    /// No analyzer runs in this synthetic checkpoint.
+    pub analyzer_execution: bool,
+    /// The source-free receipt retains no source bytes.
+    pub source_retained: bool,
+    /// The supervisor adds no authority.
+    pub authority_added: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MacOsVmControllerFailure {
+    schema_name: String,
+    schema_version: String,
+    profile_id: String,
+    profile_digest: String,
+    category: String,
+    vm_confined: bool,
+    production_admitted: bool,
+    analyzer_execution: bool,
+    source_retained: bool,
+    authority_added: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MacOsVmControllerJobReceipt {
+    schema_name: String,
+    schema_version: String,
+    profile_id: String,
+    profile_digest: String,
+    job_id: String,
+    result: String,
+    kernel_digest: String,
+    initramfs_digest: String,
+    input_digest: String,
+    virtualization_supported: bool,
+    configuration_validated: bool,
+    cpu_count: String,
+    memory_bytes: String,
+    serial_ports: String,
+    storage_devices: String,
+    network_devices: String,
+    directory_shares: String,
+    graphics_devices: String,
+    audio_devices: String,
+    input_devices: String,
+    exact_input_verified: bool,
+    read_only_input_verified: bool,
+    scratch_initially_clean: bool,
+    scratch_capacity_verified: bool,
+    network_device_absent: bool,
+    job_removed: bool,
+    vm_confined: bool,
+    production_admitted: bool,
+    source_retained: bool,
+    authority_added: bool,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct WorkerControl {
@@ -501,6 +643,366 @@ impl Supervisor {
     }
 }
 
+impl MacOsVmSupervisorAction {
+    /// Parses the exact source-free CLI action name.
+    #[must_use]
+    pub fn from_name(value: &str) -> Option<Self> {
+        match value {
+            "external-cancellation" => Some(Self::ExternalCancellation),
+            "forced-termination-recovery" => Some(Self::ForcedTerminationRecovery),
+            _ => None,
+        }
+    }
+}
+
+struct CapturedChild {
+    child: ChildGuard,
+    stdout: thread::JoinHandle<Result<Vec<u8>, RunnerError>>,
+    stderr: thread::JoinHandle<Result<Vec<u8>, RunnerError>>,
+}
+
+struct VmJobCleanupGuard {
+    path: PathBuf,
+}
+
+impl Drop for VmJobCleanupGuard {
+    fn drop(&mut self) {
+        if self.path.exists() {
+            let _ = remove_exact_job(&self.path);
+        }
+    }
+}
+
+impl MacOsVmSyntheticSupervisor {
+    /// Runs one exact synthetic VM lifecycle action and a clean recovery job.
+    ///
+    /// No repository path, source bytes, command, environment, credential, or
+    /// network destination is accepted by this API.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source-free category if identity, readiness, cancellation,
+    /// reaping, exact cleanup, controller output, or recovery validation fails.
+    pub fn execute(
+        &self,
+        job_id: &str,
+        action: MacOsVmSupervisorAction,
+    ) -> Result<MacOsVmSupervisorReceipt, RunnerError> {
+        self.validate(job_id)?;
+        let output_root = self
+            .asset_root
+            .parent()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+        let jobs_root = output_root.join("jobs");
+        let action_job = jobs_root.join(job_id);
+        let recovery_id = format!("{job_id}-recovery");
+        let recovery_job = jobs_root.join(&recovery_id);
+        if action_job.exists() || recovery_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+        let _action_cleanup = VmJobCleanupGuard {
+            path: action_job.clone(),
+        };
+        let _recovery_cleanup = VmJobCleanupGuard {
+            path: recovery_job.clone(),
+        };
+
+        let mut process = self.spawn_controller(job_id, "timeout")?;
+        let ready = action_job.join("controller.ready");
+        wait_for_controller_ready(&mut process.child, &ready, self.timeout)?;
+
+        let (
+            external_cancellation_requested,
+            controller_cancellation_verified,
+            controller_forcibly_terminated,
+        ) = match action {
+            MacOsVmSupervisorAction::ExternalCancellation => {
+                let cancellation = action_job.join("cancel.request");
+                OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .open(cancellation)
+                    .and_then(|mut file| file.write_all(b"IMPRESARI_VM_CANCEL_V1\n"))
+                    .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+                let (status, stdout, _stderr) = wait_for_captured_child(process, self.timeout)?;
+                if status.success() {
+                    return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+                }
+                validate_vm_cancellation(&stdout)?;
+                (true, true, false)
+            }
+            MacOsVmSupervisorAction::ForcedTerminationRecovery => {
+                force_kill_and_collect(process)?;
+                (false, false, true)
+            }
+        };
+
+        if action_job.exists() {
+            remove_exact_job(&action_job)?;
+        }
+        if action_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+
+        let recovery = self.spawn_controller(&recovery_id, "success")?;
+        let (status, stdout, _stderr) = wait_for_captured_child(recovery, self.timeout)?;
+        if !status.success() {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+        }
+        validate_vm_recovery(&stdout, &recovery_id)?;
+        if action_job.exists() || recovery_job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+
+        Ok(MacOsVmSupervisorReceipt {
+            schema_name: "macos-local-vm-supervisor-lifecycle-receipt".to_owned(),
+            schema_version: "1.0.0".to_owned(),
+            profile_id: MACOS_VM_SUPERVISOR_PROFILE_ID.to_owned(),
+            profile_digest: MACOS_VM_SUPERVISOR_PROFILE_DIGEST.to_owned(),
+            controller_profile_id: MACOS_VM_CONTROLLER_PROFILE_ID.to_owned(),
+            controller_profile_digest: MACOS_VM_CONTROLLER_PROFILE_DIGEST.to_owned(),
+            controller_digest: self.expected_controller_digest.clone(),
+            job_id: job_id.to_owned(),
+            action,
+            controller_digest_verified_before_launch: true,
+            controller_ready: true,
+            external_cancellation_requested,
+            controller_cancellation_verified,
+            controller_forcibly_terminated,
+            controller_reaped: true,
+            stale_job_removed: true,
+            recovery_job_succeeded: true,
+            all_job_state_removed: true,
+            vm_confined: false,
+            production_admitted: false,
+            analyzer_execution: false,
+            source_retained: false,
+            authority_added: false,
+        })
+    }
+
+    fn validate(&self, job_id: &str) -> Result<(), RunnerError> {
+        if !cfg!(target_os = "macos")
+            || self.timeout.is_zero()
+            || self.timeout > Duration::from_mins(1)
+            || !valid_vm_job_id(job_id)
+            || !valid_sha256(&self.expected_controller_digest)
+            || !self.controller.is_absolute()
+            || !self.asset_root.is_absolute()
+        {
+            return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+        }
+        let controller = fs::symlink_metadata(&self.controller)
+            .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?;
+        let assets = fs::symlink_metadata(&self.asset_root)
+            .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+        if !controller.is_file()
+            || controller.file_type().is_symlink()
+            || !assets.is_dir()
+            || assets.file_type().is_symlink()
+            || fs::canonicalize(&self.controller)
+                .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?
+                != self.controller
+            || fs::canonicalize(&self.asset_root)
+                .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?
+                != self.asset_root
+            || sha256(
+                &fs::read(&self.controller)
+                    .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?,
+            ) != self.expected_controller_digest
+        {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerIdentity));
+        }
+        Ok(())
+    }
+
+    fn spawn_controller(&self, job_id: &str, scenario: &str) -> Result<CapturedChild, RunnerError> {
+        let output_root = self
+            .asset_root
+            .parent()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+        let arguments = [
+            self.asset_root.as_os_str(),
+            OsStr::new(job_id),
+            OsStr::new(scenario),
+        ];
+        let child = spawn_exact_process(
+            &self.controller,
+            output_root,
+            &arguments,
+            Stdio::null(),
+            Stdio::piped(),
+            Stdio::piped(),
+        )?;
+        let mut child = ChildGuard::new(child);
+        let stdout = child
+            .child_mut()?
+            .stdout
+            .take()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+        let stderr = child
+            .child_mut()?
+            .stderr
+            .take()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+        Ok(CapturedChild {
+            child,
+            stdout: thread::spawn(move || read_capped(stdout, MACOS_VM_STDOUT_BYTES)),
+            stderr: thread::spawn(move || read_capped(stderr, MACOS_VM_STDERR_BYTES)),
+        })
+    }
+}
+
+fn valid_vm_job_id(value: &str) -> bool {
+    !value.is_empty()
+        && value.len() <= 20
+        && value
+            .bytes()
+            .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'-')
+}
+
+fn wait_for_controller_ready(
+    child: &mut ChildGuard,
+    ready: &Path,
+    timeout: Duration,
+) -> Result<(), RunnerError> {
+    let started = Instant::now();
+    loop {
+        if ready.is_file() {
+            return Ok(());
+        }
+        if child
+            .child_mut()?
+            .try_wait()
+            .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?
+            .is_some()
+        {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+        }
+        if started.elapsed() >= timeout {
+            return Err(RunnerError::new(RunnerErrorCode::Timeout));
+        }
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
+fn wait_for_captured_child(
+    mut process: CapturedChild,
+    timeout: Duration,
+) -> Result<(std::process::ExitStatus, Vec<u8>, Vec<u8>), RunnerError> {
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = process
+            .child
+            .child_mut()?
+            .try_wait()
+            .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?
+        {
+            break status;
+        }
+        if started.elapsed() >= timeout {
+            let _ = process.child.child_mut()?.kill();
+            let _ = process.child.child_mut()?.wait();
+            process.child.mark_reaped();
+            let _ = process.stdout.join();
+            let _ = process.stderr.join();
+            return Err(RunnerError::new(RunnerErrorCode::Timeout));
+        }
+        thread::sleep(Duration::from_millis(5));
+    };
+    process.child.mark_reaped();
+    let stdout = process
+        .stdout
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    let stderr = process
+        .stderr
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    Ok((status, stdout, stderr))
+}
+
+fn force_kill_and_collect(mut process: CapturedChild) -> Result<(), RunnerError> {
+    process
+        .child
+        .child_mut()?
+        .kill()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?;
+    process
+        .child
+        .child_mut()?
+        .wait()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?;
+    process.child.mark_reaped();
+    let _ = process
+        .stdout
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    let _ = process
+        .stderr
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    Ok(())
+}
+
+fn validate_vm_cancellation(stdout: &[u8]) -> Result<(), RunnerError> {
+    let receipt = serde_json::from_slice::<MacOsVmControllerFailure>(stdout)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    if receipt.schema_name != "macos-local-vm-matrix-failure"
+        || receipt.schema_version != "1.0.0"
+        || receipt.profile_id != MACOS_VM_CONTROLLER_PROFILE_ID
+        || receipt.profile_digest != MACOS_VM_CONTROLLER_PROFILE_DIGEST
+        || receipt.category != "cancelled"
+        || receipt.vm_confined
+        || receipt.production_admitted
+        || receipt.analyzer_execution
+        || receipt.source_retained
+        || receipt.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    Ok(())
+}
+
+fn validate_vm_recovery(stdout: &[u8], job_id: &str) -> Result<(), RunnerError> {
+    let receipt = serde_json::from_slice::<MacOsVmControllerJobReceipt>(stdout)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    if receipt.schema_name != "macos-local-vm-matrix-job-receipt"
+        || receipt.schema_version != "1.0.0"
+        || receipt.profile_id != MACOS_VM_CONTROLLER_PROFILE_ID
+        || receipt.profile_digest != MACOS_VM_CONTROLLER_PROFILE_DIGEST
+        || receipt.job_id != job_id
+        || receipt.result != "feasibility_passed"
+        || receipt.kernel_digest != MACOS_VM_KERNEL_DIGEST
+        || receipt.initramfs_digest != MACOS_VM_INITRAMFS_DIGEST
+        || !valid_sha256(&receipt.input_digest)
+        || !receipt.virtualization_supported
+        || !receipt.configuration_validated
+        || receipt.cpu_count != "1"
+        || receipt.memory_bytes != "268435456"
+        || receipt.serial_ports != "1"
+        || receipt.storage_devices != "2"
+        || receipt.network_devices != "0"
+        || receipt.directory_shares != "0"
+        || receipt.graphics_devices != "0"
+        || receipt.audio_devices != "0"
+        || receipt.input_devices != "0"
+        || !receipt.exact_input_verified
+        || !receipt.read_only_input_verified
+        || !receipt.scratch_initially_clean
+        || !receipt.scratch_capacity_verified
+        || !receipt.network_device_absent
+        || !receipt.job_removed
+        || receipt.vm_confined
+        || receipt.production_admitted
+        || receipt.source_retained
+        || receipt.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    Ok(())
+}
+
 fn supervise_worker(
     supervisor: &Supervisor,
     job: &Path,
@@ -518,14 +1020,14 @@ fn supervise_worker(
     if payload.len() > MAX_CONTROL_BYTES {
         return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
     }
-    let child = Command::new(&supervisor.executable)
-        .current_dir(job)
-        .env_clear()
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .spawn()
-        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?;
+    let child = spawn_exact_process(
+        &supervisor.executable,
+        job,
+        &[],
+        Stdio::piped(),
+        Stdio::piped(),
+        Stdio::piped(),
+    )?;
     let mut child = ChildGuard::new(child);
     let mut stdin = child
         .child_mut()?
@@ -587,6 +1089,27 @@ fn supervise_worker(
     }
     .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
     Ok(output)
+}
+
+fn spawn_exact_process(
+    executable: &Path,
+    current_directory: &Path,
+    arguments: &[&OsStr],
+    stdin: Stdio,
+    stdout: Stdio,
+    stderr: Stdio,
+) -> Result<Child, RunnerError> {
+    let mut command = Command::new(executable);
+    command
+        .current_dir(current_directory)
+        .env_clear()
+        .stdin(stdin)
+        .stdout(stdout)
+        .stderr(stderr);
+    command.args(arguments);
+    command
+        .spawn()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))
 }
 
 /// Runs one short-lived synthetic worker request over standard input/output.

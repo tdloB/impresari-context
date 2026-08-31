@@ -152,8 +152,18 @@ construction to be byte-reproducible, captures serial output in bounded memory
 only, and passes malformed-result, output-flood, timeout, forked-descendant,
 early-exit, deterministic controller-cancellation, cleanup, and post-fault
 recovery cases. External-supervisor and forced-host-termination behavior,
-sleep/interruption, guest memory/CPU, and the complete host-canary corpus remain
-open.
+sleep/interruption, guest memory/CPU, and the complete host-canary corpus were
+still open at that checkpoint.
+
+The following checkpoint reuses the runner crate's single audited process-
+launch site for the synthetic VM controller. It verifies the exact controller
+bytes immediately before launch, passes external cancellation and forced-controller
+termination, owns exact stale-job cleanup, and requires a fresh recovery VM
+after either action. This closes those two lifecycle items only; it does not
+connect a real analyzer or establish the remaining resource, host-canary, or
+distribution gates.
+The pre-launch digest check is not atomic executable identity; sealed release
+signature verification remains a production gate.
 
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The

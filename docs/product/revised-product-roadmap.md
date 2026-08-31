@@ -343,9 +343,12 @@ on macOS `26.5.1` arm64. The next partial matrix froze a reproducible exact
 guest and passed tampered-guest rejection, bounded output-flood rejection,
 malformed-result rejection, whole-VM timeout and forked-descendant stop,
 early-exit cleanup, controller cancellation, and post-fault recovery. Full
-macOS IAR-1B remains closed. The next checkpoint is external-supervisor and
-forced-termination lifecycle, guest memory/CPU, and the complete host-canary
-corpus before any production, packaging, or real-analyzer claim.
+macOS IAR-1B remains closed. The following Rust-supervisor checkpoint then
+passed pre-launch controller-digest verification, exact external cancellation,
+forced controller kill/reap, exact stale-job removal, and a fresh recovery VM
+after each action while preserving the single audited analyzer launch site.
+The next checkpoint is guest memory/CPU and the complete host-canary corpus
+before any production, packaging, or real-analyzer claim.
 
 ## Parallel Client Integration Depth Track
 

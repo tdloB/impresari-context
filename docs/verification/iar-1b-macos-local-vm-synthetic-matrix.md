@@ -74,3 +74,11 @@ This checkpoint intentionally does not claim:
 
 The next checkpoint is the remaining resource, host-canary, and external
 supervisor lifecycle work. macOS remains publicly at IAR-1A.
+
+## Subsequent Progress
+
+The [Rust-supervisor lifecycle checkpoint](iar-1b-macos-local-vm-supervisor-lifecycle.md)
+subsequently passed external cancellation, forced controller termination,
+exact reap/cleanup, and recovery. Resource, host-canary, multi-host,
+distribution, and independent-review gates remain open; the claim remains
+IAR-1A.

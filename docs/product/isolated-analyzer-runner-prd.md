@@ -351,10 +351,18 @@ guest networking, VM stop, and job cleanup also passed on macOS `26.5.1`
 arm64. A second partial matrix froze a reproducible exact guest and passed
 tampered-identity, malformed-result, bounded-output, whole-VM timeout,
 forked-descendant, early-exit, controller-cancellation, cleanup, and recovery
-cases. External-supervisor and forced-termination lifecycle, guest memory/CPU,
+cases. At that checkpoint, external-supervisor and forced-termination
+lifecycle, guest memory/CPU,
 the complete host-canary corpus, supply-chain policy, multi-host, distribution,
 and independent-review gates keep `vm_confined=false`, macOS at IAR-1A, and
 IAR-2 closed.
+
+A third checkpoint then connected the synthetic controller to the Rust
+supervisor's existing single audited process-launch site. External cancellation
+and forced controller termination both reaped the exact child, removed all job
+state, and completed a fresh recovery VM. A wrong expected controller digest failed
+before staging. Guest resource, host-canary, host-interruption, multi-host,
+distribution, and independent-review gates still keep macOS at IAR-1A.
 
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,

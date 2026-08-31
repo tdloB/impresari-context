@@ -24,6 +24,7 @@ Run the explicit preparation step once, then the offline check:
 ```sh
 ./scripts/prepare-macos-vm-feasibility.sh
 ./scripts/check-macos-vm-feasibility.sh
+./scripts/check-macos-vm-supervisor-lifecycle.sh
 ```
 
 Preparation downloads only the two exact official Alpine artifacts listed in
@@ -34,5 +35,8 @@ The check now runs two ordinary fresh jobs, deterministic malformed-result,
 bounded output-flood, timeout, forked-descendant timeout, early-exit, and
 controller-cancellation cases, an exact tampered-guest rejection, and a final
 recovery job. It builds the initramfs twice and rejects non-identical output.
-External supervisor cancellation, forced host termination, sleep/interruption,
-guest memory/CPU, and the complete host-canary corpus remain future gates.
+The separate supervisor-lifecycle check then runs exact external cancellation
+and forced controller termination through the Rust runner crate, proves child
+reaping and exact stale-job removal, and completes a fresh recovery VM after
+each action. Host sleep/interruption, guest memory/CPU, and the complete host-
+canary corpus remain future gates.
