@@ -3,7 +3,7 @@
 - Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md)
 
 ## Architecture
 
@@ -151,3 +151,29 @@ ordinary host integration is introduced.
 Run `33406541396`, job `99535422988`, passed this architecture on the exact
 hosted candidate, including the separate mandatory cleanup step. Its executable
 identity is per-run evidence and is not an admitted or reproducible artifact.
+
+## ADR-0100 Pure Parser Boundary
+
+```text
+synthetic vendor-shaped NDJSON + exact control identities
+                         |
+             pure closed Rust parser
+                         |
+       path-free source-free normalized result
+```
+
+The parser owns no path or byte acquisition. The caller supplies the expected
+staged path and artifact length as control data; the parser validates both and
+emits neither. Exact structs with unknown-field denial cover the top-level,
+rule, and string objects. A framing pass rejects BOM, CR, extra LF, surrounding
+whitespace, invalid UTF-8, and over-limit input before JSON decoding.
+
+The marker parser accepts only the canonical positive-decimal zero-byte form.
+Checked integer addition prevents range overflow and escape. Canonicalization
+sorts tags, rules, and ranges after rejecting duplicates, then hashes the exact
+identity-bound normalized representation. Any error discards all intermediate
+state and returns only a stable source-free category.
+
+The library has no runner or analyzer dependency and cannot assert execution,
+confinement, production, IAR-2, or safety. Runner envelope linkage and the
+production artifact pipeline remain later architectural decisions.

@@ -505,6 +505,14 @@ checkpoint is a separately frozen live NDJSON adapter and production-artifact
 pipeline design; repository-derived execution, signatures, publication,
 production admission, and IAR-2 remain closed.
 
+ADR-0100 therefore selects the pure parser as the next lowest-authority step.
+It freezes a one-record YARA-X NDJSON boundary and permits only offline parsing
+of provenance-bound original-synthetic fixtures into a path-free normalized
+result. It introduces no analyzer process, repository-derived input, runner
+linkage, artifact/ruleset admission, production, or IAR-2 authority. Production
+artifact design and synthetic runner-envelope linkage remain separate later
+decisions after the parser corpus passes.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

@@ -3,7 +3,7 @@
 - Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097 and bounded compatibility by ADR-0099
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, and pure adapter boundary by ADR-0100
 
 ## Objective
 
@@ -108,3 +108,17 @@ open IAR-2, or claim production or safety.
 
 Run `33406541396`, job `99535422988`, satisfied this checkpoint on the exact
 Ubuntu 24.04 hosted candidate. The result admits compatibility evidence only.
+
+## Pure NDJSON Adapter Checkpoint
+
+ADR-0100 is the next independently reviewable boundary. It implements only a
+pure Rust transformation over bounded committed original-synthetic YARA-X
+NDJSON fixtures. It must validate exact one-line framing, UTF-8, the staged
+path, closed fields, identifiers, tags, zero-byte match markers, integer and
+range bounds, complete accounting, and canonical ordering before emitting a
+path-free source-free normalized result.
+
+The checkpoint has no filesystem, process, network, environment, clock, or
+credential capability. Parser success cannot claim analyzer execution. No
+repository-derived bytes, live runner linkage, production artifact/ruleset,
+IAR-2, detection quality, safety, or malware-free status enters this step.
