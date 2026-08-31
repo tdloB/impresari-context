@@ -1,0 +1,14 @@
+{
+  "schema_name": "roadmap-maintenance-issue-plan",
+  "schema_version": "1.0.0",
+  "label": "impresari-maintenance",
+  "actions": [
+    {
+      "action": "close",
+      "issue_number": 17,
+      "ownership_key": "codex-cli:new_version",
+      "title": "",
+      "body": ""
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # Impresari Context — Roadmap Maintenance Automation PRD
 
-- Status: Accepted for staged implementation
+- Status: Implemented; default-branch live reconciliation evidence pending
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0086

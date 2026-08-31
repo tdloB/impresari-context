@@ -1,0 +1,29 @@
+{
+  "schema_name": "roadmap-maintenance-receipt-set",
+  "schema_version": "1.0.0",
+  "as_of": "2026-08-30",
+  "receipts": [
+    {
+      "schema_name": "roadmap-maintenance-receipt",
+      "schema_version": "1.0.0",
+      "component_id": "codex-cli",
+      "manifest_id": "codex-native-guidance-v1",
+      "status": "current",
+      "reason_code": "admitted_version_current",
+      "checked_at": "2026-08-30",
+      "admitted_versions": ["0.149.0-alpha.4.1"],
+      "observed_version": "0.149.0-alpha.4.1",
+      "claim_retained": true,
+      "manifest_identity": "fd8f24b08a9b8e947d8b95b324b4524abb18cc4f3199015bb220c62685089a00",
+      "observation_identity": "c3b4d0e70e13af6feb1b01ceaf28dfc7b1aaf178c197464d1124f538547a14e9",
+      "checks": ["manifest_loaded", "observation_bound", "owned_artifact_identity_current", "evidence_record_identity_current", "evidence_current", "admitted_version_observed"],
+      "authority": {
+        "claim_promotion": "denied",
+        "manifest_mutation": "denied",
+        "client_mutation": "denied",
+        "release_mutation": "denied",
+        "risk_acceptance": "denied"
+      }
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "schema_name": "roadmap-maintenance-source-set",
+  "schema_version": "1.0.0",
+  "components": [
+    {
+      "component_id": "codex-cli",
+      "manifest": "client-lifecycle/codex-native-guidance-v1.json",
+      "owned_artifact": "templates/client-guidance/codex/AGENTS.md",
+      "source": {
+        "adapter": "github_latest_release",
+        "host": "api.github.com",
+        "path": "/repos/openai/codex/releases/latest",
+        "tag_prefix": "rust-v"
+      }
+    },
+    {
+      "component_id": "claude-code",
+      "manifest": "client-lifecycle/claude-code-native-guidance-v1.json",
+      "owned_artifact": "templates/client-guidance/claude/SKILL.md",
+      "source": {
+        "adapter": "github_latest_release",
+        "host": "api.github.com",
+        "path": "/repos/anthropics/claude-code/releases/latest",
+        "tag_prefix": "v"
+      }
+    },
+    {
+      "component_id": "github-copilot-cli",
+      "manifest": "client-lifecycle/copilot-cli-native-guidance-v1.json",
+      "owned_artifact": "templates/client-guidance/copilot/impresari-context.instructions.md",
+      "source": {
+        "adapter": "github_latest_release",
+        "host": "api.github.com",
+        "path": "/repos/github/copilot-cli/releases/latest",
+        "tag_prefix": "v"
+      }
+    },
+    {
+      "component_id": "vscode-copilot",
+      "manifest": "client-lifecycle/vscode-copilot-guidance-delivery-v1.json",
+      "owned_artifact": "templates/client-guidance/copilot/impresari-context.instructions.md",
+      "source": {
+        "adapter": "github_latest_release",
+        "host": "api.github.com",
+        "path": "/repos/microsoft/vscode/releases/latest",
+        "tag_prefix": ""
+      }
+    },
+    {
+      "component_id": "cursor-agent",
+      "manifest": "client-lifecycle/cursor-native-guidance-v1.json",
+      "owned_artifact": "templates/client-guidance/cursor/impresari-context.mdc",
+      "source": {
+        "adapter": "unavailable",
+        "reason_code": "documented_authoritative_source_unavailable"
+      }
+    }
+  ]
+}

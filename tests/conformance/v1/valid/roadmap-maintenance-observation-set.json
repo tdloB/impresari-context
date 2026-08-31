@@ -1,0 +1,25 @@
+{
+  "schema_name": "roadmap-maintenance-observation-set",
+  "schema_version": "1.0.0",
+  "observations": [
+    {
+      "schema_name": "roadmap-maintenance-observation",
+      "schema_version": "1.0.0",
+      "component_id": "codex-cli",
+      "source_id": "https://api.github.com/repos/openai/codex/releases/latest",
+      "checked_at": "2026-08-30T12:00:00Z",
+      "outcome": "observed",
+      "observed_version": "0.149.0-alpha.4.1",
+      "reason_code": "metadata_version_observed",
+      "response_identity": "63c19791fdf8367ec2188b2ecffc462f92b98662153b50b148337f553debe82f",
+      "bytes_received": 38,
+      "authority": {
+        "source_read": "denied",
+        "source_write": "denied",
+        "client_mutation": "denied",
+        "release_mutation": "denied",
+        "credential_read": "denied"
+      }
+    }
+  ]
+}
