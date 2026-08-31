@@ -1,0 +1,100 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/windows-native-feasibility-profile.schema.json",
+  "title": "ADR-0092 Windows native confinement target profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "target", "identity", "limits", "controls", "preflight"],
+  "properties": {
+    "schema_name": {"const": "windows-native-feasibility-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-windows-native-feasibility-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["os_family", "runner_label", "architecture", "filesystem"],
+      "properties": {
+        "os_family": {"const": "windows"},
+        "runner_label": {"const": "windows-2025"},
+        "architecture": {"const": "x86_64"},
+        "filesystem": {"const": "ntfs"}
+      }
+    },
+    "identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["appcontainer_name_prefix", "appcontainer_name_max_characters", "fresh_identity_per_job", "capability_count", "lpac_required_for_worker", "all_application_packages_opt_out"],
+      "properties": {
+        "appcontainer_name_prefix": {"const": "studio.boldthaus.impresari.iar"},
+        "appcontainer_name_max_characters": {"const": "64"},
+        "fresh_identity_per_job": {"const": true},
+        "capability_count": {"const": "0"},
+        "lpac_required_for_worker": {"const": true},
+        "all_application_packages_opt_out": {"const": true}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["active_processes", "process_memory_bytes", "job_memory_bytes", "cpu_rate_percent", "wall_time_ms", "stdout_bytes", "stderr_bytes", "staged_artifacts", "staged_total_bytes", "writable_path_backed_bytes"],
+      "properties": {
+        "active_processes": {"const": "1"},
+        "process_memory_bytes": {"const": "67108864"},
+        "job_memory_bytes": {"const": "134217728"},
+        "cpu_rate_percent": {"const": "25"},
+        "wall_time_ms": {"const": "30000"},
+        "stdout_bytes": {"const": "65536"},
+        "stderr_bytes": {"const": "16384"},
+        "staged_artifacts": {"const": "64"},
+        "staged_total_bytes": {"const": "4194304"},
+        "writable_path_backed_bytes": {"const": "0"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["create_suspended", "job_kill_on_close", "job_breakaway_allowed", "bounded_inherited_handles_only", "network_capabilities", "device_capabilities", "registry_capabilities", "com_capabilities", "ui_capabilities", "read_only_exact_staging", "bounded_pipe_results", "dynamic_code_prohibited", "extension_points_disabled", "non_system_fonts_disabled", "remote_images_blocked", "low_integrity_images_blocked", "system32_preferred", "child_processes_prohibited", "win32k_system_calls_disabled", "cross_job_canary_required"],
+      "properties": {
+        "create_suspended": {"const": true},
+        "job_kill_on_close": {"const": true},
+        "job_breakaway_allowed": {"const": false},
+        "bounded_inherited_handles_only": {"const": true},
+        "network_capabilities": {"const": false},
+        "device_capabilities": {"const": false},
+        "registry_capabilities": {"const": false},
+        "com_capabilities": {"const": false},
+        "ui_capabilities": {"const": false},
+        "read_only_exact_staging": {"const": true},
+        "bounded_pipe_results": {"const": true},
+        "dynamic_code_prohibited": {"const": true},
+        "extension_points_disabled": {"const": true},
+        "non_system_fonts_disabled": {"const": true},
+        "remote_images_blocked": {"const": true},
+        "low_integrity_images_blocked": {"const": true},
+        "system32_preferred": {"const": true},
+        "child_processes_prohibited": {"const": true},
+        "win32k_system_calls_disabled": {"const": true},
+        "cross_job_canary_required": {"const": true}
+      }
+    },
+    "preflight": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["synthetic_worker_launch", "appcontainer_worker_launch", "network_denial_verified", "path_boundary_verified", "resource_limits_verified", "descendant_containment_verified", "complete_cleanup_verified", "os_confined", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "synthetic_worker_launch": {"const": false},
+        "appcontainer_worker_launch": {"const": false},
+        "network_denial_verified": {"const": false},
+        "path_boundary_verified": {"const": false},
+        "resource_limits_verified": {"const": false},
+        "descendant_containment_verified": {"const": false},
+        "complete_cleanup_verified": {"const": false},
+        "os_confined": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

@@ -11,6 +11,28 @@ permissions:
   contents: read
 
 jobs:
+  windows-native-iar:
+    name: Windows native IAR-1B contract preflight
+    runs-on: windows-2025
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install pinned Rust toolchain
+        shell: bash
+        run: |
+          rustup toolchain install 1.98.0 --profile minimal --component rustfmt
+          rustup override set 1.98.0
+      - name: Compile and run the no-worker native preflight
+        shell: bash
+        env:
+          RUNNER_ENVIRONMENT: ${{ runner.environment }}
+          EXPECTED_WINDOWS_RUNNER: windows-2025
+        run: |
+          rustfmt --check platform/windows-native-feasibility/windows-native-capability-probe.rs
+          rustc --edition=2024 -D warnings platform/windows-native-feasibility/windows-native-capability-probe.rs -o "$RUNNER_TEMP/windows-native-capability-probe.exe"
+          "$RUNNER_TEMP/windows-native-capability-probe.exe" > "$RUNNER_TEMP/windows-native-capability-preflight.json"
+          ruby scripts/check-windows-native-feasibility-contract.rb --receipt "$RUNNER_TEMP/windows-native-capability-preflight.json" | tee -a "$GITHUB_STEP_SUMMARY"
+
   linux-external-iar:
     name: Linux externally managed IAR-1B candidate
     runs-on: ubuntu-24.04

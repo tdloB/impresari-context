@@ -26,7 +26,10 @@ Windows isolation primitives before any real analyzer runs on Windows.
 
 - Windows Sandbox, Hyper-V VM, administrator service, kernel driver, real
   analyzer, executable repository artifact, installer execution, PowerShell
-  execution, registry mutation, network reputation, or automatic fallback.
+  execution, repository-/policy-directed or persistent registry mutation,
+  network reputation, or automatic fallback. The documented transient
+  per-user storage created and deleted with one AppContainer profile is part of
+  the accepted profile-lifecycle feasibility boundary.
 
 ## Acceptance Criteria
 

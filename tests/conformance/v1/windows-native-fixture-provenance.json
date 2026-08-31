@@ -1,0 +1,29 @@
+{
+  "schema_name": "windows-native-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_date": "2026-08-31",
+  "license": "Apache-2.0",
+  "fixtures": [
+    {
+      "path": "invalid/windows-native-capability-preflight-overclaim.json",
+      "sha256": "f144e5a7353b61420be83122366223c0867c540385419c0b418b055dc305e043",
+      "origin": "repository-authored synthetic invalid overclaim"
+    },
+    {
+      "path": "valid/iar-windows-native-feasibility-profile.json",
+      "sha256": "6b8f614387fc97321497e6b725213b9ee3c2159f3d1384fb800ffbe8af490a73",
+      "origin": "repository-authored synthetic target profile"
+    },
+    {
+      "path": "valid/windows-native-capability-preflight.json",
+      "sha256": "9a81edce7c2da99b83bedcb5699a1e6715f29737847e6886f6eeb625b3ddf8b8",
+      "origin": "repository-authored synthetic capability receipt"
+    }
+  ],
+  "third_party_content": false,
+  "executable_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}
