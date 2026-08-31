@@ -1,0 +1,99 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-supply-chain-admission-profile.schema.json",
+  "title": "ADR-0096 YARA supply-chain admission profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "source_candidate", "freshness", "executable_admission", "ruleset_admission", "revocation", "checkpoint_controls"],
+  "properties": {
+    "schema_name": {"const": "yara-supply-chain-admission-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "yara-supply-chain-admission-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "source_candidate": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "release_tag", "release_url", "tag_commit_sha1", "published_at", "source_archive_api_url", "upstream_release_asset_count", "license_spdx", "license_path", "license_git_blob_sha1"],
+      "properties": {
+        "repository": {"const": "https://github.com/VirusTotal/yara"},
+        "release_tag": {"const": "v4.5.8"},
+        "release_url": {"const": "https://github.com/VirusTotal/yara/releases/tag/v4.5.8"},
+        "tag_commit_sha1": {"const": "84b0e3cc0e42f8f8e6b84d19c97ec3ac6ff8aee8"},
+        "published_at": {"const": "2026-07-28T07:12:15Z"},
+        "source_archive_api_url": {"const": "https://api.github.com/repos/VirusTotal/yara/tarball/v4.5.8"},
+        "upstream_release_asset_count": {"const": "0"},
+        "license_spdx": {"const": "BSD-3-Clause"},
+        "license_path": {"const": "COPYING"},
+        "license_git_blob_sha1": {"const": "81b0eed4fe55ab6a33432b140b0f98e61085a5ea"}
+      }
+    },
+    "freshness": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["observed_at", "expires_at", "maximum_age_days", "on_expiry"],
+      "properties": {
+        "observed_at": {"const": "2026-08-31T07:55:03Z"},
+        "expires_at": {"const": "2026-09-30T07:55:03Z"},
+        "maximum_age_days": {"const": "30"},
+        "on_expiry": {"const": "withdraw_candidate_and_require_fresh_official_observation"}
+      }
+    },
+    "executable_admission": {"$ref": "#/$defs/executableAdmission"},
+    "ruleset_admission": {"$ref": "#/$defs/rulesetAdmission"},
+    "revocation": {"$ref": "#/$defs/revocation"},
+    "checkpoint_controls": {"$ref": "#/$defs/checkpointControls"}
+  },
+  "$defs": {
+    "executableAdmission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["upstream_binary_accepted", "impresari_build_required", "per_target_identity_required", "source_archive_sha256_required", "locked_build_environment_required", "dependency_closure_required", "sbom_required", "provenance_required", "reproducibility_disposition_required", "signature_required", "vulnerability_review_required", "license_record_required", "expiry_required", "revocation_identity_required"],
+      "properties": {
+        "upstream_binary_accepted": {"const": false}, "impresari_build_required": {"const": true},
+        "per_target_identity_required": {"const": true}, "source_archive_sha256_required": {"const": true},
+        "locked_build_environment_required": {"const": true}, "dependency_closure_required": {"const": true},
+        "sbom_required": {"const": true}, "provenance_required": {"const": true},
+        "reproducibility_disposition_required": {"const": true}, "signature_required": {"const": true},
+        "vulnerability_review_required": {"const": true}, "license_record_required": {"const": true},
+        "expiry_required": {"const": true}, "revocation_identity_required": {"const": true}
+      }
+    },
+    "rulesetAdmission": {
+      "type": "object", "additionalProperties": false,
+      "required": ["project_owned_required", "separate_artifact_identity_required", "exact_source_required", "license_required", "human_review_required", "compiled_artifact_required", "signature_required", "expiry_required", "rollback_identity_required", "repository_provided_rules_allowed", "includes_allowed", "external_paths_allowed", "custom_modules_allowed", "in_job_update_allowed", "network_retrieval_allowed", "worker_update_credentials_allowed"],
+      "properties": {
+        "project_owned_required": {"const": true}, "separate_artifact_identity_required": {"const": true},
+        "exact_source_required": {"const": true}, "license_required": {"const": true},
+        "human_review_required": {"const": true}, "compiled_artifact_required": {"const": true},
+        "signature_required": {"const": true}, "expiry_required": {"const": true},
+        "rollback_identity_required": {"const": true}, "repository_provided_rules_allowed": {"const": false},
+        "includes_allowed": {"const": false}, "external_paths_allowed": {"const": false},
+        "custom_modules_allowed": {"const": false}, "in_job_update_allowed": {"const": false},
+        "network_retrieval_allowed": {"const": false}, "worker_update_credentials_allowed": {"const": false}
+      }
+    },
+    "revocation": {
+      "type": "object", "additionalProperties": false,
+      "required": ["precedence", "triggers", "withdraws"],
+      "properties": {
+        "precedence": {"const": "revoked_then_expired_then_rollback_then_current"},
+        "triggers": {"const": ["source-tag-moved", "license-identity-changed", "security-advisory", "artifact-signature-invalid", "artifact-provenance-invalid", "ruleset-review-withdrawn", "ruleset-false-positive-emergency", "confinement-claim-withdrawn"]},
+        "withdraws": {"const": ["source-candidate", "executable-candidate", "ruleset-candidate", "iar-2-candidate", "production-candidate"]}
+      }
+    },
+    "checkpointControls": {
+      "type": "object", "additionalProperties": false,
+      "required": ["source_downloaded", "source_archive_digest_recorded", "executable_built", "executable_present", "executable_signed", "ruleset_authored", "ruleset_present", "ruleset_compiled", "ruleset_signed", "analyzer_executed", "network_used_by_checker", "credentials_used", "os_confined", "production_admitted", "iar_2_admitted", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+      "properties": {
+        "source_downloaded": {"const": false}, "source_archive_digest_recorded": {"const": false},
+        "executable_built": {"const": false}, "executable_present": {"const": false},
+        "executable_signed": {"const": false}, "ruleset_authored": {"const": false},
+        "ruleset_present": {"const": false}, "ruleset_compiled": {"const": false},
+        "ruleset_signed": {"const": false}, "analyzer_executed": {"const": false},
+        "network_used_by_checker": {"const": false}, "credentials_used": {"const": false},
+        "os_confined": {"const": false}, "production_admitted": {"const": false},
+        "iar_2_admitted": {"const": false}, "safety_claimed": {"const": false},
+        "ordinary_host_execution_authorized": {"const": false}, "authority_added": {"const": false}
+      }
+    }
+  }
+}

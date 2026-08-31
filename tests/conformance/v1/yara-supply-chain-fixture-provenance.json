@@ -1,0 +1,38 @@
+{
+  "schema_name": "fixture-provenance-record",
+  "schema_version": "1.0.0",
+  "record_id": "yara-supply-chain-contract-fixtures-v1",
+  "source_class": "original_synthetic_and_public_metadata",
+  "review_status": "reviewed",
+  "fixtures": [
+    {
+      "path": "invalid/yara-supply-chain-candidate-overclaim.json",
+      "sha256": "4417656be1f399cecb1b00731559d6c2b6af095a5eda7c469c8f84e6a6dabe48"
+    },
+    {
+      "path": "invalid/yara-supply-chain-profile-tag-moved.json",
+      "sha256": "140708329ef49169afd58e65d1006a0097c116e95a97f3ca2075261c2d2d29a9"
+    },
+    {
+      "path": "valid/yara-supply-chain-admission-profile.json",
+      "sha256": "572ccba51d019feb6c4a4d69e786e9d12094c35b3acfd647e43083f037388170"
+    },
+    {
+      "path": "valid/yara-supply-chain-candidate-receipt.json",
+      "sha256": "dde8853a061518f72b00c55fb54bcf48bbbb687519f010a636d9d10452d95b72"
+    }
+  ],
+  "public_metadata_sources": [
+    "https://github.com/VirusTotal/yara/releases/tag/v4.5.8",
+    "https://github.com/VirusTotal/yara/tree/v4.5.8",
+    "https://raw.githubusercontent.com/VirusTotal/yara/v4.5.8/COPYING"
+  ],
+  "yara_source_content": false,
+  "yara_executable_content": false,
+  "yara_rule_content": false,
+  "malware_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}

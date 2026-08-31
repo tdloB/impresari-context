@@ -121,6 +121,16 @@ execution or malware detection. No YARA executable, ruleset, repository-derived
 analyzer input, confinement claim, production claim, IAR-2 claim, or release
 artifact enters the checkpoint.
 
+ADR-0096 adds a metadata-only YARA supply-chain checkpoint. The exact official
+v4.5.8 tag commit, publication timestamp, source-archive API URL, zero uploaded
+release assets, BSD-3-Clause identifier, and `COPYING` git-blob identity were
+observed from the VirusTotal/YARA GitHub repository on 2026-08-31. The profile
+expires on 2026-09-30 and requires a fresh official observation after expiry.
+It admits no archive, executable, ruleset, IAR-1B backend, live result, IAR-2,
+production support, or safety verdict. The offline checker uses no network or
+credentials and rejects tag movement, overclaim, expiry, revocation, and absent
+future artifact evidence.
+
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
 - Commit: `70b71ca2bf77797fd594aa64191314252e36848b`

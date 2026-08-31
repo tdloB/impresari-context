@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: Contract-only checkpoint implemented under ADR-0095; execution gated on IAR-1B
+- Status: Adapter and supply-chain contracts implemented under ADR-0095/0096; execution gated on IAR-1B
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0089
@@ -62,3 +62,13 @@ production-shaped input, deterministic normalized receipt, exact byte-range
 bindings, closed limits, and fixture provenance. The checkpoint does not
 install or execute YARA, load rules, read repository-derived analyzer input, or
 claim confinement, production support, IAR-2, safety, or authority.
+
+ADR-0096 separately freezes the exact upstream source candidate and the closed
+admission requirements for a future per-target executable and project-owned
+ruleset. YARA v4.5.8 at commit
+`84b0e3cc0e42f8f8e6b84d19c97ec3ac6ff8aee8` is source-selected only. Its
+official GitHub release has no uploaded release assets, so no upstream binary
+is accepted. No source archive, executable, ruleset, rule, signing material, or
+credential is committed or used by this checkpoint. Selection expiry,
+revocation, tag movement, substitution, and missing evidence all withdraw the
+candidate without activating IAR-2.
