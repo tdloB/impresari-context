@@ -1,0 +1,105 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-release-metadata-seal.schema.json",
+  "title": "ADR-0091 macOS local-VM release-metadata seal",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "seal_id", "guest_release_id", "reviewed_at", "valid_from", "expires_at", "canonicalization", "metadata_set_digest", "members", "cross_bindings", "publication_binding", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-release-metadata-seal"},
+    "schema_version": {"const": "1.0.0"},
+    "seal_id": {"const": "iar-macos-local-vm-release-metadata-2026-08-31.1"},
+    "guest_release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+    "reviewed_at": {"type": "string", "format": "date-time"},
+    "valid_from": {"type": "string", "format": "date-time"},
+    "expires_at": {"type": "string", "format": "date-time"},
+    "canonicalization": {"const": "sha256-path-tab-bytes-tab-prefixed-digest-lf-v1"},
+    "metadata_set_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "members": {
+      "type": "array",
+      "minItems": 16,
+      "maxItems": 16,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256", "role"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^(platform/macos-vm-feasibility|profiles/v1)/[A-Za-z0-9._-]+$"},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"$ref": "common.schema.json#/$defs/sha256"},
+          "role": {
+            "enum": [
+              "upstream-public-verification-key",
+              "upstream-authentication-record",
+              "guest-asset-identity",
+              "license-record",
+              "build-provenance-record",
+              "guest-release-manifest",
+              "spdx-sbom",
+              "vulnerability-assessment",
+              "vulnerability-policy",
+              "guest-supply-chain-profile",
+              "host-interruption-profile",
+              "resource-canary-profile",
+              "supervisor-profile",
+              "synthetic-matrix-profile",
+              "upstream-authentication-profile",
+              "vulnerability-review-profile"
+            ]
+          }
+        }
+      }
+    },
+    "cross_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["guest_release_manifest_digest", "guest_component_set_digest", "upstream_authentication_record_digest", "vulnerability_assessment_digest", "rollback_predecessor_release_id"],
+      "properties": {
+        "guest_release_manifest_digest": {"const": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff"},
+        "guest_component_set_digest": {"const": "sha256:8efcfea3386d6397ffb34cc27d6f14547b3c5f20e010dcd6d357348abae391fc"},
+        "upstream_authentication_record_digest": {"const": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483"},
+        "vulnerability_assessment_digest": {"const": "sha256:0fe271154e259fec279dbf241885f18c4f534601e8e74fdb34d1363a612b7f2d"},
+        "rollback_predecessor_release_id": {"const": "iar-macos-local-vm-guest-2026-08-30.1"}
+      }
+    },
+    "publication_binding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "source_revision_binding", "github_keyless_attestation", "developer_id_signature", "apple_notarization", "homebrew_cask_checksum"],
+      "properties": {
+        "repository": {"const": "tdloB/impresari-context"},
+        "source_revision_binding": {"const": "required-at-publication"},
+        "github_keyless_attestation": {"const": "required-at-publication"},
+        "developer_id_signature": {"const": "required-before-macos-distribution"},
+        "apple_notarization": {"const": "required-before-macos-distribution"},
+        "homebrew_cask_checksum": {"const": "required-before-macos-distribution"}
+      }
+    },
+    "controls": {"$ref": "#/$defs/controls"}
+  },
+  "$defs": {
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["release_metadata_sealed", "offline_validation", "network_access", "credential_access", "repository_source_access", "advisory_coverage_complete", "vulnerability_assessment_complete", "impresari_publication_attestation_verified", "developer_id_signature_verified", "apple_notarization_verified", "cask_lifecycle_verified", "sealed_distribution", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "release_metadata_sealed": {"const": true},
+        "offline_validation": {"const": true},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_source_access": {"const": false},
+        "advisory_coverage_complete": {"const": false},
+        "vulnerability_assessment_complete": {"const": false},
+        "impresari_publication_attestation_verified": {"const": false},
+        "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false},
+        "cask_lifecycle_verified": {"const": false},
+        "sealed_distribution": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

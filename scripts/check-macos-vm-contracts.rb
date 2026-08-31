@@ -203,6 +203,28 @@ declared_v2_paths = conformance.fetch("cases").each_with_object([]) do |entry, p
 end.sort
 abort "current guest fixture provenance is incomplete" unless v2_provenance_paths == declared_v2_paths
 
+seal_provenance = json("tests/conformance/v1/macos-local-vm-release-metadata-seal-fixture-provenance.json")
+abort "release-metadata seal fixture review status changed" unless
+  seal_provenance.fetch("review_status") == "approved_original_synthetic_and_public_metadata_only" &&
+    seal_provenance.fetch("contains_executable_artifacts") == false &&
+    seal_provenance.fetch("contains_malware_or_live_signatures") == false &&
+    seal_provenance.fetch("contains_third_party_source") == false &&
+    seal_provenance.fetch("contains_private_or_customer_source") == false &&
+    seal_provenance.fetch("network_or_provider_data_used") == false
+seal_fixture_paths = seal_provenance.fetch("cases").map do |entry|
+  relative = entry.fetch("path")
+  abort "release-metadata seal fixture provenance escaped its root" if relative.start_with?("/") || relative.include?("..")
+  path = ROOT.join("tests/conformance/v1", relative)
+  abort "release-metadata seal fixture provenance digest changed: #{relative}" unless
+    Digest::SHA256.file(path).hexdigest == entry.fetch("sha256")
+  abort "release-metadata seal fixture license changed: #{relative}" unless entry.fetch("license") == "Apache-2.0"
+  relative
+end.sort
+declared_seal_paths = conformance.fetch("cases").each_with_object([]) do |entry, paths|
+  paths << entry.fetch("fixture") if entry.fetch("schema").start_with?("macos-local-vm-release-metadata-seal")
+end.sort
+abort "release-metadata seal fixture provenance is incomplete" unless seal_fixture_paths == declared_seal_paths
+
 platform_root = ROOT.join("platform/macos-vm-feasibility")
 Dir.glob(platform_root.join("**/*")).select { |path| File.file?(path) }.each do |path|
   prefix = File.binread(path, 4)

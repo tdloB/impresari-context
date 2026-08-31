@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-release-metadata-seal-profile.schema.json",
+  "title": "ADR-0091 macOS local-VM release-metadata seal profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "seal_path", "seal_digest", "required_member_count", "required_checks", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-release-metadata-seal-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-release-metadata-seal-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "seal_path": {"const": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json"},
+    "seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+    "required_member_count": {"const": "16"},
+    "required_checks": {
+      "type": "array",
+      "minItems": 12,
+      "maxItems": 12,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "exact-seal-identity",
+          "closed-path-sorted-member-inventory",
+          "exact-member-byte-lengths",
+          "exact-member-sha256-identities",
+          "canonical-metadata-set-digest",
+          "active-release-manifest-binding",
+          "active-component-set-binding",
+          "upstream-authentication-binding",
+          "vulnerability-assessment-binding",
+          "rollback-predecessor-binding",
+          "current-expiry",
+          "deny-distribution-and-production-overclaim"
+        ]
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network_access", "credential_access", "repository_source_access", "filesystem_mutation", "process_launch", "release_metadata_sealed", "sealed_distribution", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_source_access": {"const": false},
+        "filesystem_mutation": {"const": false},
+        "process_launch": {"const": false},
+        "release_metadata_sealed": {"const": true},
+        "sealed_distribution": {"const": false},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

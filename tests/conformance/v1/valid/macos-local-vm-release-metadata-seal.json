@@ -1,0 +1,141 @@
+{
+  "schema_name": "macos-local-vm-release-metadata-seal",
+  "schema_version": "1.0.0",
+  "seal_id": "iar-macos-local-vm-release-metadata-2026-08-31.1",
+  "guest_release_id": "iar-macos-local-vm-guest-2026-08-31.1",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "valid_from": "2026-08-31T00:00:00Z",
+  "expires_at": "2026-09-30T00:00:00Z",
+  "canonicalization": "sha256-path-tab-bytes-tab-prefixed-digest-lf-v1",
+  "metadata_set_digest": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b",
+  "members": [
+    {
+      "path": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub",
+      "bytes": "800",
+      "sha256": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+      "role": "upstream-public-verification-key"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/alpine-upstream-authentication-v2.json",
+      "bytes": "3238",
+      "sha256": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483",
+      "role": "upstream-authentication-record"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-assets-v2.json",
+      "bytes": "2304",
+      "sha256": "sha256:5cbf2eb61efc744e7e1ebf969641ec3f15cd76f16d0bfba6c1a5cbb580730275",
+      "role": "guest-asset-identity"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-license-record-v2.json",
+      "bytes": "764",
+      "sha256": "sha256:99c5ce2f9964b6d9d210e414c895cd1fcc164dd433156599ca791322d7c1acf8",
+      "role": "license-record"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-provenance-v2.json",
+      "bytes": "2197",
+      "sha256": "sha256:f6cb034ed4e2608528bcbe9bed45facd6e893a43eae84290899d5079d09a96f9",
+      "role": "build-provenance-record"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-release-manifest-v2.json",
+      "bytes": "4478",
+      "sha256": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+      "role": "guest-release-manifest"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-sbom-v2.spdx.json",
+      "bytes": "2605",
+      "sha256": "sha256:2bbcb8bdf70a9465e23a412e81967bd05bb4c8d1db61949f3fa37698595011ca",
+      "role": "spdx-sbom"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-vulnerability-assessment-v2.json",
+      "bytes": "2132",
+      "sha256": "sha256:0fe271154e259fec279dbf241885f18c4f534601e8e74fdb34d1363a612b7f2d",
+      "role": "vulnerability-assessment"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-vulnerability-policy-v2.json",
+      "bytes": "781",
+      "sha256": "sha256:ca13d3d1a8517da38e16aa6a5888fc7c2c2827c109feee1cc962dfe345b0888b",
+      "role": "vulnerability-policy"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-guest-supply-chain-v2.json",
+      "bytes": "1324",
+      "sha256": "sha256:389e5c55dbc3573a69561a9b999eb173e7f15e46a9a77e007d7fdc6dec8e48a2",
+      "role": "guest-supply-chain-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-interruption-v2.json",
+      "bytes": "1005",
+      "sha256": "sha256:f1b57b17d9de3b2b4de885732b6bef0f3cbf637bcba08dc1dda34724e9b18c4f",
+      "role": "host-interruption-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-resource-canary-v2.json",
+      "bytes": "1449",
+      "sha256": "sha256:82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0",
+      "role": "resource-canary-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-supervisor-v2.json",
+      "bytes": "1006",
+      "sha256": "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88",
+      "role": "supervisor-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-synthetic-matrix-v2.json",
+      "bytes": "1355",
+      "sha256": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888",
+      "role": "synthetic-matrix-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-upstream-auth-v2.json",
+      "bytes": "1402",
+      "sha256": "sha256:c4840caf688d47fbc6d42fe4005c59dc1fd25b6b4e5fd5f3cc29d529077e7e88",
+      "role": "upstream-authentication-profile"
+    },
+    {
+      "path": "profiles/v1/iar-macos-local-vm-vulnerability-review-v2.json",
+      "bytes": "1508",
+      "sha256": "sha256:2c7cbdf348941c861ef7bcea22f5e72c5571425451ab6087a3b2949baa73e5c7",
+      "role": "vulnerability-review-profile"
+    }
+  ],
+  "cross_bindings": {
+    "guest_release_manifest_digest": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+    "guest_component_set_digest": "sha256:8efcfea3386d6397ffb34cc27d6f14547b3c5f20e010dcd6d357348abae391fc",
+    "upstream_authentication_record_digest": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483",
+    "vulnerability_assessment_digest": "sha256:0fe271154e259fec279dbf241885f18c4f534601e8e74fdb34d1363a612b7f2d",
+    "rollback_predecessor_release_id": "iar-macos-local-vm-guest-2026-08-30.1"
+  },
+  "publication_binding": {
+    "repository": "tdloB/impresari-context",
+    "source_revision_binding": "required-at-publication",
+    "github_keyless_attestation": "required-at-publication",
+    "developer_id_signature": "required-before-macos-distribution",
+    "apple_notarization": "required-before-macos-distribution",
+    "homebrew_cask_checksum": "required-before-macos-distribution"
+  },
+  "controls": {
+    "release_metadata_sealed": true,
+    "offline_validation": true,
+    "network_access": false,
+    "credential_access": false,
+    "repository_source_access": false,
+    "advisory_coverage_complete": false,
+    "vulnerability_assessment_complete": false,
+    "impresari_publication_attestation_verified": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "cask_lifecycle_verified": false,
+    "sealed_distribution": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

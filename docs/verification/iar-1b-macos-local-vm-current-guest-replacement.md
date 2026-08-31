@@ -89,8 +89,9 @@ vulnerability-free claim.
 
 ## Remaining gates
 
-Complete advisory coverage and disposition, genuine sleep/wake plus reboot and
-power-loss evidence, multi-host evidence, sealed Impresari release metadata,
-Developer ID signing/notarization, the one-cask lifecycle, and the deferred
-independent human security review remain required before macOS IAR-1B or any
-real-analyzer admission.
+The subsequent ADR-0091 checkpoint now content-addresses the exact active
+release metadata. Complete advisory coverage and disposition, genuine
+sleep/wake plus reboot and power-loss evidence, multi-host evidence, Developer
+ID signing/notarization, the one-cask lifecycle, final publication attestation,
+and the deferred independent human security review remain required before
+macOS IAR-1B or any real-analyzer admission.

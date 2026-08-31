@@ -71,3 +71,10 @@ only the two required members and proves their exact correspondence to the
 guest manifest. The 411 MB archive stays outside the repository. This check
 does not seal Impresari release metadata or alter the remaining production
 gates.
+
+The separate ADR-0091 metadata-seal check now closes that repository-metadata
+sub-gate. It verifies one exact sixteen-member v2 metadata/profile inventory
+and canonical set digest without network, credentials, prepared executable
+assets, or source input. It does not verify a GitHub publication attestation,
+Developer ID signature, Apple notarization, Homebrew cask lifecycle, sealed
+distribution, production admission, or analyzer execution.

@@ -149,3 +149,10 @@ matrices pass again. The repeated review records `candidate_current=true` and
 `replacement_required=false`, while retaining
 `vulnerability_assessment_complete=false` and `production_admitted=false`
 because complete current advisory coverage is not established.
+
+The tenth checkpoint freezes the complete active v2 metadata graph under one
+canonical content address. Sixteen path/size/SHA-256 members include the guest
+manifest, public upstream verification material, SBOM, licenses, provenance,
+vulnerability records, and every active runtime profile. The seal profile and
+source-free receipt distinguish exact repository metadata from authenticated,
+signed, notarized, or cask-distributed bytes; all latter claims remain false.
