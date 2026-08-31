@@ -112,11 +112,14 @@ abort "Windows broker boundary corpus drifted" unless
     broker.include?("profile.sid_string.as_str()") &&
     broker.include?("let stage = first.path.join") &&
     broker.include?("let second_worker = second_stage.join") &&
-    broker.include?("EnvironmentBlock::exact_system()") &&
+    broker.include?("EnvironmentBlock::exact_system(stage)") &&
+    broker.include?("CreateEnvironmentBlock(&raw mut clean, token.0, 0)") &&
+    broker.include?(%q{"LOCALAPPDATA"}) &&
+    broker.include?(%q{"USERPROFILE"}) &&
     broker.include?("GetWindowsDirectoryW") &&
-    broker.include?(%q{format!("SystemDrive={system_drive}")}) &&
-    broker.include?(%q{format!("SystemRoot={system_root}")}) &&
-    broker.include?(%q{format!("windir={system_root}")}) &&
+    broker.include?(%q{entries.insert("SystemDrive".into(), system_drive)}) &&
+    broker.include?(%q{entries.insert("SystemRoot".into(), system_root.clone())}) &&
+    broker.include?(%q{entries.insert("windir".into(), system_root)}) &&
     broker.include?("PROTECTED_DACL_SECURITY_INFORMATION") &&
     broker.include?("EXPECTED_WORKER_SHA256") &&
     broker.include?("EXPECTED_BROKER_SHA256") &&

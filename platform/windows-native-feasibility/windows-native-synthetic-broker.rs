@@ -338,6 +338,8 @@ unsafe extern "system" {
     ) -> i32;
     fn DeleteAppContainerProfile(appcontainer_name: *const u16) -> i32;
     fn GetAppContainerFolderPath(appcontainer_sid: *const u16, path: *mut *mut u16) -> i32;
+    fn CreateEnvironmentBlock(environment: *mut *mut c_void, token: Handle, inherit: i32) -> i32;
+    fn DestroyEnvironmentBlock(environment: *mut c_void) -> i32;
 }
 
 #[link(name = "ole32")]
@@ -471,7 +473,7 @@ struct LaunchAttributes {
 struct EnvironmentBlock(Vec<u16>);
 
 impl EnvironmentBlock {
-    fn exact_system() -> Result<Self, String> {
+    fn exact_system(stage: &Path) -> Result<Self, String> {
         let mut windows = vec![0_u16; 32_768];
         // SAFETY: windows is writable for the capacity passed to the API.
         let length = unsafe { GetWindowsDirectoryW(windows.as_mut_ptr(), windows.len() as u32) };
@@ -488,16 +490,98 @@ impl EnvironmentBlock {
             String::from_utf16(&windows[..2]).map_err(|_| "system drive was invalid UTF-16")?;
         let system_root =
             String::from_utf16(&windows).map_err(|_| "Windows directory was invalid UTF-16")?;
+        let mut token = null_mut();
+        // SAFETY: token is writable and only query authority is requested.
+        if unsafe { OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &raw mut token) } == 0
+            || token.is_null()
+        {
+            return Err("OpenProcessToken(environment) failed".into());
+        }
+        let token = HandleGuard(token);
+        let mut clean = null_mut();
+        // SAFETY: the current user token is queryable and inherit=false excludes
+        // all process-level caller variables.
+        if unsafe { CreateEnvironmentBlock(&raw mut clean, token.0, 0) } == 0 || clean.is_null() {
+            return Err("CreateEnvironmentBlock(clean user) failed".into());
+        }
+        let allowed = [
+            "APPDATA",
+            "HOMEDRIVE",
+            "HOMEPATH",
+            "LOCALAPPDATA",
+            "USERPROFILE",
+        ];
+        let mut entries = BTreeMap::new();
+        let mut cursor = clean.cast::<u16>();
+        let mut consumed = 0_usize;
+        while consumed < 32_768 {
+            let mut length = 0_usize;
+            // SAFETY: CreateEnvironmentBlock returns a double-null-terminated
+            // block. The frozen 32K bound rejects malformed output.
+            unsafe {
+                while consumed + length < 32_768 && *cursor.add(length) != 0 {
+                    length += 1;
+                }
+            }
+            if length == 0 {
+                break;
+            }
+            if consumed + length >= 32_768 {
+                // SAFETY: clean is owned by Userenv until this point.
+                unsafe { DestroyEnvironmentBlock(clean) };
+                return Err("clean user environment exceeded the frozen bound".into());
+            }
+            // SAFETY: the loop found the terminator within the frozen bound.
+            let units = unsafe { std::slice::from_raw_parts(cursor, length) };
+            let entry = match String::from_utf16(units) {
+                Ok(value) => value,
+                Err(_) => {
+                    // SAFETY: clean is owned by Userenv until this point.
+                    unsafe { DestroyEnvironmentBlock(clean) };
+                    return Err("clean user environment was invalid UTF-16".into());
+                }
+            };
+            if let Some((key, value)) = entry.split_once('=')
+                && let Some(canonical) = allowed
+                    .iter()
+                    .find(|candidate| candidate.eq_ignore_ascii_case(key))
+            {
+                entries.insert((*canonical).to_string(), value.to_string());
+            }
+            // SAFETY: length points at the current entry terminator.
+            cursor = unsafe { cursor.add(length + 1) };
+            consumed += length + 1;
+        }
+        // SAFETY: all selected strings are now owned Rust values.
+        unsafe { DestroyEnvironmentBlock(clean) };
+        for required in allowed {
+            if !entries.contains_key(required) {
+                return Err(format!(
+                    "required clean environment key unavailable: {required}"
+                ));
+            }
+        }
+        entries.insert(
+            "ComSpec".into(),
+            format!("{system_root}\\System32\\cmd.exe"),
+        );
+        entries.insert(
+            "Path".into(),
+            format!("{system_root}\\System32;{system_root};{system_root}\\System32\\Wbem"),
+        );
+        entries.insert("SystemDrive".into(), system_drive);
+        entries.insert("SystemRoot".into(), system_root.clone());
+        entries.insert("TEMP".into(), stage.to_string_lossy().into_owned());
+        entries.insert("TMP".into(), stage.to_string_lossy().into_owned());
+        entries.insert("windir".into(), system_root);
+        let mut entries: Vec<_> = entries.into_iter().collect();
+        entries.sort_by_key(|(key, _)| key.to_ascii_uppercase());
         let mut block = Vec::new();
         // CreateProcess requires an alphabetically sorted, double-null-terminated
-        // Unicode block. These values come from Windows itself, never the caller,
-        // and deliberately exclude user, repository, credential, and CI variables.
-        for entry in [
-            format!("SystemDrive={system_drive}"),
-            format!("SystemRoot={system_root}"),
-            format!("windir={system_root}"),
-        ] {
-            block.extend(entry.encode_utf16());
+        // Unicode block. The allowlist excludes repository, credential, CI, and
+        // arbitrary user variables; process-level caller variables are never read.
+        for (key, value) in entries {
+            block.extend(format!("{key}={value}").encode_utf16());
             block.push(0);
         }
         block.push(0);
@@ -1220,7 +1304,7 @@ fn run_scenario(
     let application = wide(worker.as_os_str());
     let mut command = wide(worker.as_os_str());
     let current_directory = wide(stage.as_os_str());
-    let mut environment = EnvironmentBlock::exact_system()?;
+    let mut environment = EnvironmentBlock::exact_system(stage)?;
     let mut startup = StartupInfoExW::default();
     startup.StartupInfo.cb = size_of::<StartupInfoExW>() as u32;
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
