@@ -941,9 +941,14 @@ fn sha256(path: &Path) -> Result<String, String> {
 
 fn verify_binary_digest(path: &Path, variable: &str) -> Result<String, String> {
     let digest = sha256(path)?;
-    let expected = env::var(variable).map_err(|_| format!("missing {variable}"))?;
+    let expected = env::var(variable)
+        .map_err(|_| format!("missing {variable}"))?
+        .trim()
+        .to_ascii_lowercase();
     if expected != digest || digest.bytes().all(|value| value == b'0') {
-        return Err(format!("{variable} did not match the exact binary"));
+        return Err(format!(
+            "{variable} did not match the exact binary: expected={expected} observed={digest}"
+        ));
     }
     Ok(format!("sha256:{digest}"))
 }
