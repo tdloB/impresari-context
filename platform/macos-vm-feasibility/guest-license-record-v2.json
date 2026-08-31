@@ -1,0 +1,25 @@
+{
+  "schema_name": "macos-local-vm-guest-license-record",
+  "schema_version": "2.0.0",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "components": [
+    {
+      "component_id": "alpine-linux-virt-kernel",
+      "license_expression": "GPL-2.0-only",
+      "basis": "upstream Linux kernel and exact extracted virtio_blk kernel module"
+    },
+    {
+      "component_id": "impresari-context-synthetic-guest-init",
+      "license_expression": "Apache-2.0",
+      "basis": "repository SPDX declaration"
+    },
+    {
+      "component_id": "impresari-context-synthetic-resource-guest-init",
+      "license_expression": "Apache-2.0",
+      "basis": "repository SPDX declaration"
+    }
+  ],
+  "legal_advice": false,
+  "production_admitted": false,
+  "authority_added": false
+}

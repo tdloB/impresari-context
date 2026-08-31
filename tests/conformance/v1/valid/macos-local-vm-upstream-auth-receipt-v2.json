@@ -1,0 +1,22 @@
+{
+  "schema_name": "macos-local-vm-upstream-auth-receipt",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-upstream-auth-v2",
+  "profile_digest": "sha256:c4840caf688d47fbc6d42fe4005c59dc1fd25b6b4e5fd5f3cc29d529077e7e88",
+  "authentication_record_digest": "sha256:0dfc2b183b60145de395074e0371213aadcf51c567d90dcf0b9ad68cc6df9483",
+  "guest_release_manifest_digest": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+  "apk_signing_key_digest": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+  "index_signature_verified": true,
+  "package_signature_verified": true,
+  "package_datahash_verified": true,
+  "component_identities_verified": true,
+  "upstream_publisher_authentication_verified": true,
+  "deprecated_provider_algorithm_disclosed": true,
+  "package_committed": false,
+  "runtime_network_required": false,
+  "release_metadata_sealed": false,
+  "vulnerability_assessment_complete": false,
+  "production_admitted": false,
+  "analyzer_execution": false,
+  "authority_added": false
+}

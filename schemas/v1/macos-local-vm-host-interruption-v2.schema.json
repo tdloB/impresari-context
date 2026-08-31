@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-host-interruption-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM synthetic host-interruption receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "controller_profile_id", "controller_profile_digest", "controller_digest", "job_id", "interruption_source", "sleep_observer_installed", "shared_stop_handler_used", "synthetic_interruption_requested", "virtual_machine_stopped", "controller_reaped", "stale_job_removed", "recovery_job_succeeded", "all_job_state_removed", "real_host_sleep_observed", "vm_confined", "production_admitted", "analyzer_execution", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-host-interruption-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-interruption-v2"},
+    "profile_digest": {"const": "sha256:f1b57b17d9de3b2b4de885732b6bef0f3cbf637bcba08dc1dda34724e9b18c4f"},
+    "controller_profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v2"},
+    "controller_profile_digest": {"const": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"},
+    "controller_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "job_id": {"type": "string", "pattern": "^[a-z0-9-]{1,20}$"},
+    "interruption_source": {"const": "synthetic-job-private-trigger"},
+    "sleep_observer_installed": {"const": true},
+    "shared_stop_handler_used": {"const": true},
+    "synthetic_interruption_requested": {"const": true},
+    "virtual_machine_stopped": {"const": true},
+    "controller_reaped": {"const": true},
+    "stale_job_removed": {"const": true},
+    "recovery_job_succeeded": {"const": true},
+    "all_job_state_removed": {"const": true},
+    "real_host_sleep_observed": {"const": false},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

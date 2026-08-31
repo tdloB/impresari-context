@@ -385,6 +385,15 @@ and Alpine's published `linux-lts` secdb record does not establish complete
 The review is dispositioned, but `vulnerability_assessment_complete=false`;
 no specific CVE applicability or vulnerability-free claim is made. Current
 guest replacement and renewed review now precede release-metadata sealing.
+The next checkpoint completed that replacement with the exact authenticated
+Alpine `linux-virt-6.18.48-r0` package. Versioned v2 profiles preserve the
+historical denial evidence while cross-binding the current kernel, module,
+initramfses, controller and Rust supervisor contracts, release records, and
+rollback predecessor. All native synthetic matrices passed again. The renewed
+review records the candidate as current with no further replacement required,
+but complete current `6.18` advisory coverage remains unestablished, so
+vulnerability completion, distribution sealing, production, and real analyzers
+remain closed.
 
 ## Parallel Client Integration Depth Track
 

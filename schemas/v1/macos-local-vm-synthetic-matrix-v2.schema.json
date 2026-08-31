@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-synthetic-matrix-v2.schema.json",
+  "title": "ADR-0087 macOS local-VM synthetic fault-matrix receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "kernel_digest", "initramfs_digest", "result", "checks", "remaining", "vm_confined", "production_admitted", "analyzer_execution", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-synthetic-matrix-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v2"},
+    "profile_digest": {"const": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"},
+    "kernel_digest": {"const": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"},
+    "initramfs_digest": {"const": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b"},
+    "result": {"const": "partial_matrix_passed"},
+    "checks": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repeated_build_identity", "exact_guest_identity", "success_recovery", "malformed_result_rejected", "serial_flood_bounded_and_rejected", "timeout_stopped_and_removed", "descendant_vm_stopped_and_removed", "early_exit_rejected_and_removed", "controller_cancellation_stopped_and_removed", "tampered_guest_rejected_before_staging", "cross_job_state_absent"],
+      "properties": {
+        "repeated_build_identity": {"const": true},
+        "exact_guest_identity": {"const": true},
+        "success_recovery": {"const": true},
+        "malformed_result_rejected": {"const": true},
+        "serial_flood_bounded_and_rejected": {"const": true},
+        "timeout_stopped_and_removed": {"const": true},
+        "descendant_vm_stopped_and_removed": {"const": true},
+        "early_exit_rejected_and_removed": {"const": true},
+        "controller_cancellation_stopped_and_removed": {"const": true},
+        "tampered_guest_rejected_before_staging": {"const": true},
+        "cross_job_state_absent": {"const": true}
+      }
+    },
+    "remaining": {"const": ["external_supervisor_cancellation", "forced_host_process_termination_recovery", "host_sleep_and_interruption", "guest_memory_pressure", "guest_cpu_accounting", "host_canary_denial_corpus", "multi_host_evidence", "distribution_and_independent_review"]},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

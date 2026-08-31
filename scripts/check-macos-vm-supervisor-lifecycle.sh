@@ -31,10 +31,10 @@ validate_common() {
   jq -e --arg job_id "$job_id" --arg controller "$controller_digest" '
     .schema_name == "macos-local-vm-supervisor-lifecycle-receipt" and
     .schema_version == "1.0.0" and
-    .profile_id == "iar-macos-local-vm-supervisor-v1" and
-    .profile_digest == "sha256:f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85" and
-    .controller_profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
-    .controller_profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
+    .profile_id == "iar-macos-local-vm-supervisor-v2" and
+    .profile_digest == "sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88" and
+    .controller_profile_id == "iar-macos-local-vm-synthetic-matrix-v2" and
+    .controller_profile_digest == "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888" and
     .controller_digest == $controller and
     .job_id == $job_id and
     .controller_digest_verified_before_launch == true and
@@ -87,8 +87,8 @@ jq -n --arg controller "$controller_digest" '
   {
     schema_name:"macos-local-vm-supervisor-lifecycle-matrix",
     schema_version:"1.0.0",
-    profile_id:"iar-macos-local-vm-supervisor-v1",
-    profile_digest:"sha256:f82de32acc12d6cad53c9a8c4a225ea4a352bd91d39222969e9e1efa40035e85",
+    profile_id:"iar-macos-local-vm-supervisor-v2",
+    profile_digest:"sha256:614b9da42f051518e6a6d54f15e75c492e233e2ed653bfcbf69285d130967b88",
     controller_digest:$controller,
     result:"partial_lifecycle_passed",
     checks:{

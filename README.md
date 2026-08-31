@@ -295,6 +295,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B macOS local-VM vulnerability disposition](docs/verification/iar-1b-macos-local-vm-vulnerability-disposition.md):
   the exact stale-kernel denial, incomplete-advisory-coverage boundary, and
   mandatory replacement route without a vulnerability-free claim.
+- [IAR-1B macOS local-VM current guest replacement](docs/verification/iar-1b-macos-local-vm-current-guest-replacement.md):
+  the authenticated current Alpine package, versioned v2 guest identity chain,
+  repeated native matrices, and continued fail-closed production denial.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.

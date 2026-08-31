@@ -98,9 +98,9 @@ fn resource_canary_receipt_is_bounded_source_free_evidence() {
         controller_digest:
             "sha256:1111111111111111111111111111111111111111111111111111111111111111".into(),
         job_id: "resource-contract".into(),
-        kernel_digest: "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"
+        kernel_digest: "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
             .into(),
-        initramfs_digest: "sha256:f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c"
+        initramfs_digest: "sha256:1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3"
             .into(),
         input_digest: "sha256:3050d67653f05f1db0dcef073a64f6fc9f9ac2e55c7b1881e7372151b3e4fd99"
             .into(),

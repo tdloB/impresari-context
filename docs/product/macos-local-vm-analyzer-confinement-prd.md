@@ -130,6 +130,17 @@ applicability, vulnerability freedom, assessment completion, production
 admission, or analyzer authority. See the
 [vulnerability disposition](../verification/iar-1b-macos-local-vm-vulnerability-disposition.md).
 
+The current-guest replacement checkpoint then authenticated Alpine's exact
+v3.24 aarch64 `APKINDEX` and `linux-virt-6.18.48-r0.apk` through the APK key
+extracted from the OpenPGP-authenticated netboot archive. Versioned v2 profiles
+atomically bind the replacement kernel, module, initramfses, controller,
+supervisor, release records, and rollback predecessor while preserving v1 as
+historical evidence. Every native synthetic matrix passed again. The candidate
+is current and no further package replacement is presently required, but the
+provider snapshot still does not establish complete `6.18` advisory coverage.
+Production, analyzer execution, and a vulnerability-free claim remain denied.
+See the [current guest replacement](../verification/iar-1b-macos-local-vm-current-guest-replacement.md).
+
 ## Packaging Direction
 
 ADR-0076's one CLI-compatible Homebrew cask remains the desired user topology.
@@ -138,6 +149,6 @@ The guest image may be bundled or explicitly downloaded later; that distribution
 choice requires exact signing, expiry, rollback, and offline behavior evidence.
 The candidate now has exact expiry, rollback, offline behavior, upstream
 publisher-authentication evidence, and a fail-closed vulnerability
-disposition. It was denied and must be replaced before a complete assessment.
-Impresari release-metadata sealing, signing, notarization, and the final
-bundle/update lifecycle remain open.
+disposition. The stale guest has been replaced by the current authenticated
+package; complete advisory coverage, Impresari release-metadata sealing,
+signing, notarization, and the final bundle/update lifecycle remain open.

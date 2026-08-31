@@ -1,0 +1,67 @@
+{
+  "schema_name": "macos-local-vm-upstream-authentication-record",
+  "schema_version": "2.0.0",
+  "record_id": "alpine-linux-virt-6.18.48-r0-aarch64-auth-v2",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "trust_anchor": {
+    "record_path": "platform/macos-vm-feasibility/alpine-upstream-authentication.json",
+    "record_sha256": "sha256:f1ef35d52427a15179777bafd67eddd2e545c8e853ddc425377544732b955476",
+    "openpgp_release_fingerprint": "0482D84022F52DF1C4E7CD43293ACD0907D9495A",
+    "authenticated_netboot_archive_sha256": "sha256:54fe38fa41cce740ba379458ed63cfcd89ab06ae5e6a47a06dafe0a34e8427e8"
+  },
+  "apk_signing_key": {
+    "path": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub",
+    "bytes": "800",
+    "sha256": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+    "source": "etc/apk/keys/alpine-devel@lists.alpinelinux.org-616ae350.rsa.pub in the authenticated netboot initramfs"
+  },
+  "signed_index": {
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/APKINDEX.tar.gz",
+    "bytes": "529311",
+    "sha256": "sha256:db44420861bbe4b2ae28756f8fceee9ced313a8585c56fed85dc7667b722d0fc",
+    "signature_sha256": "sha256:a4e5f7e1b3d6a43e84ce7b825f12366a7c5f05183184bf2245990c1ab0d95e6f",
+    "signed_body_sha256": "sha256:3f071f24bb0fada6e18f80129179e64f2c4edec3d49605cb2a651c380feec3c4"
+  },
+  "signed_package": {
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk",
+    "bytes": "41557960",
+    "sha256": "sha256:c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616",
+    "signature_sha256": "sha256:bb8cf07336a154e23901069049e9ca6e6315c35104d829219711406033b4362e",
+    "control_sha256": "sha256:cd750ea70334bdcd4d274372200cb80993f729b954ea1bdd1385c81bbb64756a",
+    "datahash": "sha256:e2ec28de6d80fa2b3535fc29475a7657ed8375dec99d4da96871ffd5b1077263",
+    "package_name": "linux-virt",
+    "package_version": "6.18.48-r0",
+    "architecture": "aarch64",
+    "origin": "linux-lts",
+    "commit": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"
+  },
+  "authenticated_components": [
+    {
+      "package_path": "boot/vmlinuz-virt",
+      "bytes": "10371584",
+      "sha256": "sha256:d552d8c0c74151de2280b0d01b5ec0a01b912449464d54dc370e18dc8d316f01",
+      "derived_sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
+    },
+    {
+      "package_path": "lib/modules/6.18.48-0-virt/kernel/drivers/block/virtio_blk.ko.gz",
+      "bytes": "15569",
+      "sha256": "sha256:0a806460de52684cd3362231009bc10920a28f935b5fcb055c9069a6a3153e7f",
+      "derived_sha256": "sha256:c8eb0f6b98a18a5cc237bc3019637551f46f964a5efd215253a0946889e3f31d"
+    }
+  ],
+  "verification": {
+    "trust_anchor_verified": true,
+    "index_signature_verified": true,
+    "package_signature_verified": true,
+    "package_datahash_verified": true,
+    "index_package_identity_matched": true,
+    "component_identities_verified": true,
+    "publisher_algorithm_deprecation_disclosed": true,
+    "runtime_network_required": false,
+    "release_metadata_sealed": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

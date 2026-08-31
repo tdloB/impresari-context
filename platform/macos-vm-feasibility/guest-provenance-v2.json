@@ -1,0 +1,58 @@
+{
+  "schema_name": "macos-local-vm-guest-provenance",
+  "schema_version": "2.0.0",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "build_reproducibility": "same-host-byte-reproduction-observed",
+  "upstream_publisher_authentication": "verified-apkv2-from-openpgp-authenticated-key",
+  "upstream_transport": "https-with-exact-size-and-sha256",
+  "toolchain": {
+    "zig": "0.16.0",
+    "target": "aarch64-linux-musl",
+    "initramfs_builder": "ruby-stdlib-canonical-cpio-gzip-mtime-1"
+  },
+  "build_inputs": [
+    {
+      "path": "scripts/prepare-macos-vm-feasibility.sh",
+      "sha256": "42d0b76ea9cfd6138455062b944c05c1570062b189ae1506aed044c288039449"
+    },
+    {
+      "path": "scripts/build-macos-vm-feasibility.sh",
+      "sha256": "79aca92d02ab6c23130db9828c9032090a3c59e2739e087148e4562a2d28ea96"
+    },
+    {
+      "path": "scripts/build-macos-vm-initramfs.rb",
+      "sha256": "d48be1a09716e0fdfb230be32af09a2d04c695b476429bcae0ee85df55d40344"
+    },
+    {
+      "path": "scripts/extract-macos-vm-kernel.rb",
+      "sha256": "0bbf2d0be65d0bfcfa1eb7fa427440a08637d194a6f491cc386e541dd241c192"
+    },
+    {
+      "path": "scripts/verify-alpine-apkv2.rb",
+      "sha256": "0f688de0d883a9a64b17f05b33b3d1a8cc2482eafa6ebd3fb91a759ad888eb94"
+    },
+    {
+      "path": "scripts/verify-macos-vm-alpine-package.sh",
+      "sha256": "de74f941dea1012c90f57d2406fec94932d4db38cbe95add2347936d0730aeb2"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/Sources/GuestInit/main.c",
+      "sha256": "53a0b2c35851927e3574631044369448fc2330150ecedeeea589c190db101fe3"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/Sources/GuestResourceInit/main.c",
+      "sha256": "0200bb24e3add830bfe6e780da974ace1416f2e05ae7d81c50c6d02f8a9873b2"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/guest-assets-v2.json",
+      "sha256": "5cbf2eb61efc744e7e1ebf969641ec3f15cd76f16d0bfba6c1a5cbb580730275"
+    },
+    {
+      "path": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub",
+      "sha256": "d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d"
+    }
+  ],
+  "network_used_by_offline_admission": false,
+  "production_admitted": false,
+  "authority_added": false
+}

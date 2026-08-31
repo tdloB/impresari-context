@@ -8,10 +8,10 @@ require "pathname"
 require "time"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
-PROFILE_RELATIVE = "profiles/v1/iar-macos-local-vm-guest-supply-chain-v1.json"
-PROFILE_DIGEST = "fb1d1d60f1be8cfe994d69b7222102ce497ab405b4f6238f144a9a55748b1714"
-MANIFEST_RELATIVE = "platform/macos-vm-feasibility/guest-release-manifest.json"
-MANIFEST_DIGEST = "02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6"
+PROFILE_RELATIVE = "profiles/v1/iar-macos-local-vm-guest-supply-chain-v2.json"
+PROFILE_DIGEST = "389e5c55dbc3573a69561a9b999eb173e7f15e46a9a77e007d7fdc6dec8e48a2"
+MANIFEST_RELATIVE = "platform/macos-vm-feasibility/guest-release-manifest-v2.json"
+MANIFEST_DIGEST = "d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff"
 
 options = {prepared_assets: nil, output: nil}
 OptionParser.new do |parser|
@@ -41,8 +41,8 @@ end
 
 profile_path = ROOT.join(PROFILE_RELATIVE)
 exact_digest(profile_path, PROFILE_DIGEST, "guest supply-chain profile")
-sidecar = ROOT.join("profiles/v1/iar-macos-local-vm-guest-supply-chain-v1.sha256").read.strip
-expected_sidecar = "#{PROFILE_DIGEST}  iar-macos-local-vm-guest-supply-chain-v1.json"
+sidecar = ROOT.join("profiles/v1/iar-macos-local-vm-guest-supply-chain-v2.sha256").read.strip
+expected_sidecar = "#{PROFILE_DIGEST}  iar-macos-local-vm-guest-supply-chain-v2.json"
 abort "guest supply-chain profile checksum record mismatch" unless sidecar == expected_sidecar
 profile = read_json(profile_path)
 
@@ -50,7 +50,7 @@ manifest_path = ROOT.join(MANIFEST_RELATIVE)
 exact_digest(manifest_path, MANIFEST_DIGEST, "guest release manifest")
 abort "guest release manifest fixture differs from the frozen manifest" unless
   manifest_path.binread ==
-    ROOT.join("tests/conformance/v1/valid/macos-local-vm-guest-release-manifest.json").binread
+    ROOT.join("tests/conformance/v1/valid/macos-local-vm-guest-release-manifest-v2.json").binread
 manifest = read_json(manifest_path)
 abort "profile does not bind the exact manifest" unless
   profile.fetch("manifest_path") == MANIFEST_RELATIVE &&
@@ -75,8 +75,8 @@ provenance.fetch("build_inputs").each do |input|
     path.to_s.start_with?(ROOT.to_s + File::SEPARATOR)
   exact_digest(path, input.fetch("sha256"), "build input")
 end
-abort "guest provenance overclaims publisher authentication" unless
-  provenance.fetch("upstream_publisher_authentication") == "not-verified"
+abort "guest provenance lost publisher authentication" unless
+  provenance.fetch("upstream_publisher_authentication") == "verified-apkv2-from-openpgp-authenticated-key"
 abort "offline admission acquired network authority" unless
   provenance.fetch("network_used_by_offline_admission") == false
 
@@ -103,7 +103,7 @@ sbom_checksums = sbom.fetch("packages").flat_map do |package|
     .map { |checksum| checksum.fetch("checksumValue") }
 end
 %w[
-  47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756
+  c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616
   68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf
   7e5add284e63a059c5df32b66a2bd18b0d96a5e4b5809c00a02bd9a82e7fa3f6
 ].each { |digest| abort "guest SBOM omits component #{digest}" unless sbom_checksums.include?(digest) }
@@ -121,15 +121,15 @@ expires_at = Time.iso8601(manifest.fetch("expires_at"))
 abort "guest release is not currently valid" unless valid_from <= now && now < expires_at
 abort "vulnerability policy expiry differs from the release" unless
   Time.iso8601(vulnerability.fetch("expires_at")) == expires_at
-abort "unassessed vulnerabilities do not deny production" unless
-  vulnerability.fetch("assessment_state") == "not-yet-assessed" &&
-    vulnerability.fetch("admission_when_unassessed") == "deny-production-admission"
+abort "incomplete vulnerability coverage does not deny production" unless
+  vulnerability.fetch("assessment_state") == "current-package-reviewed-advisory-coverage-incomplete" &&
+    vulnerability.fetch("admission_when_assessment_incomplete") == "deny-production-admission"
 
 rollback = manifest.fetch("rollback")
 abort "guest update may occur during a job" unless rollback.fetch("updates_between_jobs_only") == true
-abort "initial candidate must explicitly declare no previous release" unless
+abort "replacement candidate must bind the previous release" unless
   rollback.fetch("current_release_id") == manifest.fetch("release_id") &&
-    rollback.fetch("previous_release_id") == "none" &&
+    rollback.fetch("previous_release_id") == "iar-macos-local-vm-guest-2026-08-30.1" &&
     rollback.fetch("anti_rollback_enforced") == false
 
 controls = manifest.fetch("controls")
@@ -137,9 +137,9 @@ abort "guest release acquired self-update or network authority" unless
   controls.fetch("guest_self_update") == false &&
     controls.fetch("guest_network_available") == false &&
     controls.fetch("offline_admission") == true
-abort "candidate release crossed an unverified production gate" unless
-  controls.fetch("publisher_authentication_verified") == false &&
-    controls.fetch("cryptographic_signature_verified") == false &&
+abort "candidate release crossed an incomplete production gate" unless
+  controls.fetch("publisher_authentication_verified") == true &&
+    controls.fetch("cryptographic_signature_verified") == true &&
     controls.fetch("notarized_distribution_verified") == false &&
     controls.fetch("vulnerability_assessment_complete") == false &&
     controls.fetch("production_admitted") == false &&
@@ -181,9 +181,9 @@ receipt = {
   "rollback_identity_bound" => true,
   "offline_validation" => true,
   "prepared_artifacts_verified" => prepared_verified,
-  "publisher_authentication_verified" => false,
+  "publisher_authentication_verified" => true,
   "vulnerability_assessment_complete" => false,
-  "cryptographic_signature_verified" => false,
+  "cryptographic_signature_verified" => true,
   "notarized_distribution_verified" => false,
   "sealed_distribution" => false,
   "production_admitted" => false,

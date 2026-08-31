@@ -5,14 +5,14 @@ import CryptoKit
 import Foundation
 import Virtualization
 
-private let profileID = "iar-macos-local-vm-synthetic-matrix-v1"
-private let profileDigest = "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522"
-private let kernelDigest = "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"
-private let initramfsDigest = "cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf"
-private let resourceProfileID = "iar-macos-local-vm-resource-canary-v1"
-private let resourceProfileDigest = "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e"
-private let resourceInitramfsDigest = "f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c"
-private let kernelBytes: UInt64 = 36_110_336
+private let profileID = "iar-macos-local-vm-synthetic-matrix-v2"
+private let profileDigest = "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888"
+private let kernelDigest = "4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
+private let initramfsDigest = "89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b"
+private let resourceProfileID = "iar-macos-local-vm-resource-canary-v2"
+private let resourceProfileDigest = "sha256:82d3cbf4b68866b92794a06e86948ccaf2492b3b4cb38e7e70503562c61d1de0"
+private let resourceInitramfsDigest = "1a4029b781020260e4cb8c18271e3a01e1920f1448d87a71678e12cc617a1ec3"
+private let kernelBytes: UInt64 = 36_175_872
 private let inputBytes = 4_096
 private let scratchBytes: UInt64 = 1_048_576
 private let maximumInitramfsBytes: UInt64 = 2_097_152

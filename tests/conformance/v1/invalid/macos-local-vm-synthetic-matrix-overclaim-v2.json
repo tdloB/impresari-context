@@ -1,0 +1,37 @@
+{
+  "schema_name": "macos-local-vm-synthetic-matrix-receipt",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-synthetic-matrix-v2",
+  "profile_digest": "sha256:090aa47a283677599daeacba7af9628e1883b368a7bb7f81fedbda5a957f1888",
+  "kernel_digest": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5",
+  "initramfs_digest": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b",
+  "result": "partial_matrix_passed",
+  "checks": {
+    "repeated_build_identity": true,
+    "exact_guest_identity": true,
+    "success_recovery": true,
+    "malformed_result_rejected": true,
+    "serial_flood_bounded_and_rejected": true,
+    "timeout_stopped_and_removed": true,
+    "descendant_vm_stopped_and_removed": true,
+    "early_exit_rejected_and_removed": true,
+    "controller_cancellation_stopped_and_removed": true,
+    "tampered_guest_rejected_before_staging": true,
+    "cross_job_state_absent": true
+  },
+  "remaining": [
+    "external_supervisor_cancellation",
+    "forced_host_process_termination_recovery",
+    "host_sleep_and_interruption",
+    "guest_memory_pressure",
+    "guest_cpu_accounting",
+    "host_canary_denial_corpus",
+    "multi_host_evidence",
+    "distribution_and_independent_review"
+  ],
+  "vm_confined": true,
+  "production_admitted": true,
+  "analyzer_execution": true,
+  "source_retained": false,
+  "authority_added": false
+}
