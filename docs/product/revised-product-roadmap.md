@@ -551,8 +551,9 @@ joined only by a final source-free binding manifest. The ordered next work is:
 closed schemas/evaluators, retained candidate engine build, independently
 reviewed production ruleset, signing/publication and lifecycle rehearsal, then
 a separate activation review. Repository-derived IAR-2 input remains a later
-decision. Current authorization covers only the contract/evaluator stage; no
-production artifact, rule, signing identity, upload, or activation is implied.
+decision. Current authorization also covers the bounded no-upload build and
+synthetic compatibility work recorded by ADR-0102 and ADR-0105; no production
+artifact, rule, signing identity, upload, or activation is implied.
 
 The first ADR-0103 source-free evaluator is implemented under policy
 `sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
@@ -560,8 +561,10 @@ It deterministically reports the current `release_pending` state and fixes
 `active` as unreachable while the policy's activation bit is false. Closed
 registered candidate schemas now cover the engine bundle, ruleset bundle, and
 release binding, including fail-closed negative fixtures. The contract stage is
-complete. The next ordered step is a retained candidate engine build, which
-remains outside the current authorization together with signing and upload.
+complete. Before a retained candidate is considered, ADR-0105 investigates the
+changed executable identities observed across otherwise matching hosted
+builds. That diagnostic is ephemeral, build-only, and no-upload; retention,
+signing, and publication remain outside the current authorization.
 
 ADR-0104 now proposes the exact boundary for that next step: one manually
 dispatched, no-secret, Linux x86-64 build; one private seven-day GitHub Actions
@@ -569,6 +572,12 @@ artifact containing only the engine and bounded supply-chain evidence; and a
 separate non-executing verifier. The proposal adds no retention or upload
 authority until founder approval. Signing, publication, production rules,
 activation, repository scans, and IAR-2 remain later independent decisions.
+
+ADR-0105 is the active pre-retention checkpoint. It performs four clean builds
+after one locked dependency fetch, compares the current build flags with a
+fixed time/path-remapped variant, emits only exact digests and a closed result,
+and removes all outputs. It does not compile rules, run the analyzer, upload an
+artifact, or alter ADR-0104's decision gate.
 
 ## Parallel Client Integration Depth Track
 

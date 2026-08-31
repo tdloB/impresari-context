@@ -42,6 +42,8 @@ ruby ./scripts/check-yara-x-synthetic-envelope.rb
 ruby ./scripts/check-yara-x-synthetic-envelope-workflow.rb
 ruby ./scripts/check-yara-x-live-synthetic-envelope.rb
 ruby ./scripts/check-yara-x-production-admission.rb
+ruby ./scripts/check-yara-x-reproducibility.rb
+ruby ./scripts/check-yara-x-reproducibility-workflow.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -87,8 +89,12 @@ ruby -c ./scripts/check-yara-x-synthetic-envelope-workflow.rb
 ruby -c ./scripts/check-yara-x-live-synthetic-envelope.rb
 ruby -c ./scripts/yara-x-production-admission.rb
 ruby -c ./scripts/check-yara-x-production-admission.rb
+ruby -c ./scripts/check-yara-x-reproducibility.rb
+ruby -c ./scripts/check-yara-x-reproducibility-workflow.rb
+ruby -c ./scripts/yara-x-reproducibility-receipt.rb
 sh -n ./scripts/yara-x-artifact-compatibility.sh
 sh -n ./scripts/yara-x-synthetic-envelope.sh
+sh -n ./scripts/yara-x-reproducibility-diagnostic.sh
 if [ "$(uname -s)" = Linux ]; then
   mkdir -p ./target/static-checks
   cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
