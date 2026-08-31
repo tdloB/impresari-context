@@ -346,6 +346,7 @@ private func run() throws -> ControllerReceipt {
     let inputURL = jobRoot.appendingPathComponent("input.raw")
     let scratchURL = jobRoot.appendingPathComponent("scratch.raw")
     let controllerReadyURL = jobRoot.appendingPathComponent("controller.ready")
+    let externalCancellationURL = jobRoot.appendingPathComponent("cancel.request")
     let input = makeInput()
     try input.write(to: inputURL, options: [.atomic])
     try createScratch(at: scratchURL)
@@ -408,10 +409,13 @@ private func run() throws -> ControllerReceipt {
     }
     let cancellationQueue = DispatchQueue(label: "studio.boldthaus.impresari-context.vm-feasibility.cancel")
     let cancellationTimer = DispatchSource.makeTimerSource(queue: cancellationQueue)
-    let cancellationDeadline: DispatchTime = scenario == .cancellation ? .now() + .milliseconds(250) : .distantFuture
-    cancellationTimer.schedule(deadline: cancellationDeadline)
+    let cancellationStarted = DispatchTime.now().uptimeNanoseconds
+    cancellationTimer.schedule(deadline: .now() + .milliseconds(25), repeating: .milliseconds(25))
     cancellationTimer.setEventHandler {
-        if scenario == .cancellation && !cancellation.isCancelled() {
+        let elapsed = DispatchTime.now().uptimeNanoseconds - cancellationStarted
+        let internalCancellation = scenario == .cancellation && elapsed >= 250_000_000
+        let externalCancellation = FileManager.default.fileExists(atPath: externalCancellationURL.path)
+        if (internalCancellation || externalCancellation) && !cancellation.isCancelled() {
             cancellation.cancel()
             queue.async {
                 machine.stop { _ in delegate.stopped.signal() }

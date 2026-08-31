@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Synthetic feasibility in progress; storage/cross-job and partial fault matrix passed
+- Status: Synthetic feasibility in progress; storage, fault, and supervisor lifecycle checkpoints passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -76,8 +76,16 @@ the initramfs build to be byte-reproducible, and passed malformed-result,
 bounded serial-flood, whole-VM timeout, forked-descendant timeout, early-exit,
 controller-cancellation, tampered-guest rejection, cleanup, and post-fault
 recovery cases. External-supervisor cancellation, forced host termination,
-sleep/interruption, memory/CPU, and the full host-canary corpus remain open. See
+sleep/interruption, memory/CPU, and the full host-canary corpus remained open
+at that checkpoint. See
 the [fault-matrix evidence](../verification/iar-1b-macos-local-vm-synthetic-matrix.md).
+
+The Rust-supervisor lifecycle checkpoint then passed exact external
+cancellation, forced controller termination, child reaping, stale-job removal,
+and a fresh recovery VM after each action without adding another production
+process-launch site. A wrong controller digest failed before staging. Host
+sleep/interruption, guest memory/CPU, and the full host-canary corpus remain
+open. See the [supervisor lifecycle evidence](../verification/iar-1b-macos-local-vm-supervisor-lifecycle.md).
 
 ## Packaging Direction
 

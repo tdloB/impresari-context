@@ -42,8 +42,10 @@ fi
 # ADR-0061 adds Claude Code's safe-mode, zero-tool print launch site. ADR-0062
 # adds Cursor Agent's ask-mode, sandboxed, empty-workspace print launch site.
 # ADR-0063 adds VS Code's Ask-mode chat CLI launcher in an empty disposable cwd.
-# ADR-0074 adds one exact-pinned, application-enforced synthetic analyzer worker
-# launch site with private staging, bounded transport, and no analyzer authority.
+# ADR-0074 adds one exact-pinned, application-enforced analyzer-runner launch
+# site with private staging, bounded transport, and no analyzer authority.
+# ADR-0087 reuses that same site for the exact synthetic macOS VM controller;
+# it does not add a second child-process launch surface.
 # No other production module may acquire child-process authority.
 process_sites=$(grep -n -E 'std::process::Command|Command::new' $production_sources || true)
 expected_structural_site='crates/context-structural/src/lib.rs:'

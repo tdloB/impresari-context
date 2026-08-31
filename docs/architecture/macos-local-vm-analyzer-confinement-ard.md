@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Synthetic feasibility in progress; partial fault matrix passed
+- Status: Synthetic feasibility in progress; partial supervisor lifecycle passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -76,4 +76,15 @@ memory-only drain, freezes the guest initramfs identity inside the controller,
 and adds deterministic malformed-result, output-flood, whole-VM timeout,
 forked-descendant, early-exit, controller-cancellation, identity-rejection, and
 post-fault recovery paths. The external Rust-supervisor, forced-termination,
-sleep, memory/CPU, and complete host-canary gates remain unimplemented.
+sleep, memory/CPU, and complete host-canary gates remained unimplemented at
+that checkpoint.
+
+The third checkpoint routes the controller through the Rust runner crate's one
+existing audited child-process launch site. The supervisor verifies the ad hoc
+controller digest immediately before launch, waits for an exact job-private readiness marker,
+delivers cancellation through an exact job-private marker, or kills and reaps
+the controller for the forced-termination case. It owns exact stale-job removal
+and requires a fresh recovery VM after either action. It does not yet connect
+the Analyzer Runner request/result protocol or admit a real analyzer. This
+pre-launch digest check does not close executable substitution; production
+requires sealed signature and bundle identity verification.

@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; partial synthetic fault matrix passed
+- Status: Accepted; partial synthetic supervisor lifecycle passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -64,3 +64,10 @@ malformed-result and bounded-output rejection, whole-VM timeout and synthetic
 descendant stop, early-exit handling, controller cancellation, cleanup, and
 post-fault recovery. The resulting receipt still lists every unproven gate and
 cannot claim confinement, production, or analyzer execution.
+
+The third checkpoint connected the Rust supervisor through its existing single
+audited process-launch site. Exact external cancellation and forced-controller
+termination both reaped the controller, removed all exact job state, and
+completed a new recovery VM job. Guest resource pressure, the complete host-
+canary corpus, supply-chain, multi-host, distribution, and independent-review
+gates remain mandatory before IAR-1B admission.
