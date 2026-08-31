@@ -147,6 +147,14 @@ failures plus input immutability and cleanup. The adapter remains synthetic and
 unwired from production until the complete native, supply-chain, distribution,
 and independent-review matrix passes.
 
+Its next checkpoint freezes the exact guest in the controller, corrects gzip
+construction to be byte-reproducible, captures serial output in bounded memory
+only, and passes malformed-result, output-flood, timeout, forked-descendant,
+early-exit, deterministic controller-cancellation, cleanup, and post-fault
+recovery cases. External-supervisor and forced-host-termination behavior,
+sleep/interruption, guest memory/CPU, and the complete host-canary corpus remain
+open.
+
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
 Windows candidate composes AppContainer or a restricted token, explicit staged-

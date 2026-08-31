@@ -348,9 +348,13 @@ local Linux VM per job. Its first native checkpoint passed the two failed
 requirements with a fixed-capacity scratch device and a second fresh guest
 that observed no first-job marker. Exact read-only synthetic input, absent
 guest networking, VM stop, and job cleanup also passed on macOS `26.5.1`
-arm64. The remaining Tier A escape, descendant/resource, lifecycle,
-malformed-result, supply-chain, multi-host, distribution, and independent-
-review gates keep `vm_confined=false`, macOS at IAR-1A, and IAR-2 closed.
+arm64. A second partial matrix froze a reproducible exact guest and passed
+tampered-identity, malformed-result, bounded-output, whole-VM timeout,
+forked-descendant, early-exit, controller-cancellation, cleanup, and recovery
+cases. External-supervisor and forced-termination lifecycle, guest memory/CPU,
+the complete host-canary corpus, supply-chain policy, multi-host, distribution,
+and independent-review gates keep `vm_confined=false`, macOS at IAR-1A, and
+IAR-2 closed.
 
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,

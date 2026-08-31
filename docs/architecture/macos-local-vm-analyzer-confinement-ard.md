@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Synthetic feasibility in progress; storage and cross-job checkpoint passed
+- Status: Synthetic feasibility in progress; partial fault matrix passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -70,3 +70,10 @@ controller. Two consecutive fresh guests passed read-only input, fixed scratch
 capacity, absent-network-device, cross-job canary, stop, and exact job-removal
 checks. The controller remains a feasibility adapter; it is not wired into the
 Rust production runner and cannot claim `vm_confined` or production admission.
+
+The second checkpoint replaces disk-backed serial capture with a bounded
+memory-only drain, freezes the guest initramfs identity inside the controller,
+and adds deterministic malformed-result, output-flood, whole-VM timeout,
+forked-descendant, early-exit, controller-cancellation, identity-rejection, and
+post-fault recovery paths. The external Rust-supervisor, forced-termination,
+sleep, memory/CPU, and complete host-canary gates remain unimplemented.

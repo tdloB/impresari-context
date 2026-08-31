@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; storage and cross-job synthetic checkpoint passed
+- Status: Accepted; partial synthetic fault matrix passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -58,3 +58,9 @@ stop, and per-job removal on macOS `26.5.1` arm64. The result is recorded in
 This is not full IAR-1B admission. The remaining synthetic escape,
 descendant/resource, lifecycle, malformed-result, supply-chain, multi-host,
 distribution, and independent-review gates remain mandatory.
+
+The next checkpoint passed exact guest pinning and reproducible construction,
+malformed-result and bounded-output rejection, whole-VM timeout and synthetic
+descendant stop, early-exit handling, controller cancellation, cleanup, and
+post-fault recovery. The resulting receipt still lists every unproven gate and
+cannot claim confinement, production, or analyzer execution.

@@ -1,0 +1,48 @@
+{
+  "schema_name": "macos-local-vm-matrix-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-synthetic-matrix-profile.json",
+      "sha256": "a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen exact-guest synthetic fault-matrix profile"
+    },
+    {
+      "path": "valid/macos-local-vm-synthetic-matrix.json",
+      "sha256": "8058e880f7c80a5927d8d5fde2327274f6ce91569dd682890974079c4f26c5e3",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free partial synthetic fault-matrix receipt"
+    },
+    {
+      "path": "valid/macos-local-vm-matrix-job.json",
+      "sha256": "3f29b1386386bf278afdee570481fff82c62818e22571bcf901668fafbb6fc58",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free exact ordinary matrix-job receipt"
+    },
+    {
+      "path": "valid/macos-local-vm-matrix-failure.json",
+      "sha256": "c1f1dcb7c18b0763c13ea35a09500d2df55e97d68ec2120c5ca13991069089d1",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "source-free profile-bound matrix failure receipt"
+    },
+    {
+      "path": "invalid/macos-local-vm-synthetic-matrix-overclaim.json",
+      "sha256": "10371db27c4f6c3f4af2c15c51b55d95ec2f7fdc7796be6b087cf502bda5f405",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject full confinement, production, and analyzer claims from a partial matrix"
+    }
+  ]
+}

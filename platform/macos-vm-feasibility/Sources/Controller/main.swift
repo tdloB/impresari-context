@@ -4,15 +4,16 @@ import CryptoKit
 import Foundation
 import Virtualization
 
-private let profileID = "iar-macos-local-vm-feasibility-v1"
-private let profileDigest = "sha256:a082df092d5180058f732d47ae99164316f3bfd3b12f4079de43575834314757"
+private let profileID = "iar-macos-local-vm-synthetic-matrix-v1"
+private let profileDigest = "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522"
 private let kernelDigest = "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"
+private let initramfsDigest = "cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf"
 private let kernelBytes: UInt64 = 36_110_336
 private let inputBytes = 4_096
 private let scratchBytes: UInt64 = 1_048_576
 private let maximumInitramfsBytes: UInt64 = 2_097_152
 private let maximumSerialBytes = 65_536
-private let timeout: DispatchTimeInterval = .seconds(30)
+private let controllerTimeout: DispatchTimeInterval = .seconds(30)
 
 private enum ControllerFailure: Error {
     case usage
@@ -22,8 +23,31 @@ private enum ControllerFailure: Error {
     case invalidConfiguration
     case start
     case timeout
+    case cancelled
+    case outputLimit
     case guest
     case cleanup
+}
+
+private enum Scenario: String {
+    case success
+    case malformedResult = "malformed-result"
+    case outputFlood = "output-flood"
+    case timeout
+    case descendantTimeout = "descendant-timeout"
+    case earlyExit = "early-exit"
+    case cancellation
+
+    var deadline: DispatchTimeInterval {
+        switch self {
+        case .timeout, .descendantTimeout: return .seconds(2)
+        default: return controllerTimeout
+        }
+    }
+
+    var guestMode: String {
+        self == .cancellation ? Scenario.timeout.rawValue : rawValue
+    }
 }
 
 private struct GuestReceipt: Decodable {
@@ -53,7 +77,7 @@ private struct GuestReceipt: Decodable {
 }
 
 private struct ControllerReceipt: Encodable {
-    let schemaName = "macos-local-vm-feasibility-receipt"
+    let schemaName = "macos-local-vm-matrix-job-receipt"
     let schemaVersion = "1.0.0"
     let profileID: String
     let profileDigest: String
@@ -129,6 +153,62 @@ private final class VirtualMachineDelegate: NSObject, VZVirtualMachineDelegate {
     func virtualMachine(_ virtualMachine: VZVirtualMachine, didStopWithError error: Error) {
         self.error = error
         stopped.signal()
+    }
+}
+
+private final class CancellationState {
+    private let lock = NSLock()
+    private var value = false
+
+    func cancel() {
+        lock.lock()
+        value = true
+        lock.unlock()
+    }
+
+    func isCancelled() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        return value
+    }
+}
+
+private final class BoundedSerialCapture {
+    let writer: FileHandle
+    private let reader: FileHandle
+    private let finished = DispatchSemaphore(value: 0)
+    private let lock = NSLock()
+    private var buffer = Data()
+    private var overflow = false
+
+    init() {
+        let pipe = Pipe()
+        reader = pipe.fileHandleForReading
+        writer = pipe.fileHandleForWriting
+    }
+
+    func start() {
+        DispatchQueue.global(qos: .userInitiated).async { [self] in
+            while true {
+                let chunk = (try? reader.read(upToCount: 4_096)) ?? Data()
+                if chunk.isEmpty { break }
+                lock.lock()
+                let remaining = max(0, maximumSerialBytes - buffer.count)
+                if chunk.count > remaining { overflow = true }
+                if remaining > 0 { buffer.append(chunk.prefix(remaining)) }
+                lock.unlock()
+            }
+            try? reader.close()
+            finished.signal()
+        }
+    }
+
+    func closeAndCollect() -> (Data, Bool) {
+        try? writer.close()
+        _ = finished.wait(timeout: .now() + .seconds(2))
+        lock.lock()
+        defer { lock.unlock() }
+        return (buffer, overflow)
     }
 }
 
@@ -210,10 +290,12 @@ private func printFailure(_ failure: ControllerFailure) {
     case .invalidConfiguration: category = "invalid_configuration"
     case .start: category = "start_failed"
     case .timeout: category = "timeout"
+    case .cancelled: category = "cancelled"
+    case .outputLimit: category = "output_limit"
     case .guest: category = "guest_failed"
     case .cleanup: category = "cleanup_failed"
     }
-    print("{\"schema_name\":\"macos-local-vm-feasibility-failure\",\"schema_version\":\"1.0.0\",\"category\":\"\(category)\",\"vm_confined\":false,\"production_admitted\":false,\"source_retained\":false,\"authority_added\":false}")
+    print("{\"schema_name\":\"macos-local-vm-matrix-failure\",\"schema_version\":\"1.0.0\",\"profile_id\":\"\(profileID)\",\"profile_digest\":\"\(profileDigest)\",\"category\":\"\(category)\",\"vm_confined\":false,\"production_admitted\":false,\"analyzer_execution\":false,\"source_retained\":false,\"authority_added\":false}")
 }
 
 private func printDiagnostic(_ error: Error) {
@@ -229,11 +311,8 @@ private func run() throws -> ControllerReceipt {
     guard VZVirtualMachine.isSupported else { throw ControllerFailure.unsupported }
 
     let assetRoot = URL(fileURLWithPath: CommandLine.arguments[1], isDirectory: true).standardizedFileURL
-    let expectedInitramfsDigest = CommandLine.arguments[2]
-    let jobID = CommandLine.arguments[3]
-    guard expectedInitramfsDigest.count == 64,
-          expectedInitramfsDigest.allSatisfy({ $0.isHexDigit }),
-          validJobID(jobID)
+    let jobID = CommandLine.arguments[2]
+    guard validJobID(jobID), let scenario = Scenario(rawValue: CommandLine.arguments[3])
     else {
         throw ControllerFailure.usage
     }
@@ -243,7 +322,7 @@ private func run() throws -> ControllerReceipt {
     guard try exactFileSize(kernelURL) == kernelBytes,
           try digest(kernelURL) == kernelDigest,
           try exactFileSize(initramfsURL) <= maximumInitramfsBytes,
-          try digest(initramfsURL) == expectedInitramfsDigest
+          try digest(initramfsURL) == initramfsDigest
     else {
         throw ControllerFailure.invalidIdentity
     }
@@ -266,22 +345,20 @@ private func run() throws -> ControllerReceipt {
 
     let inputURL = jobRoot.appendingPathComponent("input.raw")
     let scratchURL = jobRoot.appendingPathComponent("scratch.raw")
-    let serialURL = jobRoot.appendingPathComponent("serial.log")
+    let controllerReadyURL = jobRoot.appendingPathComponent("controller.ready")
     let input = makeInput()
     try input.write(to: inputURL, options: [.atomic])
     try createScratch(at: scratchURL)
-    guard FileManager.default.createFile(atPath: serialURL.path, contents: nil) else {
-        throw ControllerFailure.invalidJob
-    }
     let inputDigest = try digest(inputURL)
 
     let bootLoader = VZLinuxBootLoader(kernelURL: kernelURL)
     bootLoader.initialRamdiskURL = initramfsURL
-    bootLoader.commandLine = "console=hvc0 rdinit=/init panic=-1 quiet"
+    bootLoader.commandLine = "console=hvc0 rdinit=/init panic=-1 quiet impresari.mode=\(scenario.guestMode)"
 
-    let serialHandle = try FileHandle(forWritingTo: serialURL)
+    let serialCapture = BoundedSerialCapture()
+    serialCapture.start()
     let serialAttachment = VZFileHandleSerialPortAttachment(fileHandleForReading: nil,
-                                                             fileHandleForWriting: serialHandle)
+                                                             fileHandleForWriting: serialCapture.writer)
     let serialPort = VZVirtioConsoleDeviceSerialPortConfiguration()
     serialPort.attachment = serialAttachment
 
@@ -313,6 +390,7 @@ private func run() throws -> ControllerReceipt {
     let machine = VZVirtualMachine(configuration: configuration, queue: queue)
     let delegate = VirtualMachineDelegate()
     machine.delegate = delegate
+    let cancellation = CancellationState()
     let started = DispatchSemaphore(value: 0)
     var startFailure: Error?
     queue.async {
@@ -328,7 +406,24 @@ private func run() throws -> ControllerReceipt {
         printDiagnostic(startFailure)
         throw ControllerFailure.start
     }
-    if delegate.stopped.wait(timeout: .now() + timeout) != .success {
+    let cancellationQueue = DispatchQueue(label: "studio.boldthaus.impresari-context.vm-feasibility.cancel")
+    let cancellationTimer = DispatchSource.makeTimerSource(queue: cancellationQueue)
+    let cancellationDeadline: DispatchTime = scenario == .cancellation ? .now() + .milliseconds(250) : .distantFuture
+    cancellationTimer.schedule(deadline: cancellationDeadline)
+    cancellationTimer.setEventHandler {
+        if scenario == .cancellation && !cancellation.isCancelled() {
+            cancellation.cancel()
+            queue.async {
+                machine.stop { _ in delegate.stopped.signal() }
+            }
+        }
+    }
+    cancellationTimer.resume()
+    defer { cancellationTimer.cancel() }
+    guard FileManager.default.createFile(atPath: controllerReadyURL.path, contents: Data()) else {
+        throw ControllerFailure.invalidJob
+    }
+    if delegate.stopped.wait(timeout: .now() + scenario.deadline) != .success {
         let stopped = DispatchSemaphore(value: 0)
         queue.async {
             machine.stop { _ in stopped.signal() }
@@ -336,11 +431,11 @@ private func run() throws -> ControllerReceipt {
         _ = stopped.wait(timeout: .now() + .seconds(5))
         throw ControllerFailure.timeout
     }
+    if cancellation.isCancelled() { throw ControllerFailure.cancelled }
     if delegate.error != nil { throw ControllerFailure.guest }
-    try serialHandle.synchronize()
-    try serialHandle.close()
 
-    let serialData = try Data(contentsOf: serialURL)
+    let (serialData, serialOverflow) = serialCapture.closeAndCollect()
+    if serialOverflow { throw ControllerFailure.outputLimit }
     let guest = try guestReceipt(from: serialData)
     guard try exactFileSize(inputURL) == UInt64(inputBytes),
           try digest(inputURL) == inputDigest,
@@ -365,7 +460,7 @@ private func run() throws -> ControllerReceipt {
         jobID: jobID,
         result: "feasibility_passed",
         kernelDigest: "sha256:\(kernelDigest)",
-        initramfsDigest: "sha256:\(expectedInitramfsDigest)",
+        initramfsDigest: "sha256:\(initramfsDigest)",
         inputDigest: "sha256:\(inputDigest)",
         virtualizationSupported: true,
         configurationValidated: true,

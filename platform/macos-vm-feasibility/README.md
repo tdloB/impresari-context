@@ -29,3 +29,10 @@ Run the explicit preparation step once, then the offline check:
 Preparation downloads only the two exact official Alpine artifacts listed in
 `guest-assets.json` and rejects either unless its size and SHA-256 match. The
 guest never receives a network device.
+
+The check now runs two ordinary fresh jobs, deterministic malformed-result,
+bounded output-flood, timeout, forked-descendant timeout, early-exit, and
+controller-cancellation cases, an exact tampered-guest rejection, and a final
+recovery job. It builds the initramfs twice and rejects non-identical output.
+External supervisor cancellation, forced host termination, sleep/interruption,
+guest memory/CPU, and the complete host-canary corpus remain future gates.

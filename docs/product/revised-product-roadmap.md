@@ -339,10 +339,13 @@ version was admitted automatically. ADR-0087's first native local-VM checkpoint
 then passed the two requirements the XPC topology failed: a hard-capacity
 scratch device and cross-job isolation across two fresh guests. Exact read-only
 synthetic input, absent guest networking, stop, and per-job removal also passed
-on macOS `26.5.1` arm64. Full macOS IAR-1B remains closed. The next
-implementation checkpoint is ADR-0087's remaining synthetic escape,
-descendant/resource, lifecycle, and malformed-result matrix before any
-production, packaging, or real-analyzer claim.
+on macOS `26.5.1` arm64. The next partial matrix froze a reproducible exact
+guest and passed tampered-guest rejection, bounded output-flood rejection,
+malformed-result rejection, whole-VM timeout and forked-descendant stop,
+early-exit cleanup, controller cancellation, and post-fault recovery. Full
+macOS IAR-1B remains closed. The next checkpoint is external-supervisor and
+forced-termination lifecycle, guest memory/CPU, and the complete host-canary
+corpus before any production, packaging, or real-analyzer claim.
 
 ## Parallel Client Integration Depth Track
 

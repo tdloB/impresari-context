@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Synthetic feasibility in progress; storage and cross-job checkpoint passed
+- Status: Synthetic feasibility in progress; storage/cross-job and partial fault matrix passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -65,10 +65,19 @@ proved exact read-only synthetic input, an absent guest network device, exact
 identity binding, VM stop, and per-job removal. See the
 [local-VM feasibility record](../verification/iar-1b-macos-local-vm-feasibility.md).
 
-The complete escape, descendant, CPU, memory, timeout, crash, interruption,
+At that first checkpoint, the complete escape, descendant, CPU, memory,
+timeout, crash, interruption,
 malformed-result, supply-chain, multi-host, signing/notarization, packaging,
 and independent-review gates remain open. The evidence therefore retains
 `vm_confined=false` and does not admit a real analyzer.
+
+The next synthetic matrix checkpoint froze the exact guest identity, corrected
+the initramfs build to be byte-reproducible, and passed malformed-result,
+bounded serial-flood, whole-VM timeout, forked-descendant timeout, early-exit,
+controller-cancellation, tampered-guest rejection, cleanup, and post-fault
+recovery cases. External-supervisor cancellation, forced host termination,
+sleep/interruption, memory/CPU, and the full host-canary corpus remain open. See
+the [fault-matrix evidence](../verification/iar-1b-macos-local-vm-synthetic-matrix.md).
 
 ## Packaging Direction
 
