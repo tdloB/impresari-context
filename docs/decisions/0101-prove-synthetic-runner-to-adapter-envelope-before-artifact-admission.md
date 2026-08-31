@@ -1,6 +1,6 @@
 # ADR-0101: Prove Synthetic Runner-To-Adapter Envelope Before Artifact Admission
 
-- Status: Implemented; hosted isolated synthetic matrix pending
+- Status: Accepted; hosted isolated synthetic matrix passed
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive
 - Related: ADR-0074, ADR-0098, ADR-0099, ADR-0100
@@ -102,3 +102,12 @@ success only when emitter stderr is empty. The coordinator requires exact
 stdout length and digest, exact cleanup of the job and cgroup, and a complete
 normalized result before returning. Ordinary local tests do not invoke the
 emitter; live execution remains gated to the manual ephemeral hosted workflow.
+
+GitHub Actions run `33419412353`, job `99577842304`, passed that workflow on
+2026-08-31 against source commit
+`b63a2fdeff39e27e9ec3149fe0e8c2300894cadb`. Both closed cases completed in
+the delegated Ubuntu 24.04 cgroup/Landlock/seccomp boundary, the source-free
+receipt retained every analyzer, production, IAR-2, detection, safety, and
+authority nonclaim, and the independent cleanup step passed. This completes
+ADR-0101 only; it does not establish that YARA-X executed or admit a production
+artifact or ruleset.

@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0101 synthetic envelope implemented; hosted matrix, production artifacts, and IAR-2 remain gated
+- Status: ADR-0101 hosted synthetic envelope passed; production artifacts and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, and synthetic envelope by ADR-0101
@@ -152,4 +152,9 @@ The frozen envelope profile is
 The implementation reuses the single Analyzer Runner launch site and the
 existing Linux cgroup/Landlock/seccomp launcher. Its local suite composes only
 in-memory captures; the emitter itself may run only in the manual ephemeral
-hosted matrix, which remains pending.
+hosted matrix.
+
+Run `33419412353`, job `99577842304`, satisfied the hosted acceptance criteria
+for both closed synthetic cases and mandatory cleanup on Ubuntu 24.04. It did
+not execute YARA-X, admit an executable or ruleset, open IAR-2, or establish a
+detection or safety claim.

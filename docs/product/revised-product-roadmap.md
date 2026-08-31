@@ -521,14 +521,16 @@ production artifact pipeline or a synthetic runner-to-adapter envelope. It may
 not introduce repository-derived input or production/IAR-2 claims by
 implication.
 
-ADR-0101 chooses and implements the synthetic runner-to-adapter envelope as that next
-checkpoint. It uses a dedicated Impresari-owned emitter and already
+ADR-0101 chooses and implements the synthetic runner-to-adapter envelope as
+that next checkpoint. It uses a dedicated Impresari-owned emitter and already
 admitted synthetic isolation to prove bounded process-output capture, exact
 identity handoff, parser composition, and cleanup without executing YARA-X.
 The source-free contracts, coordinator, closed emitter, runner reuse, and local
-non-executing matrix are complete. The ephemeral hosted isolated matrix is the
-remaining activation evidence. Production artifact creation and signing remain
-the following independent gate.
+non-executing matrix are complete. Run `33419412353`, job `99577842304`, passed
+both closed cases and mandatory cleanup in the ephemeral hosted Ubuntu 24.04
+boundary. YARA-X did not execute and no artifact or ruleset was admitted.
+Production artifact creation and signing remain the following independent
+gate.
 
 ## Parallel Client Integration Depth Track
 
