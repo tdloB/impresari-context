@@ -131,6 +131,19 @@ production support, or safety verdict. The offline checker uses no network or
 credentials and rejects tag movement, overclaim, expiry, revocation, and absent
 future artifact evidence.
 
+ADR-0097 records the post-checkpoint engine evaluation. Official metadata
+observed on 2026-08-31 identifies YARA-X v1.20.0 at commit
+`60ad06971467029e77967e59d580cbbe85a1474d`, published 2026-08-24 with six
+multi-platform assets carrying GitHub-recorded SHA-256 digests. The upstream
+README describes YARA-X as the Rust successor intended to replace YARA and
+documents stable production use; its CLI documents JSON/NDJSON output and no
+process-scanning support. The same official sources disclose incompatible APIs
+and rule-language differences. These were decision inputs only: no asset was
+downloaded, authenticated as an Impresari release, built, admitted, or run.
+The founder selected YARA-X on 2026-08-31; replacement source/build, ruleset,
+adapter, and output contracts remain required before any artifact or execution
+work.
+
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
 - Commit: `70b71ca2bf77797fd594aa64191314252e36848b`
