@@ -1,0 +1,38 @@
+{
+  "schema_name": "yara-x-production-admission-receipt",
+  "schema_version": "1.0.0",
+  "receipt_id": "yara_x_production_contract_20260831_receipt",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_digest": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c",
+  "evaluated_as_of": "2026-08-31",
+  "state": "release_pending",
+  "eligible_targets": [],
+  "missing_requirements": [
+    "immutable-release",
+    "retained-admitted-engine-bundle",
+    "reviewed-admitted-ruleset-bundle",
+    "complete-release-binding",
+    "production-lifecycle-evidence",
+    "separate-activation-review"
+  ],
+  "limitations": [
+    "contract-and-source-free-evaluation-only",
+    "no-retained-production-artifact",
+    "no-production-ruleset",
+    "not-production",
+    "not-iar-2",
+    "not-a-safety-verdict"
+  ],
+  "artifact_retained": false,
+  "executable_admitted": false,
+  "ruleset_admitted": false,
+  "production_admitted": false,
+  "iar_2_admitted": false,
+  "repository_scan_authorized": false,
+  "credentials_used": false,
+  "artifact_uploaded": false,
+  "detection_quality_claimed": false,
+  "safety_claimed": false,
+  "malware_free_claimed": false,
+  "authority_added": false
+}

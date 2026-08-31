@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0102 hosted synthetic candidate passed; production artifacts and IAR-2 remain gated
+- Status: ADR-0103 production-admission architecture accepted; schemas, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md)
 
 ## Architecture
 
@@ -255,3 +255,26 @@ Run `33432469614`, job `99620875408`, passed all five generated cases on the
 admitted Ubuntu 24.04 synthetic boundary and passed mandatory cleanup. The
 ephemeral executable and compiled-rules identities are recorded in the
 verification record; neither artifact was uploaded, retained, or admitted.
+
+## ADR-0103 Production Admission Composition
+
+```text
+signed engine bundle -------+
+                             |
+signed ruleset bundle ------+---- exact release-binding manifest
+                             |                 |
+fresh Linux support receipt +                 v
+exact adapter/resource profiles       source-free admission state
+```
+
+Engine, ruleset, platform support, and product release identities remain
+independent until the final manifest binds them. Each can expire or be revoked
+without mutating another component's evidence. The binding evaluator cannot
+discover artifacts, build, sign, publish, execute, repair, or scan; it only
+evaluates supplied exact metadata and fails closed.
+
+The first possible production target is Linux x86-64 through the externally
+managed delegation profile after ADR-0082's immutable-release gate passes.
+Contract schemas precede retained builds. Retained candidates precede signing;
+signing precedes lifecycle rehearsal; lifecycle evidence precedes activation;
+activation precedes any IAR-2 decision.

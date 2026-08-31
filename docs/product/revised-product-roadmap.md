@@ -544,6 +544,23 @@ result. The next analyzer checkpoint is the separately reviewed production
 artifact and ruleset admission pipeline; hosted synthetic success does not
 activate it by implication.
 
+ADR-0103 now fixes that production-admission architecture before retained
+artifact work. The engine bundle, project-owned ruleset bundle, fresh Linux
+support receipt, and product release are independently content-addressed and
+joined only by a final source-free binding manifest. The ordered next work is:
+closed schemas/evaluators, retained candidate engine build, independently
+reviewed production ruleset, signing/publication and lifecycle rehearsal, then
+a separate activation review. Repository-derived IAR-2 input remains a later
+decision. Current authorization covers only the contract/evaluator stage; no
+production artifact, rule, signing identity, upload, or activation is implied.
+
+The first ADR-0103 source-free evaluator is implemented under policy
+`sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c`.
+It deterministically reports the current `release_pending` state and fixes
+`active` as unreachable while the policy's activation bit is false. Closed
+registered schemas for candidate bundle evidence are the next contract step;
+retained builds remain outside the current authorization.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
