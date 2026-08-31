@@ -144,6 +144,22 @@ The founder selected YARA-X on 2026-08-31; replacement source/build, ruleset,
 adapter, and output contracts remain required before any artifact or execution
 work.
 
+ADR-0098 freezes the replacement `yara-x-contract-v1` boundary. It records
+YARA-X v1.20.0 at commit
+`60ad06971467029e77967e59d580cbbe85a1474d`, the six uploaded release assets
+and GitHub-recorded SHA-256 digests, and the upstream release workflow's
+mutable `stable` toolchain and `*-latest` runner posture. Official assets are
+therefore evidence candidates only. The selected production strategy requires
+a separately digest-pinned source archive, locked per-target rebuild,
+dependency closure, SBOM, provenance, reproducibility disposition,
+vulnerability/license review, and Impresari signature. The exact future CLI
+surface is one compiled project ruleset and one staged file with no modules,
+includes, external variables, recursive/list scan, mmap, ambient config, or
+arbitrary arguments. Bounded NDJSON uses `--print-strings=0` so offsets and
+lengths can be normalized without retaining matched bytes. This checkpoint
+downloads nothing, creates no artifact or rule, implements no live parser, and
+runs no analyzer or compatibility corpus.
+
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
 - Commit: `70b71ca2bf77797fd594aa64191314252e36848b`

@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: Legacy adapter/source contracts superseded by ADR-0097; YARA-X replacement contracts pending; execution gated on IAR-1B
+- Status: YARA-X contract-only boundary implemented by ADR-0098; artifacts, live adapter, and execution gated on IAR-1B
 - Date: 2026-08-30
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md)
@@ -90,3 +90,20 @@ rule-compatibility constraints, and a bounded JSON/NDJSON adapter. It may not
 reuse legacy YARA's executable, compiled-rules, module, or result-parser
 identity. The common artifact, ruleset, confinement, accounting, expiry,
 revocation, and non-safety requirements remain unchanged.
+
+## ADR-0098 Closed YARA-X Boundary
+
+The first YARA-X execution surface is one independently signed `yr` artifact,
+one signed project-owned compiled ruleset, and one private staged regular file.
+The exact argument vector selects compiled rules, NDJSON, namespace/tags,
+zero-byte string rendering, disabled console logs and mmap, one thread, and
+fixed file, match, engine-time, and output ceilings. A private empty `HOME`
+prevents operator configuration from entering the scan contract.
+
+The parser accepts one closed NDJSON object. It validates the exact staged path
+but emits no path, retains no raw output or matched bytes, and derives range
+length only from the v1.20.0 zero-byte marker. Imports/modules, includes,
+external variables, regex/base64/XOR patterns, repository rules, recursive or
+list scans, module data, relaxed syntax, ignored invalid rules, and arbitrary
+arguments are closed. Any future expansion requires a versioned ADR and
+compatibility/security evidence.

@@ -57,6 +57,10 @@ ruleset ownership/review, SBOM, provenance, signatures, vulnerability/license
 review, expiry/revocation, production-admitted IAR-1B confinement, hosted
 evidence, or the applicable independent human security review.
 
+ADR-0098 implements the selected replacement contract without admitting or
+running YARA-X. It records the official assets as candidates and requires a
+separately pinned, rebuilt, reviewed, and Impresari-signed production artifact.
+
 ## Non-Claims
 
 No source archive or release asset was downloaded. No binary, ruleset, or

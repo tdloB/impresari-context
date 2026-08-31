@@ -478,6 +478,16 @@ superseded, and the ADR-0095 adapter must receive new YARA-X identities. No
 engine-specific build, ruleset, live adapter, source download, or execution
 may begin until the replacement contracts are frozen.
 
+ADR-0098 freezes those replacement contracts without creating an artifact or
+execution path. The official YARA-X v1.20.0 release assets remain metadata-only
+candidates because their upstream build uses mutable toolchain/runner labels
+and supplies no per-asset signature or SLSA provenance. Production uses a
+separately pinned, rebuilt, reviewed, and Impresari-signed artifact. The first
+ruleset is module-free and project-owned; the future invocation is one compiled
+ruleset plus one staged file with closed arguments and bounded NDJSON that
+retains zero matched bytes. The next checkpoint is exact artifact and ruleset
+creation/admission, still gated from execution.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
