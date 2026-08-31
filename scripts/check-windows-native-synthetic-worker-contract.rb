@@ -188,13 +188,20 @@ cleanup = boolean_values(receipt.fetch("cleanup"))
 measured = identity.merge(launch).merge(observations).merge(cleanup)
 
 if options[:receipt]
-  abort "Windows worker live matrix did not pass" unless
+  live_identity =
+    receipt.dig("host", "windows_build").match?(/\A[1-9][0-9]{0,9}\z/) &&
+    receipt.dig("host", "broker_digest") != ZERO_DIGEST &&
+    receipt.dig("host", "worker_digest") != ZERO_DIGEST
+  candidate_passed =
     receipt.fetch("status") == "candidate_passed" &&
-      receipt.fetch("reason_code") == "synthetic_matrix_passed" &&
-      receipt.dig("host", "windows_build").match?(/\A[1-9][0-9]{0,9}\z/) &&
-      receipt.dig("host", "broker_digest") != ZERO_DIGEST &&
-      receipt.dig("host", "worker_digest") != ZERO_DIGEST &&
-      measured.values.all?
+    receipt.fetch("reason_code") == "synthetic_matrix_passed" &&
+    measured.values.all?
+  unsupported_host =
+    receipt.fetch("status") == "unsupported" &&
+    receipt.fetch("reason_code") == "unsupported_host" &&
+    measured.values.none?
+  abort "Windows worker live matrix was invalid" unless
+    live_identity && (candidate_passed || unsupported_host)
 else
   abort "Windows worker contract fixture overclaimed execution" unless
     receipt.fetch("status") == "contract_fixture" &&

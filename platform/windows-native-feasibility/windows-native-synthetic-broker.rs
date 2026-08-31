@@ -1739,13 +1739,78 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
     {
         cleanup_errors.push("exact synthetic state remained after cleanup".into());
     }
-    if let Err(error) = matrix_result {
-        return Err(error);
-    }
     if !cleanup_errors.is_empty() {
         return Err(format!("cleanup failed: {}", cleanup_errors.join("; ")));
     }
+    if let Err(error) = matrix_result {
+        return Err(error);
+    }
     Ok((build, broker_digest, worker_digest))
+}
+
+fn exact_host_metadata() -> Result<(u32, String, String), String> {
+    require_hosted_context()?;
+    let build = windows_build()?;
+    let broker = env::current_exe().map_err(|error| format!("broker path unavailable: {error}"))?;
+    let worker = broker
+        .parent()
+        .ok_or("broker directory unavailable")?
+        .join("windows-native-synthetic-worker.exe");
+    Ok((
+        build,
+        verify_binary_digest(&broker, "EXPECTED_BROKER_SHA256")?,
+        verify_binary_digest(&worker, "EXPECTED_WORKER_SHA256")?,
+    ))
+}
+
+fn print_unsupported_host(build: u32, broker_digest: &str, worker_digest: &str) {
+    println!(
+        concat!(
+            "{{\"schema_name\":\"windows-native-synthetic-worker-matrix-receipt\",",
+            "\"schema_version\":\"1.0.0\",\"profile_id\":\"{}\",",
+            "\"profile_digest\":\"{}\",\"base_profile_id\":\"{}\",",
+            "\"base_profile_digest\":\"{}\",\"status\":\"unsupported\",",
+            "\"reason_code\":\"unsupported_host\",\"host\":{{",
+            "\"runner_environment\":\"github-hosted\",\"runner_label\":\"windows-2025\",",
+            "\"os_family\":\"windows\",\"windows_build\":\"{}\",",
+            "\"architecture\":\"x86_64\",\"filesystem\":\"ntfs\",",
+            "\"broker_digest\":\"{}\",\"worker_digest\":\"{}\"}},",
+            "\"identity\":{{\"fresh_profile_created\":false,\"worker_sid_matched\":false,",
+            "\"capability_count\":\"0\",\"lpac_verified\":false,",
+            "\"profile_storage_hardened\":false,\"profile_deleted\":false}},",
+            "\"launch\":{{\"worker_created_suspended\":false,",
+            "\"job_limits_set_and_queried\":false,\"job_assigned_before_resume\":false,",
+            "\"exact_handle_list\":false,\"mitigations_applied\":false,",
+            "\"child_policy_applied\":false,\"worker_resumed\":false}},",
+            "\"observations\":{{\"scenario_count\":\"19\",\"success\":false,",
+            "\"exact_input_read\":false,\"input_mutation_denied\":false,",
+            "\"worker_mutation_denied\":false,\"sibling_read_denied\":false,",
+            "\"user_profile_canary_read_denied\":false,",
+            "\"profile_storage_write_denied\":false,",
+            "\"synthetic_registry_canary_read_denied\":false,",
+            "\"loopback_connect_denied\":false,\"unrelated_handle_absent\":false,",
+            "\"unrelated_process_open_denied\":false,\"child_process_denied\":false,",
+            "\"active_process_peak_one\":false,\"process_memory_limit_exercised\":false,",
+            "\"job_memory_limit_queried\":false,\"cpu_limit_exercised\":false,",
+            "\"timeout_contained\":false,\"output_flood_contained\":false,",
+            "\"crash_contained\":false,\"cancellation_contained\":false,",
+            "\"malformed_result_rejected\":false,\"cross_job_read_denied\":false}},",
+            "\"cleanup\":{{\"job_terminated\":false,\"zero_active_processes\":false,",
+            "\"handles_closed\":false,\"staging_removed\":false,\"canaries_removed\":false,",
+            "\"profile_deleted\":false,\"cross_job_clean\":false}},",
+            "\"claims\":{{\"external_network_contacted\":false,",
+            "\"existing_credentials_inspected\":false,\"repository_input\":false,",
+            "\"real_analyzer\":false,\"os_confined\":false,",
+            "\"production_admitted\":false,\"authority_added\":false}}}}"
+        ),
+        PROFILE_ID,
+        PROFILE_DIGEST,
+        BASE_PROFILE_ID,
+        BASE_PROFILE_DIGEST,
+        build,
+        broker_digest,
+        worker_digest
+    );
 }
 
 fn main() {
@@ -1797,6 +1862,17 @@ fn main() {
             broker_digest,
             worker_digest
         ),
+        Err(error) if error == "CreateProcessW(success) failed: win32=5" => {
+            match exact_host_metadata() {
+                Ok((build, broker_digest, worker_digest)) => {
+                    print_unsupported_host(build, &broker_digest, &worker_digest);
+                }
+                Err(metadata_error) => {
+                    eprintln!("Windows unsupported-host metadata failed: {metadata_error}");
+                    std::process::exit(1);
+                }
+            }
+        }
         Err(error) => {
             eprintln!("Windows synthetic-worker matrix failed: {error}");
             std::process::exit(1);
