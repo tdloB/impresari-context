@@ -137,6 +137,7 @@ if workflow.exist?
   bytes = workflow.read
   abort("maintenance workflow gained broad permissions") if bytes.match?(/^permissions:\s+write-all/) || bytes.include?("contents: write") || bytes.include?("pull-requests: write") || bytes.include?("releases: write")
   abort("issue writer is not separately permissioned") unless bytes.include?("permissions: {}") && bytes.include?("issues: write")
+  abort("workflow references an unavailable GitHub run timestamp") if bytes.include?("github.run_started_at")
   allowlisted = JSON.parse(SOURCE_SET.read).fetch("components").map { |component| component.dig("source", "host") }.compact.uniq
   abort("workflow embeds a non-allowlisted metadata host") unless bytes.scan(%r{https://([A-Za-z0-9.-]+)}).flatten.all? { |host| allowlisted.include?(host) }
 end

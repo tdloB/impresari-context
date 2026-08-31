@@ -25,18 +25,15 @@ jobs:
           persist-credentials: false
       - name: Observe allowlisted client metadata
         shell: bash
-        env:
-          CHECKED_AT: ${{ github.run_started_at }}
         run: |
+          checked_at="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
           ruby scripts/roadmap-maintenance-observe.rb \
-            --checked-at "$CHECKED_AT" \
+            --checked-at "$checked_at" \
             > "$RUNNER_TEMP/observations.json"
       - name: Evaluate released compatibility evidence
         shell: bash
-        env:
-          CHECKED_AT: ${{ github.run_started_at }}
         run: |
-          as_of="${CHECKED_AT%%T*}"
+          as_of="$(ruby -rjson -e 'puts JSON.parse(File.read(ARGV.fetch(0))).fetch("observations").fetch(0).fetch("checked_at").split("T", 2).fetch(0)' "$RUNNER_TEMP/observations.json")"
           ruby scripts/roadmap-maintenance-evaluate.rb \
             --observations "$RUNNER_TEMP/observations.json" \
             --as-of "$as_of" \
