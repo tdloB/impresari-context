@@ -129,5 +129,20 @@ The implemented profile is
 Its pure Rust API consumes only an in-memory byte slice and explicit control
 metadata. Closed schemas and digest-bound original-synthetic fixtures cover the
 profile, controls, output, positive/no-match records, and fail-closed cases.
-Runner-envelope linkage and the production artifact pipeline remain separate
-future decisions.
+ADR-0101 now selects synthetic runner-envelope composition as the next separate
+decision. The production artifact pipeline remains a later gate.
+
+## Synthetic Runner-Envelope Checkpoint
+
+ADR-0101 selects the synthetic runner-envelope checkpoint before production
+artifact work. A dedicated content-addressed Impresari emitter may output only
+the exact committed valid-match or valid-no-match NDJSON record. It accepts no
+repository bytes, paths, rules, arbitrary arguments, network destinations,
+credentials, or ambient configuration.
+
+Acceptance requires bounded stdout, empty stderr, exact emitter and output
+digests, fresh job and cleanup evidence, exact ADR-0100 control bindings,
+deterministic normalization, and a source-free composition receipt. The
+receipt distinguishes synthetic-emitter execution from analyzer execution and
+fixes every YARA-X, production, IAR-2, detection, safety, and authority claim
+to false.

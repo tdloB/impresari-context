@@ -521,6 +521,12 @@ production artifact pipeline or a synthetic runner-to-adapter envelope. It may
 not introduce repository-derived input or production/IAR-2 claims by
 implication.
 
+ADR-0101 chooses the synthetic runner-to-adapter envelope as that next
+checkpoint. It will use a dedicated Impresari-owned emitter and already
+admitted synthetic isolation to prove bounded process-output capture, exact
+identity handoff, parser composition, and cleanup without executing YARA-X.
+Production artifact creation and signing remain the following independent gate.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

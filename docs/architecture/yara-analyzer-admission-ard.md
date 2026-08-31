@@ -175,8 +175,9 @@ identity-bound normalized representation. Any error discards all intermediate
 state and returns only a stable source-free category.
 
 The library has no runner or analyzer dependency and cannot assert execution,
-confinement, production, IAR-2, or safety. Runner envelope linkage and the
-production artifact pipeline remain later architectural decisions.
+confinement, production, IAR-2, or safety. ADR-0101 now freezes synthetic
+envelope composition; the production artifact pipeline remains a later
+architectural decision.
 
 The implemented crate is `context-yara-x-adapter`. It depends only on the core
 UTC validator and locked Serde, JSON, and SHA-256 libraries. Its profile,
@@ -184,3 +185,26 @@ control, and result schemas are registry members; its original-synthetic corpus
 is content-addressed by one closed provenance record. The parser returns a
 single stable content-free error code or a complete normalized result, never a
 partial result.
+
+## ADR-0101 Synthetic Envelope Architecture
+
+```text
+closed case id -> pinned synthetic emitter -> bounded in-memory stdout
+                                                |
+                                  exact envelope validation
+                                                |
+                                      ADR-0100 pure parser
+                                                |
+                                source-free composition receipt
+```
+
+The emitter and coordinator are test-only components. The emitter embeds two
+reviewed original-synthetic records and accepts only their closed case IDs. The
+coordinator, not the parser, owns process termination, output ceilings,
+confinement receipt validation, and cleanup. It passes captured bytes to the
+parser only after exact length/digest and envelope checks, then discards them.
+
+The composition receipt binds the synthetic job and normalized result but does
+not copy the path or output. It records synthetic-emitter execution separately
+from analyzer execution. No existing IAR-0 result is reinterpreted, and no
+production runner API is opened by this checkpoint.
