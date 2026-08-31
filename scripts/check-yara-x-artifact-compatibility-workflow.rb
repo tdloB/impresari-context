@@ -22,7 +22,8 @@ required = [
   "rustup toolchain install 1.93.0 --profile minimal",
   "cargo +1.93.0 install cargo-audit --version 0.22.2 --locked",
   "./scripts/yara-x-artifact-compatibility.sh",
-  "Verify ephemeral cleanup"
+  "Verify ephemeral cleanup",
+  "if: always()"
 ]
 required.each { |fragment| abort "YARA-X compatibility workflow lost #{fragment.inspect}" unless bytes.include?(fragment) }
 

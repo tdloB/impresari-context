@@ -22,6 +22,11 @@ patch_file="$repository_root/third_party/yara-x/v1.20.0/impresari-module-free.pa
 rule_source="$repository_root/rules/yara-x/synthetic-compatibility-v1.yar"
 
 cleanup() {
+  for cleanup_root in "$runtime_root" "$stage_root" "$composite_yara_root"; do
+    if [ -e "$cleanup_root" ] && [ ! -L "$cleanup_root" ]; then
+      chmod -R u+rwX "$cleanup_root" || :
+    fi
+  done
   rm -rf -- "$runtime_root" "$stage_root" "$composite_yara_root"
 }
 trap cleanup EXIT HUP INT TERM
