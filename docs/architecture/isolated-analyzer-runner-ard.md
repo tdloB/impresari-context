@@ -5,13 +5,16 @@
 - Product: Impresari Analyzer Runner for Impresari Context.
 - ARD ID/version: IC-IAR-ARD-001 / 0.1.
 - Status: Accepted; IAR-0 protocol and IAR-1A application-enforced synthetic
-  supervision implemented. The macOS hybrid IAR-1B candidate is selected for
-  continued feasibility but remains partial and unadmitted.
+  supervision implemented. Independent Linux, macOS local-VM, and Windows
+  native IAR-1B tracks remain candidate-only and unadmitted.
 - Date: 2026-08-26.
 - Sequence: Security expansion step 2 of 3.
 - Related records:
   - [Isolated Analyzer Runner PRD](../product/isolated-analyzer-runner-prd.md)
   - [ADR-0074](../decisions/0074-separate-isolated-analyzer-runner.md)
+  - [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
+  - [ADR-0088](../decisions/0088-windows-native-analyzer-confinement.md)
+  - [ADR-0092](../decisions/0092-freeze-windows-native-feasibility-contract.md)
   - [Hostile Repository Admission ARD](hostile-repository-admission-ard.md)
   - [ADR-0010](../decisions/0010-structural-worker-protocol-and-isolation.md)
   - [ADR-0013](../decisions/0013-extension-contracts-without-code-loading.md)
@@ -176,9 +179,11 @@ source-free, non-production, and non-confinement evidence.
 
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
-Windows candidate composes AppContainer or a restricted token, explicit staged-
-object ACLs, a non-breakaway kill-on-close Job Object, and headless/resource
-mitigations. Neither candidate is selected: missing kernel/API/controller,
+Windows candidate selected by ADR-0088 composes LPAC/AppContainer, explicit
+staged-object ACLs, a non-breakaway kill-on-close Job Object, and
+headless/resource mitigations. ADR-0092 freezes its exact target profile and
+admits only a no-worker API, empty-Job-Object, and profile-lifecycle preflight
+first. Missing kernel/API/controller,
 delegation, signing, packaging, or effective-policy evidence must produce an
 unsupported state rather than a weaker confinement claim.
 

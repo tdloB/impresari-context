@@ -403,6 +403,16 @@ profile. Repository metadata sealing is therefore closed. GitHub publication
 attestation, Developer ID signing/notarization, one-cask lifecycle, genuine
 sleep/reboot/power-loss, multi-host evidence, complete advisory coverage,
 independent review, production, and real analyzers remain closed.
+ADR-0092 now freezes the complete intended Windows LPAC/AppContainer, Job
+Object, mitigation, resource, staging, output, and cleanup profile. Its first
+native checkpoint is deliberately smaller: one fresh GitHub-hosted Windows
+2025 x86-64 VM must prove exact build and NTFS identity, required API
+availability, empty Job Object set/query with kill-on-close and no breakaway,
+and a unique zero-capability AppContainer create/derive/delete lifecycle. The
+receipt keeps worker launch, network/path/resource/descendant denial, complete
+cleanup, OS confinement, production, and analyzer execution false. A passing
+preflight therefore advances Windows feasibility without claiming a sandbox;
+the suspended synthetic-worker matrix remains the next Windows gate.
 
 ## Parallel Client Integration Depth Track
 

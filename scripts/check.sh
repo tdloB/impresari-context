@@ -44,6 +44,7 @@ ruby ./scripts/check-macos-vm-upstream-auth-contract-v2.rb
 ruby ./scripts/check-macos-vm-vulnerability-review.rb
 ruby ./scripts/check-macos-vm-vulnerability-review-v2.rb
 ruby ./scripts/check-macos-vm-release-metadata-seal.rb
+ruby ./scripts/check-windows-native-feasibility-contract.rb
 sh -n ./scripts/prepare-macos-vm-feasibility.sh
 sh -n ./scripts/build-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-feasibility.sh
@@ -58,6 +59,8 @@ ruby -c ./scripts/check-macos-vm-upstream-auth-contract-v2.rb
 ruby -c ./scripts/check-macos-vm-vulnerability-review.rb
 ruby -c ./scripts/check-macos-vm-vulnerability-review-v2.rb
 ruby -c ./scripts/check-macos-vm-release-metadata-seal.rb
+ruby -c ./scripts/check-windows-native-feasibility-contract.rb
+rustfmt --check ./platform/windows-native-feasibility/windows-native-capability-probe.rs
 sh -n ./scripts/verify-macos-vm-alpine-archive.sh
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null

@@ -1,0 +1,67 @@
+{
+  "schema_name": "windows-native-feasibility-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-windows-native-feasibility-v1",
+  "profile_version": "1.0.0",
+  "target": {
+    "os_family": "windows",
+    "runner_label": "windows-2025",
+    "architecture": "x86_64",
+    "filesystem": "ntfs"
+  },
+  "identity": {
+    "appcontainer_name_prefix": "studio.boldthaus.impresari.iar",
+    "appcontainer_name_max_characters": "64",
+    "fresh_identity_per_job": true,
+    "capability_count": "0",
+    "lpac_required_for_worker": true,
+    "all_application_packages_opt_out": true
+  },
+  "limits": {
+    "active_processes": "1",
+    "process_memory_bytes": "67108864",
+    "job_memory_bytes": "134217728",
+    "cpu_rate_percent": "25",
+    "wall_time_ms": "30000",
+    "stdout_bytes": "65536",
+    "stderr_bytes": "16384",
+    "staged_artifacts": "64",
+    "staged_total_bytes": "4194304",
+    "writable_path_backed_bytes": "0"
+  },
+  "controls": {
+    "create_suspended": true,
+    "job_kill_on_close": true,
+    "job_breakaway_allowed": false,
+    "bounded_inherited_handles_only": true,
+    "network_capabilities": false,
+    "device_capabilities": false,
+    "registry_capabilities": false,
+    "com_capabilities": false,
+    "ui_capabilities": false,
+    "read_only_exact_staging": true,
+    "bounded_pipe_results": true,
+    "dynamic_code_prohibited": true,
+    "extension_points_disabled": true,
+    "non_system_fonts_disabled": true,
+    "remote_images_blocked": true,
+    "low_integrity_images_blocked": true,
+    "system32_preferred": true,
+    "child_processes_prohibited": true,
+    "win32k_system_calls_disabled": true,
+    "cross_job_canary_required": true
+  },
+  "preflight": {
+    "synthetic_worker_launch": false,
+    "appcontainer_worker_launch": false,
+    "network_denial_verified": false,
+    "path_boundary_verified": false,
+    "resource_limits_verified": false,
+    "descendant_containment_verified": false,
+    "complete_cleanup_verified": false,
+    "os_confined": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}
