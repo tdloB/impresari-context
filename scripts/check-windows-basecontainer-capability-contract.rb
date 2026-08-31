@@ -164,5 +164,8 @@ abort "Windows BaseContainer routing decision is inconsistent with observed fact
   [receipt.fetch("status"), receipt.fetch("reason_code")] == expected
 
 puts "Windows BaseContainer capability verified: build=#{receipt.fetch('windows_build')} " \
-  "arch=arm64 status=#{receipt.fetch('status')} reason=#{receipt.fetch('reason_code')} " \
+  "arch=arm64 module=#{receipt.fetch('processmodel_dll_present')} " \
+  "create_export=#{receipt.fetch('create_process_in_sandbox_export_present')} " \
+  "create_as_user_export=#{receipt.fetch('create_process_as_user_in_sandbox_export_present')} " \
+  "status=#{receipt.fetch('status')} reason=#{receipt.fetch('reason_code')} " \
   "worker_launched=false os_confined=false"
