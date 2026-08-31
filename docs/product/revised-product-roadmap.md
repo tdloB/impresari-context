@@ -563,6 +563,13 @@ release binding, including fail-closed negative fixtures. The contract stage is
 complete. The next ordered step is a retained candidate engine build, which
 remains outside the current authorization together with signing and upload.
 
+ADR-0104 now proposes the exact boundary for that next step: one manually
+dispatched, no-secret, Linux x86-64 build; one private seven-day GitHub Actions
+artifact containing only the engine and bounded supply-chain evidence; and a
+separate non-executing verifier. The proposal adds no retention or upload
+authority until founder approval. Signing, publication, production rules,
+activation, repository scans, and IAR-2 remain later independent decisions.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

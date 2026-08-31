@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0104 retained-engine stage proposed; bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, and separated production admission by ADR-0103
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, and proposed retained-engine custody by ADR-0104
 
 ## Objective
 
@@ -188,6 +188,15 @@ The three candidate shapes are implemented as one closed registered schema.
 They deliberately cannot represent an admitted engine, a synthetic production
 ruleset, or an activated release. Retained artifact creation, production rule
 authorship, signing, publication, and activation remain separate later gates.
+
+ADR-0104 proposes the first retained-artifact checkpoint. If separately
+approved, one manual no-secret workflow will build only the Linux x86-64
+engine from the exact frozen source, patch, lockfile, toolchain, feature, and
+digest-pinned build image. One private seven-day Actions artifact may contain
+only `yr`, its exact manifest/checksums, dependency closure, SPDX SBOM,
+provenance, licenses, review dispositions, and an explicitly unadmitted
+candidate record. Source, rules, scan inputs/outputs, credentials, signing
+material, and unrelated repository content remain ineligible.
 
 Contract and candidate-pipeline work may proceed while every production and
 IAR-2 claim remains false. Retained artifacts, production rules, signing,

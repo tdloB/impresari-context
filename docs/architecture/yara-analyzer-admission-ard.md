@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0104 retained-engine stage proposed; bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), proposed [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md)
 
 ## Architecture
 
@@ -284,3 +284,29 @@ The registered candidate schema closes all three pre-admission records with
 to false. The engine and ruleset records cannot be marked admitted, synthetic
 rules cannot satisfy production provenance, and the release binding cannot be
 activated. A future admission schema requires a separate reviewed decision.
+
+## Proposed ADR-0104 Retained Engine Candidate Boundary
+
+```text
+exact public source + patch + lock + toolchain + build-image digest
+                              |
+                              v
+                 no-secret manual CI build
+                              |
+                              v
+ yr + checksums + dependency closure + SBOM + provenance + dispositions
+                              |
+                              v
+         one private seven-day Actions artifact (unadmitted)
+                              |
+                              v
+      separate hash/schema/member verification without execution
+```
+
+The proposed build job has no free-form inputs and no repository, package,
+release, signing, OIDC, or attestation write permission. Network acquisition
+precedes an offline build/package phase. The artifact excludes source,
+rulesets, scan material, logs, caches, credentials, and signing material. The
+same-run verifier treats it as untrusted bytes, rejects links and unknown
+members, and cannot run the executable. Expiry withdraws availability without
+turning the candidate into a release or admitted analyzer.
