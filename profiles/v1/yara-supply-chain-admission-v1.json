@@ -1,0 +1,59 @@
+{
+  "schema_name": "yara-supply-chain-admission-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-supply-chain-admission-v1",
+  "profile_version": "1.0.0",
+  "source_candidate": {
+    "repository": "https://github.com/VirusTotal/yara",
+    "release_tag": "v4.5.8",
+    "release_url": "https://github.com/VirusTotal/yara/releases/tag/v4.5.8",
+    "tag_commit_sha1": "84b0e3cc0e42f8f8e6b84d19c97ec3ac6ff8aee8",
+    "published_at": "2026-07-28T07:12:15Z",
+    "source_archive_api_url": "https://api.github.com/repos/VirusTotal/yara/tarball/v4.5.8",
+    "upstream_release_asset_count": "0",
+    "license_spdx": "BSD-3-Clause",
+    "license_path": "COPYING",
+    "license_git_blob_sha1": "81b0eed4fe55ab6a33432b140b0f98e61085a5ea"
+  },
+  "freshness": {
+    "observed_at": "2026-08-31T07:55:03Z",
+    "expires_at": "2026-09-30T07:55:03Z",
+    "maximum_age_days": "30",
+    "on_expiry": "withdraw_candidate_and_require_fresh_official_observation"
+  },
+  "executable_admission": {
+    "upstream_binary_accepted": false, "impresari_build_required": true,
+    "per_target_identity_required": true, "source_archive_sha256_required": true,
+    "locked_build_environment_required": true, "dependency_closure_required": true,
+    "sbom_required": true, "provenance_required": true,
+    "reproducibility_disposition_required": true, "signature_required": true,
+    "vulnerability_review_required": true, "license_record_required": true,
+    "expiry_required": true, "revocation_identity_required": true
+  },
+  "ruleset_admission": {
+    "project_owned_required": true, "separate_artifact_identity_required": true,
+    "exact_source_required": true, "license_required": true,
+    "human_review_required": true, "compiled_artifact_required": true,
+    "signature_required": true, "expiry_required": true,
+    "rollback_identity_required": true, "repository_provided_rules_allowed": false,
+    "includes_allowed": false, "external_paths_allowed": false,
+    "custom_modules_allowed": false, "in_job_update_allowed": false,
+    "network_retrieval_allowed": false, "worker_update_credentials_allowed": false
+  },
+  "revocation": {
+    "precedence": "revoked_then_expired_then_rollback_then_current",
+    "triggers": ["source-tag-moved", "license-identity-changed", "security-advisory", "artifact-signature-invalid", "artifact-provenance-invalid", "ruleset-review-withdrawn", "ruleset-false-positive-emergency", "confinement-claim-withdrawn"],
+    "withdraws": ["source-candidate", "executable-candidate", "ruleset-candidate", "iar-2-candidate", "production-candidate"]
+  },
+  "checkpoint_controls": {
+    "source_downloaded": false, "source_archive_digest_recorded": false,
+    "executable_built": false, "executable_present": false,
+    "executable_signed": false, "ruleset_authored": false,
+    "ruleset_present": false, "ruleset_compiled": false,
+    "ruleset_signed": false, "analyzer_executed": false,
+    "network_used_by_checker": false, "credentials_used": false,
+    "os_confined": false, "production_admitted": false,
+    "iar_2_admitted": false, "safety_claimed": false,
+    "ordinary_host_execution_authorized": false, "authority_added": false
+  }
+}

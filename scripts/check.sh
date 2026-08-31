@@ -33,6 +33,7 @@ ruby ./scripts/check-independent-security-review-readiness.rb
 ruby ./scripts/check-independent-security-review-backlog.rb
 ruby ./scripts/check-v0-2-independent-review-release-gate.rb
 ruby ./scripts/check-yara-adapter-contract.rb
+ruby ./scripts/check-yara-supply-chain-contract.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -65,6 +66,7 @@ ruby -c ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby -c ./scripts/check-windows-native-feasibility-contract.rb
 ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby -c ./scripts/check-windows-basecontainer-capability-contract.rb
+ruby -c ./scripts/check-yara-supply-chain-contract.rb
 rustfmt --check ./platform/windows-native-feasibility/windows-native-capability-probe.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-broker.rs
 rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-worker.rs

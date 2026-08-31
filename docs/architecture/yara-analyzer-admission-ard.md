@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: Contract-only checkpoint implemented under ADR-0095; execution gated on IAR-1B
+- Status: Adapter and supply-chain contracts implemented under ADR-0095/0096; execution gated on IAR-1B
 - Date: 2026-08-30
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md)
@@ -63,3 +63,21 @@ constant non-authority claims. It neither parses raw YARA output nor adds a
 process, analyzer, ruleset, source, network, credential, or platform admission
 path. Live results require a new reviewed contract and the ADR-0089 activation
 gate.
+
+## ADR-0096 Supply-Chain Boundary
+
+The upstream source, executable build, and ruleset are three independent
+identities. Version 1 selects only the official YARA v4.5.8 tag commit and
+license-file metadata. Because that release has no uploaded GitHub assets, the
+profile rejects any upstream binary and requires a future Impresari-owned,
+per-target reproducible build with an exact archive digest, dependency closure,
+SBOM, provenance, signature, vulnerability/license review, expiry, and
+revocation record.
+
+The production ruleset remains absent. Its later admission requires a separate
+project-owned source and compiled-artifact identity, human review, license,
+signature, expiry, and rollback record. Repository rules, includes, external
+paths, custom modules, in-job updates, network retrieval, and worker-held update
+credentials are structurally false. The offline checker verifies metadata and
+fail-closed states only; it cannot download, build, sign, load, or execute an
+artifact.

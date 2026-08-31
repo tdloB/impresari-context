@@ -459,6 +459,16 @@ still requires an exact production-admitted IAR-1B platform, signed analyzer
 and ruleset artifacts, a separately reviewed live-result contract and hosted
 evidence, and the applicable independent human security review.
 
+ADR-0096 completes the next metadata-only prerequisite. It selects the exact
+official YARA v4.5.8 tag commit and BSD-3-Clause license-file identity, records
+that the upstream release has no uploaded assets, and freezes a 30-day
+source-selection expiry plus revocation-first state precedence. A future
+per-target Impresari executable and project-owned ruleset must remain separate,
+content-addressed, reviewed, signed, expiring artifacts with complete build,
+SBOM, provenance, reproducibility, license, and rollback evidence. This
+checkpoint downloads no source, creates no binary or rule, uses no network at
+verification time, and does not change the closed IAR-2 or production posture.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
