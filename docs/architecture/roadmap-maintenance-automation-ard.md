@@ -1,6 +1,6 @@
 # Roadmap Maintenance Automation ARD
 
-- Status: Implemented; default-branch live reconciliation evidence pending
+- Status: Implemented and live evidenced
 - Date: 2026-08-30
 - Governing PRD: [Roadmap Maintenance Automation PRD](../product/roadmap-maintenance-automation-prd.md)
 - Decision: [ADR-0086](../decisions/0086-scheduled-roadmap-maintenance-automation.md)
