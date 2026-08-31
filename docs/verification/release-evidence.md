@@ -145,3 +145,29 @@ production analyzer support, and real-analyzer execution remain false.
 - An earlier candidate run exposed and rejected a Windows-only GNU tar drive-
   prefix ambiguity. Commit `3310b8d` changed archive arguments to relative names;
   the successful matrix above verifies the correction.
+
+## 2026-08-31 — ADR-0086 scheduled maintenance admission
+
+- Product commit: `d196f4cfc0332fd3bcfa6e93ec3bb95f5d8706ff`.
+- Corrected live run:
+  [GitHub Actions 33345269371](https://github.com/tdloB/impresari-context/actions/runs/33345269371),
+  successful in both the read-only observation and separately permissioned
+  exact-owned issue jobs.
+- Receipt artifact: `9741774301`, GitHub digest
+  `sha256:3e3d10a247841df6eaea57ff721637bd4c5953ade3ff02ae93053fafb2851adf`;
+  bounded observation and receipt file SHA-256 identities are recorded in the
+  ADR-0086 verification record.
+- Four official sources reported newer, explicitly unadmitted versions. Cursor
+  failed closed as unavailable because no documented authoritative source is
+  admitted. Issues `#165` through `#169` carry the exact-owned label and hidden
+  ownership key.
+- Idempotence run:
+  [GitHub Actions 33345318603](https://github.com/tdloB/impresari-context/actions/runs/33345318603),
+  successful. It updated the same five issues and created no duplicate. Its
+  artifact `9741790216` has GitHub digest
+  `sha256:7a086db7b8b8314d780cd4d6a514546c0505054e207a7ad12bbb8a3ca85a20df`.
+- Earlier run `33344770117` failed before issue reconciliation when its timestamp
+  expression was unavailable. The write job was skipped; PR 164 corrected the
+  timestamp source and added a regression guard.
+- These runs created no compatibility admission, manifest repair, merge, tag,
+  release, package publication, signature, or risk acceptance.

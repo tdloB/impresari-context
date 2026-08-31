@@ -1,6 +1,6 @@
 # ADR-0086: Add Fail-Closed Scheduled Roadmap Maintenance Automation
 
-- Status: Implemented; default-branch live reconciliation evidence pending
+- Status: Implemented and live evidenced
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 

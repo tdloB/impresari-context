@@ -332,8 +332,10 @@ Profile A is therefore an exact-host synthetic lifecycle candidate; production
 admission and real analyzers remain closed. ADR-0086 scheduled maintenance is
 implemented with bounded metadata observations, deterministic six-state
 receipts, exact-owned issue reconciliation, and a monthly no-release candidate
-rehearsal. Its remaining checkpoint is one default-branch live reconciliation
-run and permanent evidence record. The next implementation checkpoint is the
+rehearsal. Default-branch runs `33345269371` and `33345318603` passed from
+`d196f4cfc0332fd3bcfa6e93ec3bb95f5d8706ff`, created five exact-owned issues,
+and proved repeat reconciliation without duplicates. No observed upstream
+version was admitted automatically. The next implementation checkpoint is the
 ADR-0087 local-VM macOS confinement feasibility candidate.
 
 ## Parallel Client Integration Depth Track
