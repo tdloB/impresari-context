@@ -38,6 +38,7 @@ ruby ./scripts/check-cursor-client-lifecycle.rb
 ruby ./scripts/check-vscode-client-lifecycle.rb
 ruby ./scripts/check-roadmap-maintenance-automation.rb
 ruby ./scripts/check-macos-vm-contracts.rb
+ruby ./scripts/check-macos-vm-guest-supply-chain.rb
 sh -n ./scripts/prepare-macos-vm-feasibility.sh
 sh -n ./scripts/build-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-feasibility.sh
@@ -46,6 +47,7 @@ sh -n ./scripts/check-macos-vm-resource-canary.sh
 sh -n ./scripts/check-macos-vm-host-interruption.sh
 ruby -c ./scripts/build-macos-vm-initramfs.rb
 ruby -c ./scripts/extract-macos-vm-kernel.rb
+ruby -c ./scripts/check-macos-vm-guest-supply-chain.rb
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null
 if ./scripts/install.sh --version latest >/dev/null 2>&1; then

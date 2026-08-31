@@ -285,6 +285,10 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B macOS local-VM host interruption](docs/verification/iar-1b-macos-local-vm-host-interruption.md):
   the source-free shared sleep-observer stop/cleanup/recovery implementation,
   its passing synthetic trigger, and the explicit remaining real-sleep gate.
+- [IAR-1B macOS local-VM guest supply chain](docs/verification/iar-1b-macos-local-vm-guest-supply-chain.md):
+  the exact expiring candidate manifest, SBOM/license/provenance/policy records,
+  offline prepared-component verification, and explicit remaining signing and
+  production gates.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.

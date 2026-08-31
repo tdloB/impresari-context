@@ -1,0 +1,117 @@
+{
+  "schema_name": "macos-local-vm-guest-release-manifest",
+  "schema_version": "1.0.0",
+  "release_id": "iar-macos-local-vm-guest-2026-08-30.1",
+  "release_sequence": "1",
+  "release_state": "synthetic-candidate-only",
+  "platform": "linux",
+  "architecture": "aarch64",
+  "distribution": "Alpine Linux 3.24",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "valid_from": "2026-08-30T00:00:00Z",
+  "expires_at": "2026-09-30T00:00:00Z",
+  "component_set_digest": "sha256:926ccd4622620476e5b73a8d9b95e8c7377991946a8801e2969b9d926613392f",
+  "upstream_artifacts": [
+    {
+      "name": "vmlinuz-virt",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/vmlinuz-virt",
+      "bytes": "10351104",
+      "sha256": "sha256:47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756",
+      "use": "extract-arm64-linux-image"
+    },
+    {
+      "name": "initramfs-virt",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/initramfs-virt",
+      "bytes": "9385851",
+      "sha256": "sha256:e47d38bc88509a3db11affc09f9762f9643b026bd29441724a4729ad8e97add6",
+      "use": "extract-exact-virtio-blk-module"
+    }
+  ],
+  "guest_components": [
+    {
+      "component_id": "linux-kernel-image",
+      "path": "assets/Image",
+      "bytes": "36110336",
+      "sha256": "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd",
+      "license_expression": "GPL-2.0-only",
+      "executable": true
+    },
+    {
+      "component_id": "virtio-blk-kernel-module",
+      "path": "assets/virtio_blk.ko",
+      "bytes": "49687",
+      "sha256": "sha256:80341fdb0869f5df4813b7bfb4a1cd77d2f6cd7c26c04fc15706cbc44d680ef6",
+      "license_expression": "GPL-2.0-only",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-guest-init",
+      "path": "bin/impresari-vm-init",
+      "bytes": "37616",
+      "sha256": "sha256:68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf",
+      "license_expression": "Apache-2.0",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-guest-initramfs",
+      "path": "assets/impresari-initramfs.gz",
+      "bytes": "38208",
+      "sha256": "sha256:cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf",
+      "license_expression": "GPL-2.0-only AND Apache-2.0",
+      "executable": false
+    },
+    {
+      "component_id": "synthetic-resource-guest-init",
+      "path": "bin/impresari-vm-resource-init",
+      "bytes": "59104",
+      "sha256": "sha256:7e5add284e63a059c5df32b66a2bd18b0d96a5e4b5809c00a02bd9a82e7fa3f6",
+      "license_expression": "Apache-2.0",
+      "executable": true
+    },
+    {
+      "component_id": "synthetic-resource-guest-initramfs",
+      "path": "assets/impresari-resource-initramfs.gz",
+      "bytes": "50055",
+      "sha256": "sha256:f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c",
+      "license_expression": "GPL-2.0-only AND Apache-2.0",
+      "executable": false
+    }
+  ],
+  "records": {
+    "sbom": {
+      "path": "platform/macos-vm-feasibility/guest-sbom.spdx.json",
+      "format": "SPDX-2.3",
+      "sha256": "sha256:f03deff9d776a6fb209a8b66e58092c16e9dfe063f923461b503b488d7274110"
+    },
+    "licenses": {
+      "path": "platform/macos-vm-feasibility/guest-license-record.json",
+      "sha256": "sha256:d316072427ebd9bbb6977f81e63cfb6e1f800c482fad5a0f80e25defae45f52f"
+    },
+    "provenance": {
+      "path": "platform/macos-vm-feasibility/guest-provenance.json",
+      "sha256": "sha256:469775f9eed26705159d89a90676c7e9343a211bade91ff6d140285f3a12c86f"
+    },
+    "vulnerability_policy": {
+      "path": "platform/macos-vm-feasibility/guest-vulnerability-policy.json",
+      "sha256": "sha256:bcfbbc123119b6dcf4c55e8cae9d1306f595359c7e373bc7196449bde0051a57"
+    }
+  },
+  "rollback": {
+    "current_release_id": "iar-macos-local-vm-guest-2026-08-30.1",
+    "previous_release_id": "none",
+    "anti_rollback_enforced": false,
+    "updates_between_jobs_only": true
+  },
+  "controls": {
+    "guest_self_update": false,
+    "guest_network_available": false,
+    "offline_admission": true,
+    "publisher_authentication_verified": false,
+    "cryptographic_signature_verified": false,
+    "notarized_distribution_verified": false,
+    "vulnerability_assessment_complete": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

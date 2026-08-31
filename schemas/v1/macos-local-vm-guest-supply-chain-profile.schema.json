@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-guest-supply-chain-profile.schema.json",
+  "title": "ADR-0087 macOS local-VM guest supply-chain profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "manifest_path", "manifest_digest", "required_records", "required_checks", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-guest-supply-chain-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-guest-supply-chain-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "manifest_path": {"const": "platform/macos-vm-feasibility/guest-release-manifest.json"},
+    "manifest_digest": {"const": "sha256:02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6"},
+    "required_records": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "uniqueItems": true,
+      "items": {"enum": ["sbom", "licenses", "provenance", "vulnerability_policy"]}
+    },
+    "required_checks": {
+      "type": "array",
+      "minItems": 11,
+      "maxItems": 11,
+      "uniqueItems": true,
+      "items": {"type": "string", "pattern": "^[a-z0-9-]+$"}
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network_access", "guest_self_update", "prepared_artifact_verification_optional", "publisher_authentication_required_for_production", "vulnerability_assessment_required_for_production", "cryptographic_signature_required_for_production", "notarization_required_for_production", "production_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "network_access": {"const": false},
+        "guest_self_update": {"const": false},
+        "prepared_artifact_verification_optional": {"const": true},
+        "publisher_authentication_required_for_production": {"const": true},
+        "vulnerability_assessment_required_for_production": {"const": true},
+        "cryptographic_signature_required_for_production": {"const": true},
+        "notarization_required_for_production": {"const": true},
+        "production_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

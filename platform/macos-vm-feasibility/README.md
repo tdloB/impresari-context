@@ -27,6 +27,8 @@ Run the explicit preparation step once, then the offline check:
 ./scripts/check-macos-vm-supervisor-lifecycle.sh
 ./scripts/check-macos-vm-resource-canary.sh
 ./scripts/check-macos-vm-host-interruption.sh
+ruby ./scripts/check-macos-vm-guest-supply-chain.rb \
+  --prepared-assets target/iar-macos-vm-feasibility
 ```
 
 Preparation downloads only the two exact official Alpine artifacts listed in
@@ -50,3 +52,12 @@ VM. It deliberately records `real_host_sleep_observed=false`: it does not put
 the Mac to sleep and cannot replace a later manual operating-system sleep
 rehearsal. Real sleep/reboot/power-loss evidence, sealed supply-chain and
 distribution, multi-host, and independent-review evidence remain future gates.
+
+The offline guest supply-chain check freezes the candidate release manifest,
+component inventory, SPDX SBOM, license record, source/build provenance,
+vulnerability policy, expiry, and explicit initial rollback state. With
+`--prepared-assets`, it also rehashes and measures every built guest component.
+It performs no download and the guest remains unable to update itself. This
+checkpoint does not authenticate the upstream publisher, complete a current
+vulnerability assessment, verify a Developer ID signature or notarization, or
+admit a sealed production distribution.

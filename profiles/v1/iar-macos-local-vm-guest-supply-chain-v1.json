@@ -1,0 +1,39 @@
+{
+  "schema_name": "macos-local-vm-guest-supply-chain-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-guest-supply-chain-v1",
+  "profile_version": "1.0.0",
+  "manifest_path": "platform/macos-vm-feasibility/guest-release-manifest.json",
+  "manifest_digest": "sha256:02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6",
+  "required_records": [
+    "sbom",
+    "licenses",
+    "provenance",
+    "vulnerability_policy"
+  ],
+  "required_checks": [
+    "exact-manifest-identity",
+    "exact-record-identities",
+    "exact-build-input-identities",
+    "complete-guest-component-inventory",
+    "current-expiry",
+    "explicit-rollback-identity",
+    "no-guest-self-update",
+    "offline-admission",
+    "deny-unverified-publisher",
+    "deny-unassessed-vulnerabilities",
+    "deny-unsigned-distribution"
+  ],
+  "controls": {
+    "network_access": false,
+    "guest_self_update": false,
+    "prepared_artifact_verification_optional": true,
+    "publisher_authentication_required_for_production": true,
+    "vulnerability_assessment_required_for_production": true,
+    "cryptographic_signature_required_for_production": true,
+    "notarization_required_for_production": true,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

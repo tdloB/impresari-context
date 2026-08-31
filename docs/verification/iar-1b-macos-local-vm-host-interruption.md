@@ -59,7 +59,7 @@ machine and any active development session.
 
 ## Remaining Gates
 
-Genuine host sleep/wake, reboot and abrupt power-loss recovery, sealed guest
-supply-chain policy, Developer ID/notarized distribution, one-cask lifecycle,
+Genuine host sleep/wake, reboot and abrupt power-loss recovery, authenticated
+and vulnerability-reviewed guest supply chain, Developer ID/notarized distribution, one-cask lifecycle,
 multi-host evidence, and independent human review remain open. macOS remains
 publicly at IAR-1A.

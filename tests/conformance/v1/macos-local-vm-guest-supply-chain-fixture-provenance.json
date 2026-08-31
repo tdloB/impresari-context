@@ -1,0 +1,41 @@
+{
+  "schema_name": "macos-local-vm-guest-supply-chain-fixture-provenance",
+  "schema_version": "1.0.0",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "review_status": "approved_original_synthetic_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/macos-local-vm-guest-release-manifest.json",
+      "sha256": "02e5ba57ef2bb3be02cef4e978d3e518ec39a5db014988036164d2821e19b7e6",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "exact expiring synthetic guest release manifest"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-guest-supply-chain-profile.json",
+      "sha256": "fb1d1d60f1be8cfe994d69b7222102ce497ab405b4f6238f144a9a55748b1714",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "frozen offline guest supply-chain admission profile"
+    },
+    {
+      "path": "valid/macos-local-vm-guest-supply-chain-receipt.json",
+      "sha256": "c7c900021c55dfc1f2f57a4f7029b791831b2c23b77624cfd819e185ddc5afac",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "offline metadata receipt retaining every production gate"
+    },
+    {
+      "path": "invalid/macos-local-vm-guest-supply-chain-overclaim.json",
+      "sha256": "16af9d0fcc1ae3eb6cf9fb385ec1ae629e4641e7caf559db0c1f63783c04e23b",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject a sealed-distribution claim without signature evidence"
+    }
+  ]
+}
