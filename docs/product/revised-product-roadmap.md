@@ -394,6 +394,15 @@ review records the candidate as current with no further replacement required,
 but complete current `6.18` advisory coverage remains unestablished, so
 vulnerability completion, distribution sealing, production, and real analyzers
 remain closed.
+The following release-metadata checkpoint content-addresses all sixteen active
+v2 metadata and public-verification members under one canonical
+path/size/SHA-256 set digest. The exact profile and offline receipt bind the
+guest manifest, component set, upstream authentication, incomplete
+vulnerability assessment, rollback predecessor, and every active runtime
+profile. Repository metadata sealing is therefore closed. GitHub publication
+attestation, Developer ID signing/notarization, one-cask lifecycle, genuine
+sleep/reboot/power-loss, multi-host evidence, complete advisory coverage,
+independent review, production, and real analyzers remain closed.
 
 ## Parallel Client Integration Depth Track
 

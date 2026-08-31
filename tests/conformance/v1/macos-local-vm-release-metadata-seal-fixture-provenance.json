@@ -1,0 +1,40 @@
+{
+  "schema_name": "macos-local-vm-release-metadata-seal-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_synthetic_and_public_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/macos-local-vm-release-metadata-seal.json",
+      "sha256": "c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+      "origin": "original_metadata",
+      "license": "Apache-2.0",
+      "purpose": "validate the closed content-addressed release-metadata set"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-release-metadata-seal-profile.json",
+      "sha256": "4f3b504dd20682de005d074f57fcb3807d721939a5e03fe801274aa6efbe47a5",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "validate the source-free metadata-seal profile"
+    },
+    {
+      "path": "valid/macos-local-vm-release-metadata-seal-receipt.json",
+      "sha256": "16a64635cc91bc5167798596011fa015970fa3d159a41974f402f3dede3c8c97",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "validate metadata sealing without distribution or production overclaim"
+    },
+    {
+      "path": "invalid/macos-local-vm-release-metadata-seal-overclaim.json",
+      "sha256": "cd0c62d801a1cbe87b0588715b9c92851d349e5dfbd34032d6a57b74cfeec3e4",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject sealed-distribution, production, and analyzer claims from metadata sealing alone"
+    }
+  ]
+}

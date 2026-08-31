@@ -1,0 +1,35 @@
+{
+  "schema_name": "macos-local-vm-release-metadata-seal-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-release-metadata-seal-v1",
+  "profile_version": "1.0.0",
+  "seal_path": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json",
+  "seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+  "required_member_count": "16",
+  "required_checks": [
+    "exact-seal-identity",
+    "closed-path-sorted-member-inventory",
+    "exact-member-byte-lengths",
+    "exact-member-sha256-identities",
+    "canonical-metadata-set-digest",
+    "active-release-manifest-binding",
+    "active-component-set-binding",
+    "upstream-authentication-binding",
+    "vulnerability-assessment-binding",
+    "rollback-predecessor-binding",
+    "current-expiry",
+    "deny-distribution-and-production-overclaim"
+  ],
+  "controls": {
+    "network_access": false,
+    "credential_access": false,
+    "repository_source_access": false,
+    "filesystem_mutation": false,
+    "process_launch": false,
+    "release_metadata_sealed": true,
+    "sealed_distribution": false,
+    "production_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}

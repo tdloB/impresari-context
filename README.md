@@ -298,6 +298,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B macOS local-VM current guest replacement](docs/verification/iar-1b-macos-local-vm-current-guest-replacement.md):
   the authenticated current Alpine package, versioned v2 guest identity chain,
   repeated native matrices, and continued fail-closed production denial.
+- [IAR-1B macOS local-VM release-metadata sealing](docs/verification/iar-1b-macos-local-vm-release-metadata-sealing.md):
+  the exact content-addressed active metadata set, deterministic offline
+  receipt, and explicit separation from signed or sealed distribution.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.

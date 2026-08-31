@@ -141,6 +141,15 @@ provider snapshot still does not establish complete `6.18` advisory coverage.
 Production, analyzer execution, and a vulnerability-free claim remain denied.
 See the [current guest replacement](../verification/iar-1b-macos-local-vm-current-guest-replacement.md).
 
+The release-metadata sealing checkpoint then freezes sixteen active v2
+metadata and public-verification members under one canonical path/size/SHA-256
+set digest. Its offline receipt cross-binds the exact guest, component set,
+upstream authentication, vulnerability assessment, rollback predecessor, and
+runtime profiles. This closes repository metadata sealing only; publication
+attestation, Apple signing/notarization, cask lifecycle, sealed distribution,
+production, and analyzer execution remain false. See the
+[release-metadata sealing record](../verification/iar-1b-macos-local-vm-release-metadata-sealing.md).
+
 ## Packaging Direction
 
 ADR-0076's one CLI-compatible Homebrew cask remains the desired user topology.
@@ -150,5 +159,6 @@ choice requires exact signing, expiry, rollback, and offline behavior evidence.
 The candidate now has exact expiry, rollback, offline behavior, upstream
 publisher-authentication evidence, and a fail-closed vulnerability
 disposition. The stale guest has been replaced by the current authenticated
-package; complete advisory coverage, Impresari release-metadata sealing,
-signing, notarization, and the final bundle/update lifecycle remain open.
+package. Its complete active metadata set is now content-addressed; complete
+advisory coverage, publication attestation, signing, notarization, and the
+final bundle/update lifecycle remain open.

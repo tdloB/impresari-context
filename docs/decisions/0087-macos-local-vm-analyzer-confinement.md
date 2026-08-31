@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; offline guest supply-chain checkpoint passed
+- Status: Accepted; release-metadata sealing checkpoint passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -127,3 +127,13 @@ candidate is current and does not require another replacement at this
 checkpoint. Complete advisory coverage, sealed Impresari distribution,
 production admission, and analyzer execution remain closed. See the
 [current guest replacement](../verification/iar-1b-macos-local-vm-current-guest-replacement.md).
+
+The tenth checkpoint content-addresses all sixteen active v2 metadata and
+public-verification members as one exact path/size/SHA-256 inventory. A closed
+profile binds the seal, and the deterministic offline receipt cross-binds the
+guest manifest, component set, upstream authentication, vulnerability
+assessment, and rollback predecessor. This closes repository release-metadata
+sealing only. GitHub publication attestation, Developer ID signing,
+notarization, cask lifecycle, sealed distribution, production, and analyzer
+execution remain false. See the
+[release-metadata sealing record](../verification/iar-1b-macos-local-vm-release-metadata-sealing.md).
