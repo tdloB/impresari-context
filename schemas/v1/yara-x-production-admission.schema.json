@@ -1,0 +1,388 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-production-admission.schema.json",
+  "title": "ADR-0103 YARA-X production-admission candidate contracts",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "nullableDigest": {
+      "oneOf": [
+        {"$ref": "#/$defs/digest"},
+        {"type": "null"}
+      ]
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "production_admitted",
+        "iar_2_admitted",
+        "repository_scan_authorized",
+        "credential_access_authorized",
+        "artifact_upload_authorized",
+        "detection_quality_claimed",
+        "safety_claimed",
+        "malware_free_claimed",
+        "authority_added"
+      ],
+      "properties": {
+        "production_admitted": {"const": false},
+        "iar_2_admitted": {"const": false},
+        "repository_scan_authorized": {"const": false},
+        "credential_access_authorized": {"const": false},
+        "artifact_upload_authorized": {"const": false},
+        "detection_quality_claimed": {"const": false},
+        "safety_claimed": {"const": false},
+        "malware_free_claimed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "engineBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name",
+        "schema_version",
+        "candidate_id",
+        "policy_id",
+        "policy_digest",
+        "target",
+        "state",
+        "artifact",
+        "evidence",
+        "admitted",
+        "claims"
+      ],
+      "properties": {
+        "schema_name": {"const": "yara-x-engine-bundle-candidate"},
+        "schema_version": {"const": "1.0.0"},
+        "candidate_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"},
+        "policy_id": {"const": "yara-x-production-admission-v1"},
+        "policy_digest": {"const": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c"},
+        "target": {"const": "x86_64-unknown-linux-gnu"},
+        "state": {"enum": ["missing_evidence", "candidate_complete_not_admitted", "changed", "stale", "revoked"]},
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["present", "sha256", "bytes", "retained"],
+          "properties": {
+            "present": {"type": "boolean"},
+            "sha256": {"$ref": "#/$defs/nullableDigest"},
+            "bytes": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 268435456}, {"type": "null"}]},
+            "retained": {"type": "boolean"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"present": {"const": true}}, "required": ["present"]},
+              "then": {
+                "properties": {
+                  "sha256": {"$ref": "#/$defs/digest"},
+                  "bytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+                  "retained": {"const": true}
+                }
+              },
+              "else": {
+                "properties": {
+                  "sha256": {"type": "null"},
+                  "bytes": {"type": "null"},
+                  "retained": {"const": false}
+                }
+              }
+            }
+          ]
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "locked_build",
+            "dependency_closure",
+            "sbom",
+            "build_provenance",
+            "vulnerability_disposition",
+            "license_disposition",
+            "reproducibility_disposition",
+            "signature",
+            "expiry",
+            "revocation_identity"
+          ],
+          "properties": {
+            "locked_build": {"type": "boolean"},
+            "dependency_closure": {"type": "boolean"},
+            "sbom": {"type": "boolean"},
+            "build_provenance": {"type": "boolean"},
+            "vulnerability_disposition": {"type": "boolean"},
+            "license_disposition": {"type": "boolean"},
+            "reproducibility_disposition": {"type": "boolean"},
+            "signature": {"type": "boolean"},
+            "expiry": {"type": "boolean"},
+            "revocation_identity": {"type": "boolean"}
+          }
+        },
+        "admitted": {"const": false},
+        "claims": {"$ref": "#/$defs/claims"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "candidate_complete_not_admitted"}}, "required": ["state"]},
+          "then": {
+            "properties": {
+              "artifact": {"properties": {"present": {"const": true}}},
+              "evidence": {
+                "properties": {
+                  "locked_build": {"const": true},
+                  "dependency_closure": {"const": true},
+                  "sbom": {"const": true},
+                  "build_provenance": {"const": true},
+                  "vulnerability_disposition": {"const": true},
+                  "license_disposition": {"const": true},
+                  "reproducibility_disposition": {"const": true},
+                  "signature": {"const": true},
+                  "expiry": {"const": true},
+                  "revocation_identity": {"const": true}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "rulesetBundle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name",
+        "schema_version",
+        "candidate_id",
+        "policy_id",
+        "policy_digest",
+        "state",
+        "source",
+        "compiled",
+        "evidence",
+        "forbidden_surfaces",
+        "admitted",
+        "claims"
+      ],
+      "properties": {
+        "schema_name": {"const": "yara-x-ruleset-bundle-candidate"},
+        "schema_version": {"const": "1.0.0"},
+        "candidate_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"},
+        "policy_id": {"const": "yara-x-production-admission-v1"},
+        "policy_digest": {"const": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c"},
+        "state": {"enum": ["missing_evidence", "candidate_complete_not_admitted", "changed", "stale", "revoked"]},
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["present", "sha256", "bytes", "provenance"],
+          "properties": {
+            "present": {"type": "boolean"},
+            "sha256": {"$ref": "#/$defs/nullableDigest"},
+            "bytes": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 262144}, {"type": "null"}]},
+            "provenance": {"oneOf": [{"const": "project-owned-production"}, {"type": "null"}]}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"present": {"const": true}}, "required": ["present"]},
+              "then": {
+                "properties": {
+                  "sha256": {"$ref": "#/$defs/digest"},
+                  "bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
+                  "provenance": {"const": "project-owned-production"}
+                }
+              },
+              "else": {
+                "properties": {"sha256": {"type": "null"}, "bytes": {"type": "null"}, "provenance": {"type": "null"}}
+              }
+            }
+          ]
+        },
+        "compiled": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["present", "sha256", "bytes", "retained"],
+          "properties": {
+            "present": {"type": "boolean"},
+            "sha256": {"$ref": "#/$defs/nullableDigest"},
+            "bytes": {"oneOf": [{"type": "integer", "minimum": 1, "maximum": 2097152}, {"type": "null"}]},
+            "retained": {"type": "boolean"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"present": {"const": true}}, "required": ["present"]},
+              "then": {
+                "properties": {
+                  "sha256": {"$ref": "#/$defs/digest"},
+                  "bytes": {"type": "integer", "minimum": 1, "maximum": 2097152},
+                  "retained": {"const": true}
+                }
+              },
+              "else": {
+                "properties": {"sha256": {"type": "null"}, "bytes": {"type": "null"}, "retained": {"const": false}}
+              }
+            }
+          ]
+        },
+        "evidence": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["license_and_ownership", "compatibility", "human_review", "signature", "expiry", "rollback_floor", "revocation_identity"],
+          "properties": {
+            "license_and_ownership": {"type": "boolean"},
+            "compatibility": {"type": "boolean"},
+            "human_review": {"type": "boolean"},
+            "signature": {"type": "boolean"},
+            "expiry": {"type": "boolean"},
+            "rollback_floor": {"type": "boolean"},
+            "revocation_identity": {"type": "boolean"}
+          }
+        },
+        "forbidden_surfaces": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository_rules", "imports", "includes", "external_variables", "regular_expressions", "base64", "xor", "network_retrieval", "runtime_compilation"],
+          "properties": {
+            "repository_rules": {"const": false},
+            "imports": {"const": false},
+            "includes": {"const": false},
+            "external_variables": {"const": false},
+            "regular_expressions": {"const": false},
+            "base64": {"const": false},
+            "xor": {"const": false},
+            "network_retrieval": {"const": false},
+            "runtime_compilation": {"const": false}
+          }
+        },
+        "admitted": {"const": false},
+        "claims": {"$ref": "#/$defs/claims"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "candidate_complete_not_admitted"}}, "required": ["state"]},
+          "then": {
+            "properties": {
+              "source": {"properties": {"present": {"const": true}}},
+              "compiled": {"properties": {"present": {"const": true}}},
+              "evidence": {
+                "properties": {
+                  "license_and_ownership": {"const": true},
+                  "compatibility": {"const": true},
+                  "human_review": {"const": true},
+                  "signature": {"const": true},
+                  "expiry": {"const": true},
+                  "rollback_floor": {"const": true},
+                  "revocation_identity": {"const": true}
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "releaseBinding": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name",
+        "schema_version",
+        "candidate_id",
+        "policy_id",
+        "policy_digest",
+        "state",
+        "bindings",
+        "release",
+        "gates",
+        "activated",
+        "claims"
+      ],
+      "properties": {
+        "schema_name": {"const": "yara-x-release-binding-candidate"},
+        "schema_version": {"const": "1.0.0"},
+        "candidate_id": {"type": "string", "pattern": "^[a-z0-9][a-z0-9_-]{7,127}$"},
+        "policy_id": {"const": "yara-x-production-admission-v1"},
+        "policy_digest": {"const": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c"},
+        "state": {"enum": ["missing_evidence", "release_pending", "changed", "stale", "revoked", "unsupported", "compatible_not_activated"]},
+        "bindings": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["engine_bundle", "ruleset_bundle", "adapter_profile", "invocation_profile", "resource_profile", "linux_support_receipt"],
+          "properties": {
+            "engine_bundle": {"$ref": "#/$defs/nullableDigest"},
+            "ruleset_bundle": {"$ref": "#/$defs/nullableDigest"},
+            "adapter_profile": {"const": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c"},
+            "invocation_profile": {"$ref": "#/$defs/nullableDigest"},
+            "resource_profile": {"$ref": "#/$defs/nullableDigest"},
+            "linux_support_receipt": {"$ref": "#/$defs/nullableDigest"}
+          }
+        },
+        "release": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["status", "product_version", "source_commit", "archive_sha256"],
+          "properties": {
+            "status": {"enum": ["pending_publication", "published_candidate"]},
+            "product_version": {"oneOf": [{"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"}, {"type": "null"}]},
+            "source_commit": {"oneOf": [{"type": "string", "pattern": "^[0-9a-f]{40}$"}, {"type": "null"}]},
+            "archive_sha256": {"$ref": "#/$defs/nullableDigest"}
+          },
+          "allOf": [
+            {
+              "if": {"properties": {"status": {"const": "published_candidate"}}, "required": ["status"]},
+              "then": {
+                "properties": {
+                  "product_version": {"type": "string", "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"},
+                  "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+                  "archive_sha256": {"$ref": "#/$defs/digest"}
+                }
+              },
+              "else": {
+                "properties": {"product_version": {"type": "null"}, "source_commit": {"type": "null"}, "archive_sha256": {"type": "null"}}
+              }
+            }
+          ]
+        },
+        "gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["fresh_linux_support", "complete_binding", "lifecycle_rehearsal", "activation_review"],
+          "properties": {
+            "fresh_linux_support": {"type": "boolean"},
+            "complete_binding": {"type": "boolean"},
+            "lifecycle_rehearsal": {"type": "boolean"},
+            "activation_review": {"const": false}
+          }
+        },
+        "activated": {"const": false},
+        "claims": {"$ref": "#/$defs/claims"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"state": {"const": "compatible_not_activated"}}, "required": ["state"]},
+          "then": {
+            "properties": {
+              "bindings": {
+                "properties": {
+                  "engine_bundle": {"$ref": "#/$defs/digest"},
+                  "ruleset_bundle": {"$ref": "#/$defs/digest"},
+                  "invocation_profile": {"$ref": "#/$defs/digest"},
+                  "resource_profile": {"$ref": "#/$defs/digest"},
+                  "linux_support_receipt": {"$ref": "#/$defs/digest"}
+                }
+              },
+              "release": {"properties": {"status": {"const": "published_candidate"}}},
+              "gates": {
+                "properties": {
+                  "fresh_linux_support": {"const": true},
+                  "complete_binding": {"const": true},
+                  "lifecycle_rehearsal": {"const": true}
+                }
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

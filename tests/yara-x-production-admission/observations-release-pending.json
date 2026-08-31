@@ -1,0 +1,19 @@
+{
+  "schema_name": "yara-x-production-admission-observations",
+  "schema_version": "1.0.0",
+  "observation_id": "yara_x_production_contract_20260831",
+  "policy_id": "yara-x-production-admission-v1",
+  "policy_digest": "sha256:fbae2b383e843d07dd5e30ad3d33a580e9094878e49c21fec21c8e977ce8891c",
+  "as_of": "2026-08-31",
+  "revoked": false,
+  "evidence_present": true,
+  "evidence_exact": true,
+  "evidence_fresh": true,
+  "release_published": false,
+  "target_supported": true,
+  "engine_bundle_complete": false,
+  "ruleset_bundle_complete": false,
+  "binding_complete": false,
+  "lifecycle_complete": false,
+  "activation_approved": false
+}

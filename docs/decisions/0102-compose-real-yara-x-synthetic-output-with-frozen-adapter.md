@@ -1,6 +1,6 @@
 # ADR-0102: Compose Real YARA-X Synthetic Output With The Frozen Adapter
 
-- Status: Implemented; hosted synthetic matrix pending
+- Status: Implemented; hosted synthetic matrix passed; production and IAR-2 gated
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive and explicit bounded YARA-X authorization
 - Related: ADR-0074, ADR-0098, ADR-0099, ADR-0100, ADR-0101
@@ -70,8 +70,9 @@ already admitted Linux isolation boundary. It authorizes no repository scan,
 credential access, upload, executable or ruleset admission, production claim,
 IAR-2 claim, detection-quality claim, or safety claim.
 
-Hosted completion requires the manual empty-workspace workflow to verify the
-exact Impresari source archive, exact YARA-X archive and patch, locked feature
-graph, dependency review, all five live receipts, complete cleanup, and no
-artifact upload. Until that run passes, the implementation state is local and
-the hosted evidence remains pending.
+Run `33432469614`, job `99620875408`, completed that manual empty-workspace
+gate on GitHub's Ubuntu 24.04 x86-64 runner. It verified the exact Impresari
+source archive, exact YARA-X archive and patch, locked feature graph,
+dependency review, all five live receipts, Linux confinement, complete cleanup,
+and no artifact upload. The hosted candidate evidence does not admit the
+ephemeral executable or ruleset and does not open production use or IAR-2.

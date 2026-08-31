@@ -113,6 +113,7 @@
     {"name": "yara-x-live-synthetic-envelope-profile", "path": "yara-x-live-synthetic-envelope-profile.schema.json", "identity_object_kind": null},
     {"name": "yara-x-live-synthetic-envelope-control", "path": "yara-x-live-synthetic-envelope-control.schema.json", "identity_object_kind": null},
     {"name": "yara-x-live-synthetic-envelope-receipt", "path": "yara-x-live-synthetic-envelope-receipt.schema.json", "identity_object_kind": null},
+    {"name": "yara-x-production-admission", "path": "yara-x-production-admission.schema.json", "identity_object_kind": null},
     {"name": "workspace-handle", "path": "workspace-handle.schema.json", "identity_object_kind": null},
     {"name": "snapshot-status", "path": "snapshot-status.schema.json", "identity_object_kind": "workspace-snapshot"},
     {"name": "search", "path": "search.schema.json", "identity_object_kind": null},
