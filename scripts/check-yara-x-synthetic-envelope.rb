@@ -93,5 +93,10 @@ abort "synthetic envelope build artifacts are not ephemeral" unless
   rehearsal.include?("build_root=\"$runtime_root/cargo-target\"") &&
     rehearsal.include?("$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-emitter") &&
     rehearsal.include?("$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-envelope")
+abort "synthetic envelope delegated handoff bypasses the cleanup trap" if
+  rehearsal.include?("exec sudo systemd-run")
+abort "synthetic envelope delegated handoff depends on the archive execute bit" unless
+  rehearsal.include?("/bin/sh \"$repository_root/scripts/yara-x-synthetic-envelope.sh\" --delegated") &&
+    rehearsal.include?("  exit 0\nfi\n")
 
 puts "YARA-X synthetic envelope verified: cases=2 process=isolated-synthetic-only yara_x_executed=false production_admitted=false"
