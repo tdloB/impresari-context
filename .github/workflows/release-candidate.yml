@@ -2,6 +2,8 @@ name: Release candidate rehearsal
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "41 8 1 * *"
 
 env:
   # GitHub binds this value to the ref selected when the workflow is dispatched.
@@ -9,6 +11,8 @@ env:
   SOURCE_SHA: ${{ github.sha }}
   CANDIDATE_VERSION: 0.2.0
   BASELINE_VERSION: 0.1.0
+  DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+  EVENT_NAME: ${{ github.event_name }}
 
 permissions:
   contents: read
@@ -32,6 +36,9 @@ jobs:
         shell: bash
         run: |
           [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || exit 2
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            test "$GITHUB_REF" = "refs/heads/$DEFAULT_BRANCH"
+          fi
       - name: Check out exact source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

@@ -74,6 +74,7 @@
     {"name": "cursor-agent-delivery", "path": "cursor-agent-delivery.schema.json", "identity_object_kind": null},
     {"name": "vscode-copilot-delivery", "path": "vscode-copilot-delivery.schema.json", "identity_object_kind": null},
     {"name": "client-lifecycle-maintenance", "path": "client-lifecycle-maintenance.schema.json", "identity_object_kind": null},
+    {"name": "roadmap-maintenance", "path": "roadmap-maintenance.schema.json", "identity_object_kind": null},
     {"name": "handoff-export", "path": "handoff-export.schema.json", "identity_object_kind": null},
     {"name": "error-envelope", "path": "error-envelope.schema.json", "identity_object_kind": null},
     {"name": "audit-event", "path": "audit-event.schema.json", "identity_object_kind": null}

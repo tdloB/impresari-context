@@ -1,6 +1,6 @@
 # ADR-0086: Add Fail-Closed Scheduled Roadmap Maintenance Automation
 
-- Status: Accepted for staged implementation
+- Status: Implemented; default-branch live reconciliation evidence pending
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 
@@ -24,6 +24,29 @@ accept risk.
 - Maintainers receive deduplicated work items rather than raw scheduled logs.
 - The project must maintain documented metadata adapters and bounded fixtures.
 - Live authenticated client delivery remains a controlled rehearsal.
+
+## Implementation
+
+The implementation uses `maintenance/client-sources.json` as its closed adapter
+allowlist. Four clients use the official GitHub latest-release API; Cursor
+remains explicitly unavailable because no documented authoritative metadata
+endpoint has been admitted. `scripts/roadmap-maintenance-observe.rb` applies a
+10-second timeout, a 524,288-byte ceiling, rejects redirects and non-JSON
+responses, and emits only bounded metadata observations.
+
+`scripts/roadmap-maintenance-evaluate.rb` binds every observation to the exact
+released compatibility manifest, owned artifact digest, evidence digest, and
+freshness date. It emits one of `current`, `stale`, `changed`, `new_version`,
+`unavailable`, or `invalid`; only `current` and the already-admitted exact
+version during `new_version` retain an existing claim. No result can promote a
+version or mutate a manifest.
+
+`.github/workflows/roadmap-maintenance.yml` separates its read-only observation
+job from its `issues: write` reconciliation job. The writer owns only issues
+carrying the `impresari-maintenance` label and exact hidden ownership marker.
+The monthly schedule in `.github/workflows/release-candidate.yml` builds the
+default-branch SHA and retains artifacts for seven days without tag, release,
+package-publication, or signing authority.
 
 ## Alternatives
 

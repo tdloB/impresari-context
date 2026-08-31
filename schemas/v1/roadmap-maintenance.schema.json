@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/roadmap-maintenance.schema.json",
+  "title": "Scheduled roadmap maintenance contracts",
+  "$defs": {
+    "sha256": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "authority": {
+      "type": "object",
+      "required": ["claim_promotion", "manifest_mutation", "client_mutation", "release_mutation", "risk_acceptance"],
+      "properties": {
+        "claim_promotion": {"const": "denied"},
+        "manifest_mutation": {"const": "denied"},
+        "client_mutation": {"const": "denied"},
+        "release_mutation": {"const": "denied"},
+        "risk_acceptance": {"const": "denied"}
+      },
+      "additionalProperties": false
+    },
+    "observationAuthority": {
+      "type": "object",
+      "required": ["source_read", "source_write", "client_mutation", "release_mutation", "credential_read"],
+      "properties": {
+        "source_read": {"const": "denied"},
+        "source_write": {"const": "denied"},
+        "client_mutation": {"const": "denied"},
+        "release_mutation": {"const": "denied"},
+        "credential_read": {"const": "denied"}
+      },
+      "additionalProperties": false
+    },
+    "observation": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "component_id", "source_id", "checked_at", "outcome", "observed_version", "reason_code", "response_identity", "bytes_received", "authority"],
+      "properties": {
+        "schema_name": {"const": "roadmap-maintenance-observation"},
+        "schema_version": {"const": "1.0.0"},
+        "component_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "source_id": {"type": "string", "minLength": 1, "maxLength": 240},
+        "checked_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "outcome": {"type": "string", "enum": ["observed", "unavailable", "invalid"]},
+        "observed_version": {"type": "string", "minLength": 1, "maxLength": 100},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "response_identity": {"$ref": "#/$defs/sha256"},
+        "bytes_received": {"type": "integer"},
+        "authority": {"$ref": "#/$defs/observationAuthority"}
+      },
+      "additionalProperties": false
+    },
+    "observationSet": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "observations"],
+      "properties": {
+        "schema_name": {"const": "roadmap-maintenance-observation-set"},
+        "schema_version": {"const": "1.0.0"},
+        "observations": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"$ref": "#/$defs/observation"}}
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "component_id", "manifest_id", "status", "reason_code", "checked_at", "admitted_versions", "observed_version", "claim_retained", "manifest_identity", "observation_identity", "checks", "authority"],
+      "properties": {
+        "schema_name": {"const": "roadmap-maintenance-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "component_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "manifest_id": {"type": "string", "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"},
+        "status": {"type": "string", "enum": ["current", "stale", "changed", "new_version", "unavailable", "invalid"]},
+        "reason_code": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"},
+        "checked_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "admitted_versions": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "minLength": 1, "maxLength": 100}},
+        "observed_version": {"type": "string", "minLength": 1, "maxLength": 100},
+        "claim_retained": {"type": "boolean"},
+        "manifest_identity": {"$ref": "#/$defs/sha256"},
+        "observation_identity": {"$ref": "#/$defs/sha256"},
+        "checks": {"type": "array", "minItems": 1, "maxItems": 20, "uniqueItems": true, "items": {"type": "string", "pattern": "^[a-z0-9]+(?:_[a-z0-9]+)*$"}},
+        "authority": {"$ref": "#/$defs/authority"}
+      },
+      "additionalProperties": false
+    },
+    "receiptSet": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "as_of", "receipts"],
+      "properties": {
+        "schema_name": {"const": "roadmap-maintenance-receipt-set"},
+        "schema_version": {"const": "1.0.0"},
+        "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+        "receipts": {"type": "array", "minItems": 1, "maxItems": 20, "items": {"$ref": "#/$defs/receipt"}}
+      },
+      "additionalProperties": false
+    },
+    "issueAction": {
+      "type": "object",
+      "required": ["action", "issue_number", "ownership_key", "title", "body"],
+      "properties": {
+        "action": {"type": "string", "enum": ["create", "update", "close", "noop"]},
+        "issue_number": {"type": "integer"},
+        "ownership_key": {"type": "string", "pattern": "^[a-z0-9-]+:[a-z_]+$"},
+        "title": {"type": "string", "maxLength": 180},
+        "body": {"type": "string", "maxLength": 8192}
+      },
+      "additionalProperties": false
+    },
+    "issuePlan": {
+      "type": "object",
+      "required": ["schema_name", "schema_version", "label", "actions"],
+      "properties": {
+        "schema_name": {"const": "roadmap-maintenance-issue-plan"},
+        "schema_version": {"const": "1.0.0"},
+        "label": {"const": "impresari-maintenance"},
+        "actions": {"type": "array", "maxItems": 40, "items": {"$ref": "#/$defs/issueAction"}}
+      },
+      "additionalProperties": false
+    }
+  },
+  "$ref": "#/$defs/observationSet"
+}

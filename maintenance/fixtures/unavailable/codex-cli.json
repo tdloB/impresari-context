@@ -1,0 +1,6 @@
+{
+  "http_status": 503,
+  "content_type": "application/json; charset=utf-8",
+  "redirected": false,
+  "body": "{\"message\":\"unavailable\"}"
+}

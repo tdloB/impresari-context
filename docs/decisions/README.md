@@ -88,7 +88,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0083](0083-v0-2-independent-security-review-gate.md) | Require an attributable independent human security review before the proposed v0.2.0 release | Accepted; release gate retained, scheduling amended by ADR-0084 and ADR-0085 |
 | [ADR-0084](0084-defer-independent-review-to-release-candidate.md) | Backlog reviewer engagement until the final v0.2.0 release candidate without waiving the release gate | Accepted; candidate-freeze scheduling superseded by ADR-0085 |
 | [ADR-0085](0085-continue-development-before-independent-review.md) | Continue accepted roadmap development and treat the first frozen v0.2.0 candidate as historical evidence | Accepted; review deferred, not waived |
-| [ADR-0086](0086-scheduled-roadmap-maintenance-automation.md) | Add fail-closed scheduled compatibility, freshness, candidate, and exact-owned issue automation | Accepted for staged implementation |
+| [ADR-0086](0086-scheduled-roadmap-maintenance-automation.md) | Add fail-closed scheduled compatibility, freshness, candidate, and exact-owned issue automation | Implemented; live evidence pending |
 | [ADR-0087](0087-macos-local-vm-analyzer-confinement.md) | Replace the failed macOS XPC execution boundary with a fresh local VM candidate | Accepted for synthetic feasibility |
 | [ADR-0088](0088-windows-native-analyzer-confinement.md) | Evaluate LPAC/AppContainer plus Job Objects as the Windows IAR-1B backend | Accepted for synthetic feasibility |
 | [ADR-0089](0089-yara-first-real-analyzer-admission.md) | Admit YARA first behind an independently production-admitted IAR-1B backend | Accepted for planning; execution gated |

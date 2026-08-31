@@ -1,0 +1,6 @@
+{
+  "http_status": 302,
+  "content_type": "application/json; charset=utf-8",
+  "redirected": true,
+  "body": "{\"tag_name\":\"rust-v9.9.9\"}"
+}

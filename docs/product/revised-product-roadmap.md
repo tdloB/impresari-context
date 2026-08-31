@@ -329,8 +329,12 @@ identity is `50ceac6df76bf90f40f6e888bb931ac84e5d18acaa7d8a442834adbcbe2538d4`.
 Both session and user-manager identities were distinct, the first manager
 terminated, package identity was stable, and every cleanup condition passed.
 Profile A is therefore an exact-host synthetic lifecycle candidate; production
-admission and real analyzers remain closed. The next roadmap checkpoint is
-ADR-0086 scheduled maintenance automation.
+admission and real analyzers remain closed. ADR-0086 scheduled maintenance is
+implemented with bounded metadata observations, deterministic six-state
+receipts, exact-owned issue reconciliation, and a monthly no-release candidate
+rehearsal. Its remaining checkpoint is one default-branch live reconciliation
+run and permanent evidence record. The next implementation checkpoint is the
+ADR-0087 local-VM macOS confinement feasibility candidate.
 
 ## Parallel Client Integration Depth Track
 
