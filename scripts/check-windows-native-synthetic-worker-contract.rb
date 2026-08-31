@@ -98,7 +98,10 @@ abort "Windows broker launch sequence drifted" unless
     broker.include?("PROC_THREAD_ATTRIBUTE_CHILD_PROCESS_POLICY") &&
     broker.include?("PROC_THREAD_ATTRIBUTE_MITIGATION_POLICY") &&
     broker.include?("size_of::<[u64; 2]>()") &&
-    broker.include?("CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT") &&
+    broker.include?("CREATE_NO_WINDOW") &&
+    broker.include?("CREATE_SUSPENDED") &&
+    broker.include?("CREATE_UNICODE_ENVIRONMENT") &&
+    broker.include?("EXTENDED_STARTUPINFO_PRESENT") &&
     broker.include?("AssignProcessToJobObject(job.0, process_handle.0)") &&
     broker.include?("ResumeThread(thread_handle.0)") &&
     broker.index("AssignProcessToJobObject(job.0, process_handle.0)") < broker.index("ResumeThread(thread_handle.0)")

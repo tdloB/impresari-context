@@ -41,6 +41,7 @@ const REG_CREATED_NEW_KEY: u32 = 1;
 const STARTF_USESTDHANDLES: u32 = 0x0000_0100;
 const CREATE_SUSPENDED: u32 = 0x0000_0004;
 const CREATE_UNICODE_ENVIRONMENT: u32 = 0x0000_0400;
+const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 const EXTENDED_STARTUPINFO_PRESENT: u32 = 0x0008_0000;
 const HANDLE_FLAG_INHERIT: u32 = 0x0000_0001;
 const WAIT_OBJECT_0: u32 = 0;
@@ -1236,7 +1237,10 @@ fn run_scenario(
             null(),
             null(),
             1,
-            CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
+            CREATE_SUSPENDED
+                | CREATE_UNICODE_ENVIRONMENT
+                | CREATE_NO_WINDOW
+                | EXTENDED_STARTUPINFO_PRESENT,
             environment.0.as_mut_ptr().cast(),
             current_directory.as_ptr(),
             (&raw mut startup.StartupInfo).cast(),
