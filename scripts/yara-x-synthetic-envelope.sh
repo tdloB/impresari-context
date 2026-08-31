@@ -14,6 +14,7 @@ fi
 repository_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 stage_root="$repository_root/target/yara-x-synthetic-envelope"
 runtime_root="${RUNNER_TEMP:?RUNNER_TEMP is required}/impresari-yara-x-envelope-${GITHUB_RUN_ID:?}-${GITHUB_RUN_ATTEMPT:-1}"
+build_root="$runtime_root/cargo-target"
 
 cleanup() {
   for cleanup_root in "$stage_root" "$runtime_root"; do
@@ -33,14 +34,15 @@ if [ "${1:-}" != --delegated ]; then
   command -v sudo >/dev/null 2>&1 || { echo "sudo is required for the ephemeral delegated CI service" >&2; exit 3; }
   cleanup
   mkdir -p -- "$stage_root" "$runtime_root" "$stage_root/external" "$stage_root/credential"
-  RUSTFLAGS='-C target-feature=+crt-static' cargo build --locked --release \
-    --package context-yara-x-envelope --bins
+  CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS='-C target-feature=+crt-static' \
+    CARGO_TARGET_DIR="$build_root" cargo build --locked --release \
+    --target x86_64-unknown-linux-gnu --package context-yara-x-envelope --bins
   cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \
     "$repository_root/platform/linux-yara-x-compatibility/launcher.c" \
     -o "$stage_root/launcher-template"
-  cp "$repository_root/target/release/impresari-yara-x-synthetic-emitter" \
+  cp "$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-emitter" \
     "$stage_root/emitter-template"
-  cp "$repository_root/target/release/impresari-yara-x-synthetic-envelope" \
+  cp "$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-envelope" \
     "$stage_root/coordinator"
   chmod 0555 "$stage_root/launcher-template" "$stage_root/emitter-template" "$stage_root/coordinator"
   printf '%s\n' synthetic-external-canary > "$stage_root/external/canary"
