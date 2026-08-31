@@ -4,7 +4,7 @@
 - Decision: [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md)
 - Profile: `yara-x-synthetic-runner-envelope-v1`
 - Profile SHA-256: `356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b`
-- State: implementation complete; hosted isolated matrix pending
+- State: hosted isolated synthetic matrix passed
 
 ## Implemented Boundary
 
@@ -33,10 +33,37 @@ partial normalized result.
 - Local tests deliberately do not execute the emitter because macOS is not an
   admitted backend for this checkpoint.
 
+## Hosted Evidence
+
+GitHub Actions run
+[`33419412353`](https://github.com/tdloB/impresari-context/actions/runs/33419412353),
+job
+[`99577842304`](https://github.com/tdloB/impresari-context/actions/runs/33419412353/job/99577842304),
+passed on 2026-08-31 against source commit
+`b63a2fdeff39e27e9ec3149fe0e8c2300894cadb`. The job used GitHub-hosted
+Ubuntu 24.04.4 x86-64, runner `2.337.0`, and runner image
+`ubuntu-24.04` version `20260823.283.1`.
+
+The empty-workspace job downloaded the exact public source archive at commit
+`9a6bac4f8bda10b4b08ef3429587b9ae7f8bd1ce`, required length `27920771`,
+and verified SHA-256
+`9dd03466b46fc1a882e39c2ce99c2d6ac0db18431a5c93ad2e24ab40922c0ef2`
+before extraction. It built the locked envelope components with Rust `1.98.0`,
+ran both closed cases inside the delegated Linux cgroup/Landlock/seccomp
+boundary, and emitted only this bounded summary:
+
+```text
+YARA-X synthetic runner envelope passed: cases=2 os_confined=true yara_x_executed=false production_admitted=false
+```
+
+The separate final step confirmed removal of the runtime directory and absence
+of envelope binaries under the checkout target paths. No artifact, cache,
+fixture output, repository-derived analyzer input, or receipt was uploaded.
+
 ## Non-Claims
 
 YARA-X did not run. No analyzer, repository content, credential, malware,
 network destination, production artifact, or admitted ruleset enters this
-checkpoint. The result does not establish IAR-2, detection quality, safety, or
-malware-free status. Those claims remain false even after the hosted synthetic
-matrix passes.
+checkpoint. The passing result establishes only the synthetic transport,
+composition, confinement, and cleanup envelope. It does not establish IAR-2,
+detection quality, safety, or malware-free status.
