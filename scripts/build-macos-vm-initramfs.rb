@@ -38,7 +38,9 @@ archive << newc_entry("TRAILER!!!", 0, "".b, entries.length + 1, 0, 0)
 
 File.open(output_path, "wb") do |file|
   gzip = Zlib::GzipWriter.new(file, Zlib::BEST_COMPRESSION)
-  gzip.mtime = 0
+  # Ruby's gzip writer treats zero as "use the current time". One is the
+  # earliest stable nonzero timestamp and keeps repeated archives identical.
+  gzip.mtime = 1
   gzip.orig_name = ""
   gzip.write(archive)
   gzip.close

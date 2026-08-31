@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-matrix-resource-profile.schema.json",
+  "title": "ADR-0087 macOS local-VM synthetic fault-matrix resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "guest", "scenarios", "limits", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-matrix-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-synthetic-matrix-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "guest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "kernel_version", "kernel_sha256", "guest_init_sha256", "initramfs_sha256", "synthetic_init_only"],
+      "properties": {
+        "architecture": {"const": "aarch64"},
+        "kernel_version": {"const": "6.18.35-0-virt"},
+        "kernel_sha256": {"const": "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"},
+        "guest_init_sha256": {"const": "68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf"},
+        "initramfs_sha256": {"const": "cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf"},
+        "synthetic_init_only": {"const": true}
+      }
+    },
+    "scenarios": {"const": ["success", "malformed-result", "output-flood", "timeout", "descendant-timeout", "early-exit", "cancellation"]},
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["virtual_cpus", "memory_bytes", "input_bytes", "scratch_bytes", "accepted_serial_bytes", "normal_elapsed_ms", "fault_elapsed_ms"],
+      "properties": {
+        "virtual_cpus": {"const": "1"},
+        "memory_bytes": {"const": "268435456"},
+        "input_bytes": {"const": "4096"},
+        "scratch_bytes": {"const": "1048576"},
+        "accepted_serial_bytes": {"const": "65536"},
+        "normal_elapsed_ms": {"const": "30000"},
+        "fault_elapsed_ms": {"const": "2000"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["exact_guest_identity", "serial_capture_memory_only", "serial_overflow_rejected", "malformed_result_rejected", "whole_vm_timeout_stop", "controller_cancellation_cleanup", "fresh_vm_per_scenario", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "exact_guest_identity": {"const": true},
+        "serial_capture_memory_only": {"const": true},
+        "serial_overflow_rejected": {"const": true},
+        "malformed_result_rejected": {"const": true},
+        "whole_vm_timeout_stop": {"const": true},
+        "controller_cancellation_cleanup": {"const": true},
+        "fresh_vm_per_scenario": {"const": true},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

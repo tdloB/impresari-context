@@ -11,9 +11,16 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd -P)
 output_root="$repo_root/target/iar-macos-vm-feasibility"
 asset_root="$output_root/assets"
 controller=$($repo_root/scripts/build-macos-vm-feasibility.sh)
+first_initramfs_sha256=$(cat "$asset_root/impresari-initramfs.sha256")
+controller=$($repo_root/scripts/build-macos-vm-feasibility.sh)
 initramfs_sha256=$(cat "$asset_root/impresari-initramfs.sha256")
+if [ "$first_initramfs_sha256" != "$initramfs_sha256" ]; then
+  printf '%s\n' 'repeated initramfs builds were not byte-identical' >&2
+  exit 4
+fi
 receipt_one="$output_root/job-one-receipt.json"
 receipt_two="$output_root/job-two-receipt.json"
+receipt_recovery="$output_root/job-recovery-receipt.json"
 
 entitlements=$(codesign -d --entitlements :- "$controller" 2>&1)
 if ! printf '%s\n' "$entitlements" | grep -q '<key>com.apple.security.virtualization</key><true/>'; then
@@ -25,8 +32,13 @@ if printf '%s\n' "$entitlements" | grep -q 'com.apple.security.network'; then
   exit 6
 fi
 
-"$controller" "$asset_root" "$initramfs_sha256" job-one > "$receipt_one"
-"$controller" "$asset_root" "$initramfs_sha256" job-two > "$receipt_two"
+if [ "$initramfs_sha256" != cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf ]; then
+  printf '%s\n' 'built initramfs does not match the frozen matrix identity' >&2
+  exit 7
+fi
+
+"$controller" "$asset_root" job-one success > "$receipt_one"
+"$controller" "$asset_root" job-two success > "$receipt_two"
 
 validate_receipt() {
   receipt=$1
@@ -34,10 +46,10 @@ validate_receipt() {
   jq -e \
     --arg job_id "$job_id" \
     --arg initramfs "sha256:$initramfs_sha256" '
-      .schema_name == "macos-local-vm-feasibility-receipt" and
+      .schema_name == "macos-local-vm-matrix-job-receipt" and
       .schema_version == "1.0.0" and
-      .profile_id == "iar-macos-local-vm-feasibility-v1" and
-      .profile_digest == "sha256:a082df092d5180058f732d47ae99164316f3bfd3b12f4079de43575834314757" and
+      .profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
+      .profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
       .job_id == $job_id and
       .result == "feasibility_passed" and
       .kernel_digest == "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd" and
@@ -79,4 +91,106 @@ if [ -e "$output_root/jobs/job-one" ] || [ -e "$output_root/jobs/job-two" ]; the
   exit 8
 fi
 
-printf 'macOS local-VM feasibility passed: initramfs=sha256:%s jobs=2\n' "$initramfs_sha256"
+expect_failure() {
+  scenario=$1
+  category=$2
+  receipt="$output_root/$scenario-failure.json"
+  set +e
+  "$controller" "$asset_root" "$scenario" "$scenario" > "$receipt"
+  status=$?
+  set -e
+  if [ "$status" -eq 0 ]; then
+    printf 'fault scenario unexpectedly succeeded: %s\n' "$scenario" >&2
+    exit 9
+  fi
+  jq -e --arg category "$category" '
+    .schema_name == "macos-local-vm-matrix-failure" and
+    .schema_version == "1.0.0" and
+    .profile_id == "iar-macos-local-vm-synthetic-matrix-v1" and
+    .profile_digest == "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522" and
+    .category == $category and
+    .vm_confined == false and
+    .production_admitted == false and
+    .analyzer_execution == false and
+    .source_retained == false and
+    .authority_added == false
+  ' "$receipt" >/dev/null
+  if [ -e "$output_root/jobs/$scenario" ]; then
+    printf 'fault scenario retained per-job state: %s\n' "$scenario" >&2
+    exit 10
+  fi
+}
+
+expect_failure malformed-result guest_failed
+expect_failure output-flood output_limit
+expect_failure timeout timeout
+expect_failure descendant-timeout timeout
+expect_failure early-exit guest_failed
+expect_failure cancellation cancelled
+
+tampered_assets="$output_root/tampered-assets"
+mkdir -p "$tampered_assets"
+cp "$asset_root/Image" "$tampered_assets/Image"
+cp "$asset_root/impresari-initramfs.gz" "$tampered_assets/impresari-initramfs.gz"
+printf 'x' >> "$tampered_assets/impresari-initramfs.gz"
+tampered_receipt="$output_root/tampered-identity-failure.json"
+set +e
+"$controller" "$tampered_assets" tampered-identity success > "$tampered_receipt"
+tampered_status=$?
+set -e
+if [ "$tampered_status" -eq 0 ]; then
+  printf '%s\n' 'tampered guest identity unexpectedly succeeded' >&2
+  exit 14
+fi
+jq -e '.schema_name == "macos-local-vm-matrix-failure" and .category == "invalid_identity" and .analyzer_execution == false and .source_retained == false and .authority_added == false' \
+  "$tampered_receipt" >/dev/null
+if [ -e "$output_root/jobs/tampered-identity" ]; then
+  printf '%s\n' 'identity rejection staged a job' >&2
+  exit 15
+fi
+
+"$controller" "$asset_root" job-recovery success > "$receipt_recovery"
+validate_receipt "$receipt_recovery" job-recovery
+
+matrix_receipt="$output_root/synthetic-matrix-receipt.json"
+jq -n \
+  --arg initramfs "sha256:$initramfs_sha256" \
+  '{
+    schema_name:"macos-local-vm-synthetic-matrix-receipt",
+    schema_version:"1.0.0",
+    profile_id:"iar-macos-local-vm-synthetic-matrix-v1",
+    profile_digest:"sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522",
+    kernel_digest:"sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd",
+    initramfs_digest:$initramfs,
+    result:"partial_matrix_passed",
+    checks:{
+      repeated_build_identity:true,
+      exact_guest_identity:true,
+      success_recovery:true,
+      malformed_result_rejected:true,
+      serial_flood_bounded_and_rejected:true,
+      timeout_stopped_and_removed:true,
+      descendant_vm_stopped_and_removed:true,
+      early_exit_rejected_and_removed:true,
+      controller_cancellation_stopped_and_removed:true,
+      tampered_guest_rejected_before_staging:true,
+      cross_job_state_absent:true
+    },
+    remaining:[
+      "external_supervisor_cancellation",
+      "forced_host_process_termination_recovery",
+      "host_sleep_and_interruption",
+      "guest_memory_pressure",
+      "guest_cpu_accounting",
+      "host_canary_denial_corpus",
+      "multi_host_evidence",
+      "distribution_and_independent_review"
+    ],
+    vm_confined:false,
+    production_admitted:false,
+    analyzer_execution:false,
+    source_retained:false,
+    authority_added:false
+  }' > "$matrix_receipt"
+
+printf 'macOS local-VM synthetic matrix passed: initramfs=sha256:%s success_jobs=3 fault_jobs=7\n' "$initramfs_sha256"

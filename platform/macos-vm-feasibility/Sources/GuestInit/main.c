@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <linux/reboot.h>
 #include <sched.h>
+#include <signal.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -15,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
 
 #define INPUT_BYTES 4096
@@ -23,6 +25,49 @@
 
 static const char input_prefix[] = "IMPRESARI_VM_INPUT_V1\nsynthetic-only\n";
 static const char marker[] = "IMPRESARI_JOB_MARKER_V1";
+
+enum scenario {
+    SCENARIO_SUCCESS,
+    SCENARIO_MALFORMED_RESULT,
+    SCENARIO_OUTPUT_FLOOD,
+    SCENARIO_TIMEOUT,
+    SCENARIO_DESCENDANT_TIMEOUT,
+    SCENARIO_EARLY_EXIT
+};
+
+static enum scenario selected_scenario(void) {
+    mkdir("/proc", 0555);
+    if (mount("proc", "/proc", "proc", MS_NOSUID | MS_NODEV | MS_NOEXEC, "") != 0 && errno != EBUSY) {
+        return SCENARIO_EARLY_EXIT;
+    }
+    char command_line[512];
+    int fd = open("/proc/cmdline", O_RDONLY | O_CLOEXEC);
+    if (fd < 0) {
+        return SCENARIO_EARLY_EXIT;
+    }
+    ssize_t amount = read(fd, command_line, sizeof(command_line) - 1);
+    close(fd);
+    if (amount <= 0) {
+        return SCENARIO_EARLY_EXIT;
+    }
+    command_line[amount] = '\0';
+    if (strstr(command_line, " impresari.mode=malformed-result") != NULL) {
+        return SCENARIO_MALFORMED_RESULT;
+    }
+    if (strstr(command_line, " impresari.mode=output-flood") != NULL) {
+        return SCENARIO_OUTPUT_FLOOD;
+    }
+    if (strstr(command_line, " impresari.mode=timeout") != NULL) {
+        return SCENARIO_TIMEOUT;
+    }
+    if (strstr(command_line, " impresari.mode=descendant-timeout") != NULL) {
+        return SCENARIO_DESCENDANT_TIMEOUT;
+    }
+    if (strstr(command_line, " impresari.mode=early-exit") != NULL) {
+        return SCENARIO_EARLY_EXIT;
+    }
+    return SCENARIO_SUCCESS;
+}
 
 static bool load_block_driver(void) {
     int fd = open("/lib/modules/virtio_blk.ko", O_RDONLY | O_CLOEXEC);
@@ -157,6 +202,38 @@ int main(void) {
     }
     bool no_network_device = network_device_absent();
     bool passed = exact_input && read_only_input && clean_scratch && bounded_scratch && no_network_device;
+
+    enum scenario scenario = selected_scenario();
+    if (scenario == SCENARIO_MALFORMED_RESULT) {
+        printf("IMPRESARI_VM_RECEIPT {malformed\n");
+        fflush(stdout);
+        power_off();
+    }
+    if (scenario == SCENARIO_OUTPUT_FLOOD) {
+        for (size_t index = 0; index < 131072; index++) {
+            putchar('X');
+        }
+        putchar('\n');
+        fflush(stdout);
+        power_off();
+    }
+    if (scenario == SCENARIO_TIMEOUT) {
+        for (;;) {
+            pause();
+        }
+    }
+    if (scenario == SCENARIO_DESCENDANT_TIMEOUT) {
+        pid_t child = fork();
+        if (child < 0) {
+            power_off();
+        }
+        for (;;) {
+            pause();
+        }
+    }
+    if (scenario == SCENARIO_EARLY_EXIT) {
+        power_off();
+    }
 
     printf("IMPRESARI_VM_RECEIPT {\"schema_name\":\"macos-local-vm-guest-receipt\",\"schema_version\":\"1.0.0\",\"result\":\"%s\",\"exact_input_verified\":%s,\"read_only_input_verified\":%s,\"scratch_initially_clean\":%s,\"scratch_capacity_verified\":%s,\"network_device_absent\":%s,\"source_retained\":false,\"authority_added\":false}\n",
            passed ? "passed" : "failed",

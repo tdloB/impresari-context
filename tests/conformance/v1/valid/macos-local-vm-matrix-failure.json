@@ -1,0 +1,12 @@
+{
+  "schema_name": "macos-local-vm-matrix-failure",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-synthetic-matrix-v1",
+  "profile_digest": "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522",
+  "category": "output_limit",
+  "vm_confined": false,
+  "production_admitted": false,
+  "analyzer_execution": false,
+  "source_retained": false,
+  "authority_added": false
+}

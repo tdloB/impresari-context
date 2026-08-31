@@ -31,6 +31,24 @@ abort "macOS VM profile adds authority" unless profile.dig("controls", "authorit
 abort "macOS VM profile includes network or host sharing" unless
   profile.dig("devices", "network_devices") == "0" && profile.dig("devices", "directory_shares") == "0"
 
+matrix_profile_path = ROOT.join("profiles/v1/iar-macos-local-vm-synthetic-matrix-v1.json")
+matrix_profile_digest = Digest::SHA256.file(matrix_profile_path).hexdigest
+abort "macOS VM matrix profile digest changed" unless matrix_profile_digest == "a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522"
+matrix_sha_record = read("profiles/v1/iar-macos-local-vm-synthetic-matrix-v1.sha256").strip
+abort "macOS VM matrix profile checksum record mismatch" unless
+  matrix_sha_record == "#{matrix_profile_digest}  iar-macos-local-vm-synthetic-matrix-v1.json"
+abort "macOS VM matrix profile fixture differs from the frozen profile" unless
+  matrix_profile_path.binread == ROOT.join("tests/conformance/v1/valid/iar-macos-local-vm-synthetic-matrix-profile.json").binread
+
+matrix_profile = json("profiles/v1/iar-macos-local-vm-synthetic-matrix-v1.json")
+abort "macOS VM matrix guest identity is not exact" unless
+  matrix_profile.dig("guest", "guest_init_sha256") == "68d5be977b2bd1bc7df2bcfc8bdb077bb03f9afc390d7c099f23437ced1598bf" &&
+    matrix_profile.dig("guest", "initramfs_sha256") == "cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf"
+abort "macOS VM matrix expands authority" unless
+  matrix_profile.dig("controls", "analyzer_execution") == false &&
+    matrix_profile.dig("controls", "production_admitted") == false &&
+    matrix_profile.dig("controls", "authority_added") == false
+
 assets = json("platform/macos-vm-feasibility/guest-assets.json")
 abort "macOS VM guest asset source is not exact Alpine HTTPS" unless assets.fetch("artifacts").all? do |artifact|
   artifact.fetch("url").start_with?("https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/") &&
@@ -61,15 +79,23 @@ end
   abort "macOS VM controller acquired forbidden surface: #{forbidden}" if controller.include?(forbidden)
 end
 abort "macOS VM controller no longer limits serial output" unless controller.include?("maximumSerialBytes = 65_536")
+abort "macOS VM controller lost bounded in-memory serial capture" unless
+  controller.include?("BoundedSerialCapture") && controller.include?("serialOverflow") && !controller.include?("serial.log")
+abort "macOS VM controller accepts caller-selected guest identity" unless
+  controller.include?("initramfsDigest = \"cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf\"")
 abort "macOS VM controller can overclaim VM confinement" unless controller.include?("vmConfined: false")
 
 guest = read("platform/macos-vm-feasibility/Sources/GuestInit/main.c")
-%w[fork( execve( execl( system( popen( socket( connect(].each do |forbidden|
+%w[execve( execl( system( popen( socket( connect(].each do |forbidden|
   abort "synthetic guest init acquired forbidden execution/network surface: #{forbidden}" if guest.include?(forbidden)
 end
+abort "synthetic guest descendant probe changed" unless guest.scan("fork(").length == 1 && guest.include?("SCENARIO_DESCENDANT_TIMEOUT")
 abort "synthetic guest init lost raw scratch ceiling" unless guest.include?("#define SCRATCH_BYTES 1048576")
 abort "synthetic guest init lost read-only input probe" unless guest.include?("input_write_denied")
 abort "synthetic guest init lost network-device absence probe" unless guest.include?("network_device_absent")
+
+initramfs_builder = read("scripts/build-macos-vm-initramfs.rb")
+abort "macOS VM initramfs build timestamp is not reproducible" unless initramfs_builder.include?("gzip.mtime = 1")
 
 platform_root = ROOT.join("platform/macos-vm-feasibility")
 Dir.glob(platform_root.join("**/*")).select { |path| File.file?(path) }.each do |path|

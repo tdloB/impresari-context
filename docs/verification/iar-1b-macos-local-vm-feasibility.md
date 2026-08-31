@@ -61,7 +61,8 @@ or fallback path was added.
 Each job used:
 
 - one virtual CPU and 256 MiB memory;
-- one bounded serial output channel;
+- one serial result channel from the fixed synthetic guest (a hard host-side
+  capture bound was not yet proved at this checkpoint);
 - one exact 4 KiB read-only raw input disk;
 - one fresh 1 MiB writable raw scratch disk; and
 - zero network, host-directory, graphics, audio, keyboard, pointing, USB, or
@@ -124,6 +125,8 @@ This first checkpoint does not yet prove:
 - evidence on more than this one macOS/architecture/toolchain target and the
   deferred attributable independent human review.
 
-macOS therefore remains publicly at IAR-1A. The next ADR-0087 checkpoint is the
-remaining synthetic escape, lifecycle, and resource matrix—not real analyzer
-execution or packaging.
+macOS therefore remains publicly at IAR-1A. The subsequent
+[partial synthetic fault matrix](iar-1b-macos-local-vm-synthetic-matrix.md)
+closes the exact-guest, reproducibility, bounded-serial, malformed-result,
+timeout/descendant, controller-cancellation, and recovery cases while retaining
+the remaining gates—not real analyzer execution or packaging.
