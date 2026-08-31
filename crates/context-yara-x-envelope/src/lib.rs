@@ -728,6 +728,9 @@ fn validate_live_yara_x_control(control: &LiveYaraXControl) -> Result<(), Envelo
         || !valid_sha256(&control.workspace_snapshot)
         || !valid_sha256(&control.manifest_id)
         || !control.job_root.is_absolute()
+        || !control.cgroup_leaf.is_absolute()
+        || !control.external_canary.is_absolute()
+        || !control.credential_canary.is_absolute()
         || control
             .job_root
             .file_name()
@@ -959,7 +962,8 @@ mod tests {
 
     fn live_control(case_id: &str) -> LiveYaraXControl {
         let job_id = format!("live-{case_id}");
-        let job_root = PathBuf::from(format!("/tmp/{}", case_id.replace('-', "_")));
+        let base = std::env::temp_dir();
+        let job_root = base.join(case_id.replace('-', "_"));
         LiveYaraXControl {
             schema_name: "yara-x-live-synthetic-envelope-control".to_owned(),
             schema_version: "1.0.0".to_owned(),
@@ -976,9 +980,9 @@ mod tests {
             artifact_path: job_root.join("input"),
             artifact_digest: format!("sha256:{}", "7".repeat(64)),
             artifact_bytes: "64".to_owned(),
-            cgroup_leaf: PathBuf::from("/sys/fs/cgroup/job-live"),
-            external_canary: PathBuf::from("/tmp/external/canary"),
-            credential_canary: PathBuf::from("/tmp/credential/canary"),
+            cgroup_leaf: base.join("cgroup").join("job-live"),
+            external_canary: base.join("external").join("canary"),
+            credential_canary: base.join("credential").join("canary"),
             write_probe: job_root.join("write-probe"),
             job_root,
             workspace_snapshot: format!("sha256:{}", "8".repeat(64)),
@@ -991,11 +995,17 @@ mod tests {
     #[test]
     fn composes_real_engine_synthetic_capture_without_admission() {
         let control = live_control("literal");
-        let raw = format!(
-            "{{\"path\":\"{}\",\"rules\":[{{\"identifier\":\"impresari_synthetic_literal_v1\",\"namespace\":\"default\",\"strings\":[{{\"identifier\":\"$literal\",\"match\":\" ... 8 more bytes\",\"offset\":0}}],\"tags\":[\"impresari\",\"synthetic\"]}}]}}\n",
-            control.artifact_path.display()
-        )
-        .into_bytes();
+        let mut raw = serde_json::to_vec(&serde_json::json!({
+            "path": control.artifact_path.to_string_lossy(),
+            "rules": [{
+                "identifier": "impresari_synthetic_literal_v1",
+                "namespace": "default",
+                "strings": [{"identifier": "$literal", "match": " ... 8 more bytes", "offset": 0}],
+                "tags": ["impresari", "synthetic"]
+            }]
+        }))
+        .expect("synthetic JSON");
+        raw.push(b'\n');
         let capture = YaraXCompatibilityProcessCapture {
             stdout_digest: sha256(&raw),
             stdout_bytes: raw.len() as u64,
