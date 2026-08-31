@@ -3,7 +3,7 @@
   "schema_version": "1.0.0",
   "receipt_id": "yara-x-compatibility-0-0",
   "profile_id": "yara-x-artifact-compatibility-v1",
-  "profile_digest": "sha256:a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41",
+  "profile_digest": "sha256:ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8",
   "recorded_at": "2026-08-31T12:41:29Z",
   "source_archive_sha256": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
   "patch_sha256": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",

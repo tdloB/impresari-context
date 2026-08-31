@@ -4,8 +4,8 @@
   "record_id": "yara-x-artifact-compatibility-fixtures-v1",
   "recorded_at": "2026-08-31T12:41:29Z",
   "fixtures": [
-    {"path": "invalid/yara-x-artifact-compatibility-overclaim.json", "sha256": "d90e205994f06fc485206de3c7877b6ec0ffc2b547e60f050f939dd84efc8f67", "provenance": "original-synthetic"},
-    {"path": "valid/yara-x-artifact-compatibility-receipt.json", "sha256": "d74f7ece2fe9dcce3c0fa6102e8cf82178e44617210095cd9b5114085cb8ac13", "provenance": "original-synthetic"}
+    {"path": "invalid/yara-x-artifact-compatibility-overclaim.json", "sha256": "629e286eabdb1bd86084aa5f7308f18e134deb0046ace69eadd3db6caebac43c", "provenance": "original-synthetic"},
+    {"path": "valid/yara-x-artifact-compatibility-receipt.json", "sha256": "0bf8ba357ce6f855139d37384270a288cd94d74b48b74f9ce45785c74a9ce20d", "provenance": "original-synthetic"}
   ],
   "yara_x_source_content": false,
   "yara_x_executable_content": false,

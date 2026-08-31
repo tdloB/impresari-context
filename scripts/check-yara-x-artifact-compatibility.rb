@@ -7,13 +7,13 @@ require "pathname"
 require "time"
 
 ROOT = Pathname.new(__dir__).join("..").expand_path
-PROFILE_DIGEST = "a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41"
+PROFILE_DIGEST = "ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8"
 PATCH_DIGEST = "b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd"
 RULE_DIGEST = "5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf54c0e578c812b"
 ARCHIVE_DIGEST = "8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee"
 FIXTURE_DIGESTS = {
-  "invalid/yara-x-artifact-compatibility-overclaim.json" => "d90e205994f06fc485206de3c7877b6ec0ffc2b547e60f050f939dd84efc8f67",
-  "valid/yara-x-artifact-compatibility-receipt.json" => "d74f7ece2fe9dcce3c0fa6102e8cf82178e44617210095cd9b5114085cb8ac13"
+  "invalid/yara-x-artifact-compatibility-overclaim.json" => "629e286eabdb1bd86084aa5f7308f18e134deb0046ace69eadd3db6caebac43c",
+  "valid/yara-x-artifact-compatibility-receipt.json" => "0bf8ba357ce6f855139d37384270a288cd94d74b48b74f9ce45785c74a9ce20d"
 }.freeze
 
 def json(path)

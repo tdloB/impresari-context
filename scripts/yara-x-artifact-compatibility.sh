@@ -61,7 +61,7 @@ verify_digest "$rule_source" 5379d03476eebf9c06379ad8d791d5ff1879c331300869d3eaf
 
 patch --batch --forward -p1 -d "$source_root" < "$patch_file"
 verify_digest "$source_root/Cargo.toml" 4c250ee2588e0d46b8e83f5bc683c230d212e44cf2851b8f259e51752f85d24d
-verify_digest "$source_root/cli/Cargo.toml" bab4198a56220fd84c699ffdc36ad6e3b8f8b8326eb1638d41a62013d99b2e21
+verify_digest "$source_root/cli/Cargo.toml" a141a064f49eedc1d2bd079e95f1ce187d7d9fba845f6e801ed7c44eaa378402
 verify_digest "$source_root/Cargo.lock" e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e
 
 ruby "$repository_root/scripts/check-yara-x-rule-policy.rb" "$rule_source"
@@ -107,7 +107,7 @@ export RUSTFLAGS='-C target-feature=+crt-static'
 cargo +1.93.0 build --frozen --locked --profile release-lto \
   --package yara-x-cli --features pulley --target x86_64-unknown-linux-gnu
 yr="$source_root/target/x86_64-unknown-linux-gnu/release-lto/yr"
-verify_digest "$profile" a269da948e6a379fa764579a751219be414337093414af729389613a00f04f41
+verify_digest "$profile" ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8
 [ -x "$yr" ] || { echo "YARA-X CLI build is missing" >&2; exit 8; }
 
 compile_home="$stage_root/compile-home"

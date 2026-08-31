@@ -28,7 +28,7 @@
       "sha256": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
       "purpose": "disable_default_modules_and_parallel_compilation_then_apply_two_lockfile_security_updates",
       "patched_cargo_toml_sha256": "sha256:4c250ee2588e0d46b8e83f5bc683c230d212e44cf2851b8f259e51752f85d24d",
-      "patched_cli_cargo_toml_sha256": "sha256:bab4198a56220fd84c699ffdc36ad6e3b8f8b8326eb1638d41a62013d99b2e21",
+      "patched_cli_cargo_toml_sha256": "sha256:a141a064f49eedc1d2bd079e95f1ce187d7d9fba845f6e801ed7c44eaa378402",
       "patched_cargo_lock_sha256": "sha256:e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e"
     }},
     "build": {
