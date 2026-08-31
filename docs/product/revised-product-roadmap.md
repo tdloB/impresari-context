@@ -469,6 +469,15 @@ SBOM, provenance, reproducibility, license, and rollback evidence. This
 checkpoint downloads no source, creates no binary or rule, uses no network at
 verification time, and does not change the closed IAR-2 or production posture.
 
+The following build-profile audit found a material upstream transition: the
+official YARA v4.5.8 project is now maintenance-focused and directs enhancement
+work to stable YARA-X. ADR-0097 selects YARA-X before the first analyzer build.
+The exact legacy YARA candidate remains evaluated evidence, not wasted work or
+an admitted artifact. The engine-specific parts of ADR-0089/0096 are
+superseded, and the ADR-0095 adapter must receive new YARA-X identities. No
+engine-specific build, ruleset, live adapter, source download, or execution
+may begin until the replacement contracts are frozen.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

@@ -1,6 +1,6 @@
 # ADR-0096: Freeze The YARA Supply-Chain Admission Contract
 
-- Status: Accepted for contract-only implementation
+- Status: Superseded by ADR-0097 as an engine source candidate; evidence retained
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive
 
@@ -72,3 +72,9 @@ authoring or compiling the production ruleset, loading rules, invoking YARA,
 accepting repository-derived analyzer input, using network or credentials, or
 claiming executable, ruleset, IAR-2, production, confinement, or safety
 admission.
+
+ADR-0097 records the subsequent discovery that upstream feature development
+has shifted to stable YARA-X and selects YARA-X as the first analyzer engine.
+This legacy source candidate remains evaluated evidence but cannot advance to
+a build or admission. Its separation, provenance, signing, expiry, revocation,
+and rollback requirements remain inputs to the replacement YARA-X contract.

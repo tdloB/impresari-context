@@ -1,6 +1,6 @@
 # ADR-0089: Admit YARA As The First Real Analyzer
 
-- Status: Accepted for planning; execution remains gated
+- Status: Superseded by ADR-0097; execution remains gated
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 
@@ -41,3 +41,8 @@ This ADR does not authorize execution. Activation requires an exact platform
 with current production IAR-1B admission, implemented contracts and fixtures,
 signed analyzer/rules artifacts, complete hosted evidence, and the applicable
 independent security review.
+
+ADR-0097 supersedes this engine selection with stable YARA-X after upstream
+moved large-feature development to that line. This record remains the history
+of the first-engine rationale; it does not authorize a legacy-YARA build,
+ruleset, live adapter, or execution.

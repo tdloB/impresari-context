@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: Adapter and supply-chain contracts implemented under ADR-0095/0096; execution gated on IAR-1B
+- Status: Legacy adapter/source contracts superseded by ADR-0097; YARA-X replacement contracts pending; execution gated on IAR-1B
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0089
@@ -72,3 +72,12 @@ is accepted. No source archive, executable, ruleset, rule, signing material, or
 credential is committed or used by this checkpoint. Selection expiry,
 revocation, tag movement, substitution, and missing evidence all withdraw the
 candidate without activating IAR-2.
+
+## YARA-X Selection Gate
+
+ADR-0097 records the official upstream transition from maintenance-focused
+YARA to stable YARA-X and selects YARA-X. This PRD cannot name a production
+artifact, ruleset, module subset, or live output contract until replacement
+YARA-X contracts are frozen. The selection retains every confinement,
+supply-chain, coverage, accuracy, hosted-evidence, and independent-review
+acceptance criterion above.

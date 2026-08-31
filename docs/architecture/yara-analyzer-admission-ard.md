@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: Adapter and supply-chain contracts implemented under ADR-0095/0096; execution gated on IAR-1B
+- Status: Legacy adapter/source contracts superseded by ADR-0097; YARA-X replacement contracts pending; execution gated on IAR-1B
 - Date: 2026-08-30
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md)
@@ -81,3 +81,12 @@ paths, custom modules, in-job updates, network retrieval, and worker-held update
 credentials are structurally false. The offline checker verifies metadata and
 fail-closed states only; it cannot download, build, sign, load, or execute an
 artifact.
+
+## ADR-0097 YARA-X Direction
+
+YARA-X is selected, but no engine-specific build architecture is frozen yet.
+The replacement requires new engine/profile identities, documented
+rule-compatibility constraints, and a bounded JSON/NDJSON adapter. It may not
+reuse legacy YARA's executable, compiled-rules, module, or result-parser
+identity. The common artifact, ruleset, confinement, accounting, expiry,
+revocation, and non-safety requirements remain unchanged.
