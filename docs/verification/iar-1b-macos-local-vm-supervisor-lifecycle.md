@@ -49,5 +49,5 @@ sleep, host reboot, power loss, or an operating-system crash. It also does not
 establish guest memory pressure, CPU accounting, the complete host-canary
 denial corpus, multi-host support, signed distribution, or independent review.
 
-The next checkpoint is guest resource evidence and the host-canary denial
-corpus. macOS remains publicly at IAR-1A.
+The next checkpoint, [guest resource and host-canary evidence](iar-1b-macos-local-vm-resource-canary.md),
+passed separately. macOS remains publicly at IAR-1A.

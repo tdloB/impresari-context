@@ -165,6 +165,15 @@ distribution gates.
 The pre-launch digest check is not atomic executable identity; sealed release
 signature verification remains a production gate.
 
+The next macOS checkpoint uses a separate exact resource-test guest and the
+same audited Rust launch site. One guest cgroup v2 leaf enforces exact memory,
+swap, CPU, and process ceilings; synthetic memory and CPU pressure produce
+kernel accounting before the leaf is removed. Six host-only canary classes are
+absent from the exact attached disks, prohibited path families and the host
+controller process identity are absent in the guest, host canary bytes remain
+unchanged, and exact host job state is removed. The receipt remains synthetic,
+source-free, non-production, and non-confinement evidence.
+
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
 Windows candidate composes AppContainer or a restricted token, explicit staged-

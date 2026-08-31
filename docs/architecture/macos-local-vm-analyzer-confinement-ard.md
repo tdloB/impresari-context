@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Synthetic feasibility in progress; partial supervisor lifecycle passed
+- Status: Synthetic feasibility in progress; partial resource/canary checkpoint passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -88,3 +88,13 @@ and requires a fresh recovery VM after either action. It does not yet connect
 the Analyzer Runner request/result protocol or admit a real analyzer. This
 pre-launch digest check does not close executable substitution; production
 requires sealed signature and bundle identity verification.
+
+The fourth checkpoint freezes a separate resource-test initramfs instead of
+rewriting the earlier matrix identity. The guest PID 1 creates one cgroup v2
+leaf with exact memory, swap, CPU, and process ceilings, runs only synthetic
+pressure children, validates kernel accounting, kills the empty leaf, and
+removes it. Six host-only canary classes are created beside but never attached
+to the guest disks. Guest device, raw-disk marker, prohibited-path, and process-
+identity observations are combined with host byte-integrity and exact cleanup.
+The Rust supervisor validates the complete source-free receipt. This closes
+only the guest-resource and host-canary checkpoint.

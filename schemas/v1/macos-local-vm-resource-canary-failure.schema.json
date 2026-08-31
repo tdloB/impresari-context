@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-resource-canary-failure.schema.json",
+  "title": "ADR-0087 resource and host-canary failure",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "category", "vm_confined", "production_admitted", "analyzer_execution", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-resource-canary-failure"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-resource-canary-v1"},
+    "profile_digest": {"const": "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e"},
+    "category": {"enum": ["usage", "unsupported", "invalid_identity", "invalid_job", "invalid_configuration", "start_failed", "timeout", "cancelled", "output_limit", "guest_failed", "cleanup_failed"]},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "analyzer_execution": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

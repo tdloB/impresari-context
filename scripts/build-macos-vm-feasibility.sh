@@ -12,8 +12,10 @@ output_root="$repo_root/target/iar-macos-vm-feasibility"
 asset_root="$output_root/assets"
 bin_root="$output_root/bin"
 guest_init="$bin_root/impresari-vm-init"
+resource_guest_init="$bin_root/impresari-vm-resource-init"
 controller="$bin_root/impresari-context-vm-controller"
 initramfs="$asset_root/impresari-initramfs.gz"
+resource_initramfs="$asset_root/impresari-resource-initramfs.gz"
 module="$asset_root/virtio_blk.ko"
 
 for asset in "$asset_root/Image" "$module"; do
@@ -35,13 +37,26 @@ zig cc -target aarch64-linux-musl -static -Os -fno-ident \
   -o "$guest_init" \
   "$repo_root/platform/macos-vm-feasibility/Sources/GuestInit/main.c"
 
+ZIG_GLOBAL_CACHE_DIR="$output_root/zig-global-cache" \
+ZIG_LOCAL_CACHE_DIR="$output_root/zig-local-cache" \
+zig cc -target aarch64-linux-musl -static -Os -fno-ident \
+  -Wl,--build-id=none \
+  -o "$resource_guest_init" \
+  "$repo_root/platform/macos-vm-feasibility/Sources/GuestResourceInit/main.c"
+
 if ! file "$guest_init" | grep -q 'ELF 64-bit.*ARM aarch64.*statically linked'; then
   printf '%s\n' 'synthetic guest init is not a static ARM64 Linux executable' >&2
+  exit 5
+fi
+if ! file "$resource_guest_init" | grep -q 'ELF 64-bit.*ARM aarch64.*statically linked'; then
+  printf '%s\n' 'synthetic resource guest init is not a static ARM64 Linux executable' >&2
   exit 5
 fi
 
 ruby "$repo_root/scripts/build-macos-vm-initramfs.rb" \
   "$guest_init" "$module" "$initramfs"
+ruby "$repo_root/scripts/build-macos-vm-initramfs.rb" \
+  "$resource_guest_init" "$module" "$resource_initramfs"
 
 xcrun swiftc -swift-version 5 -O \
   -module-cache-path "$output_root/swift-module-cache" \
@@ -53,5 +68,7 @@ codesign --force --sign - \
   "$controller" >/dev/null
 
 initramfs_sha256=$(shasum -a 256 "$initramfs" | awk '{print $1}')
+resource_initramfs_sha256=$(shasum -a 256 "$resource_initramfs" | awk '{print $1}')
 printf '%s\n' "$initramfs_sha256" > "$asset_root/impresari-initramfs.sha256"
+printf '%s\n' "$resource_initramfs_sha256" > "$asset_root/impresari-resource-initramfs.sha256"
 printf '%s\n' "$controller"

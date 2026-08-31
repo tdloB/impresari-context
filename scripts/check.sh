@@ -42,6 +42,7 @@ sh -n ./scripts/prepare-macos-vm-feasibility.sh
 sh -n ./scripts/build-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-feasibility.sh
 sh -n ./scripts/check-macos-vm-supervisor-lifecycle.sh
+sh -n ./scripts/check-macos-vm-resource-canary.sh
 ruby -c ./scripts/build-macos-vm-initramfs.rb
 ruby -c ./scripts/extract-macos-vm-kernel.rb
 sh -n ./scripts/install.sh

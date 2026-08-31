@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; partial synthetic supervisor lifecycle passed
+- Status: Accepted; partial synthetic resource/canary checkpoint passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -71,3 +71,12 @@ termination both reaped the controller, removed all exact job state, and
 completed a new recovery VM job. Guest resource pressure, the complete host-
 canary corpus, supply-chain, multi-host, distribution, and independent-review
 gates remain mandatory before IAR-1B admission.
+
+The fourth checkpoint used a separately frozen synthetic guest and the same
+audited Rust launch site. Its exact guest cgroup v2 leaf contained memory
+pressure, throttled CPU pressure, bounded the child count, and was removed.
+Six host-only canary classes remained absent from the exact attached devices,
+prohibited host paths and the host controller process identity were absent in
+the guest, the host corpus remained byte-exact, and all job state was removed.
+Host interruption, sealed supply-chain/distribution, multi-host, and
+independent-review gates remain mandatory before IAR-1B admission.

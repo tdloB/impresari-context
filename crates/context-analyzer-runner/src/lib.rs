@@ -57,10 +57,19 @@ pub const MACOS_VM_CONTROLLER_PROFILE_ID: &str = "iar-macos-local-vm-synthetic-m
 /// Exact profile digest exposed by the synthetic macOS VM controller.
 pub const MACOS_VM_CONTROLLER_PROFILE_DIGEST: &str =
     "sha256:a411dc8d896b9b516cb535786fe2d12f17c6bfed3b39b2104c040e7556507522";
+/// Frozen macOS local-VM synthetic resource and host-canary profile.
+pub const MACOS_VM_RESOURCE_CANARY_PROFILE_ID: &str = "iar-macos-local-vm-resource-canary-v1";
+/// Digest of the exact committed resource and host-canary profile bytes.
+pub const MACOS_VM_RESOURCE_CANARY_PROFILE_DIGEST: &str =
+    "sha256:b711c69b7a46ad26bb7181622edc69366557886cfe43ef3ca2ef05283d861e7e";
 const MACOS_VM_KERNEL_DIGEST: &str =
     "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd";
 const MACOS_VM_INITRAMFS_DIGEST: &str =
     "sha256:cc87a9a68d06826277dd759befd318272a7876540b4287cfd6fe0ac67552bfbf";
+const MACOS_VM_RESOURCE_INITRAMFS_DIGEST: &str =
+    "sha256:f75a3bc10d569622f84c557e88bbc9ce65a157e7bb410f412c8ab39dedc5c80c";
+const MACOS_VM_SYNTHETIC_INPUT_DIGEST: &str =
+    "sha256:3050d67653f05f1db0dcef073a64f6fc9f9ac2e55c7b1881e7372151b3e4fd99";
 const MACOS_VM_STDOUT_BYTES: usize = 65_536;
 const MACOS_VM_STDERR_BYTES: usize = 16_384;
 
@@ -462,6 +471,82 @@ pub struct MacOsVmSupervisorReceipt {
     pub authority_added: bool,
 }
 
+/// Source-free Rust-supervised guest-resource and host-canary evidence.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct MacOsVmResourceCanaryReceipt {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Frozen resource/canary profile.
+    pub profile_id: String,
+    /// Exact resource/canary profile bytes digest.
+    pub profile_digest: String,
+    /// Runtime digest of the exact controller bytes.
+    pub controller_digest: String,
+    /// Caller-owned source-free job identifier.
+    pub job_id: String,
+    /// Exact frozen guest kernel.
+    pub kernel_digest: String,
+    /// Exact separate resource-test initramfs.
+    pub initramfs_digest: String,
+    /// Exact synthetic input identity.
+    pub input_digest: String,
+    /// The controller digest matched immediately before child launch.
+    pub controller_digest_verified_before_launch: bool,
+    /// The Virtualization configuration passed framework validation.
+    pub configuration_validated: bool,
+    /// Exact virtual CPU count.
+    pub cpu_count: String,
+    /// Exact VM memory bytes.
+    pub memory_bytes: String,
+    /// Exact attached storage device count.
+    pub storage_devices: String,
+    /// Exact attached network device count.
+    pub network_devices: String,
+    /// Exact directory-share count.
+    pub directory_shares: String,
+    /// The synthetic host-only canary corpus was created.
+    pub host_canary_corpus_created: bool,
+    /// The host-only corpus remained byte-exact after the guest stopped.
+    pub host_canary_corpus_unchanged: bool,
+    /// The guest observed only the two exact attached block devices.
+    pub attached_device_set_exact: bool,
+    /// No host-canary marker occurred on either attached disk.
+    pub host_canary_bytes_absent: bool,
+    /// Prohibited host path families were absent inside the guest.
+    pub host_paths_absent: bool,
+    /// No guest process entry exposed the host controller identity.
+    pub host_process_invisible: bool,
+    /// A child exceeding the frozen memory limit was contained and killed.
+    pub memory_pressure_contained: bool,
+    /// Guest cgroup OOM-kill count.
+    pub memory_oom_kills: String,
+    /// A CPU-bound child was measurably throttled under the frozen quota.
+    pub cpu_pressure_bounded: bool,
+    /// CPU microseconds charged during the pressure interval.
+    pub cpu_usage_usec: String,
+    /// Throttled cgroup periods during the pressure interval.
+    pub cpu_throttled_periods: String,
+    /// Maximum task count observed in the job cgroup.
+    pub pids_peak: String,
+    /// The exact guest job cgroup was removed.
+    pub job_cgroup_removed: bool,
+    /// The exact host job state was removed.
+    pub job_removed: bool,
+    /// Partial feasibility never establishes VM confinement.
+    pub vm_confined: bool,
+    /// Partial feasibility never admits production execution.
+    pub production_admitted: bool,
+    /// No analyzer runs in this synthetic checkpoint.
+    pub analyzer_execution: bool,
+    /// The source-free receipt retains no source bytes.
+    pub source_retained: bool,
+    /// The supervisor adds no authority.
+    pub authority_added: bool,
+}
+
 #[derive(Debug, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct MacOsVmControllerFailure {
@@ -508,6 +593,46 @@ struct MacOsVmControllerJobReceipt {
     job_removed: bool,
     vm_confined: bool,
     production_admitted: bool,
+    source_retained: bool,
+    authority_added: bool,
+}
+
+#[derive(Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+struct MacOsVmControllerResourceCanaryReceipt {
+    schema_name: String,
+    schema_version: String,
+    profile_id: String,
+    profile_digest: String,
+    job_id: String,
+    result: String,
+    kernel_digest: String,
+    initramfs_digest: String,
+    input_digest: String,
+    virtualization_supported: bool,
+    configuration_validated: bool,
+    cpu_count: String,
+    memory_bytes: String,
+    storage_devices: String,
+    network_devices: String,
+    directory_shares: String,
+    host_canary_corpus_created: bool,
+    host_canary_corpus_unchanged: bool,
+    attached_device_set_exact: bool,
+    host_canary_bytes_absent: bool,
+    host_paths_absent: bool,
+    host_process_invisible: bool,
+    memory_pressure_contained: bool,
+    memory_oom_kills: String,
+    cpu_pressure_bounded: bool,
+    cpu_usage_usec: String,
+    cpu_throttled_periods: String,
+    pids_peak: String,
+    job_cgroup_removed: bool,
+    job_removed: bool,
+    vm_confined: bool,
+    production_admitted: bool,
+    analyzer_execution: bool,
     source_retained: bool,
     authority_added: bool,
 }
@@ -781,6 +906,74 @@ impl MacOsVmSyntheticSupervisor {
         })
     }
 
+    /// Runs the exact source-free guest-resource and host-canary scenario.
+    ///
+    /// # Errors
+    ///
+    /// Returns a source-free category if identity, execution, complete output,
+    /// exact resource accounting, canary denial, or cleanup validation fails.
+    pub fn execute_resource_canary(
+        &self,
+        job_id: &str,
+    ) -> Result<MacOsVmResourceCanaryReceipt, RunnerError> {
+        self.validate(job_id)?;
+        let output_root = self
+            .asset_root
+            .parent()
+            .ok_or_else(|| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+        let job = output_root.join("jobs").join(job_id);
+        if job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+        let _cleanup = VmJobCleanupGuard { path: job.clone() };
+        let process = self.spawn_controller(job_id, "resource-canary")?;
+        let (status, stdout, _stderr) = wait_for_captured_child(process, self.timeout)?;
+        if !status.success() {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+        }
+        let receipt = validate_vm_resource_canary(&stdout, job_id)?;
+        if job.exists() {
+            return Err(RunnerError::new(RunnerErrorCode::Staging));
+        }
+        Ok(MacOsVmResourceCanaryReceipt {
+            schema_name: "macos-local-vm-resource-canary-supervisor-receipt".to_owned(),
+            schema_version: "1.0.0".to_owned(),
+            profile_id: receipt.profile_id,
+            profile_digest: receipt.profile_digest,
+            controller_digest: self.expected_controller_digest.clone(),
+            job_id: receipt.job_id,
+            kernel_digest: receipt.kernel_digest,
+            initramfs_digest: receipt.initramfs_digest,
+            input_digest: receipt.input_digest,
+            controller_digest_verified_before_launch: true,
+            configuration_validated: receipt.configuration_validated,
+            cpu_count: receipt.cpu_count,
+            memory_bytes: receipt.memory_bytes,
+            storage_devices: receipt.storage_devices,
+            network_devices: receipt.network_devices,
+            directory_shares: receipt.directory_shares,
+            host_canary_corpus_created: receipt.host_canary_corpus_created,
+            host_canary_corpus_unchanged: receipt.host_canary_corpus_unchanged,
+            attached_device_set_exact: receipt.attached_device_set_exact,
+            host_canary_bytes_absent: receipt.host_canary_bytes_absent,
+            host_paths_absent: receipt.host_paths_absent,
+            host_process_invisible: receipt.host_process_invisible,
+            memory_pressure_contained: receipt.memory_pressure_contained,
+            memory_oom_kills: receipt.memory_oom_kills,
+            cpu_pressure_bounded: receipt.cpu_pressure_bounded,
+            cpu_usage_usec: receipt.cpu_usage_usec,
+            cpu_throttled_periods: receipt.cpu_throttled_periods,
+            pids_peak: receipt.pids_peak,
+            job_cgroup_removed: receipt.job_cgroup_removed,
+            job_removed: receipt.job_removed,
+            vm_confined: false,
+            production_admitted: false,
+            analyzer_execution: false,
+            source_retained: false,
+            authority_added: false,
+        })
+    }
+
     fn validate(&self, job_id: &str) -> Result<(), RunnerError> {
         if !cfg!(target_os = "macos")
             || self.timeout.is_zero()
@@ -1001,6 +1194,61 @@ fn validate_vm_recovery(stdout: &[u8], job_id: &str) -> Result<(), RunnerError> 
         return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
     }
     Ok(())
+}
+
+fn validate_vm_resource_canary(
+    stdout: &[u8],
+    job_id: &str,
+) -> Result<MacOsVmControllerResourceCanaryReceipt, RunnerError> {
+    let receipt = serde_json::from_slice::<MacOsVmControllerResourceCanaryReceipt>(stdout)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    let oom_kills = parse_canonical_u64(&receipt.memory_oom_kills)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    let cpu_usage = parse_canonical_u64(&receipt.cpu_usage_usec)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    let throttled = parse_canonical_u64(&receipt.cpu_throttled_periods)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    let pids_peak = parse_canonical_u64(&receipt.pids_peak)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidOutput))?;
+    if receipt.schema_name != "macos-local-vm-resource-canary-receipt"
+        || receipt.schema_version != "1.0.0"
+        || receipt.profile_id != MACOS_VM_RESOURCE_CANARY_PROFILE_ID
+        || receipt.profile_digest != MACOS_VM_RESOURCE_CANARY_PROFILE_DIGEST
+        || receipt.job_id != job_id
+        || receipt.result != "partial_resource_canary_passed"
+        || receipt.kernel_digest != MACOS_VM_KERNEL_DIGEST
+        || receipt.initramfs_digest != MACOS_VM_RESOURCE_INITRAMFS_DIGEST
+        || receipt.input_digest != MACOS_VM_SYNTHETIC_INPUT_DIGEST
+        || !receipt.virtualization_supported
+        || !receipt.configuration_validated
+        || receipt.cpu_count != "1"
+        || receipt.memory_bytes != "268435456"
+        || receipt.storage_devices != "2"
+        || receipt.network_devices != "0"
+        || receipt.directory_shares != "0"
+        || !receipt.host_canary_corpus_created
+        || !receipt.host_canary_corpus_unchanged
+        || !receipt.attached_device_set_exact
+        || !receipt.host_canary_bytes_absent
+        || !receipt.host_paths_absent
+        || !receipt.host_process_invisible
+        || !receipt.memory_pressure_contained
+        || oom_kills != 1
+        || !receipt.cpu_pressure_bounded
+        || !(50_000..=400_000).contains(&cpu_usage)
+        || throttled == 0
+        || pids_peak != 1
+        || !receipt.job_cgroup_removed
+        || !receipt.job_removed
+        || receipt.vm_confined
+        || receipt.production_admitted
+        || receipt.analyzer_execution
+        || receipt.source_retained
+        || receipt.authority_added
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    Ok(receipt)
 }
 
 fn supervise_worker(

@@ -361,8 +361,14 @@ A third checkpoint then connected the synthetic controller to the Rust
 supervisor's existing single audited process-launch site. External cancellation
 and forced controller termination both reaped the exact child, removed all job
 state, and completed a fresh recovery VM. A wrong expected controller digest failed
-before staging. Guest resource, host-canary, host-interruption, multi-host,
-distribution, and independent-review gates still keep macOS at IAR-1A.
+before staging. Guest resource and host-canary gates were still open at that
+checkpoint.
+
+A fourth checkpoint froze a separate resource-test guest and passed exact
+guest cgroup v2 memory, CPU, and process enforcement plus the six-class host-
+canary corpus through the same Rust launch boundary. Host interruption, sealed
+supply chain and distribution, multi-host evidence, and independent review
+still keep macOS at IAR-1A and IAR-2 closed.
 
 Linux feasibility begins with the frozen `iar-linux-synthetic-v1` profile.
 Because cgroup v2 does not provide a portable aggregate file-storage quota,
