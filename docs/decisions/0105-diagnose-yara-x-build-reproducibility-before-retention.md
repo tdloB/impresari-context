@@ -1,6 +1,6 @@
 # ADR-0105: Diagnose YARA-X Build Reproducibility Before Retention
 
-- Status: Accepted for ephemeral diagnostic implementation; hosted evidence pending
+- Status: Implemented; same-job canonical equality passed; cross-run and production reproducibility remain unproven
 - Date: 2026-08-31
 - Decider: Aaron Boldt through explicit bounded YARA-X build and synthetic-compatibility authorization
 - Related PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
@@ -58,12 +58,40 @@ The diagnostic never compiles rules and never executes `yr`. ADR-0102 remains
 the only authorized real-engine synthetic execution path and continues to run
 inside the admitted Linux isolation boundary.
 
+## Hosted Evidence
+
+The first dispatch, run `33442361993`, stopped before building because the
+permission-normalized source archive made the diagnostic script non-executable.
+Its mandatory cleanup check passed. PR 222 changed only the workflow invocation
+to call the unchanged frozen script through Bash.
+
+[GitHub Actions run 33443483096](https://github.com/tdloB/impresari-context/actions/runs/33443483096),
+job `99657000024`, then completed successfully from `main` commit
+`5155589b6821f3f9bf6c20ed8cc697cb46faa5d3` in 21 minutes 4 seconds. The job
+used GitHub runner `2.337.0`, Ubuntu `24.04.4`, and `ubuntu-24.04` image version
+`20260823.283.1`; its platform gate required `x86_64` Linux. It downloaded the
+frozen Impresari source root `ae4e0bea1ed9576abecb998250ad06fc2081f2a8`
+and verified its 27,959,111-byte archive at SHA-256
+`2e6323cffce957108429c804dd4f9876a6a0d27fdef31569029213807c3e04a2`.
+
+The closed result was `baseline_changed_canonical_same`:
+
+- baseline A: `748c2751180f895aaa5ef3585f82a837250ae5e66c345fd253711086c8d62d32`;
+- baseline B: `523e276e9e4b31f0d331027b8b179b5c335b840fa4d05a49ffabec7918033efd`;
+- canonical A and B:
+  `a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
+
+The two ordinary clean builds differed while the two fixed-time,
+path-remapped clean builds were byte-identical. The receipt verified, mandatory
+cleanup passed, and the GitHub artifacts API returned zero artifacts. No rule
+was compiled and no analyzer was executed.
+
 ## Consequences
 
 - Path and time normalization can be evaluated without retaining executable
   bytes or opening a production boundary.
-- A canonical match narrows later ADR-0104 work but cannot admit or publish an
-  artifact.
+- The observed canonical match narrows later ADR-0104 work but cannot admit or
+  publish an artifact.
 - A canonical mismatch leaves reproducibility unresolved and requires deeper
   toolchain or dependency investigation before production admission.
 - The mutable GitHub runner label remains a limitation; same-job equality does

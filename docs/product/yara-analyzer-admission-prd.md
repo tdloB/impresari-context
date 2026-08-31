@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 no-upload reproducibility diagnostic in progress; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
+- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 same-job canonical equality passed; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, proposed retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
@@ -203,8 +203,11 @@ otherwise matching hosted builds produced different executable digests. Four
 clean builds in one ephemeral job compare the current flags with fixed
 time/path-remapped flags after one locked dependency acquisition. Only digests
 and a closed result are emitted; no binary is executed, retained, or uploaded.
-Same-job canonical equality narrows the reproducibility gap but cannot establish
-cross-run, cross-host, or production reproducibility.
+Run `33443483096` returned `baseline_changed_canonical_same`: the ordinary
+clean builds differed, while both canonicalized clean builds produced SHA-256
+`a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
+This narrows the reproducibility gap but cannot establish cross-run,
+cross-host, or production reproducibility.
 
 Contract and candidate-pipeline work may proceed while every production and
 IAR-2 claim remains false. Retained artifacts, production rules, signing,
