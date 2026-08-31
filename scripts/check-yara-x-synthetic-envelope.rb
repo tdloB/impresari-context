@@ -76,6 +76,7 @@ source = ROOT.join("crates/context-yara-x-envelope/src/lib.rs").read
 emitter = ROOT.join("crates/context-yara-x-envelope/src/emitter.rs").read
 runner = ROOT.join("crates/context-analyzer-runner/src/lib.rs").read
 launcher = ROOT.join("platform/linux-yara-x-compatibility/launcher.c").read
+rehearsal = ROOT.join("scripts/yara-x-synthetic-envelope.sh").read
 abort "synthetic envelope profile digest drifted from Rust" unless source.include?("sha256:#{PROFILE_DIGEST}")
 abort "synthetic emitter gained file, network, or embedded-file input" if emitter.match?(/std::fs|std::net|File::|include_bytes!|include_str!/)
 abort "synthetic emitter no longer rejects extra arguments" unless emitter.include?("arguments.next().is_some()")
@@ -84,5 +85,13 @@ abort "Linux launcher lost the closed synthetic mode" unless
   launcher.include?("--synthetic-envelope") && launcher.include?("run_synthetic_envelope_child")
 abort "Linux launcher does not require empty emitter stderr" unless
   launcher.include?("if (synthetic_envelope && result == 0)")
+abort "synthetic envelope build flags are not target-specific" unless
+  rehearsal.include?("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS='-C target-feature=+crt-static'") &&
+    rehearsal.include?("CARGO_TARGET_DIR=\"$build_root\"") &&
+    rehearsal.include?("--target x86_64-unknown-linux-gnu")
+abort "synthetic envelope build artifacts are not ephemeral" unless
+  rehearsal.include?("build_root=\"$runtime_root/cargo-target\"") &&
+    rehearsal.include?("$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-emitter") &&
+    rehearsal.include?("$build_root/x86_64-unknown-linux-gnu/release/impresari-yara-x-synthetic-envelope")
 
 puts "YARA-X synthetic envelope verified: cases=2 process=isolated-synthetic-only yara_x_executed=false production_admitted=false"
