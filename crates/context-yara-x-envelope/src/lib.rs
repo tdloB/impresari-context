@@ -14,7 +14,9 @@ use std::{
 };
 
 use context_analyzer_runner::{
-    YaraXSyntheticProcessCapture, YaraXSyntheticProcessConfig, capture_yara_x_synthetic_process,
+    YaraXCompatibilityProcessCapture, YaraXCompatibilityProcessConfig,
+    YaraXSyntheticProcessCapture, YaraXSyntheticProcessConfig,
+    capture_yara_x_compatibility_process, capture_yara_x_synthetic_process,
 };
 use context_yara_x_adapter::{AdapterControl, NormalizedResult, normalize};
 use serde::{Deserialize, Serialize};
@@ -25,6 +27,11 @@ pub const PROFILE_ID: &str = "yara-x-synthetic-runner-envelope-v1";
 /// Digest of the exact committed profile bytes.
 pub const PROFILE_DIGEST: &str =
     "sha256:356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b";
+/// Frozen real-engine, synthetic-input composition profile identifier.
+pub const LIVE_PROFILE_ID: &str = "yara-x-live-synthetic-envelope-v1";
+/// Digest of the exact committed live synthetic composition profile bytes.
+pub const LIVE_PROFILE_DIGEST: &str =
+    "sha256:b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0";
 /// Exact original-synthetic match record embedded in the emitter.
 pub const VALID_MATCH: &[u8] = b"{\"path\":\"/staged/artifact.bin\",\"rules\":[{\"identifier\":\"SyntheticMarker\",\"namespace\":\"impresari\",\"strings\":[{\"identifier\":\"$marker\",\"match\":\" ... 12 more bytes\",\"offset\":8}],\"tags\":[\"synthetic\",\"contract\"]}]}\n";
 /// Exact original-synthetic no-match record embedded in the emitter.
@@ -33,6 +40,7 @@ pub const VALID_NO_MATCH: &[u8] = b"{\"path\":\"/staged/artifact.bin\",\"rules\"
 const MAX_CONTROL_BYTES: usize = 32_768;
 const MAX_OUTPUT_BYTES: usize = 2_228_224;
 const RECEIPT_ID_DOMAIN: &[u8] = b"impresari-context/yara-x-synthetic-envelope/v1\0";
+const LIVE_RECEIPT_ID_DOMAIN: &[u8] = b"impresari-context/yara-x-live-synthetic-envelope/v1\0";
 
 /// Stable source-free envelope failure categories.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -224,6 +232,130 @@ pub struct CompositionOutput {
     pub normalized_result: NormalizedResult,
 }
 
+/// Closed control for one real YARA-X scan over generated synthetic bytes.
+#[derive(Clone, Debug, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LiveYaraXControl {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Fresh closed job identifier.
+    pub job_id: String,
+    /// Frozen live synthetic profile identifier.
+    pub profile_id: String,
+    /// Exact live synthetic profile digest.
+    pub profile_digest: String,
+    /// Closed synthetic case identifier.
+    pub case_id: String,
+    /// Exact isolation launcher path.
+    pub launcher_path: PathBuf,
+    /// Exact isolation launcher digest.
+    pub launcher_digest: String,
+    /// Exact ephemeral YARA-X executable path.
+    pub executable_path: PathBuf,
+    /// Exact ephemeral executable digest.
+    pub executable_digest: String,
+    /// Exact ephemeral compiled-rules path.
+    pub ruleset_path: PathBuf,
+    /// Exact ephemeral compiled-rules digest.
+    pub ruleset_digest: String,
+    /// Exact generated synthetic artifact path.
+    pub artifact_path: PathBuf,
+    /// Exact generated synthetic artifact digest.
+    pub artifact_digest: String,
+    /// Exact generated synthetic artifact length.
+    pub artifact_bytes: String,
+    /// Exact synthetic job root.
+    pub job_root: PathBuf,
+    /// Fresh delegated cgroup leaf.
+    pub cgroup_leaf: PathBuf,
+    /// Synthetic canary outside the job root.
+    pub external_canary: PathBuf,
+    /// Synthetic credential-shaped canary outside the job root.
+    pub credential_canary: PathBuf,
+    /// Nonexistent in-job write probe.
+    pub write_probe: PathBuf,
+    /// Exact synthetic workspace snapshot identity.
+    pub workspace_snapshot: String,
+    /// Exact synthetic execution-manifest identity.
+    pub manifest_id: String,
+    /// Caller-supplied canonical completion time.
+    pub completed_at: String,
+    /// Always false.
+    pub authority_added: bool,
+}
+
+/// Source-free receipt for one real-engine, synthetic-input composition.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LiveYaraXReceipt {
+    /// Contract name.
+    pub schema_name: String,
+    /// Contract version.
+    pub schema_version: String,
+    /// Domain-separated receipt identity.
+    pub receipt_id: String,
+    /// Fresh closed job identifier.
+    pub job_id: String,
+    /// Frozen live synthetic profile identifier.
+    pub profile_id: String,
+    /// Exact live synthetic profile digest.
+    pub profile_digest: String,
+    /// Closed synthetic case identifier.
+    pub case_id: String,
+    /// Exact ephemeral executable identity.
+    pub executable_digest: String,
+    /// Exact ephemeral compiled-rules identity.
+    pub ruleset_digest: String,
+    /// Exact generated synthetic artifact identity.
+    pub artifact_digest: String,
+    /// Exact captured output identity.
+    pub stdout_digest: String,
+    /// Exact captured output length.
+    pub stdout_bytes: String,
+    /// Exact normalized result identity.
+    pub normalized_result_id: String,
+    /// Real YARA-X executed successfully.
+    pub yara_x_executed: bool,
+    /// The analyzer process was OS-confined.
+    pub os_confined: bool,
+    /// Complete captured bytes were parsed in memory.
+    pub in_memory_composition_complete: bool,
+    /// Only generated Impresari-owned synthetic input was used.
+    pub synthetic_input_only: bool,
+    /// Raw output was not retained.
+    pub raw_output_retained: bool,
+    /// Exact job storage was removed.
+    pub job_removed: bool,
+    /// Exact cgroup leaf was removed.
+    pub cgroup_removed: bool,
+    /// Always false.
+    pub executable_admitted: bool,
+    /// Always false.
+    pub ruleset_admitted: bool,
+    /// Always false.
+    pub production_admitted: bool,
+    /// Always false.
+    pub iar_2_admitted: bool,
+    /// Always false.
+    pub detection_quality_claimed: bool,
+    /// Always false.
+    pub safety_claimed: bool,
+    /// Always false.
+    pub authority_added: bool,
+}
+
+/// Complete source-free live synthetic composition output.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct LiveYaraXOutput {
+    /// Exact outer execution receipt.
+    pub receipt: LiveYaraXReceipt,
+    /// Exact path-free pure normalized result.
+    pub normalized_result: NormalizedResult,
+}
+
 /// Returns the exact embedded original-synthetic record for one closed case.
 ///
 /// # Errors
@@ -353,6 +485,159 @@ pub fn execute_live(control: &LiveEnvelopeControl) -> Result<CompositionOutput, 
     compose_capture(&control.envelope, &capture, true, true)
 }
 
+/// Runs one real YARA-X scan over one closed generated synthetic artifact,
+/// composes its bounded output with the pure adapter, and removes the exact job.
+///
+/// # Errors
+///
+/// Returns a source-free category and no partial result for every mismatch.
+pub fn execute_live_yara_x(control: &LiveYaraXControl) -> Result<LiveYaraXOutput, EnvelopeError> {
+    validate_live_yara_x_control(control)?;
+    let artifact_bytes = control
+        .artifact_bytes
+        .parse::<u64>()
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::InvalidControl))?;
+    let cleanup = CleanupGuard::new(control.job_root.clone(), control.cgroup_leaf.clone());
+    let capture = capture_yara_x_compatibility_process(&YaraXCompatibilityProcessConfig {
+        launcher: control.launcher_path.clone(),
+        launcher_digest: control.launcher_digest.clone(),
+        executable: control.executable_path.clone(),
+        executable_digest: control.executable_digest.clone(),
+        ruleset: control.ruleset_path.clone(),
+        ruleset_digest: control.ruleset_digest.clone(),
+        artifact: control.artifact_path.clone(),
+        artifact_digest: control.artifact_digest.clone(),
+        artifact_bytes,
+        job_root: control.job_root.clone(),
+        cgroup_leaf: control.cgroup_leaf.clone(),
+        external_canary: control.external_canary.clone(),
+        credential_canary: control.credential_canary.clone(),
+        write_probe: control.write_probe.clone(),
+        timeout: Duration::from_secs(10),
+    })
+    .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::Process))?;
+    cleanup.finish()?;
+    compose_live_yara_x_capture(control, &capture, true, true)
+}
+
+/// Composes an authenticated real-YARA-X synthetic capture with the pure adapter.
+///
+/// # Errors
+///
+/// Returns a source-free category and no partial output for every mismatch.
+pub fn compose_live_yara_x_capture(
+    control: &LiveYaraXControl,
+    capture: &YaraXCompatibilityProcessCapture,
+    job_removed: bool,
+    cgroup_removed: bool,
+) -> Result<LiveYaraXOutput, EnvelopeError> {
+    validate_live_yara_x_control(control)?;
+    if capture.executable_digest != control.executable_digest
+        || capture.ruleset_digest != control.ruleset_digest
+        || capture.artifact_digest != control.artifact_digest
+        || capture.artifact_bytes.to_string() != control.artifact_bytes
+        || capture.launcher_digest != control.launcher_digest
+        || capture.stdout_digest != sha256(&capture.stdout)
+        || !capture.yara_x_succeeded
+        || !capture.confinement_preflight_exact
+        || !job_removed
+        || !cgroup_removed
+    {
+        return Err(EnvelopeError::new(EnvelopeErrorCode::CaptureMismatch));
+    }
+    let artifact_bytes = control
+        .artifact_bytes
+        .parse::<u64>()
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::InvalidControl))?;
+    let normalized_result = normalize(
+        &capture.stdout,
+        &AdapterControl {
+            profile_id: context_yara_x_adapter::PROFILE_ID.to_owned(),
+            profile_digest: context_yara_x_adapter::PROFILE_DIGEST.to_owned(),
+            workspace_snapshot: control.workspace_snapshot.clone(),
+            manifest_id: control.manifest_id.clone(),
+            artifact_hash: control.artifact_digest.clone(),
+            artifact_bytes,
+            expected_staged_path: control.artifact_path.to_string_lossy().into_owned(),
+            executable_digest: control.executable_digest.clone(),
+            ruleset_digest: control.ruleset_digest.clone(),
+            completed_at: control.completed_at.clone(),
+        },
+    )
+    .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::Adapter))?;
+    let observed: Vec<&str> = normalized_result
+        .observations
+        .iter()
+        .map(|item| item.rule_identifier.as_str())
+        .collect();
+    if observed != expected_live_rules(&control.case_id)? {
+        return Err(EnvelopeError::new(EnvelopeErrorCode::Adapter));
+    }
+    let receipt_id = live_receipt_identity(control, &normalized_result.result_id)?;
+    Ok(LiveYaraXOutput {
+        receipt: LiveYaraXReceipt {
+            schema_name: "yara-x-live-synthetic-envelope-receipt".to_owned(),
+            schema_version: "1.0.0".to_owned(),
+            receipt_id,
+            job_id: control.job_id.clone(),
+            profile_id: LIVE_PROFILE_ID.to_owned(),
+            profile_digest: LIVE_PROFILE_DIGEST.to_owned(),
+            case_id: control.case_id.clone(),
+            executable_digest: control.executable_digest.clone(),
+            ruleset_digest: control.ruleset_digest.clone(),
+            artifact_digest: control.artifact_digest.clone(),
+            stdout_digest: capture.stdout_digest.clone(),
+            stdout_bytes: capture.stdout_bytes.to_string(),
+            normalized_result_id: normalized_result.result_id.clone(),
+            yara_x_executed: true,
+            os_confined: true,
+            in_memory_composition_complete: true,
+            synthetic_input_only: true,
+            raw_output_retained: false,
+            job_removed: true,
+            cgroup_removed: true,
+            executable_admitted: false,
+            ruleset_admitted: false,
+            production_admitted: false,
+            iar_2_admitted: false,
+            detection_quality_claimed: false,
+            safety_claimed: false,
+            authority_added: false,
+        },
+        normalized_result,
+    })
+}
+
+/// Runs the live synthetic compatibility coordinator on stdin/stdout.
+///
+/// # Errors
+///
+/// Returns a source-free category for framing, execution, composition, or output failure.
+pub fn run_live_yara_x_stdio() -> Result<(), EnvelopeError> {
+    let mut input = Vec::new();
+    io::stdin()
+        .lock()
+        .take((MAX_CONTROL_BYTES + 1) as u64)
+        .read_to_end(&mut input)
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::InvalidControl))?;
+    if input.is_empty() || input.len() > MAX_CONTROL_BYTES {
+        return Err(EnvelopeError::new(EnvelopeErrorCode::InvalidControl));
+    }
+    let control = serde_json::from_slice::<LiveYaraXControl>(&input)
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::InvalidControl))?;
+    let output = execute_live_yara_x(&control)?;
+    let bytes = serde_json::to_vec(&output)
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::Serialization))?;
+    if bytes.len() > MAX_OUTPUT_BYTES {
+        return Err(EnvelopeError::new(EnvelopeErrorCode::Serialization));
+    }
+    io::stdout()
+        .lock()
+        .write_all(&bytes)
+        .and_then(|()| io::stdout().lock().write_all(b"\n"))
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::Serialization))
+}
+
 /// Runs the bounded coordinator JSON transport on stdin/stdout.
 ///
 /// # Errors
@@ -419,6 +704,81 @@ fn validate_live_paths(control: &LiveEnvelopeControl) -> Result<(), EnvelopeErro
         return Err(EnvelopeError::new(EnvelopeErrorCode::InvalidControl));
     }
     Ok(())
+}
+
+fn validate_live_yara_x_control(control: &LiveYaraXControl) -> Result<(), EnvelopeError> {
+    let expected_job = control.case_id.replace('-', "_");
+    let expected_job_id = format!("live-{}", control.case_id);
+    let artifact_bytes = control
+        .artifact_bytes
+        .parse::<u64>()
+        .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::InvalidControl))?;
+    let _ = expected_live_rules(&control.case_id)?;
+    if control.schema_name != "yara-x-live-synthetic-envelope-control"
+        || control.schema_version != "1.0.0"
+        || control.profile_id != LIVE_PROFILE_ID
+        || control.profile_digest != LIVE_PROFILE_DIGEST
+        || !valid_identifier(&control.job_id)
+        || control.job_id != expected_job_id
+        || artifact_bytes > 262_144
+        || !valid_sha256(&control.launcher_digest)
+        || !valid_sha256(&control.executable_digest)
+        || !valid_sha256(&control.ruleset_digest)
+        || !valid_sha256(&control.artifact_digest)
+        || !valid_sha256(&control.workspace_snapshot)
+        || !valid_sha256(&control.manifest_id)
+        || !control.job_root.is_absolute()
+        || !control.cgroup_leaf.is_absolute()
+        || !control.external_canary.is_absolute()
+        || !control.credential_canary.is_absolute()
+        || control
+            .job_root
+            .file_name()
+            .and_then(|value| value.to_str())
+            != Some(expected_job.as_str())
+        || control.launcher_path.parent() != Some(control.job_root.as_path())
+        || control.executable_path.parent() != Some(control.job_root.as_path())
+        || control.ruleset_path.parent() != Some(control.job_root.as_path())
+        || control.artifact_path.parent() != Some(control.job_root.as_path())
+        || control.write_probe.parent() != Some(control.job_root.as_path())
+        || control.external_canary.starts_with(&control.job_root)
+        || control.credential_canary.starts_with(&control.job_root)
+        || control.authority_added
+    {
+        return Err(EnvelopeError::new(EnvelopeErrorCode::InvalidControl));
+    }
+    Ok(())
+}
+
+fn expected_live_rules(case_id: &str) -> Result<&'static [&'static str], EnvelopeError> {
+    match case_id {
+        "empty" | "near-miss" => Ok(&[]),
+        "hex" => Ok(&["impresari_synthetic_hex_v1"]),
+        "literal" => Ok(&["impresari_synthetic_literal_v1"]),
+        "wide" => Ok(&["impresari_synthetic_wide_v1"]),
+        _ => Err(EnvelopeError::new(EnvelopeErrorCode::InvalidControl)),
+    }
+}
+
+fn live_receipt_identity(
+    control: &LiveYaraXControl,
+    result_id: &str,
+) -> Result<String, EnvelopeError> {
+    let bytes = serde_json::to_vec(&(
+        &control.job_id,
+        &control.profile_digest,
+        &control.case_id,
+        &control.launcher_digest,
+        &control.executable_digest,
+        &control.ruleset_digest,
+        &control.artifact_digest,
+        result_id,
+    ))
+    .map_err(|_| EnvelopeError::new(EnvelopeErrorCode::Serialization))?;
+    let mut hasher = Sha256::new();
+    hasher.update(LIVE_RECEIPT_ID_DOMAIN);
+    hasher.update(bytes);
+    Ok(hex_digest(&hasher.finalize()))
 }
 
 fn receipt_identity(control: &EnvelopeControl, result_id: &str) -> Result<String, EnvelopeError> {
@@ -598,5 +958,75 @@ mod tests {
                 .code(),
             EnvelopeErrorCode::InvalidControl
         );
+    }
+
+    fn live_control(case_id: &str) -> LiveYaraXControl {
+        let job_id = format!("live-{case_id}");
+        let base = std::env::temp_dir();
+        let job_root = base.join(case_id.replace('-', "_"));
+        LiveYaraXControl {
+            schema_name: "yara-x-live-synthetic-envelope-control".to_owned(),
+            schema_version: "1.0.0".to_owned(),
+            job_id,
+            profile_id: LIVE_PROFILE_ID.to_owned(),
+            profile_digest: LIVE_PROFILE_DIGEST.to_owned(),
+            case_id: case_id.to_owned(),
+            launcher_path: job_root.join("launcher"),
+            launcher_digest: format!("sha256:{}", "4".repeat(64)),
+            executable_path: job_root.join("yr"),
+            executable_digest: format!("sha256:{}", "5".repeat(64)),
+            ruleset_path: job_root.join("rules.yarc"),
+            ruleset_digest: format!("sha256:{}", "6".repeat(64)),
+            artifact_path: job_root.join("input"),
+            artifact_digest: format!("sha256:{}", "7".repeat(64)),
+            artifact_bytes: "64".to_owned(),
+            cgroup_leaf: base.join("cgroup").join("job-live"),
+            external_canary: base.join("external").join("canary"),
+            credential_canary: base.join("credential").join("canary"),
+            write_probe: job_root.join("write-probe"),
+            job_root,
+            workspace_snapshot: format!("sha256:{}", "8".repeat(64)),
+            manifest_id: format!("sha256:{}", "9".repeat(64)),
+            completed_at: "2026-08-31T00:00:00Z".to_owned(),
+            authority_added: false,
+        }
+    }
+
+    #[test]
+    fn composes_real_engine_synthetic_capture_without_admission() {
+        let control = live_control("literal");
+        let mut raw = serde_json::to_vec(&serde_json::json!({
+            "path": control.artifact_path.to_string_lossy(),
+            "rules": [{
+                "identifier": "impresari_synthetic_literal_v1",
+                "namespace": "default",
+                "strings": [{"identifier": "$literal", "match": " ... 8 more bytes", "offset": 0}],
+                "tags": ["impresari", "synthetic"]
+            }]
+        }))
+        .expect("synthetic JSON");
+        raw.push(b'\n');
+        let capture = YaraXCompatibilityProcessCapture {
+            stdout_digest: sha256(&raw),
+            stdout_bytes: raw.len() as u64,
+            stdout: raw,
+            executable_digest: control.executable_digest.clone(),
+            ruleset_digest: control.ruleset_digest.clone(),
+            artifact_digest: control.artifact_digest.clone(),
+            artifact_bytes: 64,
+            launcher_digest: control.launcher_digest.clone(),
+            yara_x_succeeded: true,
+            confinement_preflight_exact: true,
+        };
+        let output = compose_live_yara_x_capture(&control, &capture, true, true)
+            .expect("real-engine synthetic composition");
+        assert!(output.receipt.yara_x_executed);
+        assert!(output.receipt.os_confined);
+        assert!(output.receipt.synthetic_input_only);
+        assert!(!output.receipt.executable_admitted);
+        assert!(!output.receipt.ruleset_admitted);
+        assert!(!output.receipt.production_admitted);
+        assert!(!output.receipt.iar_2_admitted);
+        assert!(!output.receipt.authority_added);
     }
 }

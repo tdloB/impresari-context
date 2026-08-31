@@ -20,6 +20,7 @@ source_root="$runtime_root/yara-x-60ad06971467029e77967e59d580cbbe85a1474d"
 profile="$repository_root/profiles/v1/yara-x-artifact-compatibility-v1.json"
 patch_file="$repository_root/third_party/yara-x/v1.20.0/impresari-module-free.patch"
 rule_source="$repository_root/rules/yara-x/synthetic-compatibility-v1.yar"
+envelope_build="$runtime_root/impresari-envelope-target"
 
 cleanup() {
   for cleanup_root in "$runtime_root" "$stage_root" "$composite_yara_root"; do
@@ -87,6 +88,13 @@ for forbidden in import include regex xor base64 invalid; do
   fi
 done
 
+CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_RUSTFLAGS='-C target-feature=+crt-static' \
+  CARGO_TARGET_DIR="$envelope_build" cargo +1.98.0 build --locked --release \
+  --target x86_64-unknown-linux-gnu --package context-yara-x-envelope \
+  --bin impresari-yara-x-live-synthetic-envelope
+live_coordinator="$envelope_build/x86_64-unknown-linux-gnu/release/impresari-yara-x-live-synthetic-envelope"
+[ -x "$live_coordinator" ] || { echo "YARA-X live coordinator build is missing" >&2; exit 8; }
+
 export CARGO_HOME="$stage_root/build-home/cargo"
 export RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
 cd "$source_root"
@@ -144,11 +152,13 @@ for case_id in empty hex literal near_miss wide; do
     near_miss) printf '%s' 'IMPRESARI_SYNTHETIC_LITERAL_7A31C8' > "$case_root/input" ;;
     wide) ruby -e 'File.binwrite(ARGV.fetch(0), "IMPRESARI_SYNTHETIC_WIDE_91B6".encode("UTF-16LE"))' "$case_root/input" ;;
   esac
-  chmod -R a-w "$case_root"
+  chmod 0555 "$case_root/yr"
+  chmod 0444 "$case_root/rules.yarc" "$case_root/input"
 done
 
 cd "$repository_root"
-RUNNER_ENVIRONMENT=github-hosted ./scripts/check-linux-composite-feasibility.sh --yara-x-compatibility
+RUNNER_ENVIRONMENT=github-hosted YARA_X_LIVE_COORDINATOR="$live_coordinator" \
+  ./scripts/check-linux-composite-feasibility.sh --yara-x-compatibility
 ruby ./scripts/check-yara-x-artifact-compatibility.rb
 ruby ./scripts/check-yara-x-live-compatibility-receipt.rb \
   "$composite_yara_root/receipt.json"

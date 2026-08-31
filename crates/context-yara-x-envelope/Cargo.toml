@@ -25,3 +25,7 @@ path = "src/emitter.rs"
 [[bin]]
 name = "impresari-yara-x-synthetic-envelope"
 path = "src/main.rs"
+
+[[bin]]
+name = "impresari-yara-x-live-synthetic-envelope"
+path = "src/live.rs"

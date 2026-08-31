@@ -1,0 +1,21 @@
+{
+  "schema_name": "fixture-provenance",
+  "schema_version": "1.0.0",
+  "record_id": "yara-x-live-synthetic-envelope-original-synthetic-v1",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "fixtures": [
+    {"path": "invalid/yara-x-live-synthetic-envelope-overclaim.json", "sha256": "17df3b75e6399e1108eba1237ce977311bd29b58eda69978bb5d431b5e8c8f38"},
+    {"path": "valid/yara-x-live-synthetic-envelope-control.json", "sha256": "941325e5a37b06dc8ff91910f4eb92d622260c1c0302fd52d1a77a04cb3255b1"},
+    {"path": "valid/yara-x-live-synthetic-envelope-profile.json", "sha256": "b95bbe55b604c7e266bb620981b8e5c3fca052c22842222537b1b0effed7bbf0"},
+    {"path": "valid/yara-x-live-synthetic-envelope-receipt.json", "sha256": "088730779553445ff015b917f763568b5b796ce630bf43afd251aed2a3fc0b45"}
+  ],
+  "impresari_owned": true,
+  "malware_content": false,
+  "third_party_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "yara_x_executed": false,
+  "production_admitted": false,
+  "authority_added": false
+}

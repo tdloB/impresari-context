@@ -40,6 +40,7 @@ ruby ./scripts/check-yara-x-artifact-compatibility-workflow.rb
 ruby ./scripts/check-yara-x-ndjson-adapter.rb
 ruby ./scripts/check-yara-x-synthetic-envelope.rb
 ruby ./scripts/check-yara-x-synthetic-envelope-workflow.rb
+ruby ./scripts/check-yara-x-live-synthetic-envelope.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -82,6 +83,7 @@ ruby -c ./scripts/check-yara-x-live-compatibility-receipt.rb
 ruby -c ./scripts/check-yara-x-ndjson-adapter.rb
 ruby -c ./scripts/check-yara-x-synthetic-envelope.rb
 ruby -c ./scripts/check-yara-x-synthetic-envelope-workflow.rb
+ruby -c ./scripts/check-yara-x-live-synthetic-envelope.rb
 sh -n ./scripts/yara-x-artifact-compatibility.sh
 sh -n ./scripts/yara-x-synthetic-envelope.sh
 if [ "$(uname -s)" = Linux ]; then

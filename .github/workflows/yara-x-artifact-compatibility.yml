@@ -10,9 +10,9 @@ concurrency:
   cancel-in-progress: false
 
 env:
-  SOURCE_SHA: 9a69e1e0d3fff58676ef91f33b8dd9f6b8330ae7
-  SOURCE_ARCHIVE_BYTES: "27883271"
-  SOURCE_ARCHIVE_SHA256: ad141c2749ab363207f15830a48bb259b2338795843da11659962841325fea1b
+  SOURCE_SHA: 892110789a73c8944a6c4c4258508bf36dd6c75e
+  SOURCE_ARCHIVE_BYTES: "27932605"
+  SOURCE_ARCHIVE_SHA256: cb6c97e0a806c74722995e8a1c9b6ca5cd44ed3393020e5ebe7af5daf3cefa1f
 
 jobs:
   rehearse:
@@ -39,8 +39,10 @@ jobs:
           rm -f -- "$archive"
           test "$(sha256sum profiles/v1/yara-x-artifact-compatibility-v1.json | cut -d ' ' -f 1)" = \
             ea2abe8460a1faab60b4ab2d854e48bdd45f1998106cd5e62229153155d254a8
-      - name: Install exact Rust toolchain
-        run: rustup toolchain install 1.93.0 --profile minimal
+      - name: Install exact Rust toolchains
+        run: |
+          rustup toolchain install 1.93.0 --profile minimal
+          rustup toolchain install 1.98.0 --profile minimal
       - name: Install exact dependency auditor
         run: cargo +1.93.0 install cargo-audit --version 0.22.2 --locked
       - name: Build and run the isolated synthetic compatibility corpus
