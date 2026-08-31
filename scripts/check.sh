@@ -38,6 +38,8 @@ ruby ./scripts/check-yara-x-contract.rb
 ruby ./scripts/check-yara-x-artifact-compatibility.rb
 ruby ./scripts/check-yara-x-artifact-compatibility-workflow.rb
 ruby ./scripts/check-yara-x-ndjson-adapter.rb
+ruby ./scripts/check-yara-x-synthetic-envelope.rb
+ruby ./scripts/check-yara-x-synthetic-envelope-workflow.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -78,7 +80,10 @@ ruby -c ./scripts/check-yara-x-source-archive.rb
 ruby -c ./scripts/check-yara-x-rule-policy.rb
 ruby -c ./scripts/check-yara-x-live-compatibility-receipt.rb
 ruby -c ./scripts/check-yara-x-ndjson-adapter.rb
+ruby -c ./scripts/check-yara-x-synthetic-envelope.rb
+ruby -c ./scripts/check-yara-x-synthetic-envelope-workflow.rb
 sh -n ./scripts/yara-x-artifact-compatibility.sh
+sh -n ./scripts/yara-x-synthetic-envelope.sh
 if [ "$(uname -s)" = Linux ]; then
   mkdir -p ./target/static-checks
   cc -std=c17 -O2 -Wall -Wextra -Werror -pedantic \

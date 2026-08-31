@@ -346,11 +346,67 @@ static void run_child(char *const arguments[]) {
     _exit(45);
 }
 
+static void run_synthetic_envelope_child(char *const arguments[]) {
+    const char *job_root = arguments[3];
+    const char *emitter_path = arguments[4];
+    const char *case_id = arguments[5];
+    const char *external_path = arguments[6];
+    const char *credential_path = arguments[7];
+    const char *write_probe = arguments[8];
+
+    if ((strcmp(case_id, "valid-match") != 0 &&
+         strcmp(case_id, "valid-no-match") != 0) ||
+        !path_is_regular(emitter_path) ||
+        prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0) != 0 || !set_limits() ||
+        !install_read_execute_landlock(job_root)) {
+        _exit(50);
+    }
+
+    close_unrelated_descriptors();
+    const bool external_denied = denied_read(external_path);
+    const bool credential_denied = denied_read(credential_path);
+    errno = 0;
+    const int write_fd = open(write_probe,
+                              O_WRONLY | O_CREAT | O_EXCL | O_CLOEXEC, 0600);
+    const bool write_denied = write_fd < 0 &&
+                              (errno == EACCES || errno == EPERM);
+    if (write_fd >= 0) {
+        (void)close(write_fd);
+    }
+    if (!external_denied || !credential_denied || !write_denied ||
+        !install_seccomp()) {
+        _exit(51);
+    }
+
+    errno = 0;
+    const int socket_fd = socket(AF_INET, SOCK_STREAM, 0);
+    const bool network_denied = socket_fd < 0 && errno == EPERM;
+    if (socket_fd >= 0) {
+        (void)close(socket_fd);
+    }
+    if (!network_denied) {
+        _exit(52);
+    }
+
+    char *const environment[] = {"LANG=C", "LC_ALL=C", NULL};
+    char *const emitter_arguments[] = {
+        (char *)emitter_path,
+        (char *)case_id,
+        NULL,
+    };
+    execve(emitter_path, emitter_arguments, environment);
+    _exit(53);
+}
+
 int main(int argument_count, char *const arguments[]) {
     if (argument_count != 9) {
         return 2;
     }
-    const int cgroup_fd = open(arguments[1], O_RDONLY | O_DIRECTORY | O_CLOEXEC);
+    const bool synthetic_envelope =
+        strcmp(arguments[1], "--synthetic-envelope") == 0;
+    const char *cgroup_path =
+        synthetic_envelope ? arguments[2] : arguments[1];
+    const int cgroup_fd = open(cgroup_path, O_RDONLY | O_DIRECTORY | O_CLOEXEC);
     if (cgroup_fd < 0) {
         return 30;
     }
@@ -372,6 +428,9 @@ int main(int argument_count, char *const arguments[]) {
         return 32;
     }
     if (worker == 0) {
+        if (synthetic_envelope) {
+            run_synthetic_envelope_child(arguments);
+        }
         run_child(arguments);
     }
     (void)close(inherited_fd);
@@ -385,5 +444,20 @@ int main(int argument_count, char *const arguments[]) {
     if (!WIFEXITED(status)) {
         return 34;
     }
-    return WEXITSTATUS(status);
+    const int result = WEXITSTATUS(status);
+    if (synthetic_envelope && result == 0) {
+        static const char marker[] =
+            "atomic_cgroup_placement=true\n"
+            "landlock_read_only_job=true\n"
+            "external_filesystem_denied=true\n"
+            "credential_denied=true\n"
+            "writable_filesystem_denied=true\n"
+            "network_denied=true\n"
+            "unrelated_descriptors_closed=true\n";
+        if (write(STDERR_FILENO, marker, sizeof(marker) - 1) !=
+            (ssize_t)(sizeof(marker) - 1)) {
+            return 35;
+        }
+    }
+    return result;
 }

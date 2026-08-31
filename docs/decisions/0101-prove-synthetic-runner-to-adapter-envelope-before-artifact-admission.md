@@ -1,6 +1,6 @@
 # ADR-0101: Prove Synthetic Runner-To-Adapter Envelope Before Artifact Admission
 
-- Status: Accepted for contract-only implementation
+- Status: Implemented; hosted isolated synthetic matrix pending
 - Date: 2026-08-31
 - Decider: Aaron Boldt through the standing accepted-roadmap directive
 - Related: ADR-0074, ADR-0098, ADR-0099, ADR-0100
@@ -86,3 +86,19 @@ After this contract is implemented and its synthetic matrix passes, the next
 decision may open the production artifact pipeline. Real YARA-X linkage still
 requires exact signed artifact and manifest admission plus platform-specific
 IAR-1B support.
+
+## Implementation Evidence
+
+The test-only `context-yara-x-envelope` crate embeds exactly the two reviewed
+match and no-match records, performs all-or-nothing in-memory composition with
+the ADR-0100 parser, and emits a source-free receipt. The Analyzer Runner reuses
+its single reviewed Rust process-launch site to call the existing Linux
+isolation launcher in a closed synthetic mode. No second Rust child-process
+authority was added.
+
+The launcher atomically places only the content-addressed emitter in a fresh
+bounded cgroup, applies the admitted Landlock and seccomp controls, and reports
+success only when emitter stderr is empty. The coordinator requires exact
+stdout length and digest, exact cleanup of the job and cgroup, and a complete
+normalized result before returning. Ordinary local tests do not invoke the
+emitter; live execution remains gated to the manual ephemeral hosted workflow.

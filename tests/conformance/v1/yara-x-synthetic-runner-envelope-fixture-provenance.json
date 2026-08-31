@@ -1,0 +1,22 @@
+{
+  "schema_name": "fixture-provenance",
+  "schema_version": "1.0.0",
+  "record_id": "yara-x-synthetic-runner-envelope-original-synthetic-v1",
+  "reviewed_at": "2026-08-31T00:00:00Z",
+  "fixtures": [
+    {"path": "invalid/yara-x-synthetic-runner-envelope-overclaim.json", "sha256": "e0b0859cdb75bd5a470d78fd758b0cf73f7d8b8aa755315e2065e565bfa2407c"},
+    {"path": "valid/yara-x-synthetic-runner-envelope-control.json", "sha256": "95129d28d23e0211b4ec666bbdbc6b714a0ac7fe224cc21e3f5a4aac04a0dd79"},
+    {"path": "valid/yara-x-synthetic-runner-envelope-profile.json", "sha256": "356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b"},
+    {"path": "valid/yara-x-synthetic-runner-envelope-receipt.json", "sha256": "da707e0501b26993b400ea78dca55cbc71cd694811af4a5604124a3126f49652"}
+  ],
+  "impresari_owned": true,
+  "malware_content": false,
+  "third_party_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "yara_x_executed": false,
+  "analyzer_executed": false,
+  "production_admitted": false,
+  "authority_added": false
+}

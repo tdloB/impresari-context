@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-synthetic-runner-envelope-control.schema.json",
+  "title": "YARA-X Synthetic Runner Envelope Control",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "job_id", "profile_id", "profile_digest", "emitter_digest", "launcher_digest", "case_id", "expected_stdout_bytes", "expected_stdout_digest", "adapter", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "yara-x-synthetic-runner-envelope-control"},
+    "schema_version": {"const": "1.0.0"},
+    "job_id": {"type": "string", "pattern": "^[a-z0-9-]{1,64}$"},
+    "profile_id": {"const": "yara-x-synthetic-runner-envelope-v1"},
+    "profile_digest": {"const": "sha256:356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b"},
+    "emitter_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "launcher_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "case_id": {"enum": ["valid-match", "valid-no-match"]},
+    "expected_stdout_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+    "expected_stdout_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "adapter": {
+      "type": "object", "additionalProperties": false,
+      "required": ["workspace_snapshot", "manifest_id", "artifact_hash", "artifact_bytes", "expected_staged_path", "executable_digest", "ruleset_digest", "completed_at"],
+      "properties": {
+        "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+        "manifest_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "artifact_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+        "artifact_bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "expected_staged_path": {"const": "/staged/artifact.bin"},
+        "executable_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "ruleset_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+        "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"}
+      }
+    },
+    "authority_added": {"const": false}
+  }
+}

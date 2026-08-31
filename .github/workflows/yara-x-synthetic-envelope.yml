@@ -1,0 +1,54 @@
+name: YARA-X synthetic runner envelope
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: yara-x-synthetic-runner-envelope
+  cancel-in-progress: false
+
+env:
+  SOURCE_SHA: fca2b320061a353a3a9d9312e0a5cc87a35dd8dc
+  SOURCE_ARCHIVE_BYTES: "27918915"
+  SOURCE_ARCHIVE_SHA256: 98418851bf2e4df72fd499fb2846986cc416447369fa9d3022573b08da9de8f0
+
+jobs:
+  rehearse:
+    name: ADR-0101 / Ubuntu 24.04 x86-64 synthetic only
+    if: github.repository == 'tdloB/impresari-context' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - name: Prepare exact public source without credentials
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF" = refs/heads/main
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          archive="$RUNNER_TEMP/impresari-context-source.tar.gz"
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output "$archive" \
+            "https://codeload.github.com/tdloB/impresari-context/tar.gz/$SOURCE_SHA"
+          test "$(wc -c < "$archive" | tr -d ' ')" = "$SOURCE_ARCHIVE_BYTES"
+          test "$(sha256sum "$archive" | cut -d ' ' -f 1)" = "$SOURCE_ARCHIVE_SHA256"
+          test -z "$(find "$GITHUB_WORKSPACE" -mindepth 1 -maxdepth 1 -print -quit)"
+          tar -xzf "$archive" --no-same-owner --no-same-permissions \
+            --strip-components=1 -C "$GITHUB_WORKSPACE"
+          rm -f -- "$archive"
+          test "$(sha256sum profiles/v1/yara-x-synthetic-runner-envelope-v1.json | cut -d ' ' -f 1)" = \
+            356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b
+      - name: Install exact Rust toolchain
+        run: rustup toolchain install 1.98.0 --profile minimal
+      - name: Build and run the admitted isolated synthetic envelope
+        run: ./scripts/yara-x-synthetic-envelope.sh
+      - name: Verify ephemeral cleanup
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          test ! -e "$RUNNER_TEMP/impresari-yara-x-envelope-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}"
+          test ! -e target/yara-x-synthetic-envelope
+          test ! -e target/release/impresari-yara-x-synthetic-emitter
+          test ! -e target/release/impresari-yara-x-synthetic-envelope

@@ -1,0 +1,49 @@
+{
+  "schema_name": "yara-x-synthetic-runner-envelope-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-synthetic-runner-envelope-v1",
+  "profile_version": "1.0.0",
+  "adapter_profile_id": "yara-x-ndjson-adapter-v1",
+  "adapter_profile_digest": "sha256:e444a5fd2675a01c85370e01c9456db4dfe214e09b5887d237ee06ac30871e7c",
+  "synthetic_cases": ["valid-match", "valid-no-match"],
+  "limits": {
+    "max_stdout_bytes": "131072",
+    "max_stderr_bytes": "0",
+    "timeout_seconds": "10",
+    "processes": "4",
+    "memory_bytes": "536870912",
+    "cpu_quota_us": "100000",
+    "cpu_period_us": "100000"
+  },
+  "isolation": {
+    "platform": "linux",
+    "architecture": "x86_64",
+    "backend": "landlock-seccomp-cgroup-v2",
+    "fresh_cgroup": true,
+    "atomic_initial_placement": true,
+    "read_only_synthetic_job": true,
+    "network_denied": true,
+    "credentials_denied": true,
+    "cleanup_required": true
+  },
+  "emitter_contract": {
+    "impresari_owned": true,
+    "records_embedded": true,
+    "repository_input": false,
+    "rule_input": false,
+    "arbitrary_arguments": false,
+    "environment_input": false,
+    "network_destinations": false,
+    "credentials": false
+  },
+  "claims": {
+    "synthetic_emitter_executed": true,
+    "yara_x_executed": false,
+    "analyzer_executed": false,
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "authority_added": false
+  }
+}

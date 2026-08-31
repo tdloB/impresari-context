@@ -1,0 +1,27 @@
+[package]
+name = "context-yara-x-envelope"
+description = "Test-only synthetic YARA-X runner-to-adapter envelope composition"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+context-analyzer-runner = { path = "../context-analyzer-runner", version = "=0.2.0" }
+context-yara-x-adapter = { path = "../context-yara-x-adapter", version = "=0.2.0" }
+serde = { version = "=1.0.229", default-features = false, features = ["derive", "std"] }
+serde_json = { version = "=1.0.151", default-features = false, features = ["std"] }
+sha2 = { version = "=0.11.0", default-features = false }
+
+[[bin]]
+name = "impresari-yara-x-synthetic-emitter"
+path = "src/emitter.rs"
+
+[[bin]]
+name = "impresari-yara-x-synthetic-envelope"
+path = "src/main.rs"
