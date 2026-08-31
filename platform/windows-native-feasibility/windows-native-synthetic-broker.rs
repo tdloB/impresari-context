@@ -336,6 +336,8 @@ unsafe extern "system" {
     ) -> i32;
     fn DeleteAppContainerProfile(appcontainer_name: *const u16) -> i32;
     fn GetAppContainerFolderPath(appcontainer_sid: *const u16, path: *mut *mut u16) -> i32;
+    fn CreateEnvironmentBlock(environment: *mut *mut c_void, token: Handle, inherit: i32) -> i32;
+    fn DestroyEnvironmentBlock(environment: *mut c_void) -> i32;
 }
 
 #[link(name = "ole32")]
@@ -464,6 +466,31 @@ struct LaunchAttributes {
     child_policy: Box<u32>,
     all_packages: Box<u32>,
     mitigation: Box<u64>,
+}
+
+struct EnvironmentBlock(*mut c_void);
+
+impl EnvironmentBlock {
+    fn system_only() -> Result<Self, String> {
+        let mut environment = null_mut();
+        // SAFETY: a null token with inherit=false requests system variables only;
+        // no caller or user-profile environment is copied.
+        if unsafe { CreateEnvironmentBlock(&raw mut environment, null_mut(), 0) } == 0
+            || environment.is_null()
+        {
+            return Err("CreateEnvironmentBlock(system-only) failed".into());
+        }
+        Ok(Self(environment))
+    }
+}
+
+impl Drop for EnvironmentBlock {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            // SAFETY: this pointer was returned by CreateEnvironmentBlock.
+            unsafe { DestroyEnvironmentBlock(self.0) };
+        }
+    }
 }
 
 impl Drop for AttributeList {
@@ -1176,7 +1203,7 @@ fn run_scenario(
     let application = wide(worker.as_os_str());
     let mut command = wide(worker.as_os_str());
     let current_directory = wide(stage.as_os_str());
-    let environment = [0_u16, 0_u16];
+    let environment = EnvironmentBlock::system_only()?;
     let mut startup = StartupInfoExW::default();
     startup.StartupInfo.cb = size_of::<StartupInfoExW>() as u32;
     startup.StartupInfo.dwFlags = STARTF_USESTDHANDLES;
@@ -1194,7 +1221,7 @@ fn run_scenario(
             null(),
             1,
             CREATE_SUSPENDED | CREATE_UNICODE_ENVIRONMENT | EXTENDED_STARTUPINFO_PRESENT,
-            environment.as_ptr().cast(),
+            environment.0,
             current_directory.as_ptr(),
             (&raw mut startup.StartupInfo).cast(),
             &raw mut process,
