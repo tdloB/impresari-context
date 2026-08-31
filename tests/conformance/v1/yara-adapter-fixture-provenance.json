@@ -1,0 +1,36 @@
+{
+  "schema_name": "fixture-provenance-record",
+  "schema_version": "1.0.0",
+  "record_id": "yara-adapter-contract-fixtures-v1",
+  "source_class": "original_synthetic",
+  "review_status": "reviewed",
+  "fixtures": [
+    {
+      "path": "invalid/yara-adapter-normalization-overclaim.json",
+      "sha256": "46f00a8973033626eb68fbbeb98d26dda7eb72494af5ec3bf025f68521863a79"
+    },
+    {
+      "path": "invalid/yara-adapter-synthetic-result-path.json",
+      "sha256": "80901e977b7f6eb524fb4fca5de31dca1f5520f415dd1f9ec10ce97c635f7905"
+    },
+    {
+      "path": "valid/yara-adapter-contract-profile.json",
+      "sha256": "686c812f098c38e5b347d53279904744b5e937dbc9539c228a47f358b69ab3d7"
+    },
+    {
+      "path": "valid/yara-adapter-normalization-receipt.json",
+      "sha256": "7b2df74c0a282226dee126f3157d8266a46c43d2859753f809b4ae7b7f4e88e8"
+    },
+    {
+      "path": "valid/yara-adapter-synthetic-result.json",
+      "sha256": "41e689dcd9c79e410fe163e0d709e1c9247c4a16146404e611803c5489f8fde3"
+    }
+  ],
+  "malware_content": false,
+  "third_party_content": false,
+  "executable_content": false,
+  "repository_source_content": false,
+  "credential_content": false,
+  "network_capture_content": false,
+  "authority_added": false
+}

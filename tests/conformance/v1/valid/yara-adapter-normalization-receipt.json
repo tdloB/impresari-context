@@ -1,0 +1,55 @@
+{
+  "schema_name": "yara-adapter-normalization-receipt",
+  "schema_version": "1.0.0",
+  "fixture_id": "yara_adapter_original_synthetic_01",
+  "profile_id": "yara-adapter-contract-v1",
+  "profile_digest": "sha256:686c812f098c38e5b347d53279904744b5e937dbc9539c228a47f358b69ab3d7",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "analyzer_id": "impresari.yara",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "completed_at": "2026-08-31T00:00:00Z",
+  "artifact_statuses": [
+    {
+      "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "bytes": "64",
+      "status": "synthetic_match_fixture",
+      "observation_count": "1"
+    },
+    {
+      "artifact_hash": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+      "bytes": "32",
+      "status": "synthetic_no_match_fixture",
+      "observation_count": "0"
+    }
+  ],
+  "matches": [
+    {
+      "match_id": "sha256:183270947ab31cbc061b5655e40e0ba68e858a237191328e73a12927f021e182",
+      "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+      "namespace": "impresari",
+      "rule_identifier": "SyntheticMarker",
+      "tags": ["contract", "synthetic"],
+      "evidence_ranges": [
+        {"string_identifier": "$marker", "offset": "8", "length": "12"}
+      ],
+      "classification": "untrusted_derived_data",
+      "method": "yara_rule_observation_v1",
+      "trust": "untrusted_derived_data",
+      "limitations": ["synthetic-fixture", "rule-match-is-not-a-safety-verdict"],
+      "authority_added": false
+    }
+  ],
+  "completeness": "synthetic_fixture_complete",
+  "limitations": ["contract-only", "no-live-analyzer", "not-a-safety-verdict", "original-synthetic-fixture"],
+  "raw_output_retained": false,
+  "source_bytes_retained": false,
+  "analyzer_executed": false,
+  "os_confined": false,
+  "production_admitted": false,
+  "iar_2_admitted": false,
+  "safety_claimed": false,
+  "ordinary_host_execution_authorized": false,
+  "authority_added": false
+}

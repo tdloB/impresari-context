@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: Accepted for contract and fixture planning; execution gated on IAR-1B
+- Status: Contract-only checkpoint implemented under ADR-0095; execution gated on IAR-1B
 - Date: 2026-08-30
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md)
@@ -52,3 +52,14 @@ adapter envelope as untrusted derived data and normalizes it independently.
   ruleset mismatch under every claimed platform backend.
 - Release rehearsal proves clean install, update, rollback rejection, expiry,
   removal, and no network or source leakage.
+
+## ADR-0095 Contract Boundary
+
+The first adapter contract is deliberately synthetic-only. Its input mirrors
+the minimum future result shape but admits only original-synthetic fixture
+records. A deterministic offline checker verifies complete artifact accounting,
+canonical rule observations, bounded byte ranges, exact digest identities, and
+constant non-authority claims. It neither parses raw YARA output nor adds a
+process, analyzer, ruleset, source, network, credential, or platform admission
+path. Live results require a new reviewed contract and the ADR-0089 activation
+gate.

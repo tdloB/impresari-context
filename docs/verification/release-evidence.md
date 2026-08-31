@@ -115,6 +115,12 @@ used after later production changes. Accepted roadmap development now precedes
 a new final-candidate freeze. Review admission, tagging, publication,
 production analyzer support, and real-analyzer execution remain false.
 
+ADR-0095's YARA adapter checkpoint is contract-only. Its committed records are
+original-synthetic and prove bounded deterministic normalization, not analyzer
+execution or malware detection. No YARA executable, ruleset, repository-derived
+analyzer input, confinement claim, production claim, IAR-2 claim, or release
+artifact enters the checkpoint.
+
 ## 2026-08-22 — Slice D and expanded evaluation matrix
 
 - Commit: `70b71ca2bf77797fd594aa64191314252e36848b`

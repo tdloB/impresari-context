@@ -32,6 +32,7 @@ ruby ./scripts/check-linux-external-production-support-admission.rb
 ruby ./scripts/check-independent-security-review-readiness.rb
 ruby ./scripts/check-independent-security-review-backlog.rb
 ruby ./scripts/check-v0-2-independent-review-release-gate.rb
+ruby ./scripts/check-yara-adapter-contract.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
