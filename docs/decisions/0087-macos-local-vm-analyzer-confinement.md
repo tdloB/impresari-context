@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted for synthetic feasibility
+- Status: Accepted; storage and cross-job synthetic checkpoint passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -45,3 +45,16 @@ execution claim.
 
 Review before guest networking, shared directories, interactive login,
 repository execution, cloud fallback, real analyzers, or broader host support.
+
+## Implementation Checkpoint
+
+On 2026-08-30, two consecutive fresh local Linux VMs passed the hard-capacity
+scratch-disk and cross-job canary requirements that the earlier XPC topology
+failed. The same run proved exact read-only synthetic input, no configured or
+guest-visible non-loopback network device, exact profile/asset binding, VM
+stop, and per-job removal on macOS `26.5.1` arm64. The result is recorded in
+[IAR-1B macOS local-VM feasibility](../verification/iar-1b-macos-local-vm-feasibility.md).
+
+This is not full IAR-1B admission. The remaining synthetic escape,
+descendant/resource, lifecycle, malformed-result, supply-chain, multi-host,
+distribution, and independent-review gates remain mandatory.

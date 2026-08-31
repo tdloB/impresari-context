@@ -335,8 +335,14 @@ receipts, exact-owned issue reconciliation, and a monthly no-release candidate
 rehearsal. Default-branch runs `33345269371` and `33345318603` passed from
 `d196f4cfc0332fd3bcfa6e93ec3bb95f5d8706ff`, created five exact-owned issues,
 and proved repeat reconciliation without duplicates. No observed upstream
-version was admitted automatically. The next implementation checkpoint is the
-ADR-0087 local-VM macOS confinement feasibility candidate.
+version was admitted automatically. ADR-0087's first native local-VM checkpoint
+then passed the two requirements the XPC topology failed: a hard-capacity
+scratch device and cross-job isolation across two fresh guests. Exact read-only
+synthetic input, absent guest networking, stop, and per-job removal also passed
+on macOS `26.5.1` arm64. Full macOS IAR-1B remains closed. The next
+implementation checkpoint is ADR-0087's remaining synthetic escape,
+descendant/resource, lifecycle, and malformed-result matrix before any
+production, packaging, or real-analyzer claim.
 
 ## Parallel Client Integration Depth Track
 

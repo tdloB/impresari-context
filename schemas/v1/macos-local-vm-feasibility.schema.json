@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-feasibility.schema.json",
+  "title": "ADR-0087 macOS local-VM synthetic feasibility receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "job_id", "result", "kernel_digest", "initramfs_digest", "input_digest", "virtualization_supported", "configuration_validated", "cpu_count", "memory_bytes", "serial_ports", "storage_devices", "network_devices", "directory_shares", "graphics_devices", "audio_devices", "input_devices", "exact_input_verified", "read_only_input_verified", "scratch_initially_clean", "scratch_capacity_verified", "network_device_absent", "job_removed", "vm_confined", "production_admitted", "source_retained", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-feasibility-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-feasibility-v1"},
+    "profile_digest": {"const": "sha256:a082df092d5180058f732d47ae99164316f3bfd3b12f4079de43575834314757"},
+    "job_id": {"type": "string", "pattern": "^[a-z0-9-]{1,32}$"},
+    "result": {"enum": ["feasibility_passed", "failed", "unsupported"]},
+    "kernel_digest": {"const": "sha256:8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"},
+    "initramfs_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "input_digest": {"const": "sha256:3050d67653f05f1db0dcef073a64f6fc9f9ac2e55c7b1881e7372151b3e4fd99"},
+    "virtualization_supported": {"type": "boolean"},
+    "configuration_validated": {"type": "boolean"},
+    "cpu_count": {"const": "1"},
+    "memory_bytes": {"const": "268435456"},
+    "serial_ports": {"const": "1"},
+    "storage_devices": {"const": "2"},
+    "network_devices": {"const": "0"},
+    "directory_shares": {"const": "0"},
+    "graphics_devices": {"const": "0"},
+    "audio_devices": {"const": "0"},
+    "input_devices": {"const": "0"},
+    "exact_input_verified": {"type": "boolean"},
+    "read_only_input_verified": {"type": "boolean"},
+    "scratch_initially_clean": {"type": "boolean"},
+    "scratch_capacity_verified": {"type": "boolean"},
+    "network_device_absent": {"type": "boolean"},
+    "job_removed": {"type": "boolean"},
+    "vm_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "source_retained": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"result": {"const": "feasibility_passed"}}, "required": ["result"]},
+      "then": {
+        "properties": {
+          "virtualization_supported": {"const": true},
+          "configuration_validated": {"const": true},
+          "exact_input_verified": {"const": true},
+          "read_only_input_verified": {"const": true},
+          "scratch_initially_clean": {"const": true},
+          "scratch_capacity_verified": {"const": true},
+          "network_device_absent": {"const": true},
+          "job_removed": {"const": true}
+        }
+      }
+    }
+  ]
+}

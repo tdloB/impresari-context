@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-resource-profile.schema.json",
+  "title": "ADR-0087 macOS local-VM synthetic feasibility resource profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "guest", "limits", "devices", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-resource-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-feasibility-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "guest": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["architecture", "kernel_version", "kernel_source_sha256", "kernel_sha256", "synthetic_init_only"],
+      "properties": {
+        "architecture": {"const": "aarch64"},
+        "kernel_version": {"const": "6.18.35-0-virt"},
+        "kernel_source_sha256": {"const": "47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756"},
+        "kernel_sha256": {"const": "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"},
+        "synthetic_init_only": {"const": true}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["jobs", "virtual_cpus", "memory_bytes", "input_bytes", "scratch_bytes", "serial_output_bytes", "elapsed_ms"],
+      "properties": {
+        "jobs": {"const": "1"},
+        "virtual_cpus": {"const": "1"},
+        "memory_bytes": {"const": "268435456"},
+        "input_bytes": {"const": "4096"},
+        "scratch_bytes": {"const": "1048576"},
+        "serial_output_bytes": {"const": "65536"},
+        "elapsed_ms": {"const": "30000"}
+      }
+    },
+    "devices": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["serial_ports", "read_only_input_disks", "writable_scratch_disks", "network_devices", "directory_shares", "graphics_devices", "audio_devices", "input_devices", "usb_devices"],
+      "properties": {
+        "serial_ports": {"const": "1"},
+        "read_only_input_disks": {"const": "1"},
+        "writable_scratch_disks": {"const": "1"},
+        "network_devices": {"const": "0"},
+        "directory_shares": {"const": "0"},
+        "graphics_devices": {"const": "0"},
+        "audio_devices": {"const": "0"},
+        "input_devices": {"const": "0"},
+        "usb_devices": {"const": "0"}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["fresh_vm_per_job", "fresh_scratch_per_job", "exact_asset_identity", "read_only_input_required", "scratch_capacity_required", "cross_job_isolation_required", "network_device_absent", "host_share_absent", "cleanup_required", "analyzer_execution", "production_admitted", "authority_added"],
+      "properties": {
+        "fresh_vm_per_job": {"const": true},
+        "fresh_scratch_per_job": {"const": true},
+        "exact_asset_identity": {"const": true},
+        "read_only_input_required": {"const": true},
+        "scratch_capacity_required": {"const": true},
+        "cross_job_isolation_required": {"const": true},
+        "network_device_absent": {"const": true},
+        "host_share_absent": {"const": true},
+        "cleanup_required": {"const": true},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

@@ -1,6 +1,6 @@
 # macOS Local-VM Analyzer Confinement ARD
 
-- Status: Accepted for synthetic feasibility
+- Status: Synthetic feasibility in progress; storage and cross-job checkpoint passed
 - Date: 2026-08-30
 - Governing PRD: [macOS Local-VM Analyzer Confinement PRD](../product/macos-local-vm-analyzer-confinement-prd.md)
 - Decision: [ADR-0087](../decisions/0087-macos-local-vm-analyzer-confinement.md)
@@ -63,3 +63,10 @@ updates occur only between jobs through separately reviewed release metadata.
 - Host filesystem and process canaries for every prohibited boundary.
 - Clean install, upgrade, rollback, uninstall, Gatekeeper, and notarization on
   every claimed macOS target before production admission.
+
+The first implementation checkpoint now boots an exact raw ARM64 Linux kernel
+and Impresari-built synthetic initramfs through an ad hoc signed Swift
+controller. Two consecutive fresh guests passed read-only input, fixed scratch
+capacity, absent-network-device, cross-job canary, stop, and exact job-removal
+checks. The controller remains a feasibility adapter; it is not wired into the
+Rust production runner and cannot claim `vm_confined` or production admission.

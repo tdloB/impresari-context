@@ -1,0 +1,40 @@
+{
+  "schema_name": "macos-local-vm-guest-assets",
+  "schema_version": "1.0.0",
+  "distribution": "Alpine Linux",
+  "release": "3.24",
+  "architecture": "aarch64",
+  "kernel_version": "6.18.35-0-virt",
+  "reviewed_at": "2026-08-30T00:00:00Z",
+  "expires_at": "2026-09-30T00:00:00Z",
+  "artifacts": [
+    {
+      "name": "vmlinuz-virt",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/vmlinuz-virt",
+      "bytes": "10351104",
+      "sha256": "47970e0ee0478fe5c60824a89f162d5a353fa29466e5d3bddb0f9c506f1ed756",
+      "purpose": "direct ARM64 Linux boot kernel"
+    },
+    {
+      "name": "initramfs-virt",
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/initramfs-virt",
+      "bytes": "9385851",
+      "sha256": "e47d38bc88509a3db11affc09f9762f9643b026bd29441724a4729ad8e97add6",
+      "purpose": "source archive for exact virtio_blk module only"
+    }
+  ],
+  "extracted_artifact": {
+    "path": "usr/lib/modules/6.18.35-0-virt/kernel/drivers/block/virtio_blk.ko",
+    "bytes": "49687",
+    "sha256": "80341fdb0869f5df4813b7bfb4a1cd77d2f6cd7c26c04fc15706cbc44d680ef6"
+  },
+  "extracted_kernel": {
+    "format": "Linux kernel ARM64 boot executable Image, little-endian, 4K pages",
+    "bytes": "36110336",
+    "sha256": "8b216f74e7f89def4604adf69e2345437363aff4819101bb1551c9e83cd35cdd"
+  },
+  "license": "Alpine packages retain their upstream licenses; the Linux kernel and module are GPL-2.0-only",
+  "network_available_to_guest": false,
+  "production_admitted": false,
+  "authority_added": false
+}

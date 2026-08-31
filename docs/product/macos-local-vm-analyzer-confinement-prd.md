@@ -1,6 +1,6 @@
 # Impresari Context — macOS Local-VM Analyzer Confinement PRD
 
-- Status: Accepted for synthetic feasibility
+- Status: Synthetic feasibility in progress; storage and cross-job checkpoint passed
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0087
@@ -55,6 +55,20 @@ required from the user.
   staged.
 - Multi-host clean-install evidence, signing/notarization, and independent
   review remain production gates.
+
+## Current Evidence
+
+The first native checkpoint passed on macOS `26.5.1` arm64 with two fresh
+local VM jobs. It proved the two requirements the earlier XPC topology failed:
+a hard 1 MiB scratch-device capacity and no cross-job marker retention. It also
+proved exact read-only synthetic input, an absent guest network device, exact
+identity binding, VM stop, and per-job removal. See the
+[local-VM feasibility record](../verification/iar-1b-macos-local-vm-feasibility.md).
+
+The complete escape, descendant, CPU, memory, timeout, crash, interruption,
+malformed-result, supply-chain, multi-host, signing/notarization, packaging,
+and independent-review gates remain open. The evidence therefore retains
+`vm_confined=false` and does not admit a real analyzer.
 
 ## Packaging Direction
 

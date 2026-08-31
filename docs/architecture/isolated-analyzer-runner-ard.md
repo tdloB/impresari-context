@@ -138,6 +138,15 @@ not packaging failures. The macOS candidate is therefore not advanced to
 Developer ID or cask rehearsal as an IAR-1B backend. ADR-0076 remains the
 packaging topology if a future macOS confinement layer is admitted.
 
+ADR-0087 supplies that next confinement-layer candidate without changing the
+IAR-0 protocol or ordinary Context process. A separately signed Swift adapter
+boots one fresh local Linux VM with no network or host-share device, one exact
+read-only input disk, and one fixed-capacity disposable scratch disk. Its first
+two-job checkpoint passes the XPC topology's aggregate-disk and cross-job
+failures plus input immutability and cleanup. The adapter remains synthetic and
+unwired from production until the complete native, supply-chain, distribution,
+and independent-review matrix passes.
+
 The corresponding Linux candidate composes `no_new_privs`, version-negotiated
 Landlock and seccomp, descriptor closure, and a delegated cgroup v2 leaf. The
 Windows candidate composes AppContainer or a restricted token, explicit staged-

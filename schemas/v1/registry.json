@@ -23,6 +23,8 @@
     {"name": "macos-xpc-sandbox-feasibility", "path": "macos-xpc-sandbox-feasibility.schema.json", "identity_object_kind": null},
     {"name": "macos-xpc-resource-profile", "path": "macos-xpc-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "macos-xpc-launch", "path": "macos-xpc-launch.schema.json", "identity_object_kind": null},
+    {"name": "macos-local-vm-resource-profile", "path": "macos-local-vm-resource-profile.schema.json", "identity_object_kind": null},
+    {"name": "macos-local-vm-feasibility", "path": "macos-local-vm-feasibility.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-resource-profile", "path": "linux-isolation-resource-profile.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-feasibility", "path": "linux-isolation-feasibility.schema.json", "identity_object_kind": null},
     {"name": "linux-isolation-maintenance", "path": "linux-isolation-maintenance.schema.json", "identity_object_kind": null},
