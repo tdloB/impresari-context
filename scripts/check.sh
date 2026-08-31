@@ -63,6 +63,8 @@ ruby -c ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby -c ./scripts/check-windows-native-feasibility-contract.rb
 ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
 rustfmt --check ./platform/windows-native-feasibility/windows-native-capability-probe.rs
+rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-broker.rs
+rustfmt --check ./platform/windows-native-feasibility/windows-native-synthetic-worker.rs
 sh -n ./scripts/verify-macos-vm-alpine-archive.sh
 sh -n ./scripts/install.sh
 ./scripts/install.sh --help >/dev/null
