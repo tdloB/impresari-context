@@ -1,0 +1,23 @@
+{
+  "schema_name": "yara-x-synthetic-runner-envelope-control",
+  "schema_version": "1.0.0",
+  "job_id": "synthetic-valid-match",
+  "profile_id": "yara-x-synthetic-runner-envelope-v1",
+  "profile_digest": "sha256:356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b",
+  "emitter_digest": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "launcher_digest": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "case_id": "valid-match",
+  "expected_stdout_bytes": "208",
+  "expected_stdout_digest": "sha256:94e1dcb48bf00299178d75cfcf94a7551304a7a5d7b390e508d7a07079360499",
+  "adapter": {
+    "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+    "artifact_bytes": "64",
+    "expected_staged_path": "/staged/artifact.bin",
+    "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "completed_at": "2026-08-31T00:00:00Z"
+  },
+  "authority_added": false
+}

@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
+- Status: ADR-0101 synthetic envelope implemented; hosted matrix, production artifacts, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md)
 
 ## Architecture
 
@@ -208,3 +208,10 @@ The composition receipt binds the synthetic job and normalized result but does
 not copy the path or output. It records synthetic-emitter execution separately
 from analyzer execution. No existing IAR-0 result is reinterpreted, and no
 production runner API is opened by this checkpoint.
+
+The implemented coordinator is `context-yara-x-envelope`. It reuses the one
+`Command::new` site in `context-analyzer-runner`; the existing C launcher adds
+one closed `--synthetic-envelope` mode and places only the emitter in the fresh
+job cgroup. Exact preflight bytes are written by the launcher parent only after
+a successful emitter exit, so any emitter stderr makes the capture fail. The
+coordinator removes the exact job and empty cgroup before composing the receipt.

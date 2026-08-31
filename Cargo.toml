@@ -26,6 +26,7 @@ members = [
     "crates/context-structural",
     "crates/context-workspace",
     "crates/context-yara-x-adapter",
+    "crates/context-yara-x-envelope",
 ]
 resolver = "3"
 

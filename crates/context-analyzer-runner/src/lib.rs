@@ -28,6 +28,8 @@ use sha2::{Digest, Sha256};
 const MAX_CONTROL_BYTES: usize = 262_144;
 const MAX_OUTPUT_BYTES: usize = 262_144;
 const STDERR_BYTES: usize = 16_384;
+const YARA_X_SYNTHETIC_OUTPUT_BYTES: usize = 131_072;
+const YARA_X_SYNTHETIC_PREFLIGHT: &[u8] = b"atomic_cgroup_placement=true\nlandlock_read_only_job=true\nexternal_filesystem_denied=true\ncredential_denied=true\nwritable_filesystem_denied=true\nnetwork_denied=true\nunrelated_descriptors_closed=true\n";
 const SUPERVISOR_PROFILE_ID: &str = "iar-application-supervisor-v1";
 const SUPERVISOR_PROFILE_DIGEST: &str =
     "sha256:3a81a84d2658c0a2a33214e2424daf84696c2692d73f52f6dfd46700ab2e51fa";
@@ -236,6 +238,60 @@ pub struct Supervisor {
     pub excluded_roots: Vec<PathBuf>,
     /// Fixed wall-time limit, no more than one minute.
     pub timeout: Duration,
+}
+
+/// Closed, test-only process configuration for ADR-0101 synthetic envelope capture.
+#[derive(Clone, Debug)]
+pub struct YaraXSyntheticProcessConfig {
+    /// Exact prebuilt Linux isolation launcher.
+    pub launcher: PathBuf,
+    /// Expected SHA-256 identity of the launcher.
+    pub launcher_digest: String,
+    /// Exact Impresari-owned synthetic emitter.
+    pub emitter: PathBuf,
+    /// Expected SHA-256 identity of the emitter.
+    pub emitter_digest: String,
+    /// Existing read-only synthetic job root.
+    pub job_root: PathBuf,
+    /// Fresh delegated cgroup leaf for this one emitter process.
+    pub cgroup_leaf: PathBuf,
+    /// Synthetic canary outside the job root.
+    pub external_canary: PathBuf,
+    /// Synthetic credential-shaped canary outside the job root.
+    pub credential_canary: PathBuf,
+    /// Nonexistent path beneath the job used to prove write denial.
+    pub write_probe: PathBuf,
+    /// Closed original-synthetic case identifier.
+    pub case_id: String,
+    /// Fixed wall-time ceiling, no more than ten seconds.
+    pub timeout: Duration,
+}
+
+/// Exact in-memory capture returned by the ADR-0101 synthetic process boundary.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct YaraXSyntheticProcessCapture {
+    /// Complete emitter stdout, retained only in memory by the caller.
+    pub stdout: Vec<u8>,
+    /// Exact stdout byte length.
+    pub stdout_bytes: u64,
+    /// Exact stdout SHA-256 identity.
+    pub stdout_digest: String,
+    /// Exact verified synthetic emitter identity.
+    pub emitter_digest: String,
+    /// Exact verified isolation launcher identity.
+    pub launcher_digest: String,
+    /// The emitter exited successfully.
+    pub emitter_succeeded: bool,
+    /// The emitter produced no stderr bytes.
+    pub emitter_stderr_empty: bool,
+    /// Atomic placement in the fresh cgroup was verified by the launcher.
+    pub atomic_cgroup_placement: bool,
+    /// Read access was limited to the synthetic job.
+    pub landlock_read_only_job: bool,
+    /// Network creation was denied.
+    pub network_denied: bool,
+    /// Unrelated inherited descriptors were closed.
+    pub unrelated_descriptors_closed: bool,
 }
 
 /// Source-free Rust-to-host launch request for the selected macOS XPC backend.
@@ -847,6 +903,172 @@ impl Supervisor {
             confinement: output.confinement,
         })
     }
+}
+
+/// Captures one closed original-synthetic YARA-X-shaped record through the
+/// existing Analyzer Runner process launch site.
+///
+/// The configured launcher must atomically place only the emitter in the
+/// supplied delegated Linux cgroup and apply the admitted Landlock/seccomp
+/// boundary before execution. The launcher reports its fixed preflight on its
+/// own stderr only after the emitter exits; any emitter stderr changes those
+/// exact bytes and fails closed.
+///
+/// # Errors
+///
+/// Returns a source-free runner category for any platform, identity, path,
+/// process, timeout, output, stderr, or confinement mismatch.
+#[allow(clippy::too_many_lines)]
+pub fn capture_yara_x_synthetic_process(
+    config: &YaraXSyntheticProcessConfig,
+) -> Result<YaraXSyntheticProcessCapture, RunnerError> {
+    if !cfg!(all(target_os = "linux", target_arch = "x86_64"))
+        || config.timeout.is_zero()
+        || config.timeout > Duration::from_secs(10)
+        || !matches!(config.case_id.as_str(), "valid-match" | "valid-no-match")
+        || !valid_sha256(&config.launcher_digest)
+        || !valid_sha256(&config.emitter_digest)
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    for (path, expected) in [
+        (&config.launcher, &config.launcher_digest),
+        (&config.emitter, &config.emitter_digest),
+    ] {
+        let metadata = fs::symlink_metadata(path)
+            .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?;
+        if !path.is_absolute()
+            || !metadata.is_file()
+            || metadata.file_type().is_symlink()
+            || fs::canonicalize(path)
+                .map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?
+                != *path
+            || sha256(
+                &fs::read(path).map_err(|_| RunnerError::new(RunnerErrorCode::WorkerIdentity))?,
+            ) != **expected
+        {
+            return Err(RunnerError::new(RunnerErrorCode::WorkerIdentity));
+        }
+    }
+    for path in [
+        &config.job_root,
+        &config.cgroup_leaf,
+        &config.external_canary,
+        &config.credential_canary,
+    ] {
+        if !path.is_absolute() {
+            return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+        }
+    }
+    let job = fs::symlink_metadata(&config.job_root)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+    let cgroup = fs::symlink_metadata(&config.cgroup_leaf)
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Staging))?;
+    if !job.is_dir()
+        || job.file_type().is_symlink()
+        || !cgroup.is_dir()
+        || cgroup.file_type().is_symlink()
+        || !config.launcher.starts_with(&config.job_root)
+        || !config.emitter.starts_with(&config.job_root)
+        || !config.write_probe.starts_with(&config.job_root)
+        || config.external_canary.starts_with(&config.job_root)
+        || config.credential_canary.starts_with(&config.job_root)
+        || config.write_probe.exists()
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+    let cpu_max = fs::read_to_string(config.cgroup_leaf.join("cpu.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    let memory_max = fs::read_to_string(config.cgroup_leaf.join("memory.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    let pids_max = fs::read_to_string(config.cgroup_leaf.join("pids.max"))
+        .map_err(|_| RunnerError::new(RunnerErrorCode::InvalidConfiguration))?;
+    if cpu_max.trim() != "100000 100000"
+        || memory_max.trim() != "536870912"
+        || pids_max.trim() != "4"
+    {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidConfiguration));
+    }
+
+    let arguments = [
+        OsStr::new("--synthetic-envelope"),
+        config.cgroup_leaf.as_os_str(),
+        config.job_root.as_os_str(),
+        config.emitter.as_os_str(),
+        OsStr::new(&config.case_id),
+        config.external_canary.as_os_str(),
+        config.credential_canary.as_os_str(),
+        config.write_probe.as_os_str(),
+    ];
+    let child = spawn_exact_process(
+        &config.launcher,
+        &config.job_root,
+        &arguments,
+        Stdio::null(),
+        Stdio::piped(),
+        Stdio::piped(),
+    )?;
+    let mut child = ChildGuard::new(child);
+    let stdout = child
+        .child_mut()?
+        .stdout
+        .take()
+        .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+    let stderr = child
+        .child_mut()?
+        .stderr
+        .take()
+        .ok_or_else(|| RunnerError::new(RunnerErrorCode::Process))?;
+    let stdout_reader = thread::spawn(move || read_capped(stdout, YARA_X_SYNTHETIC_OUTPUT_BYTES));
+    let stderr_reader =
+        thread::spawn(move || read_capped(stderr, YARA_X_SYNTHETIC_PREFLIGHT.len()));
+    let started = Instant::now();
+    let status = loop {
+        if let Some(status) = child
+            .child_mut()?
+            .try_wait()
+            .map_err(|_| RunnerError::new(RunnerErrorCode::Process))?
+        {
+            break status;
+        }
+        if started.elapsed() >= config.timeout {
+            let _ = child.child_mut()?.kill();
+            let _ = child.child_mut()?.wait();
+            child.mark_reaped();
+            let _ = stdout_reader.join();
+            let _ = stderr_reader.join();
+            return Err(RunnerError::new(RunnerErrorCode::Timeout));
+        }
+        thread::sleep(Duration::from_millis(2));
+    };
+    child.mark_reaped();
+    let stdout = stdout_reader
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    let stderr = stderr_reader
+        .join()
+        .map_err(|_| RunnerError::new(RunnerErrorCode::Process))??;
+    if !status.success() {
+        return Err(RunnerError::new(RunnerErrorCode::WorkerFailure));
+    }
+    if stdout.is_empty() || stderr != YARA_X_SYNTHETIC_PREFLIGHT {
+        return Err(RunnerError::new(RunnerErrorCode::InvalidOutput));
+    }
+    let stdout_bytes =
+        u64::try_from(stdout.len()).map_err(|_| RunnerError::new(RunnerErrorCode::OutputLimit))?;
+    Ok(YaraXSyntheticProcessCapture {
+        stdout_digest: sha256(&stdout),
+        stdout,
+        stdout_bytes,
+        emitter_digest: config.emitter_digest.clone(),
+        launcher_digest: config.launcher_digest.clone(),
+        emitter_succeeded: true,
+        emitter_stderr_empty: true,
+        atomic_cgroup_placement: true,
+        landlock_read_only_job: true,
+        network_denied: true,
+        unrelated_descriptors_closed: true,
+    })
 }
 
 impl MacOsVmSupervisorAction {

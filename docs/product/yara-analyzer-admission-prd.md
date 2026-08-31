@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0099 hosted synthetic compatibility passed; production artifacts, live adapter, and IAR-2 remain gated
+- Status: ADR-0101 synthetic envelope implemented; hosted matrix, production artifacts, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, and pure adapter boundary by ADR-0100
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, and synthetic envelope by ADR-0101
 
 ## Objective
 
@@ -134,7 +134,7 @@ decision. The production artifact pipeline remains a later gate.
 
 ## Synthetic Runner-Envelope Checkpoint
 
-ADR-0101 selects the synthetic runner-envelope checkpoint before production
+ADR-0101 implements the synthetic runner-envelope checkpoint before production
 artifact work. A dedicated content-addressed Impresari emitter may output only
 the exact committed valid-match or valid-no-match NDJSON record. It accepts no
 repository bytes, paths, rules, arbitrary arguments, network destinations,
@@ -146,3 +146,10 @@ deterministic normalization, and a source-free composition receipt. The
 receipt distinguishes synthetic-emitter execution from analyzer execution and
 fixes every YARA-X, production, IAR-2, detection, safety, and authority claim
 to false.
+
+The frozen envelope profile is
+`sha256:356f1ae13bec35ac41693936ddfe6856f8aad713d2a79b10b1de71557eb9a30b`.
+The implementation reuses the single Analyzer Runner launch site and the
+existing Linux cgroup/Landlock/seccomp launcher. Its local suite composes only
+in-memory captures; the emitter itself may run only in the manual ephemeral
+hosted matrix, which remains pending.
