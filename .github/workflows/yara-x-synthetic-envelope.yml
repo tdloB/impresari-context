@@ -42,7 +42,7 @@ jobs:
       - name: Install exact Rust toolchain
         run: rustup toolchain install 1.98.0 --profile minimal
       - name: Build and run the admitted isolated synthetic envelope
-        run: ./scripts/yara-x-synthetic-envelope.sh
+        run: bash ./scripts/yara-x-synthetic-envelope.sh
       - name: Verify ephemeral cleanup
         if: always()
         shell: bash
