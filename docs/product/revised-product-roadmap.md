@@ -536,10 +536,13 @@ ADR-0102 implements the next narrow checkpoint: real output from the exact
 ephemeral YARA-X v1.20.0 candidate is captured through the single audited
 Analyzer Runner site, inside the admitted Linux boundary, and passed in memory
 to the ADR-0100 adapter. Only the five generated Impresari synthetic cases are
-eligible. The contracts and local non-executing suite are complete; the manual
-empty-workspace hosted matrix is pending. Executable and ruleset admission,
-repository scanning, production, IAR-2, detection quality, and safety remain
-closed regardless of the compatibility result.
+eligible. Run `33432469614`, job `99620875408`, passed the manual
+empty-workspace hosted matrix and mandatory cleanup on Ubuntu 24.04 x86-64.
+Executable and ruleset admission, repository scanning, production, IAR-2,
+detection quality, and safety remain closed regardless of the compatibility
+result. The next analyzer checkpoint is the separately reviewed production
+artifact and ruleset admission pipeline; hosted synthetic success does not
+activate it by implication.
 
 ## Parallel Client Integration Depth Track
 

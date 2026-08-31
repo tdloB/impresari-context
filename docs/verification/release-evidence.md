@@ -256,3 +256,27 @@ runs no analyzer or compatibility corpus.
   clock, credential, or embedded-file capability. It does not execute YARA-X
   and fixes analyzer execution, confinement, production, IAR-2, safety, and
   added-authority claims to false.
+
+## 2026-08-31 — ADR-0102 live YARA-X synthetic composition
+
+- Workflow source commit: `04228fbfa1babfcf3bdba71dcba4cacaff006c40`.
+- Immutable Impresari source root:
+  `3b74648cbdf78453dcd71ab34da1ecd876093862`.
+- Successful manual run:
+  [GitHub Actions 33432469614](https://github.com/tdloB/impresari-context/actions/runs/33432469614),
+  job `99620875408`.
+- Exact host: GitHub `ubuntu-24.04` image `20260823.283.1`, Ubuntu `24.04.4`,
+  runner `2.337.0`, kernel `6.17.0-1022-azure`, x86-64, Landlock ABI 7.
+- Live-envelope profile SHA-256:
+  `2aa5e203f71089688baa41556c6775e7dcca98c7e6aab726442ff99fb5f8cd26`.
+- YARA-X v1.20.0 executable SHA-256:
+  `9e7424e62b714ee7b7be9fb0b67367b12209a9ec6967ff8c9b4c4959d6a17549`.
+- Compiled Impresari synthetic-rules SHA-256:
+  `f92cda545be5514258a1d64f721522afbc960630212e2ddea50a3430847f86f0`.
+- Five generated cases passed real YARA-X execution, Linux confinement,
+  in-memory ADR-0100 adapter composition, exact accounting, and mandatory
+  cleanup. The receipt recorded `production_admitted=false` and `iar_2=false`.
+- No source, executable, compiled rules, raw output, or receipt artifact was
+  uploaded or retained. No repository content or credential was scanned. This
+  evidence does not admit artifacts or rules, open production or IAR-2, or
+  establish detection-quality, safety, or malware-free claims.
