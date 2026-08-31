@@ -1477,17 +1477,25 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
     harden_profile(&first, &user_sid)?;
     harden_profile(&second, &user_sid)?;
 
-    let stage = runner_temp.join(format!("impresari-windows-iar-{nonce}"));
+    let stage = first.path.join(format!("ImpresariJob-{nonce}"));
+    let second_stage = second
+        .path
+        .join(format!("ImpresariJob-{}", nonce.saturating_add(1)));
     let user_canary = runner_temp.join(format!("impresari-user-canary-{nonce}.txt"));
     let mut registry_canary = None;
     let matrix_result = (|| -> Result<(), String> {
         fs::create_dir(&stage).map_err(|error| format!("stage creation failed: {error}"))?;
+        fs::create_dir(&second_stage)
+            .map_err(|error| format!("second stage creation failed: {error}"))?;
         let worker = stage.join("boundary-worker.exe");
+        let second_worker = second_stage.join("boundary-worker.exe");
         let input = stage.join("input.txt");
         let sibling = stage.join("sibling.txt");
         let cross = stage.join("cross-job.txt");
         fs::copy(&source_worker, &worker)
             .map_err(|error| format!("worker staging failed: {error}"))?;
+        fs::copy(&source_worker, &second_worker)
+            .map_err(|error| format!("second worker staging failed: {error}"))?;
         fs::write(&input, b"impresari-windows-synthetic-input-v1\n")
             .map_err(|error| format!("input staging failed: {error}"))?;
         fs::write(&sibling, b"host-only-sibling\n")
@@ -1496,29 +1504,19 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
             .map_err(|error| format!("cross canary staging failed: {error}"))?;
         fs::write(&user_canary, b"synthetic-user-profile-canary\n")
             .map_err(|error| format!("user canary staging failed: {error}"))?;
-        set_dacl(
-            &stage,
-            &user_sid,
-            &[&first.sid_string, &second.sid_string],
-            true,
-        )?;
-        set_dacl(
-            &worker,
-            &user_sid,
-            &[&first.sid_string, &second.sid_string],
-            false,
-        )?;
-        set_dacl(
-            &input,
-            &user_sid,
-            &[&first.sid_string, &second.sid_string],
-            false,
-        )?;
+        set_dacl(&stage, &user_sid, &[&first.sid_string], true)?;
+        set_dacl(&worker, &user_sid, &[&first.sid_string], false)?;
+        set_dacl(&second_stage, &user_sid, &[&second.sid_string], true)?;
+        set_dacl(&second_worker, &user_sid, &[&second.sid_string], false)?;
+        set_dacl(&input, &user_sid, &[&first.sid_string], false)?;
         set_dacl(&sibling, &user_sid, &[], false)?;
         set_dacl(&cross, &user_sid, &[&first.sid_string], false)?;
         set_dacl(&user_canary, &user_sid, &[], false)?;
         if sha256(&worker)? != worker_digest.trim_start_matches("sha256:") {
             return Err("staged worker identity changed".into());
+        }
+        if sha256(&second_worker)? != worker_digest.trim_start_matches("sha256:") {
+            return Err("second staged worker identity changed".into());
         }
         let registry = create_registry_canary(nonce)?;
         registry_canary = Some(registry.clone());
@@ -1618,8 +1616,8 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
         let cross_outcome = run_scenario(
             "cross-job-read",
             &second,
-            &worker,
-            &stage,
+            &second_worker,
+            &second_stage,
             &cross_control,
             event.0,
         )?;
@@ -1638,7 +1636,7 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
     {
         cleanup_errors.push(error);
     }
-    for path in [&stage, &user_canary] {
+    for path in [&stage, &second_stage, &user_canary] {
         if let Err(error) = remove_exact(path) {
             cleanup_errors.push(error);
         }
@@ -1649,7 +1647,12 @@ fn execute_matrix() -> Result<(u32, String, String), String> {
     if let Err(error) = second.delete() {
         cleanup_errors.push(error);
     }
-    if stage.exists() || user_canary.exists() || first.path.exists() || second.path.exists() {
+    if stage.exists()
+        || second_stage.exists()
+        || user_canary.exists()
+        || first.path.exists()
+        || second.path.exists()
+    {
         cleanup_errors.push("exact synthetic state remained after cleanup".into());
     }
     if let Err(error) = matrix_result {

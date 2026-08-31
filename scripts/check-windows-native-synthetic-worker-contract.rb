@@ -110,6 +110,8 @@ abort "Windows broker boundary corpus drifted" unless
     broker.include?("GetAppContainerFolderPath") &&
     broker.include?("path == profile.path") &&
     broker.include?("profile.sid_string.as_str()") &&
+    broker.include?("let stage = first.path.join") &&
+    broker.include?("let second_worker = second_stage.join") &&
     broker.include?("EnvironmentBlock::exact_system()") &&
     broker.include?("GetWindowsDirectoryW") &&
     broker.include?(%q{format!("SystemDrive={system_drive}")}) &&
