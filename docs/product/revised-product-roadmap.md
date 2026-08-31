@@ -448,6 +448,17 @@ analyzer, and authority claim remained false. The Windows roadmap now waits
 for an independently available qualifying build rather than weakening the
 contract or introducing automatic administrator host preparation.
 
+ADR-0095 completes the next non-executing prerequisite for ADR-0089. It freezes
+the digest-bound `yara-adapter-contract-v1` profile, a production-shaped but
+original-synthetic result, deterministic normalization, complete artifact
+accounting, exact byte-range evidence bindings, and provenance-bound positive
+and negative fixtures. The checkpoint introduces no YARA binary, rules,
+process launch, parser, repository analyzer input, network, credential access,
+IAR-2, production admission, safety claim, or authority. Live YARA activation
+still requires an exact production-admitted IAR-1B platform, signed analyzer
+and ruleset artifacts, a separately reviewed live-result contract and hosted
+evidence, and the applicable independent human security review.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

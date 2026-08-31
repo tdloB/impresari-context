@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-adapter-normalization-receipt.schema.json",
+  "title": "ADR-0095 deterministic synthetic YARA normalization receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "fixture_id", "profile_id", "profile_digest", "workspace_snapshot", "manifest_id", "analyzer_id", "executable_digest", "ruleset_digest", "completed_at", "artifact_statuses", "matches", "completeness", "limitations", "raw_output_retained", "source_bytes_retained", "analyzer_executed", "os_confined", "production_admitted", "iar_2_admitted", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "yara-adapter-normalization-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "fixture_id": {"$ref": "common.schema.json#/$defs/identifier"},
+    "profile_id": {"const": "yara-adapter-contract-v1"},
+    "profile_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "manifest_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "analyzer_id": {"const": "impresari.yara"},
+    "executable_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "ruleset_digest": {"$ref": "common.schema.json#/$defs/sha256"},
+    "completed_at": {"$ref": "common.schema.json#/$defs/rfc3339Utc"},
+    "artifact_statuses": {"type": "array", "minItems": 1, "maxItems": 64, "uniqueItems": true, "items": {"$ref": "#/$defs/artifactStatus"}},
+    "matches": {"type": "array", "maxItems": 256, "uniqueItems": true, "items": {"$ref": "#/$defs/match"}},
+    "completeness": {"const": "synthetic_fixture_complete"},
+    "limitations": {"const": ["contract-only", "no-live-analyzer", "not-a-safety-verdict", "original-synthetic-fixture"]},
+    "raw_output_retained": {"const": false},
+    "source_bytes_retained": {"const": false},
+    "analyzer_executed": {"const": false},
+    "os_confined": {"const": false},
+    "production_admitted": {"const": false},
+    "iar_2_admitted": {"const": false},
+    "safety_claimed": {"const": false},
+    "ordinary_host_execution_authorized": {"const": false},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "artifactStatus": {
+      "type": "object", "additionalProperties": false,
+      "required": ["artifact_hash", "bytes", "status", "observation_count"],
+      "properties": {
+        "artifact_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+        "bytes": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "status": {"type": "string", "enum": ["synthetic_match_fixture", "synthetic_no_match_fixture", "synthetic_unsupported_fixture"]},
+        "observation_count": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    },
+    "match": {
+      "type": "object", "additionalProperties": false,
+      "required": ["match_id", "artifact_hash", "namespace", "rule_identifier", "tags", "evidence_ranges", "classification", "method", "trust", "limitations", "authority_added"],
+      "properties": {
+        "match_id": {"$ref": "common.schema.json#/$defs/sha256"},
+        "artifact_hash": {"$ref": "common.schema.json#/$defs/sha256"},
+        "namespace": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"},
+        "rule_identifier": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"},
+        "tags": {"type": "array", "maxItems": 32, "uniqueItems": true, "items": {"type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]{0,127}$"}},
+        "evidence_ranges": {"type": "array", "minItems": 1, "maxItems": 32, "uniqueItems": true, "items": {"$ref": "#/$defs/range"}},
+        "classification": {"const": "untrusted_derived_data"},
+        "method": {"const": "yara_rule_observation_v1"},
+        "trust": {"const": "untrusted_derived_data"},
+        "limitations": {"const": ["synthetic-fixture", "rule-match-is-not-a-safety-verdict"]},
+        "authority_added": {"const": false}
+      }
+    },
+    "range": {
+      "type": "object", "additionalProperties": false,
+      "required": ["string_identifier", "offset", "length"],
+      "properties": {
+        "string_identifier": {"type": "string", "pattern": "^\\$[A-Za-z_][A-Za-z0-9_]{0,127}$"},
+        "offset": {"$ref": "common.schema.json#/$defs/unsignedDecimal"},
+        "length": {"$ref": "common.schema.json#/$defs/unsignedDecimal"}
+      }
+    }
+  }
+}

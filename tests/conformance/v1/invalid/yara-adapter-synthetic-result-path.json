@@ -1,0 +1,19 @@
+{
+  "schema_name": "yara-adapter-synthetic-result",
+  "schema_version": "1.0.0",
+  "fixture_id": "yara_adapter_original_synthetic_01",
+  "profile_id": "yara-adapter-contract-v1",
+  "profile_digest": "sha256:686c812f098c38e5b347d53279904744b5e937dbc9539c228a47f358b69ab3d7",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "manifest_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "analyzer_id": "impresari.yara",
+  "executable_digest": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "ruleset_digest": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "completed_at": "2026-08-31T00:00:00Z",
+  "artifacts": [{"artifact_hash": "sha256:1111111111111111111111111111111111111111111111111111111111111111", "bytes": "64", "status": "synthetic_no_match_fixture", "source_path": "/workspace/secret.bin"}],
+  "observations": [],
+  "result_origin": "original_synthetic_fixture",
+  "complete_accounting": true,
+  "analyzer_executed": false,
+  "authority_added": false
+}

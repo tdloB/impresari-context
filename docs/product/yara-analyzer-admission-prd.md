@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: Accepted for contract and fixture planning; execution gated on IAR-1B
+- Status: Contract-only checkpoint implemented under ADR-0095; execution gated on IAR-1B
 - Date: 2026-08-30
 - Owner: Aaron Boldt
 - Decision: ADR-0089
@@ -54,3 +54,11 @@ that a repository is safe or malware-free.
 Linux is first after production IAR-1B and release admission. Windows and
 macOS follow only after their own confinement, packaging, maintenance, and
 review gates pass.
+
+## Contract-Only Checkpoint
+
+ADR-0095 freezes the original-synthetic `yara-adapter-contract-v1` profile,
+production-shaped input, deterministic normalized receipt, exact byte-range
+bindings, closed limits, and fixture provenance. The checkpoint does not
+install or execute YARA, load rules, read repository-derived analyzer input, or
+claim confinement, production support, IAR-2, safety, or authority.

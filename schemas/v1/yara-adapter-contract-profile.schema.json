@@ -1,0 +1,65 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-adapter-contract-profile.schema.json",
+  "title": "ADR-0095 synthetic-only YARA adapter contract profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "adapter", "limits", "input_contract", "claims"],
+  "properties": {
+    "schema_name": {"const": "yara-adapter-contract-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "yara-adapter-contract-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analyzer_id", "result_origin", "normalization_method", "match_identity_domain"],
+      "properties": {
+        "analyzer_id": {"const": "impresari.yara"},
+        "result_origin": {"const": "original_synthetic_fixture"},
+        "normalization_method": {"const": "yara_rule_observation_v1"},
+        "match_identity_domain": {"const": "impresari-context/yara-adapter-match/v1"}
+      }
+    },
+    "limits": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["max_artifacts", "max_observations", "max_tags_per_observation", "max_ranges_per_observation", "max_rule_identifier_bytes", "max_namespace_bytes", "max_total_input_bytes"],
+      "properties": {
+        "max_artifacts": {"const": "64"},
+        "max_observations": {"const": "256"},
+        "max_tags_per_observation": {"const": "32"},
+        "max_ranges_per_observation": {"const": "32"},
+        "max_rule_identifier_bytes": {"const": "128"},
+        "max_namespace_bytes": {"const": "128"},
+        "max_total_input_bytes": {"const": "262144"}
+      }
+    },
+    "input_contract": {"$ref": "#/$defs/denials"},
+    "claims": {"$ref": "#/$defs/claims"}
+  },
+  "$defs": {
+    "denials": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["paths", "source_bytes", "matched_bytes", "raw_stdout", "raw_stderr", "commands", "arguments", "rules", "includes", "modules", "network_destinations", "credentials"],
+      "properties": {
+        "paths": {"const": false}, "source_bytes": {"const": false}, "matched_bytes": {"const": false},
+        "raw_stdout": {"const": false}, "raw_stderr": {"const": false}, "commands": {"const": false},
+        "arguments": {"const": false}, "rules": {"const": false}, "includes": {"const": false},
+        "modules": {"const": false}, "network_destinations": {"const": false}, "credentials": {"const": false}
+      }
+    },
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["analyzer_executed", "os_confined", "production_admitted", "iar_2_admitted", "safety_claimed", "ordinary_host_execution_authorized", "authority_added"],
+      "properties": {
+        "analyzer_executed": {"const": false}, "os_confined": {"const": false},
+        "production_admitted": {"const": false}, "iar_2_admitted": {"const": false},
+        "safety_claimed": {"const": false}, "ordinary_host_execution_authorized": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}
