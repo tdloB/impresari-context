@@ -1,6 +1,6 @@
 # ADR-0087: Use A Fresh Local VM For macOS Analyzer Confinement
 
-- Status: Accepted; partial synthetic resource/canary checkpoint passed
+- Status: Accepted; partial synthetic interruption checkpoint passed
 - Date: 2026-08-30
 - Decider: Aaron Boldt
 - Supersedes: ADR-0076's XPC analyzer-execution topology only
@@ -80,3 +80,11 @@ prohibited host paths and the host controller process identity were absent in
 the guest, the host corpus remained byte-exact, and all job state was removed.
 Host interruption, sealed supply-chain/distribution, multi-host, and
 independent-review gates remain mandatory before IAR-1B admission.
+
+The fifth checkpoint installed the macOS will-sleep observer and routed it and
+an exact job-private synthetic trigger through one shared fail-closed VM-stop
+handler. The automated trigger stopped the VM, reaped the controller, removed
+all exact job state, and completed a fresh recovery VM through the same audited
+Rust launch site. Its closed receipt requires `real_host_sleep_observed=false`.
+Genuine host sleep/wake, reboot, power-loss, sealed supply-chain/distribution,
+multi-host, and independent-review gates remain mandatory before admission.

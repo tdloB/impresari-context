@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
+import AppKit
 import CryptoKit
 import Foundation
 import Virtualization
@@ -51,6 +52,7 @@ private enum Scenario: String {
     case earlyExit = "early-exit"
     case cancellation
     case resourceCanary = "resource-canary"
+    case hostInterruption = "host-interruption"
 
     var deadline: DispatchTimeInterval {
         switch self {
@@ -60,8 +62,14 @@ private enum Scenario: String {
     }
 
     var guestMode: String {
-        self == .cancellation ? Scenario.timeout.rawValue : rawValue
+        self == .cancellation || self == .hostInterruption ? Scenario.timeout.rawValue : rawValue
     }
+}
+
+private enum StopReason: String {
+    case cancellation
+    case syntheticHostInterruption = "synthetic-job-private-trigger"
+    case operatingSystemSleep = "os-will-sleep"
 }
 
 private struct GuestReceipt: Decodable {
@@ -270,14 +278,60 @@ private struct ResourceControllerReceipt: Encodable {
     }
 }
 
+private struct InterruptionControllerReceipt: Encodable {
+    let schemaName = "macos-local-vm-interruption-controller-receipt"
+    let schemaVersion = "1.0.0"
+    let profileID: String
+    let profileDigest: String
+    let jobID: String
+    let result = "synthetic_interruption_handled"
+    let interruptionSource: String
+    let sleepObserverInstalled = true
+    let sharedStopHandlerUsed = true
+    let virtualizationSupported = true
+    let configurationValidated = true
+    let virtualMachineStopped = true
+    let jobRemoved = true
+    let realHostSleepObserved: Bool
+    let vmConfined = false
+    let productionAdmitted = false
+    let analyzerExecution = false
+    let sourceRetained = false
+    let authorityAdded = false
+
+    enum CodingKeys: String, CodingKey {
+        case schemaName = "schema_name"
+        case schemaVersion = "schema_version"
+        case profileID = "profile_id"
+        case profileDigest = "profile_digest"
+        case jobID = "job_id"
+        case result
+        case interruptionSource = "interruption_source"
+        case sleepObserverInstalled = "sleep_observer_installed"
+        case sharedStopHandlerUsed = "shared_stop_handler_used"
+        case virtualizationSupported = "virtualization_supported"
+        case configurationValidated = "configuration_validated"
+        case virtualMachineStopped = "virtual_machine_stopped"
+        case jobRemoved = "job_removed"
+        case realHostSleepObserved = "real_host_sleep_observed"
+        case vmConfined = "vm_confined"
+        case productionAdmitted = "production_admitted"
+        case analyzerExecution = "analyzer_execution"
+        case sourceRetained = "source_retained"
+        case authorityAdded = "authority_added"
+    }
+}
+
 private enum ControllerOutput: Encodable {
     case matrix(ControllerReceipt)
     case resource(ResourceControllerReceipt)
+    case interruption(InterruptionControllerReceipt)
 
     func encode(to encoder: Encoder) throws {
         switch self {
         case let .matrix(receipt): try receipt.encode(to: encoder)
         case let .resource(receipt): try receipt.encode(to: encoder)
+        case let .interruption(receipt): try receipt.encode(to: encoder)
         }
     }
 }
@@ -296,20 +350,22 @@ private final class VirtualMachineDelegate: NSObject, VZVirtualMachineDelegate {
     }
 }
 
-private final class CancellationState {
+private final class StopState {
     private let lock = NSLock()
-    private var value = false
+    private var reason: StopReason?
 
-    func cancel() {
-        lock.lock()
-        value = true
-        lock.unlock()
-    }
-
-    func isCancelled() -> Bool {
+    func request(_ requested: StopReason) -> Bool {
         lock.lock()
         defer { lock.unlock() }
-        return value
+        guard reason == nil else { return false }
+        reason = requested
+        return true
+    }
+
+    func current() -> StopReason? {
+        lock.lock()
+        defer { lock.unlock() }
+        return reason
     }
 }
 
@@ -553,6 +609,7 @@ private func run() throws -> ControllerOutput {
     let scratchURL = jobRoot.appendingPathComponent("scratch.raw")
     let controllerReadyURL = jobRoot.appendingPathComponent("controller.ready")
     let externalCancellationURL = jobRoot.appendingPathComponent("cancel.request")
+    let hostInterruptionURL = jobRoot.appendingPathComponent("host-interruption.request")
     let hostCanaryRoot = jobRoot.appendingPathComponent("host-canaries", isDirectory: true)
     let input = makeInput()
     try input.write(to: inputURL, options: [.atomic])
@@ -601,7 +658,7 @@ private func run() throws -> ControllerOutput {
     let machine = VZVirtualMachine(configuration: configuration, queue: queue)
     let delegate = VirtualMachineDelegate()
     machine.delegate = delegate
-    let cancellation = CancellationState()
+    let stopState = StopState()
     let started = DispatchSemaphore(value: 0)
     var startFailure: Error?
     queue.async {
@@ -617,6 +674,25 @@ private func run() throws -> ControllerOutput {
         printDiagnostic(startFailure)
         throw ControllerFailure.start
     }
+    let requestStop: (StopReason) -> Void = { reason in
+        guard stopState.request(reason) else { return }
+        queue.async {
+            machine.stop { _ in delegate.stopped.signal() }
+        }
+    }
+    let sleepNotificationQueue = OperationQueue()
+    sleepNotificationQueue.maxConcurrentOperationCount = 1
+    let sleepObserver = NSWorkspace.shared.notificationCenter.addObserver(
+        forName: NSWorkspace.willSleepNotification,
+        object: nil,
+        queue: sleepNotificationQueue
+    ) { _ in
+        requestStop(.operatingSystemSleep)
+    }
+    defer {
+        NSWorkspace.shared.notificationCenter.removeObserver(sleepObserver)
+        sleepNotificationQueue.cancelAllOperations()
+    }
     let cancellationQueue = DispatchQueue(label: "studio.boldthaus.impresari-context.vm-feasibility.cancel")
     let cancellationTimer = DispatchSource.makeTimerSource(queue: cancellationQueue)
     let cancellationStarted = DispatchTime.now().uptimeNanoseconds
@@ -625,11 +701,11 @@ private func run() throws -> ControllerOutput {
         let elapsed = DispatchTime.now().uptimeNanoseconds - cancellationStarted
         let internalCancellation = scenario == .cancellation && elapsed >= 250_000_000
         let externalCancellation = FileManager.default.fileExists(atPath: externalCancellationURL.path)
-        if (internalCancellation || externalCancellation) && !cancellation.isCancelled() {
-            cancellation.cancel()
-            queue.async {
-                machine.stop { _ in delegate.stopped.signal() }
-            }
+        if internalCancellation || externalCancellation {
+            requestStop(.cancellation)
+        }
+        if FileManager.default.fileExists(atPath: hostInterruptionURL.path) {
+            requestStop(.syntheticHostInterruption)
         }
     }
     cancellationTimer.resume()
@@ -645,7 +721,26 @@ private func run() throws -> ControllerOutput {
         _ = stopped.wait(timeout: .now() + .seconds(5))
         throw ControllerFailure.timeout
     }
-    if cancellation.isCancelled() { throw ControllerFailure.cancelled }
+    if stopState.current() == .cancellation { throw ControllerFailure.cancelled }
+    if let reason = stopState.current(), reason != .cancellation {
+        _ = serialCapture.closeAndCollect()
+        do {
+            try FileManager.default.removeItem(at: jobRoot)
+        } catch {
+            throw ControllerFailure.cleanup
+        }
+        guard !FileManager.default.fileExists(atPath: jobRoot.path) else {
+            throw ControllerFailure.cleanup
+        }
+        cleanupNeeded = false
+        return .interruption(InterruptionControllerReceipt(
+            profileID: profileID,
+            profileDigest: profileDigest,
+            jobID: jobID,
+            interruptionSource: reason.rawValue,
+            realHostSleepObserved: reason == .operatingSystemSleep
+        ))
+    }
     if delegate.error != nil { throw ControllerFailure.guest }
 
     let (serialData, serialOverflow) = serialCapture.closeAndCollect()

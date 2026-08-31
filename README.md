@@ -282,6 +282,9 @@ show user-invoked, non-mutating local stdio configurations for those clients.
 - [IAR-1B macOS resource/lifecycle decision](docs/verification/iar-1b-macos-resource-lifecycle-decision.md):
   the selected hybrid App Sandbox/private-XPC plus Rust-supervisor candidate,
   its passing synthetic resource/lifecycle probes, and its remaining hard gates.
+- [IAR-1B macOS local-VM host interruption](docs/verification/iar-1b-macos-local-vm-host-interruption.md):
+  the source-free shared sleep-observer stop/cleanup/recovery implementation,
+  its passing synthetic trigger, and the explicit remaining real-sleep gate.
 - [IAR-1B Linux production-topology feasibility](docs/verification/iar-1b-linux-production-topology-feasibility.md):
   the accepted rootless plus externally managed delegation profiles, closed
   source-free evaluator, and deferred privileged installation boundary.

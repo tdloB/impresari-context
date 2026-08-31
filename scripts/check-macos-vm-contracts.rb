@@ -84,6 +84,25 @@ abort "macOS VM resource/canary profile lost exact cgroup limits" unless
     resource_profile.dig("limits", "job_cpu_period_usec") == "100000" &&
     resource_profile.dig("limits", "job_pids") == "8"
 
+interruption_profile_path = ROOT.join("profiles/v1/iar-macos-local-vm-interruption-v1.json")
+interruption_profile_digest = Digest::SHA256.file(interruption_profile_path).hexdigest
+abort "macOS VM interruption profile digest changed" unless
+  interruption_profile_digest == "e5f54da3e1fbce7ea7f839dc723e4b288ff7113fd9c85950df3970ae18737fd1"
+interruption_sha_record = read("profiles/v1/iar-macos-local-vm-interruption-v1.sha256").strip
+abort "macOS VM interruption profile checksum record mismatch" unless
+  interruption_sha_record == "#{interruption_profile_digest}  iar-macos-local-vm-interruption-v1.json"
+abort "macOS VM interruption profile fixture differs from the frozen profile" unless
+  interruption_profile_path.binread == ROOT.join("tests/conformance/v1/valid/iar-macos-local-vm-interruption-profile.json").binread
+interruption_profile = json("profiles/v1/iar-macos-local-vm-interruption-v1.json")
+abort "macOS VM interruption profile confuses simulation with real sleep" unless
+  interruption_profile.fetch("automated_evidence") == "synthetic-job-private-trigger" &&
+    interruption_profile.fetch("manual_evidence_required") == "os-will-sleep" &&
+    interruption_profile.dig("controls", "real_host_sleep_observed") == false
+abort "macOS VM interruption profile expands authority" unless
+  interruption_profile.dig("controls", "analyzer_execution") == false &&
+    interruption_profile.dig("controls", "production_admitted") == false &&
+    interruption_profile.dig("controls", "authority_added") == false
+
 assets = json("platform/macos-vm-feasibility/guest-assets.json")
 abort "macOS VM guest asset source is not exact Alpine HTTPS" unless assets.fetch("artifacts").all? do |artifact|
   artifact.fetch("url").start_with?("https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/netboot/") &&
