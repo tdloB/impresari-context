@@ -46,6 +46,7 @@ jobs:
       - name: Build and run the isolated synthetic compatibility corpus
         run: ./scripts/yara-x-artifact-compatibility.sh
       - name: Verify ephemeral cleanup
+        if: always()
         shell: bash
         run: |
           set -euo pipefail

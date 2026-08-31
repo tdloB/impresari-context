@@ -30,9 +30,16 @@ end
 profile_path = ROOT.join("profiles/v1/yara-x-artifact-compatibility-v1.json")
 patch_path = ROOT.join("third_party/yara-x/v1.20.0/impresari-module-free.patch")
 rule_path = ROOT.join("rules/yara-x/synthetic-compatibility-v1.yar")
+runner_path = ROOT.join("scripts/yara-x-artifact-compatibility.sh")
 exact(profile_path, PROFILE_DIGEST)
 exact(patch_path, PATCH_DIGEST)
 exact(rule_path, RULE_DIGEST)
+
+runner_text = runner_path.read
+abort "YARA-X compatibility cleanup no longer restores disposable owner permissions" unless
+  runner_text.include?('chmod -R u+rwX "$cleanup_root" || :')
+abort "YARA-X compatibility cleanup gained unsafe permission widening" if
+  runner_text.match?(/chmod[^\n]*(?:a\+w|o\+w|g\+w|0777)/)
 
 sidecar = ROOT.join("profiles/v1/yara-x-artifact-compatibility-v1.sha256").read.strip
 abort "YARA-X compatibility checksum record changed" unless
