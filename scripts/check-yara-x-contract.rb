@@ -194,10 +194,34 @@ abort "unexpected YARA-X rule artifact entered the repository" unless
   allowed_rules == ["rules/yara-x/synthetic-compatibility-v1.yar"]
 
 allowed_parser = ROOT.join("crates/context-yara-x-adapter/src/lib.rs").to_s
-production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).reject do |path|
-  path == allowed_parser
-end.select do |path|
-  File.read(path).match?(/yara[_-]x|\byr\s+scan\b/i)
+synthetic_envelope_root = ROOT.join("crates/context-yara-x-envelope")
+synthetic_envelope_manifest = synthetic_envelope_root.join("Cargo.toml").read
+abort "YARA-X synthetic envelope became publishable" unless
+  synthetic_envelope_manifest.match?(/^publish = false$/)
+
+synthetic_envelope_sources = Dir.glob(synthetic_envelope_root.join("src/**/*.rs").to_s)
+abort "YARA-X synthetic envelope gained a direct process launch site" if
+  synthetic_envelope_sources.any? do |path|
+    File.read(path).match?(/(?:std\s*::\s*process\s*::\s*)?Command\s*::\s*new/i)
+  end
+
+allowed_runner = ROOT.join("crates/context-analyzer-runner/src/lib.rs").to_s
+allowed_runner_refs = [
+  /YARA_X_SYNTHETIC_OUTPUT_BYTES/,
+  /YARA_X_SYNTHETIC_PREFLIGHT/,
+  /original-synthetic YARA-X-shaped record/,
+  /capture_yara_x_synthetic_process/
+].freeze
+
+production_refs = Dir.glob(ROOT.join("crates/**/*.rs").to_s).flat_map do |path|
+  next [] if path == allowed_parser || synthetic_envelope_sources.include?(path)
+
+  File.readlines(path, chomp: true).each_with_index.each_with_object([]) do |(line, index), references|
+    next unless line.match?(/yara[_-]x|\byr\s+scan\b/i)
+    next if path == allowed_runner && allowed_runner_refs.any? { |pattern| line.match?(pattern) }
+
+    references << "#{path}:#{index + 1}"
+  end
 end
 abort "YARA-X implementation or launch reference entered production Rust: #{production_refs.join(', ')}" unless production_refs.empty?
 

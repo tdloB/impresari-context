@@ -177,11 +177,35 @@ receipt = read_json(FIXTURE_ROOT.join(RECEIPT_RELATIVE))
 abort "committed YARA normalization receipt is not the deterministic result" unless receipt == expected_receipt
 
 allowed_yara_source = ROOT.join("crates/context-yara-x-adapter/src/lib.rs")
+synthetic_envelope_root = ROOT.join("crates/context-yara-x-envelope")
+synthetic_envelope_sources = synthetic_envelope_root.glob("src/**/*.rs")
+abort "YARA-X synthetic envelope became publishable" unless
+  synthetic_envelope_root.join("Cargo.toml").read.match?(/^publish = false$/)
+abort "YARA-X synthetic envelope gained a direct process launch site" if
+  synthetic_envelope_sources.any? do |path|
+    path.read.match?(/(?:std\s*::\s*process\s*::\s*)?Command\s*::\s*new/i)
+  end
+
+allowed_runner = ROOT.join("crates/context-analyzer-runner/src/lib.rs")
+allowed_runner_refs = [
+  /YARA_X_SYNTHETIC_OUTPUT_BYTES/,
+  /YARA_X_SYNTHETIC_PREFLIGHT/,
+  /original-synthetic YARA-X-shaped record/,
+  /capture_yara_x_synthetic_process/
+].freeze
 rust_sources = ROOT.join("crates").glob("**/*.rs").reject do |path|
-  path.to_s.include?("/target/") || path == allowed_yara_source
+  path.to_s.include?("/target/") || path == allowed_yara_source || synthetic_envelope_sources.include?(path)
 end
-abort "production Rust code gained a YARA implementation or launch reference" if
-  rust_sources.any? { |path| path.read.match?(/\byara\b/i) }
+production_refs = rust_sources.flat_map do |path|
+  path.readlines(chomp: true).each_with_index.each_with_object([]) do |(line, index), references|
+    next unless line.match?(/\byara\b/i)
+    next if path == allowed_runner && allowed_runner_refs.any? { |pattern| line.match?(pattern) }
+
+    references << "#{path}:#{index + 1}"
+  end
+end
+abort "production Rust code gained a YARA implementation or launch reference: #{production_refs.join(', ')}" unless
+  production_refs.empty?
 
 puts "YARA adapter contract verified: profile=sha256:#{PROFILE_DIGEST} artifacts=#{artifacts.length} " \
   "matches=#{matches.length} analyzer_executed=false production_admitted=false iar_2_admitted=false"
