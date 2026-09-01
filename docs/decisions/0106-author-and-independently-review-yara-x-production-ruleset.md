@@ -1,6 +1,6 @@
 # ADR-0106: Author And Independently Review The First YARA-X Production Ruleset
 
-- Status: Approved; Option A source package implemented; independent human ruleset review required before compilation
+- Status: Approved; Option A source package implemented; independent human ruleset review backlogged but required before compilation
 - Date: 2026-08-31
 - Related PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Related architecture: [YARA Analyzer Admission ARD](../architecture/yara-analyzer-admission-ard.md)
@@ -144,8 +144,8 @@ the fail-closed state while this decision or its review is pending.
 
 ## Approval And Activation Gate
 
-Founder approval of this ADR would authorize contract and source authorship for
-the original minimal ruleset and its generated test corpus. It would not
+Founder approval of this ADR authorized contract and source authorship for the
+original minimal ruleset and its generated test corpus. It did not
 authorize compiler or analyzer execution, artifact upload, signing,
 attestation, publication, installation, repository scanning, credentials,
 production admission, IAR-2, third-party rules, or real malware samples.
@@ -155,6 +155,12 @@ an acceptable report to the exact source and scope identities, the ruleset
 must remain `missing_evidence` or otherwise unavailable. A later decision must
 separately authorize compilation and candidate retention after the review
 contract and source are frozen.
+
+The founder deferred reviewer engagement on 2026-08-31. Ordinary roadmap work
+may continue, but the deferral grants no authority to compile, retain, sign,
+publish, activate, or scan with these rules. The exact review scope must be
+refreshed if its source identity changes, and an acceptable independent report
+remains mandatory before the compilation gate can open.
 
 ## Option A Implementation Evidence
 
