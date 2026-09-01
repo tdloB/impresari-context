@@ -1,6 +1,6 @@
 # ADR-0104: Retain A No-Secret YARA-X Linux Engine Candidate
 
-- Status: Proposed; founder decision required
+- Status: Approved and implemented; first authorized dispatch pending
 - Date: 2026-08-31
 - Related PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Related architecture: [YARA Analyzer Admission ARD](../architecture/yara-analyzer-admission-ard.md)
@@ -30,9 +30,9 @@ rules identity. This proposal therefore cannot treat rebuilds as
 byte-reproducible. Its required reproducibility disposition must investigate
 or explicitly account for that difference before any later admission.
 
-## Proposed decision
+## Decision
 
-If approved, create one manually dispatched, no-secret GitHub Actions workflow
+Create one manually dispatched, no-secret GitHub Actions workflow
 for the `x86_64-unknown-linux-gnu` engine candidate only.
 
 ### Build identity
@@ -80,8 +80,10 @@ material, or unrelated repository files.
 
 ### Storage and verification
 
-- Upload exactly one private GitHub Actions artifact using a commit-pinned
-  official upload action, with a fixed seven-day retention and no overwrite.
+- Upload exactly one authenticated, non-release GitHub Actions artifact using
+  a commit-pinned official upload action, with a fixed seven-day retention and
+  no overwrite. Because the repository is public, any signed-in GitHub user
+  with repository read access may download it; it is not maintainer-only.
 - Use no repository, release, package, OIDC, attestation, or signing write
   permission. The job receives no maintainer secret or user credential.
 - A separate same-run verification job downloads the artifact, rejects links
@@ -107,9 +109,10 @@ capability, never an analyzer capability.
 
 - Reviewers can inspect one immutable candidate and its evidence without
   relying on a fresh rebuild.
-- The seven-day private artifact is intentionally temporary. A later signing
-  and publication decision must rebuild or promote only after verifying the
-  exact candidate identity; this proposal supplies no publication authority.
+- The seven-day authenticated-reader artifact is intentionally temporary and
+  is not a release asset. A later signing and publication decision must rebuild
+  or promote only after verifying the exact candidate identity; this decision
+  supplies no publication authority.
 - GitHub Actions becomes a temporary candidate custodian. Repository
   compromise, action compromise, retention failure, and CI-platform compromise
   remain residual risks and must be represented in provenance and later
@@ -130,15 +133,22 @@ capability, never an analyzer capability.
 - Include synthetic or production rules: rejected because ADR-0103 requires a
   separately reviewed and separately revocable ruleset bundle.
 
-## Decision gate
+## Decision outcome
 
-This ADR is a proposal only and adds no artifact-retention or upload authority.
-Implementation requires explicit founder approval for the exact private,
-seven-day GitHub Actions artifact boundary. Selecting a signing identity,
-requesting `id-token` or attestation permissions, publishing any asset,
-creating production rules, executing the retained candidate, or admitting it
-requires a later separate decision.
+Aaron Boldt approved this ADR on 2026-08-31 and selected the precise option-1
+access model: exactly one manually dispatched, no-secret workflow may upload
+one authenticated, non-release seven-day Linux x86-64 candidate. In this
+public repository the artifact is unavailable anonymously but is downloadable
+by signed-in repository readers; it is not maintainer-only. The implementation
+pins the official Rust 1.93.0 Bookworm Linux/amd64 image manifest at
+`sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28`
+and its OCI index at
+`sha256:d0a4aa3ca2e1088ac0c81690914a0d810f2eee188197034edf366ed010a2b382`.
+The actual build runs in a separate `--network none` container. Packaging and
+verification tools have no network or analyzer-launch capability.
 
-The 2026-08-31 authorization to download and build YARA-X and execute only the
-synthetic corpus expressly prohibited uploads. It authorized the revalidation
-above, not this retained-artifact proposal; this decision gate remains closed.
+The manual dispatch may occur only after the implementation merges to exact
+current `main`. Selecting a signing identity, requesting `id-token` or
+attestation permissions, publishing any asset, creating production rules,
+executing the retained candidate, admitting it, scanning repository content,
+or opening IAR-2 remains unauthorized and requires a later separate decision.

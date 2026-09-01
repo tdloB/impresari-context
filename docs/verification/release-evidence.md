@@ -318,3 +318,17 @@ runs no analyzer or compatibility corpus.
   returned zero artifacts. No rules were compiled and no analyzer executed.
 - This is same-job evidence only. Cross-run, cross-host, retained-artifact,
   signing, publication, production, and IAR-2 claims remain false.
+
+## 2026-08-31 — ADR-0104 retained YARA-X engine candidate implementation
+
+- Frozen retention profile SHA-256:
+  `c0fbe929ccb253eda0a93fc9adee77a4d9ca28827bd21bbdaaab7820874c71da`.
+- Exact official Rust 1.93.0 Bookworm Linux/amd64 image manifest:
+  `sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28`.
+- The manual no-input workflow, offline build boundary, twelve-member archive,
+  seven-day single-artifact retention, non-executing same-run verifier, closed
+  schema, overclaim fixture, and static implementation checker are complete.
+- The first approved dispatch remains pending implementation merge. No
+  candidate has yet been retained by this implementation record, and signing,
+  attestation, publication, execution, rules, repository scanning, production,
+  IAR-2, detection-quality, and safety claims remain false.
