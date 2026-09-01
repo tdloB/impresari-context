@@ -673,6 +673,18 @@ of the already proven product and guest identities into the frozen unsigned
 release-candidate contract before any runnable app assembly or Apple identity
 access.
 
+ADR-0113 completes that source-free composition without misusing the existing
+materialized-candidate schema. It binds the four deleted product identities,
+two deleted guest identities, deterministic `Info.plist`, and exact metadata
+seal into one sorted eight-file future app projection with prospective compound
+identity `sha256:39ae0afbb77eff80ff5308cc4fe811b7cc266b42d02b4457aa5295310908b11e`.
+The record explicitly shows that the components were never held in one root,
+the complete app was not assembled, modes were not verified in a candidate,
+and release identity remains unbound. The next reversible checkpoint is one
+complete ephemeral unsigned candidate build-and-assembly-and-delete rehearsal;
+it still must not access Apple credentials, sign, notarize, install or publish
+a cask, launch a VM, or execute an analyzer.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

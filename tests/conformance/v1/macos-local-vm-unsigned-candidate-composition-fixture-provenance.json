@@ -1,0 +1,18 @@
+{
+  "schema_name": "macos-local-vm-unsigned-candidate-composition-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_guest_payload_bytes": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "notes": "Source-free composition fixtures contain only Impresari-authored contracts and prior metadata. No runnable product or guest byte, temporary path, raw log, cache, credential, or provider data is included.",
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-unsigned-candidate-composition-profile.json", "sha256": "a6f17b6492842bf9982031b38a064c2d54cb80e025c3a73d8ff15e875b6ad226"},
+    {"path": "valid/macos-local-vm-unsigned-candidate-composition.json", "sha256": "88ee55c39b6735d645b285ca43ba203f4517f3d695aeaafc29d604c25eb6a167"},
+    {"path": "valid/macos-local-vm-unsigned-candidate-composition-receipt.json", "sha256": "d665973a8e94e936b059294d1cb7f05d7ba589541282743f5c312682cb0f0a61"},
+    {"path": "invalid/macos-local-vm-unsigned-candidate-composition-overclaim.json", "sha256": "cd369817eabfd5edcd786174d607650cb51b4e27f40c894ae47f199abc2661c4"}
+  ]
+}
