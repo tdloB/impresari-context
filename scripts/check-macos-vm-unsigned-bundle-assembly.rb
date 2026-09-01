@@ -162,7 +162,7 @@ def assemble_once(spec, seal_bytes)
       abort "unsafe assembly path: #{relative}" unless clean_relative(relative)
       target = app.join(relative)
       bytes = source_bytes(entry, seal_bytes)
-      File.open(target, File::WRONLY | File::CREAT | File::EXCL, 0o600) { |file| file.write(bytes) }
+      File.open(target, File::WRONLY | File::CREAT | File::EXCL | File::BINARY, 0o600) { |file| file.write(bytes) }
       File.chmod(entry.fetch("mode").to_i(8), target)
     end
 
