@@ -61,6 +61,26 @@ organization, billing, telemetry, and
 source-viewing surfaces remain outside the roadmap without a separate founder
 decision and external-data boundary.
 
+## Evaluation-integrity track
+
+The independent `repository-context-eval` project owns benchmark execution,
+provider adapters, official grading, and public-claim boundaries. Impresari
+owns only the product facts needed for an honest comparison. The first such
+increment is the
+[provider-free product read observer](provider-free-product-read-observer-prd.md):
+all startup snapshot, planning, and evidence reads are measured at the existing
+capability-relative workspace boundary and bound to the exact isolated source.
+No provider, grader, paid test, publication, or performance claim is authorized
+by this increment. After its cross-repository provider-free compatibility gate,
+the roadmap reassesses deterministic structural selection before considering
+progressive delivery or another paid pilot.
+
+The provider-free compatibility gate passed locally on 2026-09-01. An exact
+fixture query selected the expected evidence and produced evaluator-compatible
+complete telemetry. A semantically equivalent descriptive query did not select
+that evidence, so deterministic query decomposition and evidence-selection
+stability are the next product increment before any paid pilot.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three

@@ -3,12 +3,13 @@
 #![doc = "Workspace authorization, discovery, snapshots, and exact reads."]
 
 use std::{
-    collections::BTreeMap,
+    collections::{BTreeMap, BTreeSet},
     error::Error,
     ffi::{OsStr, OsString},
     fmt,
     io::{self, Read},
     path::{Component, Path, PathBuf},
+    sync::Mutex,
     time::{Duration, Instant},
 };
 
@@ -301,6 +302,10 @@ pub struct WorkspaceSnapshot {
     pub workspace_identity: String,
     /// Domain-separated identity of this exact snapshot.
     pub snapshot_id: String,
+    /// Evaluator-compatible SHA-256 over sorted portable paths and exact bytes.
+    pub source_fingerprint_sha256: String,
+    /// Whether the fingerprint used only canonical portable paths in strict order.
+    pub source_fingerprint_compatible: bool,
     /// Discovery-policy identity applied to the snapshot.
     pub discovery_policy: String,
     /// Eligible artifacts sorted by native path units.
@@ -322,6 +327,74 @@ pub struct WorkspaceSnapshot {
 pub struct AuthorizedWorkspace {
     root: Dir,
     workspace_identity: String,
+    read_ledger: Mutex<RepositoryReadLedger>,
+}
+
+/// Process-local counters measured at the capability-relative read boundary.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct RepositoryReadCounters {
+    /// File reads that reached bounded byte materialization.
+    pub repository_file_reads: u64,
+    /// Reads of a lossless relative path already observed by this workspace.
+    pub repeated_repository_file_reads: u64,
+    /// Exact bytes materialized by all observed reads.
+    pub source_bytes_read: u64,
+    /// False after counter overflow or observer synchronization failure.
+    pub complete: bool,
+}
+
+#[derive(Debug)]
+struct RepositoryReadLedger {
+    repository_file_reads: u64,
+    repeated_repository_file_reads: u64,
+    source_bytes_read: u64,
+    seen_paths: BTreeSet<String>,
+    complete: bool,
+}
+
+impl RepositoryReadLedger {
+    fn new() -> Self {
+        Self {
+            repository_file_reads: 0,
+            repeated_repository_file_reads: 0,
+            source_bytes_read: 0,
+            seen_paths: BTreeSet::new(),
+            complete: true,
+        }
+    }
+
+    fn record(&mut self, identity: &PathIdentity, bytes_read: u64) {
+        checked_add_counter(&mut self.repository_file_reads, 1, &mut self.complete);
+        if !self
+            .seen_paths
+            .insert(identity.relative_units_base64url.clone())
+        {
+            checked_add_counter(
+                &mut self.repeated_repository_file_reads,
+                1,
+                &mut self.complete,
+            );
+        }
+        checked_add_counter(&mut self.source_bytes_read, bytes_read, &mut self.complete);
+    }
+
+    const fn counters(&self) -> RepositoryReadCounters {
+        RepositoryReadCounters {
+            repository_file_reads: self.repository_file_reads,
+            repeated_repository_file_reads: self.repeated_repository_file_reads,
+            source_bytes_read: self.source_bytes_read,
+            complete: self.complete,
+        }
+    }
+}
+
+fn checked_add_counter(target: &mut u64, delta: u64, complete: &mut bool) {
+    if let Some(total) = target.checked_add(delta) {
+        *target = total;
+    } else {
+        *target = u64::MAX;
+        *complete = false;
+    }
 }
 
 impl AuthorizedWorkspace {
@@ -346,6 +419,7 @@ impl AuthorizedWorkspace {
         Ok(Self {
             root,
             workspace_identity: identity,
+            read_ledger: Mutex::new(RepositoryReadLedger::new()),
         })
     }
 
@@ -353,6 +427,35 @@ impl AuthorizedWorkspace {
     #[must_use]
     pub fn identity(&self) -> &str {
         &self.workspace_identity
+    }
+
+    /// Returns a source-free snapshot of cumulative repository-read counters.
+    #[must_use]
+    pub fn repository_read_counters(&self) -> RepositoryReadCounters {
+        match self.read_ledger.lock() {
+            Ok(ledger) => ledger.counters(),
+            Err(poisoned) => {
+                let mut ledger = poisoned.into_inner();
+                ledger.complete = false;
+                ledger.counters()
+            }
+        }
+    }
+
+    fn record_repository_read(&self, identity: &PathIdentity, bytes_read: usize) {
+        match self.read_ledger.lock() {
+            Ok(mut ledger) => {
+                let observed_bytes = u64::try_from(bytes_read).unwrap_or_else(|_| {
+                    ledger.complete = false;
+                    u64::MAX
+                });
+                ledger.record(identity, observed_bytes);
+            }
+            Err(poisoned) => {
+                let mut ledger = poisoned.into_inner();
+                ledger.complete = false;
+            }
+        }
     }
 
     /// Reads bounded Git HEAD metadata relative to the workspace capability.
@@ -479,10 +582,12 @@ impl AuthorizedWorkspace {
         let capacity = usize::try_from(opened.len().min(max_bytes))
             .map_err(|_| WorkspaceError::new(WorkspaceErrorCode::ResourceLimit))?;
         let mut bytes = Vec::with_capacity(capacity);
-        file.by_ref()
+        let read_result = file
+            .by_ref()
             .take(max_bytes.saturating_add(1))
-            .read_to_end(&mut bytes)
-            .map_err(|error| WorkspaceError::io(WorkspaceErrorCode::IoFailure, error))?;
+            .read_to_end(&mut bytes);
+        self.record_repository_read(identity, bytes.len());
+        read_result.map_err(|error| WorkspaceError::io(WorkspaceErrorCode::IoFailure, error))?;
         if u64::try_from(bytes.len()).unwrap_or(u64::MAX) > max_bytes {
             return Err(WorkspaceError::new(WorkspaceErrorCode::ResourceLimit));
         }
@@ -536,6 +641,7 @@ impl AuthorizedWorkspace {
             &state.artifacts,
             &state.skipped,
         );
+        let source_fingerprint_sha256 = digest_label(state.source_fingerprint.finalize());
         let complete = state
             .skipped
             .keys()
@@ -544,6 +650,8 @@ impl AuthorizedWorkspace {
         Ok(WorkspaceSnapshot {
             workspace_identity: self.workspace_identity.clone(),
             snapshot_id,
+            source_fingerprint_sha256,
+            source_fingerprint_compatible: state.source_fingerprint_compatible,
             discovery_policy: policy_id,
             artifacts: state.artifacts,
             eligible_bytes: state.eligible_bytes,
@@ -564,6 +672,9 @@ struct DiscoveryState<'workspace> {
     started: Instant,
     max_elapsed: Duration,
     timed_out: bool,
+    source_fingerprint: Sha256,
+    source_fingerprint_compatible: bool,
+    last_source_path: Option<String>,
 }
 
 impl<'workspace> DiscoveryState<'workspace> {
@@ -581,11 +692,32 @@ impl<'workspace> DiscoveryState<'workspace> {
             started: Instant::now(),
             max_elapsed,
             timed_out: false,
+            source_fingerprint: Sha256::new(),
+            source_fingerprint_compatible: true,
+            last_source_path: None,
         }
     }
 
     fn skip(&mut self, reason: SkipReason) {
         *self.skipped.entry(reason).or_default() += 1;
+    }
+
+    fn add_source_fingerprint(&mut self, identity: &PathIdentity, bytes: &[u8]) {
+        let portable = &identity.display_path;
+        let round_trips = PathIdentity::from_portable_relative_path(portable)
+            .is_ok_and(|candidate| candidate == *identity);
+        let ordered = self
+            .last_source_path
+            .as_ref()
+            .is_none_or(|previous| previous < portable);
+        if !round_trips || !ordered {
+            self.source_fingerprint_compatible = false;
+        }
+        self.source_fingerprint.update(portable.as_bytes());
+        self.source_fingerprint.update([0]);
+        self.source_fingerprint.update(bytes);
+        self.source_fingerprint.update([0]);
+        self.last_source_path = Some(portable.clone());
     }
 }
 
@@ -677,6 +809,7 @@ fn discover_directory(
             .read_exact(&identity, state.policy.max_file_bytes)
         {
             Ok(exact) => {
+                state.add_source_fingerprint(&identity, &exact.bytes);
                 let size_bytes = u64::try_from(exact.bytes.len()).unwrap_or(u64::MAX);
                 state.eligible_bytes += size_bytes;
                 state.artifacts.push(ArtifactRecord {
@@ -869,6 +1002,12 @@ fn sha256_digest(bytes: &[u8]) -> String {
 fn digest_label(bytes: impl AsRef<[u8]>) -> String {
     let mut label = String::with_capacity(71);
     label.push_str("sha256:");
+    label.push_str(&digest_hex(bytes));
+    label
+}
+
+fn digest_hex(bytes: impl AsRef<[u8]>) -> String {
+    let mut label = String::with_capacity(64);
     for byte in bytes.as_ref() {
         use fmt::Write as _;
         write!(label, "{byte:02x}").expect("writing to a string cannot fail");
@@ -1017,6 +1156,73 @@ mod tests {
     }
 
     #[test]
+    fn snapshot_fingerprint_and_read_counters_cover_exact_nested_bytes() {
+        let root = TestRoot::new();
+        fs::create_dir(root.0.join("nested")).expect("create nested directory");
+        fs::write(root.0.join("a.rs"), b"alpha\n").expect("write a");
+        fs::write(root.0.join("nested/b.rb"), b"beta\n").expect("write b");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        let snapshot = workspace
+            .snapshot(DiscoveryPolicy::new(10, 1024, 1024, 8).expect("policy"))
+            .expect("snapshot");
+
+        let mut expected = Sha256::new();
+        expected.update(b"a.rs\0alpha\n\0nested/b.rb\0beta\n\0");
+        assert_eq!(
+            snapshot.source_fingerprint_sha256,
+            digest_label(expected.finalize())
+        );
+        assert!(snapshot.source_fingerprint_compatible);
+        assert!(snapshot.skipped.is_empty());
+        assert_eq!(
+            workspace.repository_read_counters(),
+            RepositoryReadCounters {
+                repository_file_reads: 2,
+                repeated_repository_file_reads: 0,
+                source_bytes_read: 11,
+                complete: true,
+            }
+        );
+
+        let identity = PathIdentity::from_portable_relative_path("a.rs").expect("identity");
+        workspace.read_exact(&identity, 1024).expect("repeat read");
+        assert_eq!(
+            workspace.repository_read_counters(),
+            RepositoryReadCounters {
+                repository_file_reads: 3,
+                repeated_repository_file_reads: 1,
+                source_bytes_read: 17,
+                complete: true,
+            }
+        );
+    }
+
+    #[test]
+    fn repository_read_counter_overflow_saturates_and_fails_closed() {
+        let root = TestRoot::new();
+        fs::write(root.0.join("source.rs"), b"source\n").expect("write source");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        workspace
+            .read_ledger
+            .lock()
+            .expect("ledger")
+            .repository_file_reads = u64::MAX;
+
+        let identity = PathIdentity::from_portable_relative_path("source.rs").expect("identity");
+        workspace.read_exact(&identity, 1024).expect("bounded read");
+
+        assert_eq!(
+            workspace.repository_read_counters(),
+            RepositoryReadCounters {
+                repository_file_reads: u64::MAX,
+                repeated_repository_file_reads: 0,
+                source_bytes_read: 7,
+                complete: false,
+            }
+        );
+    }
+
+    #[test]
     fn portable_relative_paths_use_native_components() {
         let portable = PathIdentity::from_portable_relative_path("policies/access.txt")
             .expect("portable nested path");
@@ -1070,6 +1276,16 @@ mod tests {
                 .expect_err("oversized read must fail")
                 .code(),
             WorkspaceErrorCode::ResourceLimit
+        );
+        assert_eq!(
+            workspace.repository_read_counters(),
+            RepositoryReadCounters {
+                repository_file_reads: 0,
+                repeated_repository_file_reads: 0,
+                source_bytes_read: 0,
+                complete: true,
+            },
+            "metadata rejection must not invent a content read"
         );
     }
 
@@ -1145,8 +1361,9 @@ mod tests {
         let repeated = workspace.snapshot(policy).expect("repeat snapshot");
         assert_eq!(first.snapshot_id, repeated.snapshot_id);
         assert_eq!(first.artifacts.len(), 2);
-        assert!(first.complete);
+        assert!(first.source_fingerprint_compatible);
         assert_eq!(first.skipped.get(&SkipReason::PolicyExcluded), Some(&1));
+        assert!(first.complete);
 
         fs::write(root.0.join("src/a.rs"), b"changed").expect("change source");
         let changed = workspace.snapshot(policy).expect("changed snapshot");

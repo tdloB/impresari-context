@@ -510,8 +510,9 @@ impl McpServer {
         } else {
             None
         };
+        let read_telemetry = self.engine.repository_read_telemetry();
         Ok(
-            json!({"packet": packet, "plan": plan, "reference": reference, "orchestration_authority_added": false, "filesystem_authority_added": false}),
+            json!({"packet": packet, "plan": plan, "reference": reference, "read_telemetry": read_telemetry, "orchestration_authority_added": false, "filesystem_authority_added": false}),
         )
     }
 }
@@ -1018,6 +1019,29 @@ mod tests {
         let content = &values[1]["result"]["structuredContent"];
         assert_eq!(content["plan"]["schema_name"], "deterministic-context-plan");
         assert_eq!(content["packet"]["purpose"], "configuration_change");
+        let telemetry = &content["read_telemetry"];
+        assert_eq!(
+            telemetry["schema_name"],
+            "impresari_context_repository_read_telemetry"
+        );
+        assert_eq!(telemetry["schema_version"], "1.0");
+        assert_eq!(
+            telemetry["source_fingerprint_sha256"]
+                .as_str()
+                .expect("fingerprint")
+                .len(),
+            71
+        );
+        let reads = telemetry["repository_file_reads"]
+            .as_u64()
+            .expect("read count");
+        let repeats = telemetry["repeated_repository_file_reads"]
+            .as_u64()
+            .expect("repeat count");
+        assert!(reads >= 1);
+        assert!(repeats <= reads);
+        assert!(telemetry["source_bytes_read"].as_u64().expect("bytes") >= 21);
+        assert_eq!(telemetry["complete"], true);
         assert_eq!(content["orchestration_authority_added"], false);
         assert_eq!(content["filesystem_authority_added"], false);
     }

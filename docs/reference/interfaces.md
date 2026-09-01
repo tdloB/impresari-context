@@ -230,7 +230,7 @@ object accepts only `name`, `arguments`, and the inert optional `_meta` object.
 | Tool | Request | Successful structured content |
 | --- | --- | --- |
 | `context_session_open` | `{"session_id":"..."}` | Session ID, `opened: true`, `authority_added: false` |
-| `context_build` | IDs, purpose, RFC 3339 time, budget, optional session ID, plus either 1-8 explicit plan steps or a declared profile and query | Immutable packet, optional deterministic plan, optional reference, false authority flags |
+| `context_build` | IDs, purpose, RFC 3339 time, budget, optional session ID, plus either 1-8 explicit plan steps or a declared profile and query | Immutable packet, optional deterministic plan, optional reference, cumulative process-lifecycle repository-read telemetry, false authority flags |
 | `context_packet_resolve` | `{"session_id":"...","packet_id":"..."}` | Owning-session reference and immutable packet |
 | `context_session_close` | `{"session_id":"..."}` | Session ID, `closed: true`, `authority_added: false` |
 
@@ -246,6 +246,17 @@ profiles—`orientation`, `implementation`, `bug_investigation`,
 plan identity, ordered reason-coded steps, evidence-class coverage, explicit
 omissions, and the packet identity. This is rule-based retrieval selection;
 it does not interpret prompts, call a model, execute code, or grant authority.
+
+Every successful build also includes
+`impresari_context_repository_read_telemetry` version `1.0`. Its numeric
+fields are measured at the capability-relative exact-read boundary and include
+startup snapshot work. `source_fingerprint_sha256` is the canonical
+`sha256:`-prefixed lowercase digest over sorted portable
+`path NUL bytes NUL` entries. `complete` is true
+only for an exhaustive portable snapshot and healthy counters. Values are
+cumulative since process start, not per-call deltas; the independent evaluator
+uses a fresh process with exactly one build. The telemetry contains no paths,
+source text, query, packet text, ambient root, or additional authority.
 
 JSON-RPC protocol and parameter failures use JSON-RPC error objects. Tool-level
 engine, policy, session, and validation failures return `isError: true` with a
