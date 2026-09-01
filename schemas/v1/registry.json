@@ -166,6 +166,8 @@
     {"name": "repository-map", "path": "repository-map.schema.json", "identity_object_kind": null},
     {"name": "structural-graph", "path": "structural-graph.schema.json", "identity_object_kind": "structural-graph"},
     {"name": "structural-query", "path": "structural-query.schema.json", "identity_object_kind": null},
+    {"name": "progressive-disclosure-map", "path": "progressive-disclosure-map.schema.json", "identity_object_kind": null},
+    {"name": "progressive-disclosure-receipt", "path": "progressive-disclosure-receipt.schema.json", "identity_object_kind": null},
     {"name": "evidence", "path": "evidence.schema.json", "identity_object_kind": "evidence"},
     {"name": "policy-decision", "path": "policy-decision.schema.json", "identity_object_kind": "policy-decision"},
     {"name": "context-packet", "path": "context-packet.schema.json", "identity_object_kind": "context-packet"},

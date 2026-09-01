@@ -132,6 +132,16 @@ does not add generated summaries, embeddings, proxies, durable memory, provider
 calls, or a product-effect claim. Another paid pilot remains blocked until its
 independent provider-free mechanics gate passes.
 
+The frozen provider-free progressive mechanics gate now passes across six
+TypeScript, Rust, and Ruby fixtures. Fresh ordinary, eager, progressive, and
+repeated-progressive MCP servers plus a named eager warm-cache arm preserve
+equal evidence and advertise identical tools; progressive startup is smaller
+than eager startup on every fixture; ordinary anchors are preserved; scripted
+full expansion recovers the eager exact-evidence set; identities are
+deterministic; receipts account for serialized tool-result bytes; and source
+remains immutable. This is mechanics evidence only. A separately frozen private
+pilot remains required before any token, cost, latency, or correctness claim.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three

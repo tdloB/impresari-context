@@ -3,6 +3,10 @@
   "schema_version": "1.0.0",
   "cases": [
     {"fixture": "valid/evidence.json", "schema": "evidence.schema.json", "valid": true},
+    {"fixture": "valid/progressive-disclosure-map.json", "schema": "progressive-disclosure-map.schema.json", "valid": true},
+    {"fixture": "valid/progressive-disclosure-receipt.json", "schema": "progressive-disclosure-receipt.schema.json", "valid": true},
+    {"fixture": "invalid/progressive-disclosure-map-source-overclaim.json", "schema": "progressive-disclosure-map.schema.json", "valid": false},
+    {"fixture": "invalid/progressive-disclosure-receipt-authority.json", "schema": "progressive-disclosure-receipt.schema.json", "valid": false},
     {"fixture": "valid/error-envelope.json", "schema": "error-envelope.schema.json", "valid": true},
     {"fixture": "valid/search-request.json", "schema": "search.schema.json#/$defs/request", "valid": true},
     {"fixture": "valid/session-packet-reference.json", "schema": "session-packet-reference.schema.json", "valid": true},

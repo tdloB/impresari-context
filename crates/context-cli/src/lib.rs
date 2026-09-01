@@ -1531,6 +1531,7 @@ fn doctor_mcp(
                 )
             })?,
             structural_runtime: None,
+            delivery_mode: context_mcp::DeliveryMode::Ordinary,
         },
     );
     let exchange = doctor_mcp_exchange(server, &request, &plan, &budget);
@@ -1652,6 +1653,8 @@ fn doctor_mcp_exchange(
         == Some(vec![
             "context_session_open",
             "context_build",
+            "context_disclosure_lookup",
+            "context_evidence_expand",
             "context_convention_exemplar_build",
             "structure_incremental_update",
             "context_packet_resolve",

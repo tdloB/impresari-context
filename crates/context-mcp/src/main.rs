@@ -4,7 +4,9 @@
 
 use context_core::{PolicySubject, ResourceBudget, validate_utc_timestamp};
 use context_engine::{EngineConfig, LocalEngine, RequestContext};
-use context_mcp::{McpServer, ServerConfig, StructuralLifecycleReceipt, StructuralRuntime};
+use context_mcp::{
+    DeliveryMode, McpServer, ServerConfig, StructuralLifecycleReceipt, StructuralRuntime,
+};
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
 use context_structural::WorkerLauncher;
@@ -85,6 +87,7 @@ fn run() -> Result<(), &'static str> {
             session_policy: SessionPolicy::new(64, 256, 67_108_864)
                 .map_err(|_| "invalid session policy")?,
             structural_runtime,
+            delivery_mode: startup.delivery_mode,
         },
     );
     server
@@ -99,6 +102,7 @@ struct StartupArgs {
     role: String,
     occurred_at: String,
     structural: Option<StructuralStartup>,
+    delivery_mode: DeliveryMode,
 }
 
 struct StructuralStartup {
@@ -115,7 +119,7 @@ fn parse_startup_args(args: &[String]) -> Result<StartupArgs, &'static str> {
         && args[6] == "--role";
     if !valid_prefix {
         return Err(
-            "usage: --workspace PATH --cache PATH --consumer-id ID --role ROLE [--occurred-at UTC] [--structural-worker PATH --structural-worker-sha256 SHA256 --structural-empty-directory PATH]",
+            "usage: --workspace PATH --cache PATH --consumer-id ID --role ROLE [--occurred-at UTC] [--delivery-mode ordinary|eager_structural|progressive_structural] [--structural-worker PATH --structural-worker-sha256 SHA256 --structural-empty-directory PATH]",
         );
     }
     let mut index = 8;
@@ -127,6 +131,18 @@ fn parse_startup_args(args: &[String]) -> Result<StartupArgs, &'static str> {
         timestamp_now()?
     };
     validate_utc_timestamp(&occurred_at).map_err(|_| "invalid --occurred-at")?;
+    let explicit_delivery_mode = if args.get(index).map(String::as_str) == Some("--delivery-mode") {
+        let value = args.get(index + 1).ok_or("missing --delivery-mode value")?;
+        index += 2;
+        Some(match value.as_str() {
+            "ordinary" => DeliveryMode::Ordinary,
+            "eager_structural" => DeliveryMode::EagerStructural,
+            "progressive_structural" => DeliveryMode::ProgressiveStructural,
+            _ => return Err("invalid --delivery-mode"),
+        })
+    } else {
+        None
+    };
     let structural = if index == args.len() {
         None
     } else if args.len().saturating_sub(index) == 6
@@ -149,6 +165,18 @@ fn parse_startup_args(args: &[String]) -> Result<StartupArgs, &'static str> {
     } else {
         return Err("invalid structural startup tuple");
     };
+    let delivery_mode = explicit_delivery_mode.unwrap_or(if structural.is_some() {
+        DeliveryMode::EagerStructural
+    } else {
+        DeliveryMode::Ordinary
+    });
+    if matches!(
+        delivery_mode,
+        DeliveryMode::EagerStructural | DeliveryMode::ProgressiveStructural
+    ) != structural.is_some()
+    {
+        return Err("delivery mode and structural startup tuple must agree");
+    }
     Ok(StartupArgs {
         workspace: PathBuf::from(&args[1]),
         cache: PathBuf::from(&args[3]),
@@ -156,6 +184,7 @@ fn parse_startup_args(args: &[String]) -> Result<StartupArgs, &'static str> {
         role: args[7].clone(),
         occurred_at,
         structural,
+        delivery_mode,
     })
 }
 
@@ -372,6 +401,7 @@ mod tests {
     fn startup_arguments_allow_a_local_clock_or_a_deterministic_override() {
         let automatic = parse_startup_args(&arguments()).expect("automatic startup time");
         validate_utc_timestamp(&automatic.occurred_at).expect("valid local clock time");
+        assert_eq!(automatic.delivery_mode, DeliveryMode::Ordinary);
 
         let mut deterministic = arguments();
         deterministic.extend(["--occurred-at".into(), "2026-08-23T12:00:00Z".into()]);
@@ -398,6 +428,7 @@ mod tests {
         let digest = worker_digest();
         let complete = structural_arguments(&worker, &empty, &digest);
         let parsed = parse_startup_args(&complete).expect("complete structural tuple");
+        assert_eq!(parsed.delivery_mode, DeliveryMode::EagerStructural);
         let structural = parsed.structural.expect("structural startup");
         assert_eq!(structural.worker, worker);
         assert_eq!(structural.worker_sha256, digest);
@@ -421,6 +452,51 @@ mod tests {
         assert_eq!(
             parse_startup_args(&noncanonical_digest).err(),
             Some("invalid structural startup tuple")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn delivery_modes_are_closed_and_require_matching_trusted_startup() {
+        let mut ordinary_with_structural_mode = arguments();
+        ordinary_with_structural_mode
+            .extend(["--delivery-mode".into(), "progressive_structural".into()]);
+        assert_eq!(
+            parse_startup_args(&ordinary_with_structural_mode).err(),
+            Some("delivery mode and structural startup tuple must agree")
+        );
+
+        let (root, _, _, worker, empty) = absolute_fixture();
+        let mut progressive = arguments();
+        progressive.extend([
+            "--delivery-mode".into(),
+            "progressive_structural".into(),
+            "--structural-worker".into(),
+            worker.display().to_string(),
+            "--structural-worker-sha256".into(),
+            worker_digest(),
+            "--structural-empty-directory".into(),
+            empty.display().to_string(),
+        ]);
+        assert_eq!(
+            parse_startup_args(&progressive)
+                .expect("progressive startup")
+                .delivery_mode,
+            DeliveryMode::ProgressiveStructural
+        );
+
+        let mut ordinary = progressive;
+        ordinary[9] = "ordinary".into();
+        assert_eq!(
+            parse_startup_args(&ordinary).err(),
+            Some("delivery mode and structural startup tuple must agree")
+        );
+
+        let mut unknown = arguments();
+        unknown.extend(["--delivery-mode".into(), "adaptive".into()]);
+        assert_eq!(
+            parse_startup_args(&unknown).err(),
+            Some("invalid --delivery-mode")
         );
         fs::remove_dir_all(root).unwrap();
     }

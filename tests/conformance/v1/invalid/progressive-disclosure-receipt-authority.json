@@ -1,0 +1,21 @@
+{
+  "schema_name": "progressive-disclosure-receipt",
+  "schema_version": "1.0.0",
+  "receipt_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "mode": "progressive_structural",
+  "operation": "lookup",
+  "state": "ready",
+  "result_identity": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "workspace_identity": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "workspace_snapshot": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+  "graph_id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  "plan_id": "sha256:ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+  "policy_decision": "sha256:1111111111111111111111111111111111111111111111111111111111111111",
+  "session_bound": true,
+  "per_call": {"maps": 0, "lookups": 1, "expansions": 0, "returned_items": 1, "exact_source_bytes": 0, "serialized_response_bytes": 1024, "repository_reads": 0, "repeated_repository_reads": 0, "elapsed_ms": 1},
+  "cumulative": {"maps": 1, "lookups": 1, "expansions": 0, "returned_items": 2, "exact_source_bytes": 0, "serialized_response_bytes": 2048, "repository_reads": 1, "repeated_repository_reads": 0, "elapsed_ms": 2},
+  "remaining": {"maps": 0, "lookups": 63, "expansions": 64, "returned_items": 254, "exact_source_bytes": 4096, "serialized_response_bytes": 4192256, "repository_reads": 99, "repeated_repository_reads": 100, "elapsed_ms": 29998},
+  "truncated": false,
+  "exhausted": false,
+  "authority_added": true
+}
