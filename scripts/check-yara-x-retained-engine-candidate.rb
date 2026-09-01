@@ -102,7 +102,9 @@ required_runner = [
   "8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
   "b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
   "e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e",
+  "CARGO_TARGET_DIR=/cargo/cargo-audit-target",
   "cargo audit --file Cargo.lock",
+  "rm -rf -- /cargo/cargo-audit-target",
   "verify-yara-x-retained-engine-candidate.rb",
   "trap cleanup EXIT HUP INT TERM",
   "executed=false admitted=false production=false iar_2=false"
