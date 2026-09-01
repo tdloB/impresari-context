@@ -1,7 +1,7 @@
 # Deterministic Structural-Seed Selection — Architecture Requirements and Design
 
-- Status: Core engine boundary implemented and locally verified; provider-free
-  utility comparison and external protocol integration remain gated.
+- Status: Core engine boundary and provider-free utility comparison implemented
+  and locally verified; external protocol integration remains gated.
 - Date: 2026-09-01.
 - Governing PRD:
   [Deterministic Structural-Seed Selection PRD](../product/deterministic-structural-seed-selection-prd.md).

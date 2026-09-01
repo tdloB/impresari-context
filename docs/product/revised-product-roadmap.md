@@ -98,6 +98,13 @@ traversal and exact-source recovery. The first increment changes no external
 protocol. LeanCTX-informed progressive `map`, `lookup`, and `expand` delivery
 remains next only if provider-free structural utility gates pass.
 
+The provider-free structural utility gate now passes locally across six frozen
+TypeScript, Rust, and Ruby fixtures. It preserves every baseline anchor, adds
+one verified structural relationship per fixture, and keeps added reads and
+packet growth within frozen ceilings. Hosted confirmation remains pending.
+This permits the next architecture review of a product-owned external graph
+lifecycle; it does not authorize provider tests or progressive delivery.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three
