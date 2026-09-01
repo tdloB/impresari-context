@@ -85,3 +85,12 @@ runtime identities, excludes the resource-test and standalone build
 intermediates, and freezes a later authenticated private-root build-and-delete
 recipe. The contract does not download or build the guest and does not admit a
 release, VM, analyzer, production backend, or macOS IAR-1B.
+
+ADR-0112 performs that one bounded operator rehearsal. It downloads only the
+exact authenticated Alpine APK, extracts only the two required regular-file
+inputs, rebuilds the ordinary synthetic guest with Zig 0.16.0, confirms the
+exact two ADR-0111 payload identities, and deletes the complete private root
+before retaining metadata. The guest was not executed or retained. This does
+not assemble an app, access Apple identity, sign, notarize, install or publish
+a cask, launch a VM, execute an analyzer, bind a release, admit production, or
+admit macOS IAR-1B.

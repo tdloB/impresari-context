@@ -659,6 +659,20 @@ reversible checkpoint is an ephemeral authenticated materialization-and-delete
 rehearsal for only those two synthetic guest resources; it must remain separate
 from app assembly, Apple credentials, distribution, VM launch, and analyzers.
 
+ADR-0112 completes that ephemeral rehearsal. One exact publisher-authenticated
+Alpine package was downloaded into a fresh private root, its APKv2 signature,
+signed data hash, package identity, architecture, version, and source commit
+were verified, and only the kernel and `virtio_blk` module were selected. Zig
+0.16.0 and the frozen project builders reproduced the exact two ADR-0111
+payload identities. Neither output was executed, and every downloaded,
+extracted, built, cached, and log byte was deleted before the metadata-only
+record was retained. App assembly, Apple credentials, signing, notarization,
+cask lifecycle, VM launch, analyzers, release identity, production, and macOS
+IAR-1B remain gated. The next reversible checkpoint is source-free composition
+of the already proven product and guest identities into the frozen unsigned
+release-candidate contract before any runnable app assembly or Apple identity
+access.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

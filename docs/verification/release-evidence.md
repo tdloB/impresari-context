@@ -397,3 +397,23 @@ runs no analyzer or compatibility corpus.
 - This was source-free validation. No download, build, guest bytes, app,
   signing, notarization, cask, install, VM, analyzer, release, production, or
   macOS IAR-1B evidence was created.
+
+## 2026-09-01 — ADR-0112 synthetic guest materialization and deletion
+
+- One fresh mode-`0700` private root was used on macOS arm64 with Zig `0.16.0`.
+- The exact Alpine `linux-virt-6.18.48-r0.apk` was fetched over HTTPS with zero
+  redirects and matched `41557960` bytes and SHA-256
+  `c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616`.
+- The APKv2 publisher signature, signed data hash, package name, version,
+  architecture, and source commit were verified before selecting only the
+  bounded kernel and `virtio_blk` module files.
+- The ordinary synthetic guest reproduced exact `Image` SHA-256
+  `4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5`
+  and `impresari-initramfs.gz` SHA-256
+  `89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b`.
+- Neither payload member was executed. The download, extracted inputs, build
+  outputs, compiler caches, raw logs, and private root were deleted. Only
+  schema-bound metadata remains.
+- No app was assembled; no Apple identity, signing, notarization, cask,
+  installation, VM, analyzer, release, production, or macOS IAR-1B evidence
+  was created.

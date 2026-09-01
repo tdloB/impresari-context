@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-synthetic-guest-materialization-receipt.schema.json",
+  "title": "ADR-0112 macOS synthetic guest materialization receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "record_id", "record_digest", "status", "publisher_authentication_verified", "payload_members_exact", "cleanup_verified", "runnable_guest_artifacts_retained", "guest_payload_executed", "app_assembled", "apple_identity_access", "signed", "notarized", "cask_created", "bundle_installed", "vm_launch", "analyzer_execution", "release_identity_bound", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+  "$defs": {"sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"}, "falseClaim": {"const": false}},
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-synthetic-guest-materialization-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-synthetic-guest-materialization-v1"},
+    "profile_digest": {"const": "sha256:32a4f3ba1c719dc84207ecf0463e25313dea1f72df89f6dbacb3525c1b64c0a4"},
+    "record_id": {"const": "iar-macos-local-vm-synthetic-guest-materialization-2026-09-01.1"},
+    "record_digest": {"$ref": "#/$defs/sha256"},
+    "status": {"const": "authenticated_synthetic_guest_materialized_and_deleted"},
+    "publisher_authentication_verified": {"const": true}, "payload_members_exact": {"const": true}, "cleanup_verified": {"const": true},
+    "runnable_guest_artifacts_retained": {"$ref": "#/$defs/falseClaim"}, "guest_payload_executed": {"$ref": "#/$defs/falseClaim"},
+    "app_assembled": {"$ref": "#/$defs/falseClaim"}, "apple_identity_access": {"$ref": "#/$defs/falseClaim"},
+    "signed": {"$ref": "#/$defs/falseClaim"}, "notarized": {"$ref": "#/$defs/falseClaim"},
+    "cask_created": {"$ref": "#/$defs/falseClaim"}, "bundle_installed": {"$ref": "#/$defs/falseClaim"},
+    "vm_launch": {"$ref": "#/$defs/falseClaim"}, "analyzer_execution": {"$ref": "#/$defs/falseClaim"},
+    "release_identity_bound": {"$ref": "#/$defs/falseClaim"}, "production_admitted": {"$ref": "#/$defs/falseClaim"},
+    "macos_iar_1b_admitted": {"$ref": "#/$defs/falseClaim"}, "authority_added": {"$ref": "#/$defs/falseClaim"}
+  }
+}
