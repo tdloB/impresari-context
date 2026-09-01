@@ -1,6 +1,7 @@
 # Trusted MCP Structural Lifecycle — Architecture Requirements and Design
 
-- Status: Proposed; implementation follows the hosted provider-free utility gate.
+- Status: Implemented and provider-free validated locally; hosted acceptance
+  and packaged-release identity remain pending.
 - Date: 2026-09-01.
 - Governing PRD:
   [Trusted MCP Structural Lifecycle PRD](../product/trusted-mcp-structural-lifecycle-prd.md).
@@ -48,19 +49,29 @@ existing timeout/output caps, and accepts one framed response.
 
 ## Cache provenance
 
-The worker request carries the trusted executable digest. The internal worker
-protocol version is advanced because the field is required and
-deny-unknown-fields remains active. `worker_toolchain_identity` hashes the
-digest with the parser runtime, grammar, resolver, graph version, fact classes,
-language, and traversal controls. Therefore an old parser result cannot be
-replayed after the configured executable changes even if all declared version
-strings remain equal.
+The control process derives a runtime cache identity from the trusted
+executable digest plus the parser runtime, grammar, resolver, graph version,
+fact classes, fact and response limits, language, and traversal controls. The
+framed worker protocol remains source-only; the digest never becomes untrusted
+worker input. Therefore
+an old parser result cannot be replayed after the configured executable changes
+even if all declared version strings remain equal. Explicit incremental updates
+must carry the same canonical digest to identify their parser-cache lineage.
 
 The digest is not repeated on every graph fact or evidence record. The MCP
 lifecycle receipt records it once; graph identity remains derived from
 validated graph content and snapshot identity. A digest change with identical
 output may retain an equal graph ID while still producing a distinct cache
 lineage and receipt.
+
+The worker response request ID is transport correlation rather than parser
+provenance. A validated cache hit is rebound to the current request ID and then
+fully revalidated; it does not rerun a worker merely because a fresh process
+uses a fresh request ID. Structural-cache availability is also independent of
+lexical-index readiness: lexical retrieval verifies that the promoted
+generation belongs to the current snapshot and builds it when absent. Opening
+the shared namespace for graph data cannot masquerade as a current lexical
+generation.
 
 ## Preparation and failure behavior
 
@@ -108,6 +119,7 @@ The result adds a closed object:
     "graph_id": "sha256:<...>",
     "snapshot_id": "sha256:<...>",
     "worker_sha256": "sha256:<...>",
+    "graph_completeness": "complete",
     "preparation_elapsed_ms": 0
   }
 }
@@ -151,3 +163,7 @@ specify a LeanCTX-informed progressive disclosure contract using existing
 evidence handles, exact hashes, bounded expansion, and cumulative session
 budgets. Do not add durable memory or request-proxy rewriting as part of that
 decision.
+
+That decision is now recorded by
+[ADR-0121](../decisions/0121-use-bounded-progressive-structural-disclosure.md).
+The static lifecycle remains its eager control and rollback path.

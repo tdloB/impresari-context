@@ -1,7 +1,8 @@
 # Trusted MCP Structural Lifecycle PRD
 
 - PRD ID/version: IC-TMSL-120 / 1.0.
-- Status: Approved for implementation after the provider-free structural utility gate passes hosted CI.
+- Status: Implemented and provider-free validated locally; hosted acceptance
+  and packaged-release identity remain pending.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
 - Governing architecture:
@@ -86,6 +87,23 @@ profile behavior remains unchanged.
 - LeanCTX-style progressive map/signature/line delivery; that remains the next
   independent decision after static structural delivery is measurable.
 - Durable session memory or cross-chat behavior.
+
+## Local acceptance evidence
+
+The exact provider-free MCP comparison completed on 2026-09-01 with equal tool
+definitions, equal source fingerprint, and unchanged source bytes. Cold
+structural preparation took 645 milliseconds; reuse of the same digest-bound
+parser cache took 6 milliseconds and retained the same graph identity. The
+ordinary response delivered 4,149 bytes and three evidence items. The eager
+structural response delivered 8,063 bytes and seven evidence items, including
+four structural items. This proves lifecycle and cache mechanics, not product
+effect, and triggers ADR-0121 rather than a paid run.
+
+The full local repository gate passed functional, security, schema, identity,
+evaluation, source-immutability, and SBOM checks. It then correctly rejected
+the changed packaged MCP entrypoint against the frozen historical macOS
+release-input identity. Historical evidence will not be rewritten; hosted
+acceptance waits on an explicit release-candidate lineage decision.
 
 ## Stop Condition
 

@@ -32,8 +32,7 @@ use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
     RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
     WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
-    query_graph, repository_map, validate_graph, validate_worker_success,
-    worker_toolchain_identity,
+    query_graph, repository_map, validate_graph, validate_worker_success, worker_cache_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -386,6 +385,8 @@ pub struct IncrementalStructuralReplacement {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IncrementalStructuralUpdate {
+    /// Exact worker executable identity that owns cached parser results.
+    pub worker_sha256: String,
     /// Canonical graph from which this update proceeds.
     pub prior_graph: StructuralGraph,
     /// Current parser results replacing changed artifacts.
@@ -942,6 +943,19 @@ impl LocalEngine {
         budget: &ResourceBudget,
         started: Instant,
     ) -> Result<StructuralGraph, EngineError> {
+        if !valid_sha256(&update.worker_sha256) {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid incremental worker identity",
+                Some(self.workspace.identity()),
+                self.snapshot
+                    .as_ref()
+                    .map(|snapshot| snapshot.snapshot_id.as_str()),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
         validate_graph(&update.prior_graph).map_err(|error| {
             structural_failure(
                 context,
@@ -1096,7 +1110,12 @@ impl LocalEngine {
                 })?;
                 replacement.response.clone()
             } else {
-                self.load_cached_structural(context, &snapshot.snapshot_id, &request)?
+                self.load_cached_structural(
+                    context,
+                    &snapshot.snapshot_id,
+                    &request,
+                    &update.worker_sha256,
+                )?
             };
             files.push(GraphFileInput {
                 path: request.path,
@@ -1167,10 +1186,12 @@ impl LocalEngine {
         context: &RequestContext,
         snapshot_id: &str,
         request: &WorkerRequest,
+        worker_sha256: &str,
     ) -> Result<WorkerSuccess, EngineError> {
-        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
-            structural_failure(context, error, self.workspace.identity(), snapshot_id)
-        })?;
+        let toolchain_identity =
+            worker_cache_identity(request, worker_sha256).map_err(|error| {
+                structural_failure(context, error, self.workspace.identity(), snapshot_id)
+            })?;
         let cached = self
             .cache
             .as_ref()
@@ -1191,7 +1212,7 @@ impl LocalEngine {
                 )
             })?;
         let response = cached
-            .and_then(|entry| serde_json::from_slice(&entry.payload).ok())
+            .and_then(|entry| cached_worker_success(&entry.payload, request))
             .ok_or_else(|| {
                 failure(
                     context,
@@ -1406,9 +1427,10 @@ impl LocalEngine {
         request: &WorkerRequest,
         launcher: &WorkerLauncher,
     ) -> Result<context_structural::WorkerSuccess, EngineError> {
-        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
-            structural_failure(context, error, self.workspace.identity(), snapshot_id)
-        })?;
+        let toolchain_identity = worker_cache_identity(request, &launcher.expected_sha256)
+            .map_err(|error| {
+                structural_failure(context, error, self.workspace.identity(), snapshot_id)
+            })?;
         let cached = self
             .cache
             .as_ref()
@@ -1429,8 +1451,7 @@ impl LocalEngine {
                 )
             })?;
         let response = cached
-            .and_then(|record| serde_json::from_slice(&record.payload).ok())
-            .filter(|success| validate_worker_success(success, request).is_ok())
+            .and_then(|record| cached_worker_success(&record.payload, request))
             .map_or_else(|| launcher.execute(request), Ok)
             .map_err(|error| {
                 structural_failure(context, error, self.workspace.identity(), snapshot_id)
@@ -3497,24 +3518,37 @@ impl LocalEngine {
             }
             QueryKind::Lexical => {
                 if self.cache.is_none() {
-                    let mut cache =
+                    self.cache = Some(
                         WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
                             .map_err(|error| {
                                 cache_error(context, capability, error.code(), Some(self.ids()))
-                            })?;
+                            })?,
+                    );
+                }
+                let current_generation = self
+                    .cache
+                    .as_ref()
+                    .expect("cache initialized")
+                    .current()
+                    .map_err(|error| {
+                        cache_error(context, capability, error.code(), Some(self.ids()))
+                    })?;
+                let generation_is_current = current_generation
+                    .as_ref()
+                    .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
+                if !generation_is_current {
                     let max_memory = budget.max_memory_bytes_u64().map_err(|error| {
                         core_error(context, capability, error.code(), self.ids())
                     })?;
                     build_lexical_generation_bounded(
                         &self.workspace,
                         snapshot,
-                        &mut cache,
+                        self.cache.as_mut().expect("cache initialized"),
                         max_memory,
                     )
                     .map_err(|error| {
                         retrieval_error(context, capability, error.code(), self.ids())
                     })?;
-                    self.cache = Some(cache);
                 }
                 search_lexical(
                     &self.workspace,
@@ -3910,6 +3944,15 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
         parse(&budget.max_memory_bytes)?,
     )
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn cached_worker_success(payload: &[u8], request: &WorkerRequest) -> Option<WorkerSuccess> {
+    let mut response: WorkerSuccess = serde_json::from_slice(payload).ok()?;
+    // Request identity is transport correlation, not parser-result provenance.
+    // Every cache hit is rebound to the current request before full validation.
+    response.request_id.clone_from(&request.request_id);
+    validate_worker_success(&response, request).ok()?;
+    Some(response)
 }
 
 fn resource_budget_max_literal_bytes(
@@ -5542,6 +5585,50 @@ mod tests {
     }
 
     #[test]
+    fn cached_worker_results_rebind_only_transport_correlation() {
+        let source = b"export function value() { return 1; }";
+        let path = PathIdentity::from_portable_relative_path("src/value.ts").expect("path");
+        let request = WorkerRequest {
+            schema_name: "structural-worker-request".into(),
+            schema_version: PROTOCOL_VERSION.into(),
+            request_id: "req_cached_worker_a".into(),
+            language: StructuralLanguage::TypeScript,
+            path: WorkerPath {
+                display_path: path.display_path,
+                platform_family: path.platform_family.into(),
+                unit_encoding: path.unit_encoding.into(),
+                relative_units_base64url: path.relative_units_base64url,
+            },
+            content_hash: contract_sha256(source),
+            source_base64url: URL_SAFE_NO_PAD.encode(source),
+            fact_classes: vec![FactClass::Declaration],
+            max_facts: 100,
+            max_nesting_depth: 8,
+            max_response_bytes: 65_536,
+            parser_version: "tree-sitter-0.26.13".into(),
+            grammar_version: "tree-sitter-typescript-0.23.2".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let response = context_structural::process_request(&request).expect("worker result");
+        let payload = serde_json::to_vec(&response).expect("payload");
+        let mut repeated = request.clone();
+        repeated.request_id = "req_cached_worker_b".into();
+        let rebound = cached_worker_success(&payload, &repeated).expect("rebound cache result");
+        assert_eq!(rebound.request_id, repeated.request_id);
+
+        let mut corrupt = response;
+        corrupt.content_hash = contract_sha256(b"different");
+        assert!(
+            cached_worker_success(
+                &serde_json::to_vec(&corrupt).expect("corrupt payload"),
+                &repeated
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
     fn task_signal_extraction_is_bounded_closed_and_high_signal() {
         let signals = task_signals(
             "Please inspect `panic in parser` in src/parser.rs and fix parse_node for hello-rust",
@@ -5654,6 +5741,13 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let graph = context_structural::build_graph(&snapshot.snapshot_id, inputs).expect("graph");
+
+        // Structural preparation opens the shared namespace before lexical
+        // retrieval. An open cache is not proof that this snapshot has a
+        // promoted lexical generation.
+        engine.cache = Some(
+            WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
+        );
 
         let exact = structural_seed_decision(
             &graph,

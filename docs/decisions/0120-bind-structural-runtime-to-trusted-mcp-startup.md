@@ -1,6 +1,7 @@
 # ADR-0120: Bind Structural Runtime to Trusted MCP Startup
 
-- Status: Accepted; implementation gated on hosted completion of ADR-0119
+- Status: Implemented and locally provider-free validated; hosted acceptance
+  and packaged-release identity pending
 - Date: 2026-09-01
 - Decider: Aaron Boldt through the active evaluation roadmap continuation
 - Related PRD: [Trusted MCP Structural Lifecycle PRD](../product/trusted-mcp-structural-lifecycle-prd.md)
@@ -29,8 +30,9 @@ ordinary profile/query builds through the core seed selector when that runtime
 is present. Keep the MCP tool list and admitted request shape equal between
 ordinary and structural processes.
 
-Include the worker executable SHA-256 in the internal worker request and parser
-cache identity. Return a non-authoritative lifecycle receipt and cumulative
+Include the worker executable SHA-256 in the control-process parser-cache
+identity and explicit incremental-update lineage. Keep it outside the untrusted
+worker request. Return a non-authoritative lifecycle receipt and cumulative
 read telemetry with each context result. Structural intent fails closed; it
 never silently degrades to the ordinary arm.
 
@@ -39,6 +41,8 @@ never silently degrades to the ordinary arm.
 - The product, not the evaluator, owns graph construction and seed choice.
 - Cold graph reads and launch latency become visible in the treatment result.
 - Parser cache entries cannot cross an executable-digest change.
+- Fresh request IDs can reuse fully revalidated parser results, while each
+  cache feature independently proves its current-snapshot readiness.
 - Existing MCP clients remain unchanged unless they explicitly add the trusted
   startup tuple.
 - Static structural packets may still increase bytes or fail to improve an
@@ -66,3 +70,8 @@ never silently degrades to the ordinary arm.
 Revisit before changing worker protocol compatibility, graph persistence,
 startup budgets, refresh cadence, admitted edge kinds, long-lived MCP source
 refresh, progressive delivery, or any evaluator baseline/treatment contract.
+
+The first progressive-delivery revisit is resolved by
+[ADR-0121](0121-use-bounded-progressive-structural-disclosure.md). The local
+comparison retains this eager lifecycle as the control and records no model or
+provider conclusion.
