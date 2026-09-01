@@ -5,7 +5,7 @@ require "digest"
 require "json"
 require "optparse"
 
-PINNED_SCOPE_SHA256 = "aa96ad705335d86948ad61810c39f06e5901faf1b0e9ab2e7f437d17f1acd9d3"
+PINNED_SCOPE_SHA256 = "886366b95fa04fc397ad572e1636136725e5205e85723965f6649a87f3c96e7a"
 AUTHORITY = %w[source_read source_write network credential_access process_execution tag_creation release_publication risk_acceptance].to_h { |key| [key, "denied"] }.freeze
 
 class ContractError < StandardError; end
