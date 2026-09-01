@@ -585,6 +585,16 @@ artifact, and production reproducibility remain unproven. The run compiled no
 rules, executed no analyzer, and uploaded no artifact. ADR-0104 later received
 its own narrow retention authorization without inheriting any broader claim.
 
+ADR-0106 now records the proposed next decision boundary. The recommended
+version-1 ruleset is small, original, project-owned, module-free, and limited
+to explainable literal/hex indicators with per-rule provenance, limitations,
+and generated positive and negative fixtures. Synthetic compatibility rules,
+third-party feeds, repository-supplied rules, and real malware samples are not
+eligible. Founder approval is required before source authorship, and an
+independent attributable human ruleset review remains mandatory before later
+compilation or retention. This proposal adds no analyzer execution, artifact,
+signing, publication, production, repository-scan, or IAR-2 authority.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

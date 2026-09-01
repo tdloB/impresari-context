@@ -1,9 +1,9 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0104 no-secret retention and same-run verification passed; signing, ruleset, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention and same-run verification passed; ADR-0106 ruleset boundary proposed; signing, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
-- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md), [ADR-0105](../decisions/0105-diagnose-yara-x-build-reproducibility-before-retention.md)
+- Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md), [ADR-0105](../decisions/0105-diagnose-yara-x-build-reproducibility-before-retention.md), [ADR-0106](../decisions/0106-author-and-independently-review-yara-x-production-ruleset.md)
 
 ## Architecture
 
@@ -335,3 +335,33 @@ digests and identical canonical digests, with canonical SHA-256
 That equality establishes only same-job evidence; cross-run, cross-host, and
 production reproducibility remain open. The diagnostic has no artifact,
 analyzer, rule, signing, publication, or admission authority.
+
+## ADR-0106 Proposed Production Ruleset Boundary
+
+```text
+original project rule source + per-rule provenance and limitations
+                              |
+                              v
+ closed module-free literal/hex lint + original generated fixture corpus
+                              |
+                              v
+       exact source/scope identities for independent human review
+                              |
+                              v
+      later separately authorized offline compilation and retention
+```
+
+Synthetic compatibility rules and production rules occupy different roots,
+manifests, digests, and fixture corpora. The proposed source contract rejects
+imports, includes, external variables, regular expressions, base64, XOR,
+repository rules, network retrieval, runtime compilation, undeclared metadata,
+and duplicated identifiers before a compiler is eligible to run. Each rule
+must bind its exact positive conditions to generated positive, near-miss,
+benign-collision, and mutation fixtures.
+
+An attributable independent human reviews the exact source digest, scope,
+provenance, licensing, false-positive risks, blind spots, and fixture support.
+The review result is invalidated by any source change. The review does not
+sign, publish, activate, or prove broad detection quality, and it cannot be
+substituted with AI review. Until ADR-0106 is approved, this section is design
+only and creates no production-rule or execution authority.
