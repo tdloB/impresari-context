@@ -19,6 +19,7 @@ scrutiny than test-only dependencies.
 | --- | --- | --- | --- | --- | --- | --- |
 | `base64` | 0.22.1 | `context-workspace` | `std`; defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Canonical unpadded base64url native-path units |
 | `cap-std` | 4.0.2 | `context-workspace` | No features; defaults disabled | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT | Upstream documents Rust 1.70 with defaults; verified by the project Rust 1.96 gate | Capability-relative, cross-platform filesystem access resistant to path escapes |
+| `getrandom` | 0.4.3 | `context-dashboard-server` | No features; defaults disabled | MIT OR Apache-2.0 | Upstream Rust 1.85; project Rust 1.96 gate required | OS entropy for independent 256-bit dashboard bootstrap and API-route capabilities; failure is closed |
 | `sha2` | 0.11.0 | `context-workspace` and conformance tests | Defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Domain-separated workspace and content identities |
 | `rusqlite` | 0.40.2 | `context-store` | `bundled`, `limits`; defaults disabled | MIT | Verified by the project Rust 1.96 gate | Transactional isolated cache with a pinned bundled SQLite and runtime limits |
 | `serde` | 1.0.229 | `context-core` | `derive`, `std`; defaults disabled | MIT OR Apache-2.0 | Verified by the project Rust 1.96 gate | Contract serialization with explicit derives |
