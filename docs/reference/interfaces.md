@@ -247,6 +247,17 @@ plan identity, ordered reason-coded steps, evidence-class coverage, explicit
 omissions, and the packet identity. This is rule-based retrieval selection;
 it does not interpret prompts, call a model, execute code, or grant authority.
 
+Profiled planning decomposes task prose through the version-1 deterministic
+task-signal policy. A compatible complete query remains the first operation;
+otherwise the plan records `original_query_exceeds_retrieval_contract`.
+Literal operations must also fit the request's actual
+`max_excerpt_bytes_per_item`, preventing an oversized first operation from
+aborting bounded fallback retrieval.
+Additional closed reason codes distinguish quoted literals, portable path
+candidates, code-like identifiers, and independent lexical fallbacks. Plans
+remain limited to eight operations. The task text is not FTS, glob, regular
+expression, shell, path, or graph-traversal authority.
+
 Every successful build also includes
 `impresari_context_repository_read_telemetry` version `1.0`. Its numeric
 fields are measured at the capability-relative exact-read boundary and include

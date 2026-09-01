@@ -14,8 +14,8 @@ use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use context_core::{
     AuditOutcome, Capability, ContextPacket, ErrorEnvelope, EvidenceRecord, PacketDraft,
     PacketValidationResult, PolicyDecision, PolicyOutcome, PolicySubject, PublicErrorCode,
-    RecoveryAction, ResourceBudget, audit_event, build_packet, decide, error_envelope,
-    packet_bytes, packet_validation_result, validate_packet,
+    RecoveryAction, ResourceBudget, audit_event, build_packet_with_evidence_order, decide,
+    error_envelope, packet_bytes, packet_validation_result, validate_packet,
 };
 use context_dashboard::{
     DashboardErrorCode, EffectiveBudgetOutcome, PolicyStore, dashboard_purpose, evaluate_budget,
@@ -2092,8 +2092,16 @@ impl LocalEngine {
             })?
             .snapshot_id
             .clone();
-        let mut plan = deterministic_plan(profile, query, &snapshot, policy_decision)
+        let max_literal_bytes = resource_budget_max_literal_bytes(&budget)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let mut plan = deterministic_plan(
+            profile,
+            query,
+            &snapshot,
+            policy_decision,
+            max_literal_bytes,
+        )
+        .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         if let Some(structural_query) = structural_query {
             apply_structural_query_to_plan(&mut plan, structural_query)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
@@ -2226,7 +2234,7 @@ impl LocalEngine {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Sequential bounded retrieval and accounting remain auditable together.
     fn build_planned_context_with_supplemental_internal(
         &mut self,
         context: &RequestContext,
@@ -2251,10 +2259,11 @@ impl LocalEngine {
                 Some(RecoveryAction::ReduceScope),
             ))
         } else {
-            let mut evidence = supplemental_evidence
-                .into_iter()
-                .map(|item| (item.evidence_id.clone(), item))
-                .collect::<std::collections::BTreeMap<_, _>>();
+            let mut evidence = std::collections::BTreeMap::new();
+            let mut evidence_order = Vec::new();
+            for item in supplemental_evidence {
+                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+            }
             let mut unknowns = supplemental_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
@@ -2302,7 +2311,7 @@ impl LocalEngine {
                 }
                 unknowns.extend(search.unknowns);
                 for item in search.matches {
-                    evidence.entry(item.evidence_id.clone()).or_insert(item);
+                    Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
                 }
             }
             let snapshot_id = snapshot_id.ok_or_else(|| {
@@ -2318,23 +2327,37 @@ impl LocalEngine {
             })?;
             unknowns.sort();
             unknowns.dedup();
-            build_packet(PacketDraft {
-                workspace_identity: self.workspace.identity().to_owned(),
-                workspace_snapshot: snapshot_id,
-                request_id: context.request_id.clone(),
-                purpose: context.subject.purpose.clone(),
-                created_at: context.occurred_at.clone(),
-                policy_decision: policy_decision.to_owned(),
-                budget,
-                evidence: evidence.into_values().collect(),
-                assumptions: Vec::new(),
-                conflicts: Vec::new(),
-                unknowns,
-                redactions: Vec::new(),
-            })
+            build_packet_with_evidence_order(
+                PacketDraft {
+                    workspace_identity: self.workspace.identity().to_owned(),
+                    workspace_snapshot: snapshot_id,
+                    request_id: context.request_id.clone(),
+                    purpose: context.subject.purpose.clone(),
+                    created_at: context.occurred_at.clone(),
+                    policy_decision: policy_decision.to_owned(),
+                    budget,
+                    evidence: evidence.into_values().collect(),
+                    assumptions: Vec::new(),
+                    conflicts: Vec::new(),
+                    unknowns,
+                    redactions: Vec::new(),
+                },
+                &evidence_order,
+            )
             .map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })
+        }
+    }
+
+    fn insert_ranked_evidence(
+        evidence: &mut std::collections::BTreeMap<String, EvidenceRecord>,
+        evidence_order: &mut Vec<String>,
+        item: EvidenceRecord,
+    ) {
+        if !evidence.contains_key(&item.evidence_id) {
+            evidence_order.push(item.evidence_id.clone());
+            evidence.insert(item.evidence_id.clone(), item);
         }
     }
 
@@ -3740,16 +3763,67 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
 }
 
+fn resource_budget_max_literal_bytes(
+    budget: &ResourceBudget,
+) -> Result<u64, context_core::CoreErrorCode> {
+    budget
+        .max_excerpt_bytes_per_item
+        .parse::<u64>()
+        .map_err(|_| context_core::CoreErrorCode::InvalidInput)
+}
+
 fn deterministic_plan(
     profile: TaskProfile,
     query: &str,
     snapshot_id: &str,
     policy_decision: &str,
+    max_literal_bytes: u64,
 ) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
-    if query.is_empty() || query.len() > 4_096 || query.contains('\0') {
+    if query.is_empty()
+        || query.len() > 4_096
+        || query
+            .chars()
+            .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
+    {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
-    let mut omitted_candidates = Vec::new();
+    let (base_steps, mut omitted_candidates) = profile_base_plan(profile, query);
+    let (steps, original_query_omitted) =
+        expand_profile_steps(query, base_steps, max_literal_bytes);
+    if original_query_omitted {
+        omitted_candidates.push(planner_omission(
+            "original_query",
+            "original_query_exceeds_retrieval_contract",
+        ));
+    }
+    if steps.is_empty() {
+        return Err(context_core::CoreErrorCode::InvalidInput);
+    }
+    let mut plan = DeterministicContextPlan {
+        schema_name: "deterministic-context-plan".into(),
+        schema_version: CONTRACT_VERSION.into(),
+        plan_id: format!("sha256:{}", "0".repeat(64)),
+        task_profile: profile,
+        workspace_snapshot: snapshot_id.to_owned(),
+        policy_decision: policy_decision.to_owned(),
+        steps,
+        coverage: planner_coverage(),
+        omitted_candidates,
+        structural_query: None,
+        declared_change_set: None,
+        declared_associated_tests: None,
+        declared_convention_exemplars: None,
+        repository_orientation: None,
+    };
+    plan.plan_id = deterministic_plan_identity(&plan)?;
+    Ok(plan)
+}
+
+fn profile_base_plan(
+    profile: TaskProfile,
+    query: &str,
+) -> (Vec<PlannedContextStep>, Vec<PlannerOmission>) {
+    let mut omissions = Vec::new();
     let steps = match profile {
         TaskProfile::Orientation => vec![
             planned_step(QueryKind::Filename, query, "profile_orientation_filename"),
@@ -3772,7 +3846,7 @@ fn deterministic_plan(
             ),
         ],
         TaskProfile::ChangeReview => {
-            omitted_candidates.push(planner_omission(
+            omissions.push(planner_omission(
                 "change_set",
                 "change_set_evidence_unavailable",
             ));
@@ -3782,7 +3856,7 @@ fn deterministic_plan(
             ]
         }
         TaskProfile::SecurityReview => {
-            omitted_candidates.push(planner_omission(
+            omissions.push(planner_omission(
                 "structural_relationship",
                 "structural_relationship_evidence_not_connected",
             ));
@@ -3792,7 +3866,7 @@ fn deterministic_plan(
             ]
         }
         TaskProfile::TestSelection => {
-            omitted_candidates.push(planner_omission(
+            omissions.push(planner_omission(
                 "associated_test",
                 "associated_test_evidence_unavailable",
             ));
@@ -3806,7 +3880,7 @@ fn deterministic_plan(
             ]
         }
         TaskProfile::ConfigurationChange => {
-            omitted_candidates.push(planner_omission(
+            omissions.push(planner_omission(
                 "configuration_to_code_reference",
                 "configuration_to_code_reference_unavailable",
             ));
@@ -3824,24 +3898,7 @@ fn deterministic_plan(
             ]
         }
     };
-    let mut plan = DeterministicContextPlan {
-        schema_name: "deterministic-context-plan".into(),
-        schema_version: CONTRACT_VERSION.into(),
-        plan_id: format!("sha256:{}", "0".repeat(64)),
-        task_profile: profile,
-        workspace_snapshot: snapshot_id.to_owned(),
-        policy_decision: policy_decision.to_owned(),
-        steps,
-        coverage: planner_coverage(),
-        omitted_candidates,
-        structural_query: None,
-        declared_change_set: None,
-        declared_associated_tests: None,
-        declared_convention_exemplars: None,
-        repository_orientation: None,
-    };
-    plan.plan_id = deterministic_plan_identity(&plan)?;
-    Ok(plan)
+    (steps, omissions)
 }
 
 fn planned_step(kind: QueryKind, query: &str, reason_code: &str) -> PlannedContextStep {
@@ -3852,6 +3909,258 @@ fn planned_step(kind: QueryKind, query: &str, reason_code: &str) -> PlannedConte
         },
         reason_code: reason_code.into(),
     }
+}
+
+const MAX_TASK_SIGNAL_TOKENS: usize = 16;
+const MAX_TASK_SIGNAL_BYTES: usize = 256;
+const MAX_PROFILE_STEPS: usize = 8;
+
+#[derive(Debug, Default, Eq, PartialEq)]
+struct TaskSignals {
+    quoted: Vec<String>,
+    paths: Vec<String>,
+    identifiers: Vec<String>,
+    lexical: Vec<String>,
+}
+
+fn expand_profile_steps(
+    query: &str,
+    base_steps: Vec<PlannedContextStep>,
+    max_literal_bytes: u64,
+) -> (Vec<PlannedContextStep>, bool) {
+    let mut base = base_steps.into_iter();
+    let Some(first) = base.next() else {
+        return (Vec::new(), false);
+    };
+    let fallback = base.next();
+    let signals = task_signals(query);
+    let original_query_omitted = !full_query_compatible(&first.step, max_literal_bytes);
+    let mut steps = if original_query_omitted {
+        Vec::new()
+    } else {
+        vec![first]
+    };
+
+    for quoted in &signals.quoted {
+        push_unique_planned_step(
+            &mut steps,
+            QueryKind::Literal,
+            quoted,
+            "task_signal_quoted_literal",
+            max_literal_bytes,
+        );
+    }
+    for path in &signals.paths {
+        push_unique_planned_step(
+            &mut steps,
+            QueryKind::Filename,
+            path,
+            "task_signal_portable_path",
+            max_literal_bytes,
+        );
+    }
+    for identifier in &signals.identifiers {
+        push_unique_planned_step(
+            &mut steps,
+            QueryKind::Literal,
+            identifier,
+            "task_signal_code_identifier",
+            max_literal_bytes,
+        );
+    }
+    for lexical in &signals.lexical {
+        push_unique_planned_step(
+            &mut steps,
+            QueryKind::Lexical,
+            lexical,
+            "task_signal_lexical_fallback",
+            max_literal_bytes,
+        );
+    }
+    if (steps.is_empty() || (steps.len() == 1 && !original_query_omitted))
+        && let Some(fallback) = fallback
+        && full_query_compatible(&fallback.step, max_literal_bytes)
+    {
+        push_unique_planned_step(
+            &mut steps,
+            fallback.step.kind,
+            &fallback.step.query,
+            &fallback.reason_code,
+            max_literal_bytes,
+        );
+    }
+    (steps, original_query_omitted)
+}
+
+fn full_query_compatible(step: &ContextPlanStep, max_literal_bytes: u64) -> bool {
+    if step.query.len() > MAX_TASK_SIGNAL_BYTES {
+        return false;
+    }
+    if step.kind == QueryKind::Literal
+        && u64::try_from(step.query.len()).map_or(true, |length| length > max_literal_bytes)
+    {
+        return false;
+    }
+    if step.kind != QueryKind::Lexical {
+        return true;
+    }
+    let terms = lexical_task_terms(&step.query);
+    !terms.is_empty() && terms.len() <= 16
+}
+
+fn push_unique_planned_step(
+    steps: &mut Vec<PlannedContextStep>,
+    kind: QueryKind,
+    query: &str,
+    reason_code: &str,
+    max_literal_bytes: u64,
+) {
+    if steps.len() >= MAX_PROFILE_STEPS
+        || query.is_empty()
+        || query.len() > MAX_TASK_SIGNAL_BYTES
+        || (kind == QueryKind::Literal
+            && u64::try_from(query.len()).map_or(true, |length| length > max_literal_bytes))
+        || steps
+            .iter()
+            .any(|existing| existing.step.kind == kind && existing.step.query == query)
+    {
+        return;
+    }
+    steps.push(planned_step(kind, query, reason_code));
+}
+
+fn task_signals(query: &str) -> TaskSignals {
+    let mut signals = TaskSignals::default();
+    extract_quoted_signals(query, &mut signals.quoted);
+
+    let mut tokens = query
+        .split(|character: char| {
+            !(character.is_ascii_alphanumeric()
+                || matches!(character, '_' | '-' | '.' | '/' | ':' | '\\'))
+        })
+        .filter_map(normalize_signal_token)
+        .take(MAX_TASK_SIGNAL_TOKENS)
+        .collect::<Vec<_>>();
+    tokens.dedup();
+    for token in &tokens {
+        if is_portable_path_signal(token) {
+            push_unique_text(&mut signals.paths, token.clone());
+        } else if is_code_identifier_signal(token) {
+            push_unique_text(&mut signals.identifiers, token.clone());
+        }
+    }
+
+    let unfiltered_lexical = lexical_task_terms(query);
+    let mut lexical = unfiltered_lexical
+        .iter()
+        .filter(|term| term.len() >= 3 && !is_task_stop_word(term))
+        .cloned()
+        .collect::<Vec<_>>();
+    lexical.sort_by(|left, right| right.len().cmp(&left.len()).then_with(|| left.cmp(right)));
+    lexical.dedup();
+    if lexical.is_empty()
+        && let Some(fallback) = unfiltered_lexical.into_iter().find(|term| term.len() >= 3)
+    {
+        lexical.push(fallback);
+    }
+    signals.lexical = lexical;
+    signals
+}
+
+fn lexical_task_terms(query: &str) -> Vec<String> {
+    query
+        .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+        .filter(|term| !term.is_empty() && term.len() <= 64)
+        .map(str::to_ascii_lowercase)
+        .collect()
+}
+
+fn extract_quoted_signals(query: &str, output: &mut Vec<String>) {
+    let mut open = None;
+    for (index, character) in query.char_indices() {
+        if let Some((delimiter, start)) = open {
+            if character == delimiter {
+                let candidate = &query[start..index];
+                if valid_explicit_signal(candidate) {
+                    push_unique_text(output, candidate.to_owned());
+                }
+                open = None;
+            }
+        } else if matches!(character, '\'' | '"' | '`') {
+            open = Some((character, index + character.len_utf8()));
+        }
+    }
+}
+
+fn normalize_signal_token(token: &str) -> Option<String> {
+    let token = token.trim_end_matches(['.', ':']);
+    valid_explicit_signal(token).then(|| token.replace('\\', "/"))
+}
+
+fn valid_explicit_signal(signal: &str) -> bool {
+    !signal.is_empty()
+        && signal.len() <= MAX_TASK_SIGNAL_BYTES
+        && signal.is_ascii()
+        && !signal.bytes().any(|byte| byte.is_ascii_control())
+}
+
+fn is_portable_path_signal(token: &str) -> bool {
+    if token.starts_with('/')
+        || token.split('/').any(|component| component == "..")
+        || token.contains("//")
+    {
+        return false;
+    }
+    if token.contains('/') {
+        return true;
+    }
+    token.rsplit_once('.').is_some_and(|(stem, extension)| {
+        !stem.is_empty()
+            && (1..=16).contains(&extension.len())
+            && extension.bytes().all(|byte| byte.is_ascii_alphanumeric())
+    })
+}
+
+fn is_code_identifier_signal(token: &str) -> bool {
+    token.contains('_') || token.contains('-') || token.contains("::")
+}
+
+fn push_unique_text(output: &mut Vec<String>, value: String) {
+    if !output.contains(&value) {
+        output.push(value);
+    }
+}
+
+fn is_task_stop_word(term: &str) -> bool {
+    matches!(
+        term,
+        "and"
+            | "are"
+            | "can"
+            | "could"
+            | "does"
+            | "find"
+            | "fix"
+            | "for"
+            | "from"
+            | "how"
+            | "into"
+            | "please"
+            | "should"
+            | "show"
+            | "that"
+            | "the"
+            | "this"
+            | "use"
+            | "using"
+            | "was"
+            | "what"
+            | "when"
+            | "where"
+            | "which"
+            | "with"
+            | "would"
+    )
 }
 
 fn planner_omission(candidate: &str, reason_code: &str) -> PlannerOmission {
@@ -4928,6 +5237,216 @@ mod tests {
     fn budget() -> ResourceBudget {
         ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
             .expect("budget")
+    }
+
+    #[test]
+    fn task_signal_extraction_is_bounded_closed_and_high_signal() {
+        let signals = task_signals(
+            "Please inspect `panic in parser` in src/parser.rs and fix parse_node for hello-rust",
+        );
+        assert_eq!(signals.quoted, vec!["panic in parser"]);
+        assert_eq!(signals.paths, vec!["src/parser.rs"]);
+        assert_eq!(signals.identifiers, vec!["parse_node", "hello-rust"]);
+        assert!(signals.lexical.contains(&"parser".into()));
+        assert!(signals.lexical.contains(&"hello".into()));
+        assert!(!signals.lexical.contains(&"please".into()));
+
+        let flooded = (0..100)
+            .map(|index| format!("identifier_{index}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let flooded_signals = task_signals(&flooded);
+        assert_eq!(flooded_signals.identifiers.len(), MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn descriptive_task_plan_preserves_exact_identifier_and_path_signals() {
+        let query = "Find the Rust greeting hello-rust in rust.rs";
+        let plan = deterministic_plan(
+            TaskProfile::BugInvestigation,
+            query,
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            128,
+        )
+        .expect("plan");
+        assert_eq!(plan.steps[0].step.kind, QueryKind::Literal);
+        assert_eq!(plan.steps[0].step.query, query);
+        assert!(plan.steps.iter().any(|step| {
+            step.step.kind == QueryKind::Literal
+                && step.step.query == "hello-rust"
+                && step.reason_code == "task_signal_code_identifier"
+        }));
+        assert!(plan.steps.iter().any(|step| {
+            step.step.kind == QueryKind::Filename
+                && step.step.query == "rust.rs"
+                && step.reason_code == "task_signal_portable_path"
+        }));
+        assert!(plan.steps.len() <= MAX_PROFILE_STEPS);
+    }
+
+    #[test]
+    fn literal_steps_respect_the_actual_excerpt_budget() {
+        let query = "Find the Rust greeting hello-rust in rust.rs";
+        let plan = deterministic_plan(
+            TaskProfile::BugInvestigation,
+            query,
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            10,
+        )
+        .expect("plan");
+        assert!(
+            plan.steps.iter().all(|step| {
+                step.step.kind != QueryKind::Literal || step.step.query.len() <= 10
+            })
+        );
+        assert!(plan.steps.iter().any(|step| {
+            step.step.kind == QueryKind::Literal
+                && step.step.query == "hello-rust"
+                && step.reason_code == "task_signal_code_identifier"
+        }));
+        assert!(plan.omitted_candidates.iter().any(|omission| {
+            omission.candidate == "original_query"
+                && omission.reason_code == "original_query_exceeds_retrieval_contract"
+        }));
+    }
+
+    #[test]
+    fn exact_and_descriptive_tasks_recover_the_same_explicit_anchor() {
+        let source = TestRoot::new("task-signal-source");
+        let cache = TestRoot::new("task-signal-cache");
+        fs::write(
+            source.0.join("rust.rs"),
+            b"pub const GREETING: &str = \"hello-rust\";\n",
+        )
+        .expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let exact = engine
+            .build_profiled_context(
+                &request(3, "bug_investigation"),
+                TaskProfile::BugInvestigation,
+                "hello-rust",
+                budget(),
+            )
+            .expect("exact packet");
+        let descriptive = engine
+            .build_profiled_context(
+                &request(4, "bug_investigation"),
+                TaskProfile::BugInvestigation,
+                "Find the Rust greeting hello-rust in rust.rs",
+                budget(),
+            )
+            .expect("descriptive packet");
+        let exact_anchor = exact
+            .packet
+            .observed_evidence
+            .iter()
+            .find(|item| {
+                item.extraction.method == "literal_search"
+                    && item
+                        .span
+                        .start_byte
+                        .parse::<u64>()
+                        .ok()
+                        .zip(item.span.end_byte.parse::<u64>().ok())
+                        .is_some_and(|(start, end)| end.saturating_sub(start) == 10)
+            })
+            .expect("exact anchor");
+        assert!(descriptive.packet.observed_evidence.iter().any(|item| {
+            item.evidence_id == exact_anchor.evidence_id
+                && item.artifact.path.display_path == "rust.rs"
+        }));
+        validate_packet(&exact.packet).expect("valid exact packet");
+        validate_packet(&descriptive.packet).expect("valid descriptive packet");
+    }
+
+    #[test]
+    fn unsupported_controls_are_rejected_but_multiline_tasks_are_allowed() {
+        let snapshot = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let policy = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        assert!(
+            deterministic_plan(
+                TaskProfile::BugInvestigation,
+                "line one\nhello-rust",
+                snapshot,
+                policy,
+                128,
+            )
+            .is_ok()
+        );
+        assert_eq!(
+            deterministic_plan(
+                TaskProfile::BugInvestigation,
+                "hello\u{0007}rust",
+                snapshot,
+                policy,
+                128,
+            )
+            .expect_err("control"),
+            context_core::CoreErrorCode::InvalidInput
+        );
+    }
+
+    #[test]
+    fn long_and_adversarial_tasks_are_decomposed_without_syntax_authority() {
+        let snapshot = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let policy = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        let long_query = (0..40)
+            .map(|index| format!("ordinaryword{index}"))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let long_plan = deterministic_plan(
+            TaskProfile::Implementation,
+            &long_query,
+            snapshot,
+            policy,
+            128,
+        )
+        .expect("long plan");
+        assert!(long_plan.steps.len() <= MAX_PROFILE_STEPS);
+        assert!(
+            long_plan
+                .steps
+                .iter()
+                .all(|step| step.step.query != long_query)
+        );
+        assert!(long_plan.omitted_candidates.iter().any(|omission| {
+            omission.candidate == "original_query"
+                && omission.reason_code == "original_query_exceeds_retrieval_contract"
+        }));
+
+        let hostile = "$(touch /tmp/pwn) ../outside.rs foo* OR bar | sh";
+        let hostile_plan = deterministic_plan(
+            TaskProfile::BugInvestigation,
+            hostile,
+            snapshot,
+            policy,
+            128,
+        )
+        .expect("hostile text stays inert");
+        assert!(hostile_plan.steps.len() <= MAX_PROFILE_STEPS);
+        assert!(
+            hostile_plan
+                .steps
+                .iter()
+                .all(|step| step.step.kind != QueryKind::ExactPath)
+        );
+        assert!(
+            hostile_plan.steps.iter().skip(1).all(|step| {
+                !step.step.query.starts_with('/') && !step.step.query.contains("..")
+            })
+        );
     }
 
     #[test]

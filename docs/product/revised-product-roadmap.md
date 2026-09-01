@@ -75,11 +75,20 @@ by this increment. After its cross-repository provider-free compatibility gate,
 the roadmap reassesses deterministic structural selection before considering
 progressive delivery or another paid pilot.
 
-The provider-free compatibility gate passed locally on 2026-09-01. An exact
-fixture query selected the expected evidence and produced evaluator-compatible
-complete telemetry. A semantically equivalent descriptive query did not select
-that evidence, so deterministic query decomposition and evidence-selection
-stability are the next product increment before any paid pilot.
+The initial provider-free compatibility gate passed locally on 2026-09-01. An
+exact fixture query selected the expected evidence and produced
+evaluator-compatible complete telemetry, while a semantically equivalent
+descriptive query originally missed that evidence. The deterministic query
+decomposition increment then corrected the product-selection defect.
+
+That increment is governed by the
+[deterministic task-signal selection PRD](deterministic-task-signal-selection-prd.md).
+It keeps explicit identifiers and paths discoverable inside ordinary task
+prose and carries planner priority through bounded packet selection. Its
+provider-free noise-stability gate now passes: exact and descriptive task forms
+recover shared content-addressed evidence through the real external adapter.
+The roadmap may next assess connecting admitted anchors to the existing typed
+structural graph. Progressive disclosure remains a later separate increment.
 
 ## Hostile-repository security expansion track
 
