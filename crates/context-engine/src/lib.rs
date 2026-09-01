@@ -4307,7 +4307,7 @@ fn structural_request(
         max_facts: limits.facts,
         max_nesting_depth: limits.depth,
         max_response_bytes: limits.response_bytes,
-        parser_version: "tree-sitter-0.26.12".into(),
+        parser_version: "tree-sitter-0.26.13".into(),
         grammar_version: grammar_version(language).into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -5794,7 +5794,7 @@ mod tests {
             };
             let provenance = context_structural::FactProvenance {
                 method: "tree_sitter".into(),
-                parser_version: "tree-sitter-0.26.12".into(),
+                parser_version: "tree-sitter-0.26.13".into(),
                 grammar_version: "tree-sitter-typescript-0.23.2".into(),
                 resolver_version: RESOLVER_VERSION.into(),
                 graph_version: GRAPH_VERSION.into(),

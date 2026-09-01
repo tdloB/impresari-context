@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-faf2fc73dcd5",
-  "documentNamespace": "https://impresari-context.invalid/sbom/faf2fc73dcd59e3595b0385463c5062f42a9fa58770536ad91656c59637ccff2",
+  "name": "impresari-context-cargo-lock-d04f92d689b5",
+  "documentNamespace": "https://impresari-context.invalid/sbom/d04f92d689b5d92fba1b49442258b9db82c0f141f07bc3b45dd04b6883278add",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
@@ -2418,8 +2418,8 @@
     {
       "SPDXID": "SPDXRef-Package-131",
       "name": "tree-sitter",
-      "versionInfo": "0.26.12",
-      "downloadLocation": "https://crates.io/crates/tree-sitter/0.26.12",
+      "versionInfo": "0.26.13",
+      "downloadLocation": "https://crates.io/crates/tree-sitter/0.26.13",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT",
@@ -2428,7 +2428,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/tree-sitter@0.26.12"
+          "referenceLocator": "pkg:cargo/tree-sitter@0.26.13"
         }
       ]
     },
