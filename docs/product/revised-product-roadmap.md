@@ -98,12 +98,21 @@ traversal and exact-source recovery. The first increment changes no external
 protocol. LeanCTX-informed progressive `map`, `lookup`, and `expand` delivery
 remains next only if provider-free structural utility gates pass.
 
-The provider-free structural utility gate now passes locally across six frozen
-TypeScript, Rust, and Ruby fixtures. It preserves every baseline anchor, adds
-one verified structural relationship per fixture, and keeps added reads and
-packet growth within frozen ceilings. Hosted confirmation remains pending.
-This permits the next architecture review of a product-owned external graph
-lifecycle; it does not authorize provider tests or progressive delivery.
+The provider-free structural utility gate passes locally and in hosted macOS,
+Linux, and Windows quality jobs across six frozen TypeScript, Rust, and Ruby
+fixtures. It preserves every baseline anchor, adds one verified structural
+relationship per fixture, and keeps added reads and packet growth within frozen
+ceilings. This permits the next product-owned external graph lifecycle; it does
+not authorize provider tests or progressive delivery.
+
+That next increment is governed by the
+[trusted MCP structural lifecycle PRD](trusted-mcp-structural-lifecycle-prd.md).
+It binds parser-cache lineage to the exact pinned worker digest, prepares one
+snapshot-bound graph from trusted process-startup configuration, keeps the MCP
+tool and request contracts equal between arms, applies product-owned seed
+selection, and exposes cold preparation cost and reads. LeanCTX-informed
+progressive disclosure follows only after this static lifecycle passes an
+independent provider-free MCP comparison.
 
 ## Hostile-repository security expansion track
 

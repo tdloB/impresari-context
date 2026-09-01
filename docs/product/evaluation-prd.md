@@ -17,6 +17,7 @@
   - [Deterministic Task-Signal Selection PRD](deterministic-task-signal-selection-prd.md)
   - [Deterministic Structural-Seed Selection PRD](deterministic-structural-seed-selection-prd.md)
   - [Provider-Free Structural Utility Gate PRD](provider-free-structural-utility-gate-prd.md)
+  - [Trusted MCP Structural Lifecycle PRD](trusted-mcp-structural-lifecycle-prd.md)
 
 ## Goal
 
