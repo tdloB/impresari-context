@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-historical-release-evidence-integrity-profile.schema.json",
+  "title": "ADR-0122 historical release evidence integrity profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "mode", "lineage_id", "historical_contract_path", "historical_contract_digest", "historical_profile_path", "historical_profile_digest", "historical_fixture_provenance_path", "historical_fixture_provenance_digest", "source_free", "offline_only", "current_source_verified", "status"],
+  "properties": {
+    "schema_name": {"const": "macos-historical-release-evidence-integrity-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-historical-release-evidence-integrity-v1"},
+    "mode": {"const": "historical_evidence_integrity"},
+    "lineage_id": {"const": "iar-macos-local-vm-release-identity-2026-09-01.1"},
+    "historical_contract_path": {"const": "platform/macos-vm-feasibility/release-identity-contract-v1.json"},
+    "historical_contract_digest": {"const": "sha256:ebf78abf0a8b1609cf891b96f092065a3e957d4b819e221d47440bacc4f9cf9c"},
+    "historical_profile_path": {"const": "profiles/v1/iar-macos-local-vm-release-identity-v1.json"},
+    "historical_profile_digest": {"const": "sha256:3bf687ea0c9acc5a2e381d64343a9704b97b6467f3f4016a81bfb091df886076"},
+    "historical_fixture_provenance_path": {"const": "tests/conformance/v1/macos-local-vm-release-identity-fixture-provenance.json"},
+    "historical_fixture_provenance_digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "source_free": {"const": true},
+    "offline_only": {"const": true},
+    "current_source_verified": {"const": false},
+    "status": {"const": "historical_not_current"}
+  }
+}

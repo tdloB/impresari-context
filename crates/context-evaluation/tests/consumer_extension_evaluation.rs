@@ -168,6 +168,7 @@ fn local_mcp_is_semantically_equivalent_read_only_and_adds_no_authority() {
             consumer_id: context.subject.caller_id.clone(),
             role: context.subject.role.clone(),
             session_policy: SessionPolicy::new(2, 4, 65_536).expect("session policy"),
+            structural_runtime: None,
         },
     );
     let initialize = serde_json::json!({

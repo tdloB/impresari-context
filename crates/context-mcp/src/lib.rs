@@ -11,11 +11,12 @@ use context_core::{POLICY_PROFILE, PolicySubject, ResourceBudget};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine,
-    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, TaskProfile,
+    RepositoryOrientationRequest, RequestContext, StructuralImpactRequest, StructuralSeedRequest,
+    TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
 use context_structural::StructuralGraph;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
 /// Preferred MCP revision implemented by this transport.
@@ -39,6 +40,62 @@ pub struct ServerConfig {
     pub role: String,
     /// Bounded process-local session policy.
     pub session_policy: SessionPolicy,
+    /// Optional graph prepared solely from trusted process-startup authority.
+    pub structural_runtime: Option<StructuralRuntime>,
+}
+
+/// Trusted structural state prepared before MCP initialization.
+#[derive(Clone, Debug)]
+pub struct StructuralRuntime {
+    /// Exact snapshot-bound graph retained only for this process.
+    pub graph: StructuralGraph,
+    /// Closed traversal kinds; empty means every admitted graph edge kind.
+    pub edge_kinds: Vec<String>,
+    /// Non-authoritative lifecycle receipt returned beside every packet.
+    pub receipt: StructuralLifecycleReceipt,
+}
+
+/// Closed metadata proving which structural lifecycle an MCP result used.
+#[derive(Clone, Debug, Eq, PartialEq, Serialize)]
+pub struct StructuralLifecycleReceipt {
+    /// Schema discriminator.
+    pub schema_name: String,
+    /// Receipt contract version.
+    pub schema_version: String,
+    /// Whether trusted structural startup was enabled.
+    pub enabled: bool,
+    /// `disabled` or `prepared`.
+    pub state: String,
+    /// Exact prepared graph identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graph_id: Option<String>,
+    /// Exact startup snapshot identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub snapshot_id: Option<String>,
+    /// Exact worker executable identity.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub worker_sha256: Option<String>,
+    /// Graph completeness reported by the validated graph.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub graph_completeness: Option<String>,
+    /// Wall time spent preparing structural state before MCP readiness.
+    pub preparation_elapsed_ms: u64,
+}
+
+impl StructuralLifecycleReceipt {
+    fn disabled() -> Self {
+        Self {
+            schema_name: "impresari_context_structural_lifecycle".into(),
+            schema_version: "1.0".into(),
+            enabled: false,
+            state: "disabled".into(),
+            graph_id: None,
+            snapshot_id: None,
+            worker_sha256: None,
+            graph_completeness: None,
+            preparation_elapsed_ms: 0,
+        }
+    }
 }
 
 /// Stateful single-client stdio MCP service.
@@ -47,6 +104,7 @@ pub struct McpServer {
     consumer_id: String,
     role: String,
     sessions: SessionStore,
+    structural_runtime: Option<StructuralRuntime>,
     initialized_response_sent: bool,
     operation_ready: bool,
     request_ids: BTreeSet<String>,
@@ -61,6 +119,7 @@ impl McpServer {
             consumer_id: config.consumer_id,
             role: config.role,
             sessions: SessionStore::new(config.session_policy),
+            structural_runtime: config.structural_runtime,
             initialized_response_sent: false,
             operation_ready: false,
             request_ids: BTreeSet::new(),
@@ -396,10 +455,24 @@ impl McpServer {
                 None,
             ),
             (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
-                let profiled = self
-                    .engine
-                    .build_profiled_context(&context, profile, &query, args.budget)
-                    .map_err(|_| "profiled context build failed")?;
+                let profiled = if let Some(runtime) = &self.structural_runtime {
+                    self.engine
+                        .build_profiled_seeded_structural_context(
+                            &context,
+                            profile,
+                            &query,
+                            &StructuralSeedRequest {
+                                graph: runtime.graph.clone(),
+                                edge_kinds: runtime.edge_kinds.clone(),
+                            },
+                            args.budget,
+                        )
+                        .map_err(|_| "profiled structural context build failed")?
+                } else {
+                    self.engine
+                        .build_profiled_context(&context, profile, &query, args.budget)
+                        .map_err(|_| "profiled context build failed")?
+                };
                 (profiled.packet, Some(profiled.plan))
             }
             (
@@ -511,8 +584,14 @@ impl McpServer {
             None
         };
         let read_telemetry = self.engine.repository_read_telemetry();
+        let structural_lifecycle = self
+            .structural_runtime
+            .as_ref()
+            .map_or_else(StructuralLifecycleReceipt::disabled, |runtime| {
+                runtime.receipt.clone()
+            });
         Ok(
-            json!({"packet": packet, "plan": plan, "reference": reference, "read_telemetry": read_telemetry, "orchestration_authority_added": false, "filesystem_authority_added": false}),
+            json!({"packet": packet, "plan": plan, "reference": reference, "read_telemetry": read_telemetry, "structural_lifecycle": structural_lifecycle, "orchestration_authority_added": false, "filesystem_authority_added": false}),
         )
     }
 }
@@ -685,7 +764,11 @@ mod tests {
 
     use context_engine::{EngineConfig, RequestContext};
     use context_store::AuditRetention;
-    use context_workspace::DiscoveryPolicy;
+    use context_structural::{
+        FactClass, FactProvenance, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION,
+        RESOLVER_VERSION, StructuralFact, WorkerPath, WorkerSuccess, build_graph,
+    };
+    use context_workspace::{DiscoveryPolicy, PathIdentity};
 
     use super::*;
 
@@ -726,10 +809,53 @@ mod tests {
         }
     }
 
-    fn server() -> (McpServer, Root, Root) {
+    fn structural_graph(content_hash: &str, snapshot_id: &str) -> StructuralGraph {
+        let identity = PathIdentity::from_portable_relative_path("auth.rs").expect("portable path");
+        let path = WorkerPath {
+            display_path: identity.display_path,
+            platform_family: identity.platform_family.into(),
+            unit_encoding: identity.unit_encoding.into(),
+            relative_units_base64url: identity.relative_units_base64url,
+        };
+        let provenance = FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: "tree-sitter-0.26.13".into(),
+            grammar_version: "tree-sitter-rust-0.24.2".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let declaration = |local_key: &str, name: &str, start_byte, end_byte| StructuralFact {
+            class: FactClass::Declaration,
+            local_key: local_key.into(),
+            syntax_kind: "function_item".into(),
+            name: Some(name.into()),
+            module: None,
+            start_byte,
+            end_byte,
+            parent_key: None,
+            confidence: "confirmed".into(),
+            provenance: provenance.clone(),
+        };
+        let response = WorkerSuccess {
+            schema_name: "structural-worker-response".into(),
+            schema_version: PROTOCOL_VERSION.into(),
+            request_id: "req_mcpstructural01".into(),
+            content_hash: content_hash.into(),
+            syntax_errors: false,
+            facts: vec![
+                declaration("declaration:0:30", "authenticate", 0, 30),
+                declaration("declaration:31:44", "audit", 31, 44),
+            ],
+            warnings: Vec::new(),
+        };
+        build_graph(snapshot_id, vec![GraphFileInput { path, response }]).expect("graph")
+    }
+
+    fn server_with_structural_runtime(structural: bool) -> (McpServer, Root, Root) {
         let source = Root::new("source");
         let cache = Root::new("cache");
-        fs::write(source.0.join("auth.rs"), b"fn authenticate() {}\n").expect("source");
+        let source_bytes = b"fn authenticate() { audit(); }\nfn audit() {}\n";
+        fs::write(source.0.join("auth.rs"), source_bytes).expect("source");
         let request = RequestContext {
             request_id: "req_mcptestopen".into(),
             event_id: "evt_mcptestopen".into(),
@@ -747,7 +873,7 @@ mod tests {
                 .expect("audit"),
         };
         let (mut engine, _) = LocalEngine::open(config, &request, &source.0).expect("open");
-        engine
+        let snapshot = engine
             .build_snapshot(
                 &RequestContext {
                     request_id: "req_mcptestsnap".into(),
@@ -759,6 +885,30 @@ mod tests {
                     .expect("budget"),
             )
             .expect("snapshot");
+        let structural_runtime = structural.then(|| {
+            let graph = structural_graph(
+                "sha256:6737e54394e323b0b40a3aae590984b4015a2f6f0c9432e82e7ec56da1b1e38c",
+                &snapshot.snapshot_id,
+            );
+            StructuralRuntime {
+                receipt: StructuralLifecycleReceipt {
+                    schema_name: "impresari_context_structural_lifecycle".into(),
+                    schema_version: "1.0".into(),
+                    enabled: true,
+                    state: "prepared".into(),
+                    graph_id: Some(graph.graph_id.clone()),
+                    snapshot_id: Some(graph.workspace_snapshot.clone()),
+                    worker_sha256: Some(
+                        "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+                            .into(),
+                    ),
+                    graph_completeness: Some(graph.completeness.clone()),
+                    preparation_elapsed_ms: 1,
+                },
+                graph,
+                edge_kinds: Vec::new(),
+            }
+        });
         (
             McpServer::new(
                 engine,
@@ -766,11 +916,71 @@ mod tests {
                     consumer_id: "consumer_mcptest01".into(),
                     role: "client".into(),
                     session_policy: SessionPolicy::new(2, 4, 65_536).expect("sessions"),
+                    structural_runtime,
                 },
             ),
             source,
             cache,
         )
+    }
+
+    fn server() -> (McpServer, Root, Root) {
+        server_with_structural_runtime(false)
+    }
+
+    fn profiled_build(mut server: McpServer) -> Value {
+        let budget = json!({
+            "unit_kind":"utf8_bytes", "requested":"4096", "hard":true,
+            "max_evidence_items":"20", "max_files":"100",
+            "max_excerpt_bytes_per_item":"256", "max_matches":"100",
+            "max_traversal_depth":"8", "max_elapsed_ms":"30000",
+            "max_memory_bytes":"1048576", "policy_profile":POLICY_PROFILE
+        });
+        let request = json!({
+            "jsonrpc":"2.0", "id":2, "method":"tools/call", "params": {
+                "name":"context_build", "arguments": {
+                    "request_id":"req_mcpstructuralbuild01",
+                    "event_id":"evt_mcpstructuralbuild01",
+                    "purpose":"bug_investigation",
+                    "occurred_at":"2026-08-22T00:00:00Z",
+                    "profile":"bug_investigation",
+                    "query":"Fix authenticate in auth.rs",
+                    "budget":budget
+                }
+            }
+        });
+        let input = format!(
+            "{{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{{}},\"clientInfo\":{{\"name\":\"test\",\"version\":\"1\"}}}}}}\n{{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}}\n{request}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .nth(1)
+            .expect("tool response")
+    }
+
+    fn listed_tools(mut server: McpServer) -> Value {
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-11-25\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .nth(1)
+            .expect("tools response")["result"]
+            .clone()
     }
 
     #[test]
@@ -942,6 +1152,60 @@ mod tests {
         assert_eq!(
             values[1]["result"]["structuredContent"]["plan"]["task_profile"],
             "orientation"
+        );
+    }
+
+    #[test]
+    fn trusted_structural_runtime_preserves_the_tool_request_and_adds_trailing_evidence() {
+        let (baseline_tools, _baseline_source, _baseline_cache) =
+            server_with_structural_runtime(false);
+        let (structural_tools, _structural_source, _structural_cache) =
+            server_with_structural_runtime(true);
+        assert_eq!(listed_tools(baseline_tools), listed_tools(structural_tools));
+
+        let (baseline, _baseline_source, _baseline_cache) = server_with_structural_runtime(false);
+        let (structural, _structural_source, _structural_cache) =
+            server_with_structural_runtime(true);
+        let baseline = profiled_build(baseline);
+        let structural = profiled_build(structural);
+        assert_eq!(baseline["result"]["isError"], false, "{baseline:?}");
+        assert_eq!(structural["result"]["isError"], false, "{structural:?}");
+        let baseline_content = &baseline["result"]["structuredContent"];
+        let structural_content = &structural["result"]["structuredContent"];
+        assert_eq!(baseline_content["structural_lifecycle"]["enabled"], false);
+        assert_eq!(
+            baseline_content["structural_lifecycle"]["state"],
+            "disabled"
+        );
+        assert_eq!(structural_content["structural_lifecycle"]["enabled"], true);
+        assert_eq!(
+            structural_content["structural_lifecycle"]["state"],
+            "prepared"
+        );
+        assert!(
+            structural_content["plan"]["structural_query"].is_object(),
+            "{structural_content:?}"
+        );
+        let baseline_evidence = baseline_content["packet"]["observed_evidence"]
+            .as_array()
+            .expect("baseline evidence");
+        let structural_evidence = structural_content["packet"]["observed_evidence"]
+            .as_array()
+            .expect("structural evidence");
+        assert!(structural_evidence.len() > baseline_evidence.len());
+        for (ordinary, seeded) in baseline_evidence.iter().zip(structural_evidence) {
+            assert_eq!(ordinary["artifact"], seeded["artifact"]);
+            assert_eq!(ordinary["range"], seeded["range"]);
+            assert_eq!(ordinary["extraction"], seeded["extraction"]);
+        }
+        assert!(
+            structural_evidence[baseline_evidence.len()..]
+                .iter()
+                .all(|evidence| evidence["extraction"]["method"] == "structural_graph_edge")
+        );
+        assert_eq!(
+            baseline_content["read_telemetry"]["complete"],
+            structural_content["read_telemetry"]["complete"]
         );
     }
 

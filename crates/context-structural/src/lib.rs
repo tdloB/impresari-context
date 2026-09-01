@@ -1249,6 +1249,17 @@ pub struct WorkerLauncher {
 }
 
 impl WorkerLauncher {
+    /// Validates the pinned executable and empty capability-reduced directory
+    /// without starting a process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a malformed timeout, missing or mismatched worker,
+    /// unsafe path kind, or nonempty working directory.
+    pub fn validate(&self) -> Result<(), StructuralError> {
+        validate_launcher(self)
+    }
+
     /// Starts a fresh worker, sends one request, and validates one complete response.
     ///
     /// # Errors
@@ -1258,7 +1269,7 @@ impl WorkerLauncher {
     /// identity/span/limit mismatch. No partial facts are returned.
     pub fn execute(&self, request: &WorkerRequest) -> Result<WorkerSuccess, StructuralError> {
         validate_request(request)?;
-        validate_launcher(self)?;
+        self.validate()?;
         let request_bytes =
             serde_json::to_vec(request).map_err(|_| StructuralError::InvalidRequest)?;
         if request_bytes.len() > MAX_REQUEST_BYTES {
@@ -1436,11 +1447,35 @@ pub fn worker_toolchain_identity(request: &WorkerRequest) -> Result<String, Stru
             "protocol_version": request.schema_version,
             "language": request.language,
             "fact_classes": request.fact_classes,
+            "max_facts": request.max_facts,
             "max_nesting_depth": request.max_nesting_depth,
+            "max_response_bytes": request.max_response_bytes,
             "parser_version": request.parser_version,
             "grammar_version": request.grammar_version,
             "resolver_version": request.resolver_version,
             "graph_version": request.graph_version,
+        }),
+    )
+}
+
+/// Computes the parser-cache identity for one exact worker executable.
+///
+/// # Errors
+///
+/// Returns an error when the worker digest is noncanonical or canonical
+/// serialization fails.
+pub fn worker_cache_identity(
+    request: &WorkerRequest,
+    worker_sha256: &str,
+) -> Result<String, StructuralError> {
+    if !valid_sha256(worker_sha256) {
+        return Err(StructuralError::WorkerIdentity);
+    }
+    graph_identity(
+        "structural-worker-cache",
+        &serde_json::json!({
+            "toolchain_identity": worker_toolchain_identity(request)?,
+            "worker_sha256": worker_sha256,
         }),
     )
 }
@@ -3494,12 +3529,48 @@ public class Worker {
             identity,
             worker_toolchain_identity(&changed).expect("changed identity")
         );
+        let mut changed = request.clone();
+        changed.max_facts -= 1;
+        assert_ne!(
+            identity,
+            worker_toolchain_identity(&changed).expect("changed fact limit identity")
+        );
+        let mut changed = request.clone();
+        changed.max_response_bytes -= 1;
+        assert_ne!(
+            identity,
+            worker_toolchain_identity(&changed).expect("changed response limit identity")
+        );
+        let worker_a = sha256(b"worker-a");
+        let worker_b = sha256(b"worker-b");
+        assert_ne!(
+            worker_cache_identity(&request, &worker_a).expect("worker A cache identity"),
+            worker_cache_identity(&request, &worker_b).expect("worker B cache identity")
+        );
+        assert_eq!(
+            worker_cache_identity(&request, "sha256:INVALID"),
+            Err(StructuralError::WorkerIdentity)
+        );
 
         let mut corrupt = response;
         corrupt.content_hash = sha256(b"different");
         assert_eq!(
             validate_worker_success(&corrupt, &request),
             Err(StructuralError::ContractMismatch)
+        );
+    }
+
+    #[test]
+    fn capped_worker_streams_reject_the_first_overflow_byte() {
+        assert_eq!(
+            read_capped(std::io::Cursor::new(vec![b'x'; 16_385]), 16_384),
+            Err(StructuralError::ResourceLimit)
+        );
+        assert_eq!(
+            read_capped(std::io::Cursor::new(vec![b'x'; 16_384]), 16_384)
+                .expect("exact bounded stream")
+                .len(),
+            16_384
         );
     }
 

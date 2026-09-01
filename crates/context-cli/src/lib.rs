@@ -1530,6 +1530,7 @@ fn doctor_mcp(
                     "doctor session policy is invalid",
                 )
             })?,
+            structural_runtime: None,
         },
     );
     let exchange = doctor_mcp_exchange(server, &request, &plan, &budget);
