@@ -137,3 +137,11 @@ sealing only. GitHub publication attestation, Developer ID signing,
 notarization, cask lifecycle, sealed distribution, production, and analyzer
 execution remain false. See the
 [release-metadata sealing record](../verification/iar-1b-macos-local-vm-release-metadata-sealing.md).
+
+ADR-0107 adds the eleventh checkpoint: a source-free contract for the retained
+one-cask, CLI-compatible distribution direction. It fixes exact component roles,
+Homebrew ownership, whole-bundle lifecycle, migration conflict rejection, and
+narrow uninstall without creating a cask or app bundle. Every signing,
+notarization, live lifecycle, distribution, production, IAR-1B, and analyzer
+claim remains false. See the
+[cask lifecycle contract record](../verification/iar-1b-macos-local-vm-cask-lifecycle-contract.md).

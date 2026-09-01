@@ -156,3 +156,11 @@ manifest, public upstream verification material, SBOM, licenses, provenance,
 vulnerability records, and every active runtime profile. The seal profile and
 source-free receipt distinguish exact repository metadata from authenticated,
 signed, notarized, or cask-distributed bytes; all latter claims remain false.
+
+The eleventh checkpoint freezes the selected one-cask Option C ownership and
+lifecycle contract before app assembly. One app bundle and one public CLI link
+own a closed embedded role layout bound to the exact metadata seal. Whole-bundle
+install, upgrade, rollback, formula-conflict rejection, and narrow uninstall
+are exact; scripts, `zap`, privilege, background services, automatic updates,
+assembly, signing, notarization, distribution, production, and analyzers remain
+absent.

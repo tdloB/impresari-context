@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-cask-package-contract.schema.json",
+  "title": "ADR-0107 macOS local-VM cask package contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "contract_id", "contract_state", "distribution", "bundle_layout", "release_bindings", "cask_ownership", "lifecycle", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-cask-package-contract"},
+    "schema_version": {"const": "1.0.0"},
+    "contract_id": {"const": "iar-macos-local-vm-cask-contract-2026-09-01.1"},
+    "contract_state": {"const": "source-free-contract-only"},
+    "distribution": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["mechanism", "cask_token", "app_bundle", "terminal_command", "architecture", "minimum_macos"],
+      "properties": {
+        "mechanism": {"const": "homebrew-cask"},
+        "cask_token": {"const": "impresari-context"},
+        "app_bundle": {"const": "Impresari Context.app"},
+        "terminal_command": {"const": "impresari-context"},
+        "architecture": {"const": "arm64"},
+        "minimum_macos": {"const": "unresolved-before-live-rehearsal"}
+      }
+    },
+    "bundle_layout": {
+      "type": "array",
+      "minItems": 6,
+      "maxItems": 6,
+      "uniqueItems": true,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "role", "public_command", "release_identity"],
+        "properties": {
+          "path": {"enum": ["Contents/Helpers/impresari-context-mcp", "Contents/Helpers/impresari-context-structural-worker", "Contents/Helpers/impresari-context-vm-controller", "Contents/MacOS/impresari-context", "Contents/Resources/macos-vm/guest", "Contents/Resources/macos-vm/guest-release-metadata-seal-v1.json"]},
+          "role": {"enum": ["local-stdio-mcp-server", "isolated-structural-worker", "local-vm-controller", "cli-supervisor-entrypoint", "closed-guest-payload-root", "release-metadata-seal"]},
+          "public_command": {"type": "boolean"},
+          "release_identity": {"enum": ["required-at-assembly", "bound-by-contract"]}
+        }
+      }
+    },
+    "release_bindings": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository", "guest_release_id", "metadata_seal_path", "metadata_seal_digest", "metadata_set_digest", "source_revision", "product_version", "app_bundle_digest"],
+      "properties": {
+        "repository": {"const": "tdloB/impresari-context"},
+        "guest_release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+        "metadata_seal_path": {"const": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json"},
+        "metadata_seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+        "metadata_set_digest": {"const": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b"},
+        "source_revision": {"const": "required-at-assembly"},
+        "product_version": {"const": "required-at-assembly"},
+        "app_bundle_digest": {"const": "required-after-assembly"}
+      }
+    },
+    "cask_ownership": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["installed_artifacts", "internal_helper_links", "postflight", "uninstall_script", "zap", "privileged_helper", "launch_daemon", "launch_agent", "login_item"],
+      "properties": {
+        "installed_artifacts": {"type": "array", "minItems": 2, "maxItems": 2, "uniqueItems": true, "items": {"enum": ["Impresari Context.app", "impresari-context-cli-link"]}},
+        "internal_helper_links": {"const": "none"},
+        "postflight": {"const": false},
+        "uninstall_script": {"const": false},
+        "zap": {"const": false},
+        "privileged_helper": {"const": false},
+        "launch_daemon": {"const": false},
+        "launch_agent": {"const": false},
+        "login_item": {"const": false}
+      }
+    },
+    "lifecycle": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["install", "upgrade", "rollback", "migration", "uninstall", "mixed_versions", "automatic_update"],
+      "properties": {
+        "install": {"const": "atomic-whole-bundle-and-cli-link"},
+        "upgrade": {"const": "explicit-homebrew-whole-bundle-replacement"},
+        "rollback": {"const": "explicit-previous-accepted-whole-bundle"},
+        "migration": {"const": "reject-coexisting-formula-and-cask-before-mutation"},
+        "uninstall": {"const": "remove-only-cask-owned-app-and-cli-link"},
+        "mixed_versions": {"const": "rejected"},
+        "automatic_update": {"const": false}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_frozen", "offline_validation", "network_access", "credential_access", "repository_source_access", "filesystem_mutation", "process_launch", "app_bundle_assembled", "github_publication_attestation_verified", "developer_id_signature_verified", "apple_notarization_verified", "cask_lifecycle_verified", "sealed_distribution", "production_admitted", "macos_iar_1b_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "contract_frozen": {"const": true},
+        "offline_validation": {"const": true},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_source_access": {"const": false},
+        "filesystem_mutation": {"const": false},
+        "process_launch": {"const": false},
+        "app_bundle_assembled": {"const": false},
+        "github_publication_attestation_verified": {"const": false},
+        "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false},
+        "cask_lifecycle_verified": {"const": false},
+        "sealed_distribution": {"const": false},
+        "production_admitted": {"const": false},
+        "macos_iar_1b_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

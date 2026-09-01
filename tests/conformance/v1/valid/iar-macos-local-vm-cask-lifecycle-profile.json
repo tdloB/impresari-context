@@ -1,0 +1,40 @@
+{
+  "schema_name": "macos-local-vm-cask-lifecycle-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-cask-lifecycle-v1",
+  "profile_version": "1.0.0",
+  "package_contract_path": "platform/macos-vm-feasibility/cask-package-contract-v1.json",
+  "package_contract_digest": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676",
+  "metadata_seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+  "required_checks": [
+    "exact-package-contract-identity",
+    "exact-release-metadata-seal-binding",
+    "closed-app-relative-layout",
+    "unique-component-destinations",
+    "one-public-cli-entrypoint",
+    "one-app-and-one-cli-link",
+    "whole-bundle-version-alignment",
+    "formula-conflict-fails-before-mutation",
+    "narrow-cask-owned-uninstall",
+    "no-zap-or-package-scripts",
+    "no-privileged-or-background-services",
+    "no-automatic-update-authority",
+    "deny-unproven-distribution-claims",
+    "deny-production-and-analyzer-claims"
+  ],
+  "controls": {
+    "network_access": false,
+    "credential_access": false,
+    "repository_source_access": false,
+    "filesystem_mutation": false,
+    "process_launch": false,
+    "contract_frozen": true,
+    "app_bundle_assembled": false,
+    "cask_lifecycle_verified": false,
+    "sealed_distribution": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}
