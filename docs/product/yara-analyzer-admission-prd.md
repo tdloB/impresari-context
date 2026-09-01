@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0104 no-secret retention workflow implemented; first authorized dispatch pending; signing, ruleset, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention and same-run verification passed; signing, ruleset, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, approved retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
@@ -198,8 +198,8 @@ closure, SPDX SBOM,
 provenance, licenses, review dispositions, and an explicitly unadmitted
 candidate record. Source, rules, scan inputs/outputs, credentials, signing
 material, and unrelated repository content remain ineligible. The workflow
-and its non-executing verifier are implemented; the first exact-main dispatch
-remains pending until the implementation merges.
+and its non-executing verifier passed in exact-main run `33460329608`; exactly
+one artifact was retained for seven days.
 
 ADR-0105 inserts a no-upload diagnostic before that decision because two
 otherwise matching hosted builds produced different executable digests. Four

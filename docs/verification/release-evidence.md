@@ -328,7 +328,27 @@ runs no analyzer or compatibility corpus.
 - The manual no-input workflow, offline build boundary, twelve-member archive,
   seven-day single-artifact retention, non-executing same-run verifier, closed
   schema, overclaim fixture, and static implementation checker are complete.
-- The first approved dispatch remains pending implementation merge. No
-  candidate has yet been retained by this implementation record, and signing,
-  attestation, publication, execution, rules, repository scanning, production,
-  IAR-2, detection-quality, and safety claims remain false.
+- Initial run `33459619776` failed closed before upload when the runner's
+  temporary filesystem denied execution of cargo-audit build scripts. Cleanup
+  passed, verification did not run, and the artifacts API returned zero.
+- PR [#230](https://github.com/tdloB/impresari-context/pull/230) moved only the
+  cargo-audit build intermediates into the bounded Cargo mount and deletes them
+  after the advisory check.
+- Corrected exact-main run
+  [`33460329608`](https://github.com/tdloB/impresari-context/actions/runs/33460329608)
+  passed at commit `ca77a6112b04167df5cc029e23e9f369224b5227`.
+  Build job `99708941391`, non-executing verification job `99710540087`, and
+  both mandatory cleanup gates passed.
+- The artifacts API returned exactly one artifact, ID `9783099367`, created
+  `2026-09-01T02:00:08Z`, expiring `2026-09-08T02:00:07Z`, with GitHub stored
+  size `8537799` bytes. The candidate archive is `8537583` bytes at SHA-256
+  `8ba47a6ce0b5e84b5356751eb813c9eb35e375bd938f0aa81746d32ae2feffa6`.
+- The unexecuted `yr` SHA-256 is
+  `92b8abe893588b02e54c4759ff1fe8cd0173de3e6a0eba32d8d1f05923be62f5`;
+  SPDX SBOM SHA-256 is
+  `d1da23a412a85eb03cc3821a18c42c4f80282e9a302e643a73242a36cbc5dd86`;
+  provenance SHA-256 is
+  `78eca26cb6cccd60a3779166b16242924494acbfad34c3be73d554d3d979b142`.
+- The receipt fixed execution, signing, attestation, publication, admission,
+  rules, repository scanning, production, IAR-2, detection-quality, and safety
+  claims as false.

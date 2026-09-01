@@ -1,6 +1,6 @@
 # ADR-0104: Retain A No-Secret YARA-X Linux Engine Candidate
 
-- Status: Approved and implemented; first authorized dispatch pending
+- Status: Approved, implemented, and hosted verification passed
 - Date: 2026-08-31
 - Related PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Related architecture: [YARA Analyzer Admission ARD](../architecture/yara-analyzer-admission-ard.md)
@@ -147,8 +147,13 @@ and its OCI index at
 The actual build runs in a separate `--network none` container. Packaging and
 verification tools have no network or analyzer-launch capability.
 
-The manual dispatch may occur only after the implementation merges to exact
-current `main`. Selecting a signing identity, requesting `id-token` or
-attestation permissions, publishing any asset, creating production rules,
-executing the retained candidate, admitting it, scanning repository content,
-or opening IAR-2 remains unauthorized and requires a later separate decision.
+Exact-main run
+[`33460329608`](https://github.com/tdloB/impresari-context/actions/runs/33460329608)
+retained exactly one candidate and passed the separate non-executing verifier
+and both cleanup gates. The exact identities and expiry are recorded in the
+[verification evidence](../verification/yara-x-retained-engine-candidate.md).
+
+Selecting a signing identity, requesting `id-token` or attestation permissions,
+publishing any asset, creating production rules, executing the retained
+candidate, admitting it, scanning repository content, or opening IAR-2 remains
+unauthorized and requires a later separate decision.
