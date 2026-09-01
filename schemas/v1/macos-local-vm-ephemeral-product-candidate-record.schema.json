@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-ephemeral-product-candidate-record.schema.json",
+  "title": "ADR-0110 macOS ephemeral product candidate record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_name",
+    "schema_version",
+    "record_id",
+    "contract_id",
+    "contract_digest",
+    "candidate_source_revision",
+    "candidate_source_archive_sha256",
+    "product_version",
+    "target",
+    "source_date_epoch",
+    "build_environment",
+    "build_controls",
+    "dependency_evidence",
+    "artifacts",
+    "canonical_product_identity",
+    "cleanup",
+    "controls"
+  ],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "falseClaim": {"const": false}
+  },
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-ephemeral-product-candidate-record"},
+    "schema_version": {"const": "1.0.0"},
+    "record_id": {"const": "iar-macos-local-vm-ephemeral-product-candidate-2026-09-01.1"},
+    "contract_id": {"const": "iar-macos-local-vm-release-identity-2026-09-01.1"},
+    "contract_digest": {"const": "sha256:ebf78abf0a8b1609cf891b96f092065a3e957d4b819e221d47440bacc4f9cf9c"},
+    "candidate_source_revision": {"const": "aca656771f9286b13fbcc046b133ade62b58da2a"},
+    "candidate_source_archive_sha256": {"const": "sha256:f26fcf7ccdc6cb499e3eacc1f479a93083c58d397c8730b72a56d43d8c0adb8b"},
+    "product_version": {"const": "0.2.0"},
+    "target": {"const": "aarch64-apple-darwin"},
+    "source_date_epoch": {"const": "1788243888"},
+    "build_environment": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["host_architecture", "macos_product_version", "macos_build_version", "xcode_version", "xcode_build_version", "apple_sdk_version", "apple_sdk_build_version", "swift_version", "swift_target", "rustc_version", "rustc_commit", "llvm_version", "cargo_version", "target_triple"],
+      "properties": {
+        "host_architecture": {"const": "arm64"},
+        "macos_product_version": {"const": "26.5.1"},
+        "macos_build_version": {"const": "25F80"},
+        "xcode_version": {"const": "26.6"},
+        "xcode_build_version": {"const": "17F113"},
+        "apple_sdk_version": {"const": "26.5"},
+        "apple_sdk_build_version": {"const": "25F70"},
+        "swift_version": {"type": "string", "minLength": 1},
+        "swift_target": {"const": "arm64-apple-macosx26.0"},
+        "rustc_version": {"type": "string", "minLength": 1},
+        "rustc_commit": {"const": "88d9e12ae178fab0fb5cc050a94da85685d449ea"},
+        "llvm_version": {"const": "22.1.8"},
+        "cargo_version": {"type": "string", "minLength": 1},
+        "target_triple": {"const": "aarch64-apple-darwin"}
+      }
+    },
+    "build_controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["independent_private_temp_roots", "root_names_retained", "cargo_locked", "cargo_offline", "cargo_incremental", "swift_module_cache_private", "locale", "source_date_epoch_from_candidate_commit"],
+      "properties": {
+        "independent_private_temp_roots": {"const": "2"},
+        "root_names_retained": {"const": false},
+        "cargo_locked": {"const": true},
+        "cargo_offline": {"const": true},
+        "cargo_incremental": {"const": false},
+        "swift_module_cache_private": {"const": true},
+        "locale": {"const": "C"},
+        "source_date_epoch_from_candidate_commit": {"const": true}
+      }
+    },
+    "dependency_evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["cargo_lock_sha256", "cargo_metadata_stdout_sha256", "spdx_2_3_sbom_path", "spdx_2_3_sbom_sha256", "license_disposition_path", "license_disposition_sha256", "vulnerability_disposition_path", "vulnerability_disposition_sha256", "reproducibility_disposition_path", "reproducibility_disposition_sha256"],
+      "properties": {
+        "cargo_lock_sha256": {"$ref": "#/$defs/sha256"},
+        "cargo_metadata_stdout_sha256": {"$ref": "#/$defs/sha256"},
+        "spdx_2_3_sbom_path": {"const": "artifacts/sbom.spdx.json"},
+        "spdx_2_3_sbom_sha256": {"$ref": "#/$defs/sha256"},
+        "license_disposition_path": {"const": "platform/macos-vm-feasibility/product-license-disposition-v1.json"},
+        "license_disposition_sha256": {"$ref": "#/$defs/sha256"},
+        "vulnerability_disposition_path": {"const": "platform/macos-vm-feasibility/product-vulnerability-disposition-v1.json"},
+        "vulnerability_disposition_sha256": {"$ref": "#/$defs/sha256"},
+        "reproducibility_disposition_path": {"const": "platform/macos-vm-feasibility/product-reproducibility-disposition-v1.json"},
+        "reproducibility_disposition_sha256": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "artifacts": {
+      "type": "array",
+      "minItems": 4,
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unit_id", "bundle_path", "bytes", "build_a_sha256", "build_b_sha256", "build_a_log_sha256", "build_b_log_sha256", "file_format", "architectures", "signature_kind", "code_directory_sha256", "team_identifier_present", "developer_id_signed", "byte_identical", "dynamic_libraries"],
+        "properties": {
+          "unit_id": {"enum": ["cli-supervisor-entrypoint", "isolated-structural-worker", "local-stdio-mcp-server", "local-vm-controller"]},
+          "bundle_path": {"type": "string", "pattern": "^Contents/(MacOS|Helpers)/"},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "build_a_sha256": {"$ref": "#/$defs/sha256"},
+          "build_b_sha256": {"$ref": "#/$defs/sha256"},
+          "build_a_log_sha256": {"$ref": "#/$defs/sha256"},
+          "build_b_log_sha256": {"$ref": "#/$defs/sha256"},
+          "file_format": {"const": "mach-o-64-arm64"},
+          "architectures": {"const": ["arm64"]},
+          "signature_kind": {"const": "linker-adhoc"},
+          "code_directory_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+          "team_identifier_present": {"const": false},
+          "developer_id_signed": {"const": false},
+          "byte_identical": {"const": true},
+          "dynamic_libraries": {"type": "array", "minItems": 2, "uniqueItems": true, "items": {"type": "string", "pattern": "^/"}}
+        }
+      }
+    },
+    "canonical_product_identity": {"const": "sha256:7bd280339e2a8cf30c26fc2ad96225f52cad5593c63ea621e7e44ba62b9bd5ca"},
+    "cleanup": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["superseded_build_root_count", "accepted_build_root_count", "all_build_roots_deleted", "runnable_artifacts_retained", "raw_build_logs_retained", "metadata_only_retained"],
+      "properties": {
+        "superseded_build_root_count": {"const": "2"},
+        "accepted_build_root_count": {"const": "2"},
+        "all_build_roots_deleted": {"const": true},
+        "runnable_artifacts_retained": {"const": false},
+        "raw_build_logs_retained": {"const": false},
+        "metadata_only_retained": {"const": true}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["repository_source_read", "workspace_scanned", "network_access", "credential_access", "compiler_process_launch", "product_candidates_materialized", "product_candidates_executed", "guest_materialized", "release_bundle_assembled", "archive_created", "developer_id_signature_verified", "apple_notarization_verified", "bundle_installed", "cask_created", "github_publication_attestation_verified", "cask_lifecycle_verified", "sealed_distribution", "vm_launch", "analyzer_execution", "release_identity_bound", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "repository_source_read": {"const": true},
+        "workspace_scanned": {"const": false},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "compiler_process_launch": {"const": true},
+        "product_candidates_materialized": {"const": true},
+        "product_candidates_executed": {"const": false},
+        "guest_materialized": {"$ref": "#/$defs/falseClaim"},
+        "release_bundle_assembled": {"$ref": "#/$defs/falseClaim"},
+        "archive_created": {"$ref": "#/$defs/falseClaim"},
+        "developer_id_signature_verified": {"$ref": "#/$defs/falseClaim"},
+        "apple_notarization_verified": {"$ref": "#/$defs/falseClaim"},
+        "bundle_installed": {"$ref": "#/$defs/falseClaim"},
+        "cask_created": {"$ref": "#/$defs/falseClaim"},
+        "github_publication_attestation_verified": {"$ref": "#/$defs/falseClaim"},
+        "cask_lifecycle_verified": {"$ref": "#/$defs/falseClaim"},
+        "sealed_distribution": {"$ref": "#/$defs/falseClaim"},
+        "vm_launch": {"$ref": "#/$defs/falseClaim"},
+        "analyzer_execution": {"$ref": "#/$defs/falseClaim"},
+        "release_identity_bound": {"$ref": "#/$defs/falseClaim"},
+        "production_admitted": {"$ref": "#/$defs/falseClaim"},
+        "macos_iar_1b_admitted": {"$ref": "#/$defs/falseClaim"},
+        "authority_added": {"$ref": "#/$defs/falseClaim"}
+      }
+    }
+  }
+}

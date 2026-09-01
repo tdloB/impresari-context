@@ -352,3 +352,29 @@ runs no analyzer or compatibility corpus.
 - The receipt fixed execution, signing, attestation, publication, admission,
   rules, repository scanning, production, IAR-2, detection-quality, and safety
   claims as false.
+
+## 2026-09-01 — ADR-0110 ephemeral macOS product candidates
+
+- Candidate source revision:
+  `aca656771f9286b13fbcc046b133ade62b58da2a`; deterministic source-archive
+  SHA-256:
+  `f26fcf7ccdc6cb499e3eacc1f479a93083c58d397c8730b72a56d43d8c0adb8b`.
+- Exact host: macOS `26.5.1` build `25F80`, arm64; Xcode `26.6` build
+  `17F113`; SDK `26.5` build `25F70`; Swift `6.3.3`; Rust/Cargo `1.98.0`.
+- Two accepted independent private-root builds used locked offline Cargo,
+  non-incremental compilation, private Swift caches, locale `C`, and source
+  epoch `1788243888` from the candidate commit.
+- All four product outputs were byte-identical across the two builds. The
+  canonical product identity is
+  `sha256:7bd280339e2a8cf30c26fc2ad96225f52cad5593c63ea621e7e44ba62b9bd5ca`.
+- Each output was thin arm64 Mach-O with a linker ad-hoc code directory, no
+  Team Identifier, and no Developer ID signature. None was executed.
+- The frozen SPDX SBOM, locked dependency graph, no-fetch Cargo Audit, and
+  offline Cargo Deny license/source checks are digest-bound. No matching
+  advisory was found in exact local database revision
+  `ba9db2a77a6a0fe93bc63a3d9b730e08b145aff5`; no vulnerability-free claim is
+  made.
+- Two superseded setup roots and both accepted roots were deleted. No
+  executable, cache, or raw build log was retained.
+- Guest completion, app assembly, signing, notarization, cask lifecycle, VM,
+  analyzer, release identity, production, and macOS IAR-1B remain false.

@@ -632,6 +632,19 @@ resolve exact build-host identity and artifact custody before implementation
 and still must not access Apple credentials, install or publish a cask, launch
 a VM, or execute an analyzer.
 
+ADR-0110 completes the product-only build-and-cleanup checkpoint. From exact
+revision `aca656771f9286b13fbcc046b133ade62b58da2a`, two independent private
+offline builds produced byte-identical arm64 Mach-O outputs for the CLI, MCP
+server, structural worker, and Swift VM controller. Exact source, host,
+toolchain, artifact, ad-hoc code identity, dynamic-library, SBOM, license,
+advisory, reproducibility, and cleanup metadata is retained; every runnable
+byte, cache, and raw log was deleted. This is not a complete ADR-0109 release
+candidate because no guest was materialized and no app was assembled. The next
+reversible checkpoint is an exact authenticated guest-candidate substitution
+design that can complete the unsigned release record without yet accessing
+Apple credentials, signing, notarizing, installing or publishing a cask,
+launching a VM, or executing an analyzer.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
