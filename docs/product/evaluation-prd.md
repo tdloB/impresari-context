@@ -15,6 +15,7 @@
   - [Security Threat Model](../security/threat-model.md)
   - [Provider-Free Product Read Observer PRD](provider-free-product-read-observer-prd.md)
   - [Deterministic Task-Signal Selection PRD](deterministic-task-signal-selection-prd.md)
+  - [Deterministic Structural-Seed Selection PRD](deterministic-structural-seed-selection-prd.md)
 
 ## Goal
 

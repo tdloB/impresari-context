@@ -18,6 +18,7 @@
   - [Evaluation PRD](evaluation-prd.md)
   - [Provider-Free Product Read Observer PRD](provider-free-product-read-observer-prd.md)
   - [Deterministic Task-Signal Selection PRD](deterministic-task-signal-selection-prd.md)
+  - [Deterministic Structural-Seed Selection PRD](deterministic-structural-seed-selection-prd.md)
   - [Phase 0: Language and Client Foundation PRD](phase-0-language-and-client-foundation-prd.md)
   - [Revised Product Roadmap](revised-product-roadmap.md)
   - [Client Integration Depth Roadmap](client-integration-roadmap.md)

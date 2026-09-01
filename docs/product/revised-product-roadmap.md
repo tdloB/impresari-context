@@ -90,6 +90,14 @@ recover shared content-addressed evidence through the real external adapter.
 The roadmap may next assess connecting admitted anchors to the existing typed
 structural graph. Progressive disclosure remains a later separate increment.
 
+That assessment selected a narrow Graft-informed increment governed by the
+[deterministic structural-seed selection PRD](deterministic-structural-seed-selection-prd.md).
+The product will map only admitted exact paths and code identifiers to at most
+one node in its existing snapshot-bound graph, then reuse bounded typed
+traversal and exact-source recovery. The first increment changes no external
+protocol. LeanCTX-informed progressive `map`, `lookup`, and `expand` delivery
+remains next only if provider-free structural utility gates pass.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three
