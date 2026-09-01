@@ -1,0 +1,4 @@
+Sub autoopen()
+Set generated = createobject("wscript.shell")
+generated.shell("IMPRESARI_ORIGINAL_GENERATED_FIXTURE")
+End Sub

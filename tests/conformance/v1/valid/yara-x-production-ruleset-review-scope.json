@@ -1,0 +1,37 @@
+{
+  "schema_name": "yara-x-production-ruleset-review-scope",
+  "schema_version": "1.0.0",
+  "scope_id": "yara-x-production-ruleset-v1-review",
+  "profile_digest": "sha256:9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62",
+  "source_digest": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7",
+  "rules": 3,
+  "required_review": {
+    "human": true,
+    "independent": true,
+    "experienced": true,
+    "conflict_disclosure": true,
+    "attributable_report": true,
+    "per_rule_disposition": true,
+    "open_critical_high_unknown_zero": true,
+    "ai_reviewer": false
+  },
+  "status": "manual_review_required",
+  "claims": {
+    "human_review_complete": false,
+    "compiled_rules_present": false,
+    "compiler_executed": false,
+    "analyzer_executed": false,
+    "artifact_retained": false,
+    "artifact_uploaded": false,
+    "signed": false,
+    "published": false,
+    "ruleset_admitted": false,
+    "production_admitted": false,
+    "repository_scan_authorized": false,
+    "iar_2_admitted": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "malware_free_claimed": false,
+    "authority_added": false
+  }
+}

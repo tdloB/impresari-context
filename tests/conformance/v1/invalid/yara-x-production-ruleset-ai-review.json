@@ -1,0 +1,24 @@
+{
+  "schema_name": "yara-x-production-ruleset-review-record",
+  "schema_version": "1.0.0",
+  "scope_id": "yara-x-production-ruleset-v1-review",
+  "profile_digest": "sha256:9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62",
+  "source_digest": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7",
+  "reviewer_reference": "automated-reviewer",
+  "human": false,
+  "independent": false,
+  "experienced": false,
+  "conflict_disclosure": "not applicable",
+  "ai_reviewer": true,
+  "report_sha256": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "reviewed_at": "2026-08-31T20:00:00Z",
+  "status": "accepted",
+  "per_rule_dispositions": [
+    "impresari_pe_encoded_powershell_strings_v1:approve",
+    "impresari_unix_temp_download_execute_strings_v1:approve",
+    "impresari_macro_autoopen_wscript_shell_strings_v1:approve"
+  ],
+  "critical_open": 0,
+  "high_open": 0,
+  "unknown_open": 0
+}

@@ -128,8 +128,13 @@ false_claims = claims.keys - true_claims
 abort "YARA-X compatibility identity claims are incomplete" unless true_claims.all? { |key| claims.fetch(key) }
 abort "YARA-X compatibility checkpoint overclaims authority" unless false_claims.none? { |key| claims.fetch(key) }
 
-rule_files = Dir.glob(ROOT.join("rules/**/*.{yar,yara,yarc}").to_s).map { |path| Pathname.new(path).relative_path_from(ROOT).to_s }
-abort "unexpected YARA-X rule artifact entered the repository" unless rule_files == ["rules/yara-x/synthetic-compatibility-v1.yar"]
+rule_files = Dir.glob(ROOT.join("rules/**/*.{yar,yara,yarc}").to_s)
+  .map { |path| Pathname.new(path).relative_path_from(ROOT).to_s }
+  .sort
+abort "unexpected YARA-X rule artifact entered the repository" unless rule_files == [
+  "rules/yara-x/production-v1-candidate.yar",
+  "rules/yara-x/synthetic-compatibility-v1.yar"
+]
 
 provenance = json(ROOT.join("tests/conformance/v1/yara-x-artifact-compatibility-fixture-provenance.json"))
 recorded = provenance.fetch("fixtures").to_h { |entry| [entry.fetch("path"), entry.fetch("sha256")] }

@@ -1,6 +1,6 @@
 # ADR-0106: Author And Independently Review The First YARA-X Production Ruleset
 
-- Status: Proposed; founder approval and an independent human ruleset reviewer are required
+- Status: Approved; Option A source package implemented; independent human ruleset review required before compilation
 - Date: 2026-08-31
 - Related PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Related architecture: [YARA Analyzer Admission ARD](../architecture/yara-analyzer-admission-ard.md)
@@ -155,3 +155,23 @@ an acceptable report to the exact source and scope identities, the ruleset
 must remain `missing_evidence` or otherwise unavailable. A later decision must
 separately authorize compilation and candidate retention after the review
 contract and source are frozen.
+
+## Option A Implementation Evidence
+
+The approved source-only implementation freezes three original
+Impresari-owned observation rules and twelve generated, non-malicious fixtures.
+Each rule has one positive, near-miss, benign-collision, and bounded-mutation
+fixture. The closed checker parses only the permitted literal/hex subset and
+evaluates those declared fixture expectations without invoking YARA-X.
+
+- Source: `rules/yara-x/production-v1-candidate.yar`
+- Source SHA-256: `2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7`
+- Profile SHA-256: `9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62`
+- Rules: `3`
+- Generated fixtures: `12`
+- State: `source_candidate_review_required`
+
+The implementation compiles or executes no rules, retains or uploads no
+artifact, scans no repository, and adds no production, detection-quality,
+safety, malware-free, IAR-2, signing, publication, or activation claim. The
+exact review scope remains a manual gate and cannot be satisfied by AI review.

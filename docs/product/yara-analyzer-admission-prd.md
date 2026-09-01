@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0104 no-secret retention and same-run verification passed; ADR-0106 ruleset boundary proposed; signing, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention and same-run verification passed; ADR-0106 Option A source package implemented with independent human review pending; compilation, signing, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, approved retained-engine custody by ADR-0104, ephemeral reproducibility diagnosis by ADR-0105, and proposed production-ruleset boundary by ADR-0106
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, approved retained-engine custody by ADR-0104, ephemeral reproducibility diagnosis by ADR-0105, and approved source-only production-ruleset boundary by ADR-0106
 
 ## Objective
 
@@ -219,10 +219,10 @@ activation, and repository-derived scans are independent later gates. The
 first eligible scope is Linux x86-64 external delegation only;
 macOS, Windows, broad Linux, and the rootless profile remain independent.
 
-ADR-0106 proposes the next ordered stage as a small original project-owned
-ruleset, not a relabeling of compatibility fixtures and not a third-party
-feed. Each rule would carry an exact purpose, limitations, ownership, and
-generated positive, near-miss, benign-collision, and mutation fixtures under
+ADR-0106 implements the next ordered stage as a small original project-owned
+source ruleset, not a relabeling of compatibility fixtures and not a
+third-party feed. Each rule carries an exact purpose, limitations, ownership,
+and generated positive, near-miss, benign-collision, and mutation fixtures under
 the frozen module-free literal/hex surface. An independent attributable human
 ruleset review remains mandatory before the source can be review-complete.
 Until founder approval and that later review, no production-rule source,

@@ -1,0 +1,3 @@
+#!/bin/sh
+curl --fail --silent --show-error --location https://invalid.example/impresari-generated -o /tmp/impresari-generated
+chmod +x /tmp/impresari-generated

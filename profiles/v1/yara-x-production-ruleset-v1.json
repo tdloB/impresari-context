@@ -1,0 +1,137 @@
+{
+  "schema_name": "yara-x-production-ruleset-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-production-ruleset-v1",
+  "profile_version": "1.0.0",
+  "decision": "ADR-0106",
+  "state": "source_candidate_review_required",
+  "source": {
+    "path": "rules/yara-x/production-v1-candidate.yar",
+    "sha256": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7",
+    "bytes": 2072,
+    "provenance": "project-owned-original",
+    "license_spdx": "Apache-2.0",
+    "copyright": "Copyright 2026 Aaron Boldt",
+    "synthetic_compatibility_source": false,
+    "third_party_content": false,
+    "reviewed": false,
+    "compiled": false
+  },
+  "language_boundary": {
+    "allowed_pattern_kinds": ["literal_text", "hex"],
+    "allowed_modifiers": ["ascii", "fullword", "nocase", "wide"],
+    "allowed_condition_forms": ["and", "pattern_boolean"],
+    "maximum_source_bytes": 262144,
+    "maximum_rules": 256,
+    "maximum_patterns_per_rule": 32,
+    "maximum_identifier_bytes": 128,
+    "imports": false,
+    "includes": false,
+    "external_variables": false,
+    "regular_expressions": false,
+    "base64": false,
+    "xor": false,
+    "modules": false,
+    "private_rules": false,
+    "global_rules": false,
+    "repository_rules": false,
+    "network_retrieval": false,
+    "runtime_compilation": false
+  },
+  "rules": [
+    {
+      "identifier": "impresari_pe_encoded_powershell_strings_v1",
+      "purpose": "Observe a PE-like byte sequence containing an encoded PowerShell process-launch string combination",
+      "category": "encoded_command_launcher_strings",
+      "supported_formats": ["pe_candidate", "binary"],
+      "supported_classes": ["executable", "library", "installer"],
+      "tags": ["impresari", "observation_only", "pe_candidate"],
+      "pattern_count": 4,
+      "known_false_positives": [
+        "security tools, test binaries, or installers can embed all four strings"
+      ],
+      "blind_spots": [
+        "renamed launchers, alternate process APIs, decoded-only commands, and string obfuscation are not observed"
+      ],
+      "fixtures": [
+        {"role": "positive", "path": "tests/yara-x-production-ruleset/generated/pe-encoded-powershell-positive.fixture", "sha256": "sha256:a1a78696483ea50ef77d8618b102d1a0249b101cdefa7b1a17accd2eb53ac046", "bytes": 108, "expected": "match"},
+        {"role": "near_miss", "path": "tests/yara-x-production-ruleset/generated/pe-encoded-powershell-near-miss.fixture", "sha256": "sha256:2dbe134374e22e60e54f3a9e7e3514a7dbdd06d24c6c52af81bb5a01dd86ebd8", "bytes": 103, "expected": "no_match"},
+        {"role": "benign_collision", "path": "tests/yara-x-production-ruleset/generated/pe-encoded-powershell-benign-collision.fixture", "sha256": "sha256:5b2f37267c7d788fa2892222eca7a336f9eb0ab73c41fd8c874ab447091d2734", "bytes": 118, "expected": "no_match"},
+        {"role": "mutation", "path": "tests/yara-x-production-ruleset/generated/pe-encoded-powershell-mutation.fixture", "sha256": "sha256:b2f651f37892f43c7d001fcaf9280ce64ad54097707e530bec6d4d71354c2301", "bytes": 108, "expected": "match"}
+      ]
+    },
+    {
+      "identifier": "impresari_unix_temp_download_execute_strings_v1",
+      "purpose": "Observe a Unix shell string combination for downloading into a temporary path and making content executable",
+      "category": "temporary_download_execute_strings",
+      "supported_formats": ["text", "binary"],
+      "supported_classes": ["script", "executable", "installer"],
+      "tags": ["impresari", "observation_only", "script"],
+      "pattern_count": 4,
+      "known_false_positives": [
+        "legitimate bootstrap and installation scripts can contain the complete command-string combination"
+      ],
+      "blind_spots": [
+        "alternate download tools, flags, paths, permission commands, shells, and obfuscated commands are not observed"
+      ],
+      "fixtures": [
+        {"role": "positive", "path": "tests/yara-x-production-ruleset/generated/unix-temp-download-execute-positive.fixture", "sha256": "sha256:3c63e401899e0889496cf7740ea4558e1ea23dbaeea26e1da902a9ee783010c5", "bytes": 127, "expected": "match"},
+        {"role": "near_miss", "path": "tests/yara-x-production-ruleset/generated/unix-temp-download-execute-near-miss.fixture", "sha256": "sha256:18e400037a35f0ad22e807d7c4d0102c640d3048bf8037a26d545468a5bbc361", "bytes": 133, "expected": "no_match"},
+        {"role": "benign_collision", "path": "tests/yara-x-production-ruleset/generated/unix-temp-download-execute-benign-collision.fixture", "sha256": "sha256:50725d257fe186b70742df80a7543b261ddd08fd8c8081c6ed9a2ecd88968134", "bytes": 139, "expected": "no_match"},
+        {"role": "mutation", "path": "tests/yara-x-production-ruleset/generated/unix-temp-download-execute-mutation.fixture", "sha256": "sha256:60d8f542fd0ae67da9050fb7ef2c888c2737b25a51dfd888455aa6511b79397b", "bytes": 161, "expected": "no_match"}
+      ]
+    },
+    {
+      "identifier": "impresari_macro_autoopen_wscript_shell_strings_v1",
+      "purpose": "Observe an auto-open macro string combination that creates a WScript shell and requests shell execution",
+      "category": "autoopen_shell_strings",
+      "supported_formats": ["text", "binary"],
+      "supported_classes": ["document", "script"],
+      "tags": ["document", "impresari", "observation_only"],
+      "pattern_count": 4,
+      "known_false_positives": [
+        "macro training, analysis, and security-test documents can contain the complete string combination"
+      ],
+      "blind_spots": [
+        "compressed or encrypted macro streams, alternate auto-run names, alternate objects, and string obfuscation are not observed"
+      ],
+      "fixtures": [
+        {"role": "positive", "path": "tests/yara-x-production-ruleset/generated/macro-autoopen-shell-positive.fixture", "sha256": "sha256:09e66184c386f7900caf80743eb2ed356009e1c422470993a9186dae98a12100", "bytes": 125, "expected": "match"},
+        {"role": "near_miss", "path": "tests/yara-x-production-ruleset/generated/macro-autoopen-shell-near-miss.fixture", "sha256": "sha256:813ca90ba6e4dc41d7a85447a8fa9abef9ddbbdf5317197da5f93cfd0992b97a", "bytes": 132, "expected": "no_match"},
+        {"role": "benign_collision", "path": "tests/yara-x-production-ruleset/generated/macro-autoopen-shell-benign-collision.fixture", "sha256": "sha256:484f924f0194fd9beab6b49ccc95d72e14c5d44712de69e30df3ddd9392ce650", "bytes": 126, "expected": "no_match"},
+        {"role": "mutation", "path": "tests/yara-x-production-ruleset/generated/macro-autoopen-shell-mutation.fixture", "sha256": "sha256:1d7d4e7bcc87b20b8fa3f84c789a5c0c309d3ab676087f28c08ce24432693b6a", "bytes": 125, "expected": "match"}
+      ]
+    }
+  ],
+  "review_contract": {
+    "review_scope_id": "yara-x-production-ruleset-v1-review",
+    "human": true,
+    "independent_of_rule_authorship": true,
+    "yara_or_malware_analysis_experience": true,
+    "conflict_disclosure": true,
+    "attributable_report": true,
+    "exact_source_digest_binding": true,
+    "per_rule_disposition": true,
+    "critical_high_unknown_must_be_zero": true,
+    "ai_may_be_reviewer": false,
+    "complete": false
+  },
+  "claims": {
+    "human_review_complete": false,
+    "compiled_rules_present": false,
+    "compiler_executed": false,
+    "analyzer_executed": false,
+    "artifact_retained": false,
+    "artifact_uploaded": false,
+    "signed": false,
+    "published": false,
+    "ruleset_admitted": false,
+    "production_admitted": false,
+    "repository_scan_authorized": false,
+    "iar_2_admitted": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "malware_free_claimed": false,
+    "authority_added": false
+  }
+}

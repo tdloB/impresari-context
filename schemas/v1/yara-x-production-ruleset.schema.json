@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-production-ruleset.schema.json",
+  "title": "ADR-0106 source-only YARA-X production-ruleset contracts",
+  "$defs": {
+    "digest": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "human_review_complete", "compiled_rules_present", "compiler_executed",
+        "analyzer_executed", "artifact_retained", "artifact_uploaded", "signed",
+        "published", "ruleset_admitted", "production_admitted",
+        "repository_scan_authorized", "iar_2_admitted", "detection_quality_claimed",
+        "safety_claimed", "malware_free_claimed", "authority_added"
+      ],
+      "properties": {
+        "human_review_complete": {"const": false},
+        "compiled_rules_present": {"const": false},
+        "compiler_executed": {"const": false},
+        "analyzer_executed": {"const": false},
+        "artifact_retained": {"const": false},
+        "artifact_uploaded": {"const": false},
+        "signed": {"const": false},
+        "published": {"const": false},
+        "ruleset_admitted": {"const": false},
+        "production_admitted": {"const": false},
+        "repository_scan_authorized": {"const": false},
+        "iar_2_admitted": {"const": false},
+        "detection_quality_claimed": {"const": false},
+        "safety_claimed": {"const": false},
+        "malware_free_claimed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "fixture": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["role", "path", "sha256", "bytes", "expected"],
+      "properties": {
+        "role": {"enum": ["positive", "near_miss", "benign_collision", "mutation"]},
+        "path": {"type": "string", "pattern": "^tests/yara-x-production-ruleset/generated/[a-z0-9-]+\\.fixture$"},
+        "sha256": {"$ref": "#/$defs/digest"},
+        "bytes": {"type": "integer", "minimum": 1, "maximum": 4096},
+        "expected": {"enum": ["match", "no_match"]}
+      }
+    },
+    "rule": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "identifier", "purpose", "category", "supported_formats", "supported_classes",
+        "tags", "pattern_count", "known_false_positives", "blind_spots", "fixtures"
+      ],
+      "properties": {
+        "identifier": {"type": "string", "pattern": "^impresari_[a-z0-9_]+_v1$", "maxLength": 128},
+        "purpose": {"type": "string", "minLength": 20, "maxLength": 512},
+        "category": {"type": "string", "pattern": "^[a-z][a-z0-9_]+$", "maxLength": 128},
+        "supported_formats": {
+          "type": "array", "minItems": 1, "maxItems": 2, "uniqueItems": true,
+          "items": {"enum": ["text", "binary", "pe_candidate", "msi_candidate", "archive_candidate", "unknown"]}
+        },
+        "supported_classes": {
+          "type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true,
+          "items": {"enum": ["source", "script", "configuration", "archive", "document", "executable", "library", "installer", "unknown"]}
+        },
+        "tags": {
+          "type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true,
+          "items": {"type": "string", "pattern": "^[a-z][a-z0-9_]+$"}
+        },
+        "pattern_count": {"type": "integer", "minimum": 1, "maximum": 32},
+        "known_false_positives": {
+          "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 20, "maxLength": 512}
+        },
+        "blind_spots": {
+          "type": "array", "minItems": 1, "maxItems": 8, "uniqueItems": true,
+          "items": {"type": "string", "minLength": 20, "maxLength": 512}
+        },
+        "fixtures": {
+          "type": "array", "minItems": 4, "maxItems": 4,
+          "items": {"$ref": "#/$defs/fixture"},
+          "contains": {"properties": {"role": {"const": "positive"}}, "required": ["role"]},
+          "minContains": 1,
+          "maxContains": 1
+        }
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name", "schema_version", "profile_id", "profile_version", "decision",
+        "state", "source", "language_boundary", "rules", "review_contract", "claims"
+      ],
+      "properties": {
+        "schema_name": {"const": "yara-x-production-ruleset-profile"},
+        "schema_version": {"const": "1.0.0"},
+        "profile_id": {"const": "yara-x-production-ruleset-v1"},
+        "profile_version": {"const": "1.0.0"},
+        "decision": {"const": "ADR-0106"},
+        "state": {"const": "source_candidate_review_required"},
+        "source": {
+          "type": "object", "additionalProperties": false,
+          "required": ["path", "sha256", "bytes", "provenance", "license_spdx", "copyright", "synthetic_compatibility_source", "third_party_content", "reviewed", "compiled"],
+          "properties": {
+            "path": {"const": "rules/yara-x/production-v1-candidate.yar"},
+            "sha256": {"$ref": "#/$defs/digest"},
+            "bytes": {"type": "integer", "minimum": 1, "maximum": 262144},
+            "provenance": {"const": "project-owned-original"},
+            "license_spdx": {"const": "Apache-2.0"},
+            "copyright": {"type": "string", "minLength": 10, "maxLength": 256},
+            "synthetic_compatibility_source": {"const": false},
+            "third_party_content": {"const": false},
+            "reviewed": {"const": false},
+            "compiled": {"const": false}
+          }
+        },
+        "language_boundary": {
+          "type": "object", "additionalProperties": false,
+          "required": [
+            "allowed_pattern_kinds", "allowed_modifiers", "allowed_condition_forms",
+            "maximum_source_bytes", "maximum_rules", "maximum_patterns_per_rule",
+            "maximum_identifier_bytes", "imports", "includes", "external_variables",
+            "regular_expressions", "base64", "xor", "modules", "private_rules",
+            "global_rules", "repository_rules", "network_retrieval", "runtime_compilation"
+          ],
+          "properties": {
+            "allowed_pattern_kinds": {"const": ["literal_text", "hex"]},
+            "allowed_modifiers": {"const": ["ascii", "fullword", "nocase", "wide"]},
+            "allowed_condition_forms": {"const": ["and", "pattern_boolean"]},
+            "maximum_source_bytes": {"const": 262144},
+            "maximum_rules": {"const": 256},
+            "maximum_patterns_per_rule": {"const": 32},
+            "maximum_identifier_bytes": {"const": 128},
+            "imports": {"const": false}, "includes": {"const": false},
+            "external_variables": {"const": false}, "regular_expressions": {"const": false},
+            "base64": {"const": false}, "xor": {"const": false}, "modules": {"const": false},
+            "private_rules": {"const": false}, "global_rules": {"const": false},
+            "repository_rules": {"const": false}, "network_retrieval": {"const": false},
+            "runtime_compilation": {"const": false}
+          }
+        },
+        "rules": {"type": "array", "minItems": 1, "maxItems": 256, "items": {"$ref": "#/$defs/rule"}},
+        "review_contract": {
+          "type": "object", "additionalProperties": false,
+          "required": ["review_scope_id", "human", "independent_of_rule_authorship", "yara_or_malware_analysis_experience", "conflict_disclosure", "attributable_report", "exact_source_digest_binding", "per_rule_disposition", "critical_high_unknown_must_be_zero", "ai_may_be_reviewer", "complete"],
+          "properties": {
+            "review_scope_id": {"const": "yara-x-production-ruleset-v1-review"},
+            "human": {"const": true}, "independent_of_rule_authorship": {"const": true},
+            "yara_or_malware_analysis_experience": {"const": true},
+            "conflict_disclosure": {"const": true}, "attributable_report": {"const": true},
+            "exact_source_digest_binding": {"const": true}, "per_rule_disposition": {"const": true},
+            "critical_high_unknown_must_be_zero": {"const": true},
+            "ai_may_be_reviewer": {"const": false}, "complete": {"const": false}
+          }
+        },
+        "claims": {"$ref": "#/$defs/claims"}
+      }
+    },
+    "sourceReceipt": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "profile_id", "profile_digest", "source_digest", "state", "rules", "fixtures", "checks", "claims"],
+      "properties": {
+        "schema_name": {"const": "yara-x-production-ruleset-source-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "profile_id": {"const": "yara-x-production-ruleset-v1"},
+        "profile_digest": {"const": "sha256:9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62"},
+        "source_digest": {"const": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7"},
+        "state": {"const": "source_candidate_review_required"},
+        "rules": {"const": 3}, "fixtures": {"const": 12},
+        "checks": {
+          "type": "object", "additionalProperties": false,
+          "required": ["source_identity", "closed_language_lint", "rule_metadata", "fixture_manifest", "fixture_identity", "original_provenance", "review_scope"],
+          "properties": {
+            "source_identity": {"const": true}, "closed_language_lint": {"const": true},
+            "rule_metadata": {"const": true}, "fixture_manifest": {"const": true},
+            "fixture_identity": {"const": true}, "original_provenance": {"const": true},
+            "review_scope": {"const": true}
+          }
+        },
+        "claims": {"$ref": "#/$defs/claims"}
+      }
+    },
+    "reviewScope": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "scope_id", "profile_digest", "source_digest", "rules", "required_review", "status", "claims"],
+      "properties": {
+        "schema_name": {"const": "yara-x-production-ruleset-review-scope"},
+        "schema_version": {"const": "1.0.0"},
+        "scope_id": {"const": "yara-x-production-ruleset-v1-review"},
+        "profile_digest": {"const": "sha256:9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62"},
+        "source_digest": {"const": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7"},
+        "rules": {"const": 3},
+        "required_review": {
+          "type": "object", "additionalProperties": false,
+          "required": ["human", "independent", "experienced", "conflict_disclosure", "attributable_report", "per_rule_disposition", "open_critical_high_unknown_zero", "ai_reviewer"],
+          "properties": {
+            "human": {"const": true}, "independent": {"const": true},
+            "experienced": {"const": true}, "conflict_disclosure": {"const": true},
+            "attributable_report": {"const": true}, "per_rule_disposition": {"const": true},
+            "open_critical_high_unknown_zero": {"const": true}, "ai_reviewer": {"const": false}
+          }
+        },
+        "status": {"const": "manual_review_required"},
+        "claims": {"$ref": "#/$defs/claims"}
+      }
+    },
+    "reviewRecord": {
+      "type": "object", "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "scope_id", "profile_digest", "source_digest", "reviewer_reference", "human", "independent", "experienced", "conflict_disclosure", "ai_reviewer", "report_sha256", "reviewed_at", "status", "per_rule_dispositions", "critical_open", "high_open", "unknown_open"],
+      "properties": {
+        "schema_name": {"const": "yara-x-production-ruleset-review-record"},
+        "schema_version": {"const": "1.0.0"},
+        "scope_id": {"const": "yara-x-production-ruleset-v1-review"},
+        "profile_digest": {"const": "sha256:9dbb28f52510e63e18834f0ece42a807b4ae03a9fff13fa97f954492a4631d62"},
+        "source_digest": {"const": "sha256:2c793693e57d6e2f25cf5a38a38033b32afcf05bc56cc6deb088601d140fa9f7"},
+        "reviewer_reference": {"type": "string", "minLength": 3, "maxLength": 256},
+        "human": {"const": true}, "independent": {"const": true}, "experienced": {"const": true},
+        "conflict_disclosure": {"type": "string", "minLength": 3, "maxLength": 1024},
+        "ai_reviewer": {"const": false}, "report_sha256": {"$ref": "#/$defs/digest"},
+        "reviewed_at": {"type": "string", "format": "date-time"},
+        "status": {"enum": ["accepted", "revision_required", "rejected"]},
+        "per_rule_dispositions": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"type": "string", "pattern": "^impresari_[a-z0-9_]+_v1:(?:approve|revise|reject)$"}},
+        "critical_open": {"type": "integer", "minimum": 0},
+        "high_open": {"type": "integer", "minimum": 0},
+        "unknown_open": {"type": "integer", "minimum": 0}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "accepted"}}, "required": ["status"]},
+          "then": {"properties": {"critical_open": {"const": 0}, "high_open": {"const": 0}, "unknown_open": {"const": 0}}}
+        }
+      ]
+    }
+  }
+}
