@@ -102,3 +102,12 @@ unsigned-candidate schema: the product and guest existed in separate deleted
 rehearsals, no complete app tree existed, and candidate filesystem modes were
 not verified. The next gate is one complete ephemeral build, assembly,
 verification, and deletion rehearsal without Apple identity or execution.
+
+ADR-0114 completes that one-root rehearsal. The exact product source archive
+was rebuilt offline, the exact public Alpine APK was publisher-authenticated,
+the four product and two guest identities were reproduced, and the closed
+eight-file app tree was assembled with exact modes. Both the ADR-0109 compound
+identity and ADR-0113 material identity reproduced. No produced artifact was
+executed, and the source, download, app, build products, caches, and raw logs
+were deleted with the complete private root. The retained record is an unsigned
+candidate, not a signed, notarized, installed, sandboxed, or production app.

@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-ephemeral-unsigned-release-candidate-profile.schema.json",
+  "title": "ADR-0114 ephemeral unsigned candidate profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "candidate_record_path", "candidate_record_digest", "rehearsal_record_path", "rehearsal_record_digest", "candidate_schema_path", "candidate_schema_digest", "composition_record_path", "composition_record_digest", "operator_script_path", "operator_script_digest", "required_file_count", "required_directory_count", "network_scope", "claims", "status"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-ephemeral-unsigned-release-candidate-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-ephemeral-unsigned-release-candidate-v1"},
+    "candidate_record_path": {"const": "platform/macos-vm-feasibility/ephemeral-unsigned-release-candidate-v1.json"},
+    "candidate_record_digest": {"const": "sha256:54257bb6a89f0930d7d80a87b15e302eac3756411fc719d100e9c2f5bfcfc362"},
+    "rehearsal_record_path": {"const": "platform/macos-vm-feasibility/ephemeral-unsigned-release-candidate-rehearsal-v1.json"},
+    "rehearsal_record_digest": {"const": "sha256:0df3cf194a4a97245b8523f598593ede1b9d80e18411a1356f7110bee7fb9b8b"},
+    "candidate_schema_path": {"const": "schemas/v1/macos-local-vm-unsigned-release-candidate.schema.json"},
+    "candidate_schema_digest": {"const": "sha256:b1d0e93ce5917825018913017796ae1c9fbb84b824f28feb6fd37a38c04e2e41"},
+    "composition_record_path": {"const": "platform/macos-vm-feasibility/unsigned-release-candidate-composition-v1.json"},
+    "composition_record_digest": {"const": "sha256:88ee55c39b6735d645b285ca43ba203f4517f3d695aeaafc29d604c25eb6a167"},
+    "operator_script_path": {"const": "scripts/rehearse-macos-vm-ephemeral-unsigned-release-candidate.rb"},
+    "operator_script_digest": {"const": "sha256:5b86107ae92c59a21743e8405803f6159706bfa0b72d4c772267231b3ceaf6be"},
+    "required_file_count": {"const": "8"},
+    "required_directory_count": {"const": "6"},
+    "network_scope": {"const": "exact-public-apk-only"},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_materialized", "app_assembled", "release_identity_bound", "cleanup_verified", "runnable_artifacts_retained", "credential_access", "apple_identity_access", "developer_id_signature_verified", "apple_notarization_verified", "archive_created", "cask_created", "bundle_installed", "vm_launch", "analyzer_execution", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "candidate_materialized": {"const": true}, "app_assembled": {"const": true},
+        "release_identity_bound": {"const": true}, "cleanup_verified": {"const": true},
+        "runnable_artifacts_retained": {"const": false}, "credential_access": {"const": false},
+        "apple_identity_access": {"const": false}, "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false}, "archive_created": {"const": false},
+        "cask_created": {"const": false}, "bundle_installed": {"const": false},
+        "vm_launch": {"const": false}, "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false}, "macos_iar_1b_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "status": {"const": "ephemeral_unsigned_candidate_verified_and_deleted"}
+  }
+}

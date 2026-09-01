@@ -1,0 +1,20 @@
+{
+  "schema_name": "macos-local-vm-ephemeral-unsigned-release-candidate-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_guest_payload_bytes": false,
+  "contains_raw_build_logs": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": true,
+  "notes": "One exact public Alpine APK was authenticated during the bounded rehearsal. Fixtures retain only project-authored schemas and source-free identity, build, app-tree, and cleanup metadata. No source archive, APK, extracted input, product or guest executable, app, cache, raw log, credential, or provider response body is retained.",
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-ephemeral-unsigned-release-candidate-profile.json", "sha256": "0b9990f604eae2d3fec50d9e78d596aff822b7c702d7c80569e6d58059058942"},
+    {"path": "valid/macos-local-vm-ephemeral-unsigned-release-candidate.json", "sha256": "6f0814349c1e7a462cf1aeb73cf3cdc115df2df105ff0d15fc0441635c9404d7"},
+    {"path": "valid/macos-local-vm-ephemeral-unsigned-release-candidate-rehearsal.json", "sha256": "0df3cf194a4a97245b8523f598593ede1b9d80e18411a1356f7110bee7fb9b8b"},
+    {"path": "valid/macos-local-vm-ephemeral-unsigned-release-candidate-receipt.json", "sha256": "b8f66616bc9db9e1f2c74be209f003795ab530c320217163804ddbe7c2c503d1"},
+    {"path": "invalid/macos-local-vm-ephemeral-unsigned-release-candidate-overclaim.json", "sha256": "dd5f1e1aa6d15be066386d22b8fa9fbefb76d29120488b8eccd1379524a0d3d9"}
+  ]
+}
