@@ -29,10 +29,11 @@ use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
 };
 use context_structural::{
-    FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, RepositoryMap,
-    StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult, WorkerLauncher,
-    WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns, query_graph,
-    repository_map, validate_graph, validate_worker_success, worker_toolchain_identity,
+    FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
+    RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
+    WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
+    query_graph, repository_map, validate_graph, validate_worker_success,
+    worker_toolchain_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -324,6 +325,30 @@ pub struct StructuralImpactRequest {
     pub start_node: String,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+}
+
+/// Validated graph input whose start node is selected by the product.
+#[derive(Clone, Debug)]
+pub struct StructuralSeedRequest {
+    /// Already validated canonical graph supplied by the caller.
+    pub graph: StructuralGraph,
+    /// Relationship kinds requested by the caller; empty permits every kind.
+    pub edge_kinds: Vec<String>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StructuralPlanAnnotation<'a> {
+    Available(&'a str),
+    Omitted(&'a str),
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+enum StructuralSeedDecision {
+    Selected {
+        node_id: String,
+        reason_code: &'static str,
+    },
+    Omitted(&'static str),
 }
 
 /// Explicit bounded repository-map input for the orientation adapter.
@@ -1724,6 +1749,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1779,6 +1805,118 @@ impl LocalEngine {
             &decision.decision_id,
             started,
             Some(&structural_query),
+            Some(StructuralPlanAnnotation::Available(
+                "validated_structural_relationship_available",
+            )),
+            None,
+            None,
+            None,
+            None,
+        );
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::ContextBuild,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
+    /// Builds one profiled packet whose structural start node is selected from
+    /// admitted exact task signals by the product.
+    ///
+    /// Ambiguous or unavailable seeds retain ordinary profiled retrieval and
+    /// record an explicit omission. The supplied graph must remain valid and
+    /// bound to the current snapshot even when no seed is selected.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure for invalid or stale graph state, invalid
+    /// task input, bounded traversal failure, retrieval failure, or packet
+    /// construction failure.
+    pub fn build_profiled_seeded_structural_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralSeedRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        let snapshot_id = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.snapshot_id.clone())
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::ContextBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot required",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+        if structural_request.graph.workspace_snapshot != snapshot_id {
+            return Err(failure(
+                context,
+                Capability::ContextBuild,
+                PublicErrorCode::StaleState,
+                "structural graph is stale",
+                Some(self.workspace.identity()),
+                Some(&snapshot_id),
+                Some(RecoveryAction::RebuildIndex),
+            ));
+        }
+        validate_graph(&structural_request.graph).map_err(|error| {
+            structural_query_failure(context, error, self.workspace.identity(), &snapshot_id)
+        })?;
+        let seed = structural_seed_decision(&structural_request.graph, query)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let selected = match seed {
+            StructuralSeedDecision::Selected {
+                node_id,
+                reason_code,
+            } => {
+                let structure_context = derived_structure_query_context(context);
+                let traversal = self.query_structure(
+                    &structure_context,
+                    &structural_request.graph,
+                    &node_id,
+                    &structural_request.edge_kinds,
+                    &narrow_structural_seed_budget(&budget).map_err(|code| {
+                        core_error(context, Capability::StructureQuery, code, self.ids())
+                    })?,
+                )?;
+                let query = structural_planner_query(&structural_request.edge_kinds, traversal)
+                    .map_err(|code| {
+                        core_error(context, Capability::ContextBuild, code, self.ids())
+                    })?;
+                (
+                    Some(query),
+                    StructuralPlanAnnotation::Available(reason_code),
+                )
+            }
+            StructuralSeedDecision::Omitted(reason_code) => {
+                (None, StructuralPlanAnnotation::Omitted(reason_code))
+            }
+        };
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
+        let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
+        let result = self.build_profiled_context_internal(
+            context,
+            profile,
+            query,
+            budget,
+            &decision.decision_id,
+            started,
+            selected.0.as_ref(),
+            Some(selected.1),
             None,
             None,
             None,
@@ -1901,6 +2039,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            None,
             Some(&orientation),
             None,
         );
@@ -1949,6 +2088,7 @@ impl LocalEngine {
                 &decision.decision_id,
                 started,
                 None,
+                None,
                 Some(&declared_change_set),
                 None,
                 None,
@@ -1995,6 +2135,7 @@ impl LocalEngine {
                 budget,
                 &decision.decision_id,
                 started,
+                None,
                 None,
                 None,
                 Some(&associated),
@@ -2045,6 +2186,7 @@ impl LocalEngine {
                 None,
                 None,
                 None,
+                None,
                 Some(&conventions),
             )
         })();
@@ -2071,6 +2213,7 @@ impl LocalEngine {
         policy_decision: &str,
         started: Instant,
         structural_query: Option<&StructuralPlannerQuery>,
+        structural_annotation: Option<StructuralPlanAnnotation<'_>>,
         declared_change_set: Option<&VerifiedDeclaredChangeSet>,
         declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
         repository_orientation: Option<&RepositoryOrientationMap>,
@@ -2102,10 +2245,8 @@ impl LocalEngine {
             max_literal_bytes,
         )
         .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        if let Some(structural_query) = structural_query {
-            apply_structural_query_to_plan(&mut plan, structural_query)
-                .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        }
+        apply_structural_annotation_to_plan(&mut plan, structural_query, structural_annotation)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         if let Some(declared_change_set) = declared_change_set {
             apply_declared_change_set_to_plan(&mut plan, declared_change_set)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
@@ -2122,7 +2263,7 @@ impl LocalEngine {
             apply_repository_orientation_to_plan(&mut plan, orientation)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
-        let (supplemental_evidence, supplemental_unknowns) = structural_query.map_or_else(
+        let (structural_evidence, structural_unknowns) = structural_query.map_or_else(
             || Ok((Vec::new(), Vec::new())),
             |value| self.structural_evidence(context, value, &budget, started),
         )?;
@@ -2141,14 +2282,12 @@ impl LocalEngine {
                     self.declared_convention_exemplar_evidence(context, value, &budget, started)
                 },
             )?;
-        let mut supplemental_evidence = supplemental_evidence;
-        supplemental_evidence.extend(declared_evidence);
-        supplemental_evidence.extend(associated_evidence);
-        supplemental_evidence.extend(convention_evidence);
-        let mut supplemental_unknowns = supplemental_unknowns;
-        supplemental_unknowns.extend(declared_unknowns);
-        supplemental_unknowns.extend(associated_unknowns);
-        supplemental_unknowns.extend(convention_unknowns);
+        let mut leading_evidence = declared_evidence;
+        leading_evidence.extend(associated_evidence);
+        leading_evidence.extend(convention_evidence);
+        let mut leading_unknowns = declared_unknowns;
+        leading_unknowns.extend(associated_unknowns);
+        leading_unknowns.extend(convention_unknowns);
         let packet = self.build_planned_context_with_supplemental_internal(
             context,
             &ContextPlan {
@@ -2157,8 +2296,10 @@ impl LocalEngine {
             budget,
             policy_decision,
             started,
-            supplemental_evidence,
-            supplemental_unknowns,
+            leading_evidence,
+            leading_unknowns,
+            structural_evidence,
+            structural_unknowns,
             Some(&snapshot),
         )?;
         let mut omitted_candidates = Vec::new();
@@ -2230,6 +2371,8 @@ impl LocalEngine {
             started,
             Vec::new(),
             Vec::new(),
+            Vec::new(),
+            Vec::new(),
             None,
         )
     }
@@ -2242,8 +2385,10 @@ impl LocalEngine {
         budget: ResourceBudget,
         policy_decision: &str,
         started: Instant,
-        supplemental_evidence: Vec<EvidenceRecord>,
-        supplemental_unknowns: Vec<String>,
+        leading_evidence: Vec<EvidenceRecord>,
+        leading_unknowns: Vec<String>,
+        trailing_evidence: Vec<EvidenceRecord>,
+        trailing_unknowns: Vec<String>,
         expected_snapshot: Option<&str>,
     ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
@@ -2261,10 +2406,10 @@ impl LocalEngine {
         } else {
             let mut evidence = std::collections::BTreeMap::new();
             let mut evidence_order = Vec::new();
-            for item in supplemental_evidence {
+            for item in leading_evidence {
                 Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
             }
-            let mut unknowns = supplemental_unknowns;
+            let mut unknowns = leading_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
@@ -2314,6 +2459,10 @@ impl LocalEngine {
                     Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
                 }
             }
+            for item in trailing_evidence {
+                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+            }
+            unknowns.extend(trailing_unknowns);
             let snapshot_id = snapshot_id.ok_or_else(|| {
                 failure(
                     context,
@@ -3772,6 +3921,26 @@ fn resource_budget_max_literal_bytes(
         .map_err(|_| context_core::CoreErrorCode::InvalidInput)
 }
 
+fn narrow_structural_seed_budget(
+    budget: &ResourceBudget,
+) -> Result<ResourceBudget, context_core::CoreErrorCode> {
+    let depth = budget
+        .max_traversal_depth
+        .parse::<u64>()
+        .map_err(|_| context_core::CoreErrorCode::InvalidInput)?;
+    let matches = budget
+        .max_matches
+        .parse::<u64>()
+        .map_err(|_| context_core::CoreErrorCode::InvalidInput)?;
+    if depth == 0 || matches == 0 {
+        return Err(context_core::CoreErrorCode::InvalidInput);
+    }
+    let mut narrowed = budget.clone();
+    narrowed.max_traversal_depth = "1".into();
+    narrowed.max_matches = matches.min(16).to_string();
+    Ok(narrowed)
+}
+
 fn deterministic_plan(
     profile: TaskProfile,
     query: &str,
@@ -3779,12 +3948,7 @@ fn deterministic_plan(
     policy_decision: &str,
     max_literal_bytes: u64,
 ) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
-    if query.is_empty()
-        || query.len() > 4_096
-        || query
-            .chars()
-            .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
-    {
+    if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let (base_steps, mut omitted_candidates) = profile_base_plan(profile, query);
@@ -3921,6 +4085,14 @@ struct TaskSignals {
     paths: Vec<String>,
     identifiers: Vec<String>,
     lexical: Vec<String>,
+}
+
+fn valid_task_query(query: &str) -> bool {
+    !query.is_empty()
+        && query.len() <= 4_096
+        && !query
+            .chars()
+            .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
 }
 
 fn expand_profile_steps(
@@ -4065,6 +4237,94 @@ fn task_signals(query: &str) -> TaskSignals {
     }
     signals.lexical = lexical;
     signals
+}
+
+fn structural_seed_decision(
+    graph: &StructuralGraph,
+    query: &str,
+) -> Result<StructuralSeedDecision, context_core::CoreErrorCode> {
+    if !valid_task_query(query) {
+        return Err(context_core::CoreErrorCode::InvalidInput);
+    }
+    let signals = task_signals(query);
+    let nodes = graph
+        .nodes
+        .iter()
+        .map(|node| {
+            let path = graph_node_portable_path(node)?;
+            Ok((node, path))
+        })
+        .collect::<Result<Vec<_>, context_core::CoreErrorCode>>()?;
+
+    for task_path in &signals.paths {
+        let files = nodes
+            .iter()
+            .filter(|(node, path)| node.kind == "file" && path == task_path)
+            .collect::<Vec<_>>();
+        if files.len() > 1 {
+            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
+        }
+        let Some((file, file_path)) = files.first() else {
+            continue;
+        };
+        for identifier in &signals.identifiers {
+            let symbols = nodes
+                .iter()
+                .filter(|(node, path)| {
+                    node.kind == "symbol"
+                        && node.confidence == "confirmed"
+                        && path == file_path
+                        && node.name.as_deref() == Some(identifier.as_str())
+                })
+                .collect::<Vec<_>>();
+            if symbols.len() > 1 {
+                return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
+            }
+            if let Some((symbol, _)) = symbols.first() {
+                return Ok(StructuralSeedDecision::Selected {
+                    node_id: symbol.node_id.clone(),
+                    reason_code: "unique_symbol_in_exact_path",
+                });
+            }
+        }
+        return Ok(StructuralSeedDecision::Selected {
+            node_id: file.node_id.clone(),
+            reason_code: "unique_exact_file_path",
+        });
+    }
+
+    for identifier in &signals.identifiers {
+        let symbols = nodes
+            .iter()
+            .filter(|(node, _)| {
+                node.kind == "symbol"
+                    && node.confidence == "confirmed"
+                    && node.name.as_deref() == Some(identifier.as_str())
+            })
+            .collect::<Vec<_>>();
+        if symbols.len() > 1 {
+            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
+        }
+        if let Some((symbol, _)) = symbols.first() {
+            return Ok(StructuralSeedDecision::Selected {
+                node_id: symbol.node_id.clone(),
+                reason_code: "globally_unique_symbol",
+            });
+        }
+    }
+    Ok(StructuralSeedDecision::Omitted(
+        "structural_seed_unavailable",
+    ))
+}
+
+fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::CoreErrorCode> {
+    PathIdentity::from_encoded_native_units(
+        &node.path.platform_family,
+        &node.path.unit_encoding,
+        &node.path.relative_units_base64url,
+    )
+    .and_then(|path| path.to_portable_relative_path())
+    .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)
 }
 
 fn lexical_task_terms(query: &str) -> Vec<String> {
@@ -4257,6 +4517,7 @@ fn structural_planner_query(
 fn apply_structural_query_to_plan(
     plan: &mut DeterministicContextPlan,
     structural_query: &StructuralPlannerQuery,
+    reason_code: &str,
 ) -> Result<(), context_core::CoreErrorCode> {
     let coverage = plan
         .coverage
@@ -4264,12 +4525,53 @@ fn apply_structural_query_to_plan(
         .find(|item| item.evidence_class == PlannerEvidenceClass::StructuralRelationship)
         .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
     coverage.status = "available".into();
-    coverage.reason_code = "validated_structural_relationship_available".into();
+    coverage.reason_code = reason_code.into();
     plan.omitted_candidates.retain(|item| {
         item.candidate != "structural_relationship"
             || item.reason_code != "structural_relationship_evidence_not_connected"
     });
     plan.structural_query = Some(structural_query.clone());
+    plan.plan_id = deterministic_plan_identity(plan)?;
+    Ok(())
+}
+
+fn apply_structural_annotation_to_plan(
+    plan: &mut DeterministicContextPlan,
+    structural_query: Option<&StructuralPlannerQuery>,
+    structural_annotation: Option<StructuralPlanAnnotation<'_>>,
+) -> Result<(), context_core::CoreErrorCode> {
+    match (structural_query, structural_annotation) {
+        (Some(query), Some(StructuralPlanAnnotation::Available(reason_code))) => {
+            apply_structural_query_to_plan(plan, query, reason_code)
+        }
+        (None, Some(StructuralPlanAnnotation::Omitted(reason_code))) => {
+            apply_structural_omission_to_plan(plan, reason_code)
+        }
+        (None, None) => Ok(()),
+        _ => Err(context_core::CoreErrorCode::IntegrityFailure),
+    }
+}
+
+fn apply_structural_omission_to_plan(
+    plan: &mut DeterministicContextPlan,
+    reason_code: &str,
+) -> Result<(), context_core::CoreErrorCode> {
+    let coverage = plan
+        .coverage
+        .iter_mut()
+        .find(|item| item.evidence_class == PlannerEvidenceClass::StructuralRelationship)
+        .ok_or(context_core::CoreErrorCode::IntegrityFailure)?;
+    coverage.status = "unavailable".into();
+    coverage.reason_code = reason_code.into();
+    plan.omitted_candidates
+        .retain(|item| item.candidate != "structural_relationship");
+    plan.omitted_candidates
+        .push(planner_omission("structural_relationship", reason_code));
+    plan.omitted_candidates.sort_by(|left, right| {
+        left.candidate
+            .cmp(&right.candidate)
+            .then(left.reason_code.cmp(&right.reason_code))
+    });
     plan.plan_id = deterministic_plan_identity(plan)?;
     Ok(())
 }
@@ -5257,6 +5559,239 @@ mod tests {
             .join(" ");
         let flooded_signals = task_signals(&flooded);
         assert_eq!(flooded_signals.identifiers.len(), MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    #[allow(clippy::too_many_lines)]
+    fn structural_seed_selection_is_deterministic_bounded_and_non_oracular() {
+        let source = TestRoot::new("structural-seed-source");
+        let cache = TestRoot::new("structural-seed-cache");
+        fs::write(
+            source.0.join("review.ts"),
+            b"export function reviewed_change() { return helper(); }\nfunction helper() { return 1; }\nfunction duplicate_name() {}\n",
+        )
+        .expect("review source");
+        fs::write(
+            source.0.join("other.ts"),
+            b"export function duplicate_name() { return 2; }\n",
+        )
+        .expect("other source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 2_048, 2_048, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let snapshot = engine.snapshot.as_ref().expect("snapshot");
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: "tree-sitter-0.26.13".into(),
+            grammar_version: "tree-sitter-typescript-0.23.2".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let declaration = |local_key: &str, name: &str, start_byte: u64, end_byte: u64| {
+            context_structural::StructuralFact {
+                class: FactClass::Declaration,
+                local_key: local_key.into(),
+                syntax_kind: "function_declaration".into(),
+                name: Some(name.into()),
+                module: None,
+                start_byte,
+                end_byte,
+                parent_key: None,
+                confidence: "confirmed".into(),
+                provenance: provenance.clone(),
+            }
+        };
+        let inputs = snapshot
+            .artifacts
+            .iter()
+            .map(|artifact| {
+                let facts = if artifact.path.display_path == "review.ts" {
+                    vec![
+                        declaration("reviewed", "reviewed_change", 16, 55),
+                        declaration("helper", "helper", 56, 87),
+                        declaration("duplicate_review", "duplicate_name", 88, 116),
+                        context_structural::StructuralFact {
+                            class: FactClass::Call,
+                            local_key: "reviewed_calls_helper".into(),
+                            syntax_kind: "call_expression".into(),
+                            name: Some("helper".into()),
+                            module: None,
+                            start_byte: 45,
+                            end_byte: 53,
+                            parent_key: Some("reviewed".into()),
+                            confidence: "heuristic".into(),
+                            provenance: provenance.clone(),
+                        },
+                    ]
+                } else {
+                    vec![declaration("duplicate_other", "duplicate_name", 16, 44)]
+                };
+                GraphFileInput {
+                    path: WorkerPath {
+                        display_path: artifact.path.display_path.clone(),
+                        platform_family: artifact.path.platform_family.into(),
+                        unit_encoding: artifact.path.unit_encoding.into(),
+                        relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+                    },
+                    response: context_structural::WorkerSuccess {
+                        schema_name: "structural-worker-success".into(),
+                        schema_version: PROTOCOL_VERSION.into(),
+                        request_id: "req_structural_seed".into(),
+                        content_hash: artifact.content_hash.clone(),
+                        syntax_errors: false,
+                        facts,
+                        warnings: Vec::new(),
+                    },
+                }
+            })
+            .collect::<Vec<_>>();
+        let graph = context_structural::build_graph(&snapshot.snapshot_id, inputs).expect("graph");
+
+        let exact = structural_seed_decision(
+            &graph,
+            "Inspect reviewed_change in review.ts and explain its helper call",
+        )
+        .expect("seed");
+        assert!(matches!(
+            &exact,
+            StructuralSeedDecision::Selected {
+                reason_code: "unique_symbol_in_exact_path",
+                ..
+            }
+        ));
+        let reordered_non_signal = structural_seed_decision(
+            &graph,
+            "Could you carefully explain reviewed_change in review.ts",
+        )
+        .expect("reordered non-signal seed");
+        assert_eq!(exact, reordered_non_signal);
+        let file = structural_seed_decision(&graph, "Inspect review.ts").expect("file seed");
+        assert!(matches!(
+            file,
+            StructuralSeedDecision::Selected {
+                reason_code: "unique_exact_file_path",
+                ..
+            }
+        ));
+        let global =
+            structural_seed_decision(&graph, "Inspect reviewed_change").expect("global seed");
+        assert!(matches!(
+            global,
+            StructuralSeedDecision::Selected {
+                reason_code: "globally_unique_symbol",
+                ..
+            }
+        ));
+        let ambiguous =
+            structural_seed_decision(&graph, "Investigate duplicate_name").expect("ambiguous seed");
+        assert!(matches!(
+            ambiguous,
+            StructuralSeedDecision::Omitted("structural_seed_ambiguous")
+        ));
+        let unavailable = structural_seed_decision(
+            &graph,
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
+        )
+        .expect("unavailable seed");
+        assert!(matches!(
+            unavailable,
+            StructuralSeedDecision::Omitted("structural_seed_unavailable")
+        ));
+
+        let seeded = engine
+            .build_profiled_seeded_structural_context(
+                &request(3, "structural_seed"),
+                TaskProfile::BugInvestigation,
+                "Inspect reviewed_change in review.ts and explain its helper call",
+                &StructuralSeedRequest {
+                    graph: graph.clone(),
+                    edge_kinds: vec!["calls".into()],
+                },
+                budget(),
+            )
+            .expect("seeded packet");
+        let structural = seeded
+            .plan
+            .structural_query
+            .as_ref()
+            .expect("structural query");
+        assert_eq!(structural.result.edges.len(), 1);
+        assert_eq!(structural.result.edges[0].kind, "calls");
+        assert!(structural.result.nodes.len() <= 16);
+        assert!(structural.result.edges.len() <= 16);
+        assert!(seeded.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.status == "available"
+                && coverage.reason_code == "unique_symbol_in_exact_path"
+        }));
+        assert!(
+            seeded
+                .packet
+                .observed_evidence
+                .iter()
+                .any(|evidence| { evidence.extraction.method == "structural_graph_edge" })
+        );
+        let structural_position = seeded
+            .packet
+            .observed_evidence
+            .iter()
+            .position(|evidence| evidence.extraction.method == "structural_graph_edge")
+            .expect("structural evidence position");
+        assert!(
+            structural_position > 0,
+            "exact task anchors must rank first"
+        );
+        assert!(
+            seeded.packet.observed_evidence[..structural_position]
+                .iter()
+                .any(|evidence| evidence.artifact.path.display_path == "review.ts")
+        );
+        validate_packet(&seeded.packet).expect("valid seeded packet");
+
+        let fallback = engine
+            .build_profiled_seeded_structural_context(
+                &request(4, "structural_seed_fallback"),
+                TaskProfile::BugInvestigation,
+                "Investigate duplicate_name",
+                &StructuralSeedRequest {
+                    graph: graph.clone(),
+                    edge_kinds: vec!["calls".into()],
+                },
+                budget(),
+            )
+            .expect("fallback packet");
+        assert!(fallback.plan.structural_query.is_none());
+        assert!(fallback.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.status == "unavailable"
+                && coverage.reason_code == "structural_seed_ambiguous"
+        }));
+        validate_packet(&fallback.packet).expect("valid fallback packet");
+
+        let mut stale_graph = graph;
+        stale_graph.workspace_snapshot =
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa".into();
+        let stale = engine
+            .build_profiled_seeded_structural_context(
+                &request(5, "structural_seed_stale"),
+                TaskProfile::BugInvestigation,
+                "Inspect reviewed_change in review.ts",
+                &StructuralSeedRequest {
+                    graph: stale_graph,
+                    edge_kinds: vec!["calls".into()],
+                },
+                budget(),
+            )
+            .expect_err("stale graph");
+        assert_eq!(stale.envelope().code, PublicErrorCode::StaleState);
     }
 
     #[test]
