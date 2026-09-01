@@ -382,8 +382,9 @@ candidate must not block accepted development while pretending to remain
 current. The proposed
 [historical release evidence gate separation PRD](historical-release-evidence-gate-separation-prd.md)
 and ADR-0122 separate source-free historical integrity from a strict future
-current-candidate release gate. Because this changes a validation rule, its
-implementation remains founder-gated.
+current-candidate release gate. The founder approved ADR-0122 on 2026-09-01;
+scoped implementation may proceed while final-candidate and release gates
+remain closed.
 
 The historical candidate-freeze portion is complete. PR 156 froze product source at
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run

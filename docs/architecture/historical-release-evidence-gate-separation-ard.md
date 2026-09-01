@@ -1,6 +1,6 @@
 # Historical Release Evidence Gate Separation — Architecture
 
-- Status: Proposed; validation-rule implementation requires founder approval.
+- Status: Approved for implementation by the founder on 2026-09-01.
 - Date: 2026-09-01.
 - Governing PRD:
   [Historical Release Evidence Gate Separation PRD](../product/historical-release-evidence-gate-separation-prd.md).

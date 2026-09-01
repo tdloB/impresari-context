@@ -60,7 +60,8 @@ ruby ./scripts/check-macos-vm-vulnerability-review-v2.rb
 ruby ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby ./scripts/check-macos-vm-cask-lifecycle-contract.rb
 ruby ./scripts/check-macos-vm-unsigned-bundle-assembly.rb
-ruby ./scripts/check-macos-vm-release-identity-contract.rb
+ruby ./scripts/check-macos-historical-release-evidence-integrity.rb
+ruby ./scripts/check-macos-current-release-candidate.rb --ordinary-status
 ruby ./scripts/check-macos-vm-ephemeral-product-candidate.rb
 ruby ./scripts/check-macos-vm-synthetic-guest-payload-contract.rb
 ruby ./scripts/check-macos-vm-synthetic-guest-materialization.rb
@@ -87,6 +88,8 @@ ruby -c ./scripts/check-macos-vm-release-metadata-seal.rb
 ruby -c ./scripts/check-macos-vm-cask-lifecycle-contract.rb
 ruby -c ./scripts/check-macos-vm-unsigned-bundle-assembly.rb
 ruby -c ./scripts/check-macos-vm-release-identity-contract.rb
+ruby -c ./scripts/check-macos-historical-release-evidence-integrity.rb
+ruby -c ./scripts/check-macos-current-release-candidate.rb
 ruby -c ./scripts/check-macos-vm-ephemeral-product-candidate.rb
 ruby -c ./scripts/check-macos-vm-synthetic-guest-payload-contract.rb
 ruby -c ./scripts/check-macos-vm-synthetic-guest-materialization.rb

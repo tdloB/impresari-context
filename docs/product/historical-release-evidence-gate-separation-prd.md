@@ -1,7 +1,7 @@
 # Historical Release Evidence Gate Separation PRD
 
 - PRD ID/version: IC-HREG-122 / 1.0.
-- Status: Proposed; founder approval is required before validation-rule changes.
+- Status: Approved for implementation by the founder on 2026-09-01.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
 - Governing architecture:
@@ -97,8 +97,9 @@ gate.
 
 ## Approval gate
 
-This PRD changes the meaning and routing of a repository validation rule. Under
-the AI App Builder OS controlled-learning and release guardrails, implementation
-requires an explicit founder decision accepting ADR-0122. Specification and
-read-only review may proceed before that approval; checker or workflow changes
-may not.
+This PRD changes the meaning and routing of a repository validation rule. The
+founder explicitly approved ADR-0122 on 2026-09-01. That approval authorizes the
+scoped checker, schema, fixture, documentation, and workflow-routing changes;
+it does not authorize rewriting historical evidence, creating a final
+candidate, signing, publication, production, provider spend, or benchmark
+submission.

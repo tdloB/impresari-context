@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-current-release-candidate-status.schema.json",
+  "title": "ADR-0122 current release candidate gate status",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "mode", "status", "candidate_manifest_present", "current_source_verified", "historical_result_accepted", "release_admitted", "publication_authorized", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "macos-current-release-candidate-status"},
+    "schema_version": {"const": "1.0.0"},
+    "mode": {"const": "current_release_candidate"},
+    "status": {"const": "release_candidate_absent"},
+    "candidate_manifest_present": {"const": false},
+    "current_source_verified": {"const": false},
+    "historical_result_accepted": {"const": false},
+    "release_admitted": {"const": false},
+    "publication_authorized": {"const": false},
+    "authority_added": {"const": false}
+  }
+}

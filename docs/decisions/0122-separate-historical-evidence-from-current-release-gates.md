@@ -1,8 +1,8 @@
 # ADR-0122: Separate Historical Evidence From Current Release Gates
 
-- Status: Proposed; founder approval required before implementation
+- Status: Accepted for implementation
 - Date: 2026-09-01
-- Decider: Pending Aaron Boldt decision
+- Decider: Aaron Boldt, explicitly approved 2026-09-01
 - Related PRD: [Historical Release Evidence Gate Separation PRD](../product/historical-release-evidence-gate-separation-prd.md)
 - Architecture: [Historical Release Evidence Gate Separation ARD](../architecture/historical-release-evidence-gate-separation-ard.md)
 
@@ -65,10 +65,11 @@ historical, stale, or changed.
 
 ## Approval requirement
 
-This decision changes a validation rule and release-evidence routing. It may not
-be implemented from roadmap continuation alone. Founder approval must identify
-ADR-0122 explicitly; no approval for a paid test, ordinary PR, or feature
-implementation substitutes for that decision.
+This decision changes a validation rule and release-evidence routing. Aaron
+Boldt explicitly approved ADR-0122 on 2026-09-01. The approval covers only the
+scoped separation and does not authorize rewriting historical evidence, a new
+final candidate, signing, notarization, publication, production admission,
+provider spend, or benchmark submission.
 
 ## Revisit triggers
 
