@@ -192,6 +192,32 @@ impl PathIdentity {
         validate_relative_components(&path)?;
         Ok(path)
     }
+
+    /// Returns the canonical portable UTF-8 relative path for this identity.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error when a native component is not UTF-8 or the portable
+    /// representation does not round-trip to the exact native identity.
+    pub fn to_portable_relative_path(&self) -> Result<String, WorkspaceError> {
+        let path = self.to_relative_path()?;
+        let mut portable = String::new();
+        for component in &path {
+            let component = component
+                .to_str()
+                .ok_or_else(|| WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity))?;
+            if !portable.is_empty() {
+                portable.push('/');
+            }
+            portable.push_str(component);
+        }
+        let round_trips = PathIdentity::from_portable_relative_path(&portable)
+            .is_ok_and(|candidate| candidate == *self);
+        if portable.is_empty() || !round_trips {
+            return Err(WorkspaceError::new(WorkspaceErrorCode::InvalidPathIdentity));
+        }
+        Ok(portable)
+    }
 }
 
 /// Immutable bytes returned by a guarded exact read.
@@ -641,7 +667,8 @@ impl AuthorizedWorkspace {
             &state.artifacts,
             &state.skipped,
         );
-        let source_fingerprint_sha256 = digest_label(state.source_fingerprint.finalize());
+        let (source_fingerprint_sha256, source_fingerprint_compatible) =
+            state.finish_source_fingerprint();
         let complete = state
             .skipped
             .keys()
@@ -651,7 +678,7 @@ impl AuthorizedWorkspace {
             workspace_identity: self.workspace_identity.clone(),
             snapshot_id,
             source_fingerprint_sha256,
-            source_fingerprint_compatible: state.source_fingerprint_compatible,
+            source_fingerprint_compatible,
             discovery_policy: policy_id,
             artifacts: state.artifacts,
             eligible_bytes: state.eligible_bytes,
@@ -672,9 +699,14 @@ struct DiscoveryState<'workspace> {
     started: Instant,
     max_elapsed: Duration,
     timed_out: bool,
-    source_fingerprint: Sha256,
-    source_fingerprint_compatible: bool,
-    last_source_path: Option<String>,
+    source_entries: Vec<SourceFingerprintEntry>,
+}
+
+struct SourceFingerprintEntry {
+    portable_path: String,
+    native_path_identity: String,
+    bytes: Vec<u8>,
+    compatible: bool,
 }
 
 impl<'workspace> DiscoveryState<'workspace> {
@@ -692,9 +724,7 @@ impl<'workspace> DiscoveryState<'workspace> {
             started: Instant::now(),
             max_elapsed,
             timed_out: false,
-            source_fingerprint: Sha256::new(),
-            source_fingerprint_compatible: true,
-            last_source_path: None,
+            source_entries: Vec::new(),
         }
     }
 
@@ -702,22 +732,37 @@ impl<'workspace> DiscoveryState<'workspace> {
         *self.skipped.entry(reason).or_default() += 1;
     }
 
-    fn add_source_fingerprint(&mut self, identity: &PathIdentity, bytes: &[u8]) {
-        let portable = &identity.display_path;
-        let round_trips = PathIdentity::from_portable_relative_path(portable)
-            .is_ok_and(|candidate| candidate == *identity);
-        let ordered = self
-            .last_source_path
-            .as_ref()
-            .is_none_or(|previous| previous < portable);
-        if !round_trips || !ordered {
-            self.source_fingerprint_compatible = false;
+    fn add_source_fingerprint(&mut self, identity: &PathIdentity, bytes: Vec<u8>) {
+        let portable = identity.to_portable_relative_path();
+        self.source_entries.push(SourceFingerprintEntry {
+            portable_path: portable
+                .as_ref()
+                .map_or_else(|_| identity.display_path.clone(), Clone::clone),
+            native_path_identity: identity.relative_units_base64url.clone(),
+            bytes,
+            compatible: portable.is_ok(),
+        });
+    }
+
+    fn finish_source_fingerprint(&mut self) -> (String, bool) {
+        self.source_entries.sort_by(|left, right| {
+            left.portable_path
+                .cmp(&right.portable_path)
+                .then(left.native_path_identity.cmp(&right.native_path_identity))
+        });
+        let mut fingerprint = Sha256::new();
+        let mut compatible = true;
+        let mut previous = None;
+        for entry in &self.source_entries {
+            compatible &= entry.compatible
+                && previous.is_none_or(|value: &String| value < &entry.portable_path);
+            fingerprint.update(entry.portable_path.as_bytes());
+            fingerprint.update([0]);
+            fingerprint.update(&entry.bytes);
+            fingerprint.update([0]);
+            previous = Some(&entry.portable_path);
         }
-        self.source_fingerprint.update(portable.as_bytes());
-        self.source_fingerprint.update([0]);
-        self.source_fingerprint.update(bytes);
-        self.source_fingerprint.update([0]);
-        self.last_source_path = Some(portable.clone());
+        (digest_label(fingerprint.finalize()), compatible)
     }
 }
 
@@ -809,8 +854,8 @@ fn discover_directory(
             .read_exact(&identity, state.policy.max_file_bytes)
         {
             Ok(exact) => {
-                state.add_source_fingerprint(&identity, &exact.bytes);
                 let size_bytes = u64::try_from(exact.bytes.len()).unwrap_or(u64::MAX);
+                state.add_source_fingerprint(&identity, exact.bytes);
                 state.eligible_bytes += size_bytes;
                 state.artifacts.push(ArtifactRecord {
                     path: identity,

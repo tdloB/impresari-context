@@ -53,10 +53,12 @@ its exact bytes contribute to a second SHA-256 stream:
 UTF8(relative_path) || NUL || exact_file_bytes || NUL
 ```
 
-Entries must arrive in strictly increasing portable path order. A path that
-cannot round-trip through the portable path contract, a non-increasing path,
-or any skipped discovery object clears fingerprint compatibility. The digest
-remains present for diagnostics, but it cannot carry `complete=true`.
+Admitted bytes are retained only for the bounded snapshot operation, sorted by
+canonical portable path after discovery, streamed into the digest, and then
+dropped. Their total is already bounded by `max_total_bytes`. A path that
+cannot round-trip through the portable path contract, a duplicate portable
+path, or any skipped discovery object clears fingerprint compatibility. The
+digest remains present for diagnostics, but it cannot carry `complete=true`.
 
 This identity is deliberately distinct from the location-bound workspace ID
 and the domain-separated snapshot ID. It exists only to bind an isolated
