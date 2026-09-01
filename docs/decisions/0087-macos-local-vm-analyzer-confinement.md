@@ -145,3 +145,10 @@ narrow uninstall without creating a cask or app bundle. Every signing,
 notarization, live lifecycle, distribution, production, IAR-1B, and analyzer
 claim remains false. See the
 [cask lifecycle contract record](../verification/iar-1b-macos-local-vm-cask-lifecycle-contract.md).
+
+ADR-0108 adds the twelfth checkpoint: two private temporary assemblies of the
+exact app tree using only mode-`0644` synthetic markers and the exact metadata
+seal copy. The trees are byte-identical and removed before success. No release
+app, installation, signing, notarization, VM launch, production, IAR-1B, or
+analyzer claim is added. See the
+[unsigned synthetic bundle record](../verification/iar-1b-macos-local-vm-unsigned-bundle-assembly.md).

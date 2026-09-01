@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-unsigned-bundle-assembly-profile.schema.json",
+  "title": "ADR-0108 macOS local-VM unsigned bundle assembly profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "assembly_spec_path", "assembly_spec_digest", "package_contract_path", "package_contract_digest", "metadata_seal_path", "metadata_seal_digest", "expected_tree_digest", "assembly_runs", "maximum_entries", "maximum_file_bytes", "required_temporary_root_mode", "cleanup_required", "offline_only", "non_runnable", "status"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-unsigned-bundle-assembly-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-unsigned-bundle-assembly-v1"},
+    "assembly_spec_path": {"const": "platform/macos-vm-feasibility/unsigned-synthetic-bundle-assembly-v1.json"},
+    "assembly_spec_digest": {"const": "sha256:36978dfd1f475d219ed7168d7f00c17fca1dcd5951e771e6dd81a5cfff7058d9"},
+    "package_contract_path": {"const": "platform/macos-vm-feasibility/cask-package-contract-v1.json"},
+    "package_contract_digest": {"const": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676"},
+    "metadata_seal_path": {"const": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json"},
+    "metadata_seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+    "expected_tree_digest": {"const": "sha256:ace9ff8230be69e0df6a8e7977fde6cf82a8ecb9221be841f49718a4c6f79813"},
+    "assembly_runs": {"const": "2"},
+    "maximum_entries": {"const": "13"},
+    "maximum_file_bytes": {"const": "8192"},
+    "required_temporary_root_mode": {"const": "0700"},
+    "cleanup_required": {"const": true},
+    "offline_only": {"const": true},
+    "non_runnable": {"const": true},
+    "status": {"const": "synthetic_assembly_candidate"}
+  }
+}

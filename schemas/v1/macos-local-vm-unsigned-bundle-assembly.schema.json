@@ -1,0 +1,75 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-unsigned-bundle-assembly.schema.json",
+  "title": "ADR-0108 macOS local-VM unsigned synthetic bundle assembly",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "assembly_id", "assembly_state", "app_bundle", "contract_id", "package_contract_digest", "guest_release_id", "metadata_set_digest", "tree_canonicalization", "tree_digest", "entries", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-unsigned-bundle-assembly"},
+    "schema_version": {"const": "1.0.0"},
+    "assembly_id": {"const": "iar-macos-local-vm-unsigned-bundle-2026-09-01.1"},
+    "assembly_state": {"const": "synthetic-source-free-non-runnable"},
+    "app_bundle": {"const": "Impresari Context.app"},
+    "contract_id": {"const": "iar-macos-local-vm-cask-contract-2026-09-01.1"},
+    "package_contract_digest": {"const": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676"},
+    "guest_release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+    "metadata_set_digest": {"const": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b"},
+    "tree_canonicalization": {"const": "path-tab-kind-tab-mode-tab-bytes-tab-prefixed-digest-or-none-lf-v1"},
+    "tree_digest": {"const": "sha256:ace9ff8230be69e0df6a8e7977fde6cf82a8ecb9221be841f49718a4c6f79813"},
+    "entries": {
+      "type": "array",
+      "minItems": 13,
+      "maxItems": 13,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "kind", "mode", "bytes", "sha256", "role", "source"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^Contents(?:/[^./][^/]*)*$"},
+          "kind": {"enum": ["directory", "file"]},
+          "mode": {"enum": ["0644", "0755"]},
+          "bytes": {"pattern": "^(0|[1-9][0-9]*)$"},
+          "sha256": {"type": "string", "pattern": "^(none|sha256:[0-9a-f]{64})$"},
+          "role": {"type": "string", "minLength": 1},
+          "source": {"enum": ["create-directory", "generated-info-plist-v1", "generated-nonexecutable-marker-v1", "copy-exact-project-metadata"]}
+        }
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["offline_only", "private_temporary_root", "two_run_determinism_required", "cleanup_required", "synthetic_payloads_only", "executable_payloads_present", "symlinks_allowed", "special_files_allowed", "archive_created", "bundle_installed", "cask_created", "release_identity_bound", "signing_allowed", "notarization_allowed", "github_publication_attestation_verified", "developer_id_signature_verified", "apple_notarization_verified", "cask_lifecycle_verified", "sealed_distribution", "network_access", "credential_access", "repository_source_access", "process_launch", "vm_launch", "analyzer_execution", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "offline_only": {"const": true},
+        "private_temporary_root": {"const": true},
+        "two_run_determinism_required": {"const": true},
+        "cleanup_required": {"const": true},
+        "synthetic_payloads_only": {"const": true},
+        "executable_payloads_present": {"const": false},
+        "symlinks_allowed": {"const": false},
+        "special_files_allowed": {"const": false},
+        "archive_created": {"const": false},
+        "bundle_installed": {"const": false},
+        "cask_created": {"const": false},
+        "release_identity_bound": {"const": false},
+        "signing_allowed": {"const": false},
+        "notarization_allowed": {"const": false},
+        "github_publication_attestation_verified": {"const": false},
+        "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false},
+        "cask_lifecycle_verified": {"const": false},
+        "sealed_distribution": {"const": false},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_source_access": {"const": false},
+        "process_launch": {"const": false},
+        "vm_launch": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "macos_iar_1b_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

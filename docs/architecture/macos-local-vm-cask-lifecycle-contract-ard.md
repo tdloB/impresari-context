@@ -114,3 +114,7 @@ After this contract passes, the next non-production checkpoint may assemble one
 unsigned, synthetic-only app bundle and verify byte layout without installing
 it. Live signing, notarization, Homebrew lifecycle, publication, production,
 and analyzer activation remain later independent decisions.
+
+ADR-0108 completes that checkpoint with two deterministic, private,
+non-runnable temporary assemblies and mandatory cleanup. It does not substitute
+real release binaries or cross any distribution gate.

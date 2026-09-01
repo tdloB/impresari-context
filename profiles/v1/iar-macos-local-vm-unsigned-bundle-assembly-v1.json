@@ -1,0 +1,20 @@
+{
+  "schema_name": "macos-local-vm-unsigned-bundle-assembly-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-unsigned-bundle-assembly-v1",
+  "assembly_spec_path": "platform/macos-vm-feasibility/unsigned-synthetic-bundle-assembly-v1.json",
+  "assembly_spec_digest": "sha256:36978dfd1f475d219ed7168d7f00c17fca1dcd5951e771e6dd81a5cfff7058d9",
+  "package_contract_path": "platform/macos-vm-feasibility/cask-package-contract-v1.json",
+  "package_contract_digest": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676",
+  "metadata_seal_path": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json",
+  "metadata_seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+  "expected_tree_digest": "sha256:ace9ff8230be69e0df6a8e7977fde6cf82a8ecb9221be841f49718a4c6f79813",
+  "assembly_runs": "2",
+  "maximum_entries": "13",
+  "maximum_file_bytes": "8192",
+  "required_temporary_root_mode": "0700",
+  "cleanup_required": true,
+  "offline_only": true,
+  "non_runnable": true,
+  "status": "synthetic_assembly_candidate"
+}
