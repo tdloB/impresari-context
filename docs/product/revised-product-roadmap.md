@@ -561,17 +561,20 @@ It deterministically reports the current `release_pending` state and fixes
 `active` as unreachable while the policy's activation bit is false. Closed
 registered candidate schemas now cover the engine bundle, ruleset bundle, and
 release binding, including fail-closed negative fixtures. The contract stage is
-complete. Before a retained candidate is considered, ADR-0105 investigates the
-changed executable identities observed across otherwise matching hosted
-builds. That diagnostic is ephemeral, build-only, and no-upload; retention,
-signing, and publication remain outside the current authorization.
+complete. ADR-0105 investigated the changed executable identities observed
+across otherwise matching hosted builds before ADR-0104 retention approval.
+That diagnostic remains ephemeral, build-only, and no-upload; its canonical
+result is an input to the retained candidate's explicit reproducibility
+disposition, not a production claim.
 
-ADR-0104 now proposes the exact boundary for that next step: one manually
-dispatched, no-secret, Linux x86-64 build; one private seven-day GitHub Actions
-artifact containing only the engine and bounded supply-chain evidence; and a
-separate non-executing verifier. The proposal adds no retention or upload
-authority until founder approval. Signing, publication, production rules,
-activation, repository scans, and IAR-2 remain later independent decisions.
+ADR-0104 now implements the approved boundary for that next step: one manually
+dispatched, no-secret, Linux x86-64 build in an exact digest-pinned image; one
+authenticated, non-release seven-day GitHub Actions artifact containing only
+the engine and bounded supply-chain evidence; and a separate non-executing
+verifier. The first authorized exact-main dispatch follows implementation
+merge. Signing, publication, production rules, activation, repository scans,
+and IAR-2 remain
+later independent decisions.
 
 ADR-0105 completed its active pre-retention diagnostic in run `33443483096`.
 The ordinary clean builds differed, while two fixed time/path-remapped clean
@@ -579,8 +582,8 @@ builds were byte-identical at SHA-256
 `a35ad2ec1354a67cb2465a07fe1576e60bcfdbc18ec0b80546fca2a7faeff09d`.
 This proves only same-job canonical equality; cross-run, cross-host, retained
 artifact, and production reproducibility remain unproven. The run compiled no
-rules, executed no analyzer, uploaded no artifact, and did not alter ADR-0104's
-separate decision gate.
+rules, executed no analyzer, and uploaded no artifact. ADR-0104 later received
+its own narrow retention authorization without inheriting any broader claim.
 
 ## Parallel Client Integration Depth Track
 

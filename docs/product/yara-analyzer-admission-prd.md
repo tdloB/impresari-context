@@ -1,9 +1,9 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0103 evaluator and candidate schemas implemented; ADR-0105 same-job canonical equality passed; ADR-0104 retention, bundles, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention workflow implemented; first authorized dispatch pending; signing, ruleset, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
-- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, proposed retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
+- Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, approved retained-engine custody by ADR-0104, and ephemeral reproducibility diagnosis by ADR-0105
 
 ## Objective
 
@@ -189,14 +189,17 @@ They deliberately cannot represent an admitted engine, a synthetic production
 ruleset, or an activated release. Retained artifact creation, production rule
 authorship, signing, publication, and activation remain separate later gates.
 
-ADR-0104 proposes the first retained-artifact checkpoint. If separately
-approved, one manual no-secret workflow will build only the Linux x86-64
+ADR-0104 implements the first retained-artifact checkpoint. One approved
+manual no-secret workflow builds only the Linux x86-64
 engine from the exact frozen source, patch, lockfile, toolchain, feature, and
-digest-pinned build image. One private seven-day Actions artifact may contain
-only `yr`, its exact manifest/checksums, dependency closure, SPDX SBOM,
+digest-pinned build image. One authenticated, non-release seven-day Actions
+artifact may contain only `yr`, its exact manifest/checksums, dependency
+closure, SPDX SBOM,
 provenance, licenses, review dispositions, and an explicitly unadmitted
 candidate record. Source, rules, scan inputs/outputs, credentials, signing
-material, and unrelated repository content remain ineligible.
+material, and unrelated repository content remain ineligible. The workflow
+and its non-executing verifier are implemented; the first exact-main dispatch
+remains pending until the implementation merges.
 
 ADR-0105 inserts a no-upload diagnostic before that decision because two
 otherwise matching hosted builds produced different executable digests. Four
@@ -210,7 +213,8 @@ This narrows the reproducibility gap but cannot establish cross-run,
 cross-host, or production reproducibility.
 
 Contract and candidate-pipeline work may proceed while every production and
-IAR-2 claim remains false. Retained artifacts, production rules, signing,
-publication, final activation, and repository-derived scans are independent
-later gates. The first eligible scope is Linux x86-64 external delegation only;
+IAR-2 claim remains false. The single ADR-0104 short-lived candidate is the
+only authorized retention; production rules, signing, publication, final
+activation, and repository-derived scans are independent later gates. The
+first eligible scope is Linux x86-64 external delegation only;
 macOS, Windows, broad Linux, and the rootless profile remain independent.

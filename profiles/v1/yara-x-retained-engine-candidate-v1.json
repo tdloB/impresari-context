@@ -1,0 +1,68 @@
+{
+  "schema_name": "yara-x-retained-engine-candidate-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "yara-x-retained-engine-candidate-v1",
+  "profile_version": "1.0.0",
+  "source": {
+    "repository": "https://github.com/VirusTotal/yara-x",
+    "release_tag": "v1.20.0",
+    "commit_sha1": "60ad06971467029e77967e59d580cbbe85a1474d",
+    "archive_bytes": "57759292",
+    "archive_sha256": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee",
+    "patch_sha256": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd",
+    "patched_lock_sha256": "sha256:e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e"
+  },
+  "build": {
+    "target": "x86_64-unknown-linux-gnu",
+    "toolchain": "1.93.0",
+    "profile": "release-lto",
+    "features": ["pulley"],
+    "rustflags": "-C target-feature=+crt-static",
+    "source_date_epoch": "1787565021",
+    "image": "docker.io/library/rust@sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28",
+    "image_index_sha256": "sha256:d0a4aa3ca2e1088ac0c81690914a0d810f2eee188197034edf366ed010a2b382",
+    "image_manifest_sha256": "sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28",
+    "networked_phase": ["build-image", "impresari-source", "yara-x-source", "locked-dependencies-and-advisories"],
+    "offline_phase": ["build", "package", "verify"]
+  },
+  "artifact": {
+    "name": "yara-x-v1.20.0-linux-x86_64-engine-candidate",
+    "visibility": "authenticated-repository-readers",
+    "repository_visibility": "public",
+    "anonymous_download": false,
+    "maintainer_only": false,
+    "release_asset": false,
+    "retention_days": 7,
+    "max_bytes": 268435456,
+    "members": ["DEPENDENCY-NOTICES.txt", "LICENSE", "MANIFEST.json", "SHA256SUMS", "dependency-closure.json", "engine-candidate.json", "license-disposition.json", "provenance.json", "reproducibility-disposition.json", "sbom.spdx.json", "vulnerability-disposition.json", "yr"],
+    "upload_action": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a",
+    "download_action": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c",
+    "overwrite": false
+  },
+  "verification": {
+    "separate_job": true,
+    "reject_links": true,
+    "reject_unexpected_members": true,
+    "recompute_hashes": true,
+    "validate_sbom": true,
+    "validate_candidate": true,
+    "execute_candidate": false
+  },
+  "claims": {
+    "signed": false,
+    "attested": false,
+    "published": false,
+    "executable_admitted": false,
+    "ruleset_present": false,
+    "rules_compiled": false,
+    "analyzer_executed": false,
+    "repository_scanned": false,
+    "credentials_accessed": false,
+    "production_admitted": false,
+    "iar_2_admitted": false,
+    "detection_quality_claimed": false,
+    "safety_claimed": false,
+    "malware_free_claimed": false,
+    "authority_added": false
+  }
+}

@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/yara-x-retained-engine-candidate.schema.json",
+  "title": "ADR-0104 retained YARA-X engine candidate contracts",
+  "$defs": {
+    "digest": {
+      "type": "string",
+      "pattern": "^sha256:[0-9a-f]{64}$"
+    },
+    "falseClaims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "signed",
+        "attested",
+        "published",
+        "executable_admitted",
+        "ruleset_present",
+        "rules_compiled",
+        "analyzer_executed",
+        "repository_scanned",
+        "credentials_accessed",
+        "production_admitted",
+        "iar_2_admitted",
+        "detection_quality_claimed",
+        "safety_claimed",
+        "malware_free_claimed",
+        "authority_added"
+      ],
+      "properties": {
+        "signed": {"const": false},
+        "attested": {"const": false},
+        "published": {"const": false},
+        "executable_admitted": {"const": false},
+        "ruleset_present": {"const": false},
+        "rules_compiled": {"const": false},
+        "analyzer_executed": {"const": false},
+        "repository_scanned": {"const": false},
+        "credentials_accessed": {"const": false},
+        "production_admitted": {"const": false},
+        "iar_2_admitted": {"const": false},
+        "detection_quality_claimed": {"const": false},
+        "safety_claimed": {"const": false},
+        "malware_free_claimed": {"const": false},
+        "authority_added": {"const": false}
+      }
+    },
+    "profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "schema_name",
+        "schema_version",
+        "profile_id",
+        "profile_version",
+        "source",
+        "build",
+        "artifact",
+        "verification",
+        "claims"
+      ],
+      "properties": {
+        "schema_name": {"const": "yara-x-retained-engine-candidate-profile"},
+        "schema_version": {"const": "1.0.0"},
+        "profile_id": {"const": "yara-x-retained-engine-candidate-v1"},
+        "profile_version": {"const": "1.0.0"},
+        "source": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["repository", "release_tag", "commit_sha1", "archive_bytes", "archive_sha256", "patch_sha256", "patched_lock_sha256"],
+          "properties": {
+            "repository": {"const": "https://github.com/VirusTotal/yara-x"},
+            "release_tag": {"const": "v1.20.0"},
+            "commit_sha1": {"const": "60ad06971467029e77967e59d580cbbe85a1474d"},
+            "archive_bytes": {"const": "57759292"},
+            "archive_sha256": {"const": "sha256:8a85bf120eeb6483e012aed6ca610782f961556a712e259b6b3fa63137b760ee"},
+            "patch_sha256": {"const": "sha256:b0483e81f647e302afcc1acd88afbefb37ba03649187fbec46c6ab3adde542dd"},
+            "patched_lock_sha256": {"const": "sha256:e559620a158ed90c5cc6227beadd4242cc6d7d460c8211f373a523152a742b2e"}
+          }
+        },
+        "build": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["target", "toolchain", "profile", "features", "rustflags", "source_date_epoch", "image", "image_index_sha256", "image_manifest_sha256", "networked_phase", "offline_phase"],
+          "properties": {
+            "target": {"const": "x86_64-unknown-linux-gnu"},
+            "toolchain": {"const": "1.93.0"},
+            "profile": {"const": "release-lto"},
+            "features": {"type": "array", "minItems": 1, "maxItems": 1, "items": {"const": "pulley"}},
+            "rustflags": {"const": "-C target-feature=+crt-static"},
+            "source_date_epoch": {"const": "1787565021"},
+            "image": {"const": "docker.io/library/rust@sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28"},
+            "image_index_sha256": {"const": "sha256:d0a4aa3ca2e1088ac0c81690914a0d810f2eee188197034edf366ed010a2b382"},
+            "image_manifest_sha256": {"const": "sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28"},
+            "networked_phase": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"enum": ["build-image", "impresari-source", "yara-x-source", "locked-dependencies-and-advisories"]}},
+            "offline_phase": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"enum": ["build", "package", "verify"]}}
+          }
+        },
+        "artifact": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["name", "visibility", "repository_visibility", "anonymous_download", "maintainer_only", "release_asset", "retention_days", "max_bytes", "members", "upload_action", "download_action", "overwrite"],
+          "properties": {
+            "name": {"const": "yara-x-v1.20.0-linux-x86_64-engine-candidate"},
+            "visibility": {"const": "authenticated-repository-readers"},
+            "repository_visibility": {"const": "public"},
+            "anonymous_download": {"const": false},
+            "maintainer_only": {"const": false},
+            "release_asset": {"const": false},
+            "retention_days": {"const": 7},
+            "max_bytes": {"const": 268435456},
+            "members": {
+              "type": "array",
+              "minItems": 12,
+              "maxItems": 12,
+              "uniqueItems": true,
+              "items": {"enum": ["DEPENDENCY-NOTICES.txt", "LICENSE", "MANIFEST.json", "SHA256SUMS", "dependency-closure.json", "engine-candidate.json", "license-disposition.json", "provenance.json", "reproducibility-disposition.json", "sbom.spdx.json", "vulnerability-disposition.json", "yr"]}
+            },
+            "upload_action": {"const": "actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a"},
+            "download_action": {"const": "actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c"},
+            "overwrite": {"const": false}
+          }
+        },
+        "verification": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["separate_job", "reject_links", "reject_unexpected_members", "recompute_hashes", "validate_sbom", "validate_candidate", "execute_candidate"],
+          "properties": {
+            "separate_job": {"const": true},
+            "reject_links": {"const": true},
+            "reject_unexpected_members": {"const": true},
+            "recompute_hashes": {"const": true},
+            "validate_sbom": {"const": true},
+            "validate_candidate": {"const": true},
+            "execute_candidate": {"const": false}
+          }
+        },
+        "claims": {"$ref": "#/$defs/falseClaims"}
+      }
+    },
+    "verificationReceipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "profile_id", "profile_sha256", "repository", "source_commit", "run_id", "run_attempt", "build_job", "verify_job", "artifact_id", "artifact_name", "requested_retention_days", "archive_sha256", "archive_bytes", "executable_sha256", "executable_bytes", "sbom_sha256", "provenance_sha256", "image_manifest_sha256", "created_at", "requested_expires_at", "member_count", "verified", "claims"],
+      "properties": {
+        "schema_name": {"const": "yara-x-retained-engine-candidate-verification-receipt"},
+        "schema_version": {"const": "1.0.0"},
+        "profile_id": {"const": "yara-x-retained-engine-candidate-v1"},
+        "profile_sha256": {"$ref": "#/$defs/digest"},
+        "repository": {"const": "tdloB/impresari-context"},
+        "source_commit": {"type": "string", "pattern": "^[0-9a-f]{40}$"},
+        "run_id": {"type": "string", "pattern": "^[1-9][0-9]{5,19}$"},
+        "run_attempt": {"type": "string", "pattern": "^[1-9][0-9]{0,5}$"},
+        "build_job": {"const": "build"},
+        "verify_job": {"const": "verify"},
+        "artifact_id": {"type": "string", "pattern": "^[1-9][0-9]{1,19}$"},
+        "artifact_name": {"const": "yara-x-v1.20.0-linux-x86_64-engine-candidate"},
+        "requested_retention_days": {"const": 7},
+        "archive_sha256": {"$ref": "#/$defs/digest"},
+        "archive_bytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "executable_sha256": {"$ref": "#/$defs/digest"},
+        "executable_bytes": {"type": "integer", "minimum": 1, "maximum": 268435456},
+        "sbom_sha256": {"$ref": "#/$defs/digest"},
+        "provenance_sha256": {"$ref": "#/$defs/digest"},
+        "image_manifest_sha256": {"const": "sha256:7274e0edb5b47eda8053b350ebf3d489f7e0f65d2d7e77b16076299c7c047c28"},
+        "created_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "requested_expires_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"},
+        "member_count": {"const": 12},
+        "verified": {"const": true},
+        "claims": {"$ref": "#/$defs/falseClaims"}
+      }
+    }
+  }
+}
