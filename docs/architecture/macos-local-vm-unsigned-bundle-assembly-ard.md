@@ -44,7 +44,10 @@ tree. Nothing else is permitted.
 
 All regular files have mode `0644`. This intentionally leaves the apparent CLI
 and helper destinations non-executable. Directories use `0755` inside a private
-`0700` temporary parent. No symlink or special file is permitted.
+`0700` temporary parent on macOS/POSIX. No symlink or special file is permitted.
+Windows CI retains the portable tree, determinism, non-symlink, and cleanup
+checks, but its Ruby mode bits are not treated as proof of macOS directory
+privacy.
 
 The canonical tree digest uses one sorted UTF-8 line per entry:
 
@@ -67,7 +70,9 @@ or downloaded content enter the tree.
 Assembly fails before a receipt if an input digest changes, a path escapes the
 app root, a destination repeats, an unexpected entry appears, any file becomes
 executable, a byte/mode/digest differs, the two runs diverge, or cleanup leaves
-either temporary root present.
+either temporary root present. A macOS/POSIX run also fails unless the temporary
+parent has exact mode `0700`; Windows performs structural-only CI and makes no
+ACL or POSIX-mode claim.
 
 ## Sequencing
 

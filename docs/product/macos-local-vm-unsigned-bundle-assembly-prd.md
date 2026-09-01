@@ -29,7 +29,10 @@ cleanup. Retain only schemas, metadata, and receipts; retain no app bundle.
 5. Symlinks, special files, unexpected paths, files above 8 KiB, and path
    traversal fail closed.
 6. Two independent assemblies produce the same canonical tree digest.
-7. Each private temporary root has mode `0700` and is removed before success.
+7. Each macOS/POSIX temporary root has mode `0700` and is removed before
+   success. Windows CI verifies only fresh non-symlinked temporary roots,
+   deterministic structure, and cleanup; Windows mode bits are not accepted as
+   evidence of the target macOS privacy policy.
 8. No archive, cask, install, signing, notarization, network, credential,
    child-process, VM, analyzer, production, or IAR-1B authority is added.
 
@@ -47,4 +50,5 @@ cleanup. Retain only schemas, metadata, and receipts; retain no app bundle.
 The offline checker must validate the registered schemas and fixtures, assemble
 and remove two exact trees, reject the overclaim fixture, and emit the frozen
 receipt. This checkpoint must remain valid on non-macOS CI because it evaluates
-portable filesystem structure rather than OS launch behavior.
+portable filesystem structure rather than OS launch behavior. Only macOS/POSIX
+runs provide `0700` mode evidence; Windows remains structural-only.

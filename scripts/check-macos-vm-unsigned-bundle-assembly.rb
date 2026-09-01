@@ -137,8 +137,14 @@ def assemble_once(spec, seal_bytes)
   digest = nil
   Dir.mktmpdir("impresari-macos-unsigned-bundle-") do |raw_root|
     temporary_root = Pathname.new(raw_root)
-    File.chmod(0o700, temporary_root)
-    abort "temporary assembly root is not private" unless (temporary_root.stat.mode & 0o7777) == 0o700
+    abort "temporary assembly root is not a fresh directory" unless temporary_root.directory? && !temporary_root.symlink?
+    # Windows Ruby mode bits are not ACL evidence. Keep Windows CI useful for
+    # structural, determinism, and cleanup checks without presenting it as
+    # proof of the target macOS/POSIX private-directory policy.
+    unless Gem.win_platform?
+      File.chmod(0o700, temporary_root)
+      abort "temporary assembly root is not private" unless (temporary_root.stat.mode & 0o7777) == 0o700
+    end
 
     app = temporary_root.join(spec.fetch("app_bundle"))
     Dir.mkdir(app, 0o755)

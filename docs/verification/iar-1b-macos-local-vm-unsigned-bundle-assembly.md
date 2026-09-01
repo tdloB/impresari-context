@@ -23,6 +23,10 @@
 - symlinks and special files were absent; and
 - both temporary roots were removed before the receipt was accepted.
 
+The target macOS/POSIX run additionally verifies exact `0700` temporary-root
+mode. Windows CI covers structure, determinism, non-symlink roots, and cleanup
+only; Windows mode bits are not macOS privacy evidence.
+
 ## Not proven
 
 No release app, archive, cask, install, source-revision binding, publication
