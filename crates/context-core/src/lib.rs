@@ -2,7 +2,7 @@
 #![forbid(unsafe_code)]
 #![doc = "Protocol-independent contracts, policy, packet, and audit types."]
 
-use std::{error::Error, fmt};
+use std::{collections::BTreeMap, error::Error, fmt};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -769,7 +769,23 @@ pub struct PacketDraft {
 ///
 /// Fails for invalid metadata, required content larger than the budget, or
 /// canonicalization/integrity errors.
-pub fn build_packet(mut draft: PacketDraft) -> Result<ContextPacket, CoreError> {
+pub fn build_packet(draft: PacketDraft) -> Result<ContextPacket, CoreError> {
+    build_packet_with_evidence_order(draft, &[])
+}
+
+/// Builds a packet using an explicit highest-to-lowest evidence order.
+///
+/// An empty order preserves the legacy evidence-identity ordering. A non-empty
+/// order must be an exact unique inventory of the draft evidence identities.
+///
+/// # Errors
+///
+/// Fails for an invalid priority inventory, malformed metadata, required
+/// content larger than the budget, or canonicalization/integrity errors.
+pub fn build_packet_with_evidence_order(
+    mut draft: PacketDraft,
+    evidence_order: &[String],
+) -> Result<ContextPacket, CoreError> {
     validate_sha256(&draft.workspace_identity)?;
     validate_sha256(&draft.workspace_snapshot)?;
     validate_sha256(&draft.policy_decision)?;
@@ -780,9 +796,32 @@ pub fn build_packet(mut draft: PacketDraft) -> Result<ContextPacket, CoreError> 
     }
     let requested = draft.budget.requested_u64()?;
     let max_items = decimal(&draft.budget.max_evidence_items)?;
-    draft
-        .evidence
-        .sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
+    if evidence_order.is_empty() {
+        draft
+            .evidence
+            .sort_by(|left, right| left.evidence_id.cmp(&right.evidence_id));
+    } else {
+        let mut priority = BTreeMap::new();
+        for (index, evidence_id) in evidence_order.iter().enumerate() {
+            validate_sha256(evidence_id)?;
+            if priority.insert(evidence_id.as_str(), index).is_some() {
+                return Err(CoreError::new(CoreErrorCode::InvalidInput));
+            }
+        }
+        if priority.len() != draft.evidence.len()
+            || draft
+                .evidence
+                .iter()
+                .any(|evidence| !priority.contains_key(evidence.evidence_id.as_str()))
+        {
+            return Err(CoreError::new(CoreErrorCode::InvalidInput));
+        }
+        draft.evidence.sort_by(|left, right| {
+            priority[&left.evidence_id.as_str()]
+                .cmp(&priority[&right.evidence_id.as_str()])
+                .then(left.evidence_id.cmp(&right.evidence_id))
+        });
+    }
     for evidence in &draft.evidence {
         validate_evidence(evidence, &draft.workspace_snapshot)?;
     }
@@ -1282,6 +1321,51 @@ mod tests {
             unknowns: Vec::new(),
             redactions: Vec::new(),
         }
+    }
+
+    #[test]
+    fn explicit_evidence_order_controls_bounded_selection() {
+        let mut candidate = draft(
+            16_384,
+            vec![evidence('a', 32), evidence('b', 32), evidence('c', 32)],
+        );
+        candidate.budget =
+            ResourceBudget::conservative(16_384, 2, 20, 2000, 1000, 32, 30_000, 536_870_912)
+                .expect("budget");
+        let order = vec![
+            format!("sha256:{}", "c".repeat(64)),
+            format!("sha256:{}", "a".repeat(64)),
+            format!("sha256:{}", "b".repeat(64)),
+        ];
+
+        let packet = build_packet_with_evidence_order(candidate, &order).expect("packet");
+        assert_eq!(packet.observed_evidence.len(), 2);
+        assert!(
+            packet.observed_evidence[0]
+                .evidence_id
+                .ends_with(&"c".repeat(64))
+        );
+        assert!(
+            packet.observed_evidence[1]
+                .evidence_id
+                .ends_with(&"a".repeat(64))
+        );
+        assert_eq!(packet.accounting.omitted_items, "1");
+    }
+
+    #[test]
+    fn explicit_evidence_order_must_be_an_exact_unique_inventory() {
+        let candidate = draft(16_384, vec![evidence('a', 32), evidence('b', 32)]);
+        let order = vec![
+            format!("sha256:{}", "a".repeat(64)),
+            format!("sha256:{}", "a".repeat(64)),
+        ];
+        assert_eq!(
+            build_packet_with_evidence_order(candidate, &order)
+                .expect_err("duplicate order")
+                .code(),
+            CoreErrorCode::InvalidInput
+        );
     }
 
     #[test]

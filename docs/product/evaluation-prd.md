@@ -14,6 +14,7 @@
   - [Verifiable Local Context MVP PRD](verifiable-local-context-mvp-prd.md)
   - [Security Threat Model](../security/threat-model.md)
   - [Provider-Free Product Read Observer PRD](provider-free-product-read-observer-prd.md)
+  - [Deterministic Task-Signal Selection PRD](deterministic-task-signal-selection-prd.md)
 
 ## Goal
 
@@ -52,6 +53,8 @@ comparison baseline.
 14. Are product repository reads measured at the actual source-read boundary,
     including startup snapshot work, rather than inferred from outer calls or
     returned evidence?
+15. Do explicit task identifiers and paths survive ordinary prose, ordering,
+    quoting, and inert adversarial syntax without broadening authority?
 
 ### Provider-free effectiveness admission
 
@@ -62,6 +65,8 @@ comparison baseline.
 - Provider-free fixtures must pass source identity, evidence density, task-noise
   stability, overlap, exact-source recovery, and read-accounting gates before a
   paid provider study is authorized.
+- Explicit anchors must retain selection priority when bounded packaging drops
+  lower-priority lexical fallback evidence.
 - Telemetry admission is not evidence of token, cost, latency, correctness, or
   repository-read improvement.
 
