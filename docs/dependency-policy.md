@@ -10,7 +10,7 @@ scrutiny than test-only dependencies.
 | Package | Exact version | Scope | Features | License | MSRV | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
 | `serde_json` | 1.0.151 | Test only | `std`; defaults disabled | MIT OR Apache-2.0 | 1.71 | Parse schema and fixture JSON |
-| `jsonschema` | 0.50.0 | Test only | No features; defaults disabled | MIT | 1.85 | Full Draft 2020-12 conformance validation |
+| `jsonschema` | 0.52.0 | Test only | No features; defaults disabled | MIT | 1.85 | Full Draft 2020-12 conformance validation |
 | `sha2` | 0.11.0 | Test only | Defaults disabled | MIT OR Apache-2.0 | 1.85 | Reproduce published SHA-256 identity vectors |
 
 ## Initial approved runtime dependencies
