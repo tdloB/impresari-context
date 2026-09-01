@@ -435,3 +435,25 @@ runs no analyzer or compatibility corpus.
 - No process, network, credential, runnable artifact, app, Apple identity,
   signing, notarization, cask, installation, VM, analyzer, production, or
   macOS IAR-1B authority was added.
+
+## 2026-09-01 — ADR-0114 ephemeral unsigned release candidate
+
+- One fresh mode-`0700` root held the exact Git archive, extracted source,
+  private product and guest build state, and complete app simultaneously.
+- Locked offline Cargo and private Swift caches reproduced all four ADR-0110
+  arm64 Mach-O identities. The linker signatures remained ad-hoc; no Developer
+  ID identity was accessed.
+- The exact Alpine APK was fetched with redirects disabled and its bytes,
+  SHA-256, APKv2 publisher signature, signed data hash, package identity, and
+  commit were verified before reproducing the two ADR-0112 guest identities.
+- The exact eight-file app tree and six parent directories were verified with
+  no symlink, special file, unexpected member, or wrong mode.
+- ADR-0109 compound identity:
+  `sha256:8d3da788a95c6cf638537218722e5fe32629710a10a3b25c0ac282280ed5720e`.
+- ADR-0113 material projection identity:
+  `sha256:39ae0afbb77eff80ff5308cc4fe811b7cc266b42d02b4457aa5295310908b11e`.
+- No produced artifact was executed. The archive, source, APK, extracted
+  inputs, app, binaries, guest outputs, caches, and raw logs were removed with
+  the entire private root. Only schema-bound metadata remains.
+- Signing, notarization, archive/cask creation, installation, publication, VM,
+  analyzer, production, and macOS IAR-1B remain false.

@@ -685,6 +685,17 @@ complete ephemeral unsigned candidate build-and-assembly-and-delete rehearsal;
 it still must not access Apple credentials, sign, notarize, install or publish
 a cask, launch a VM, or execute an analyzer.
 
+ADR-0114 completes that ephemeral unsigned-candidate checkpoint. One fresh
+mode-`0700` root held the exact source archive, locked offline product builds,
+publisher-authenticated synthetic guest build, and closed eight-file app at the
+same time. The frozen contract compound identity and stronger path/kind/mode
+material identity both reproduced; no produced artifact was executed, and the
+whole root was deleted before metadata acceptance. The next macOS distribution
+checkpoint is Developer ID signing and notarization preparation, which crosses
+the founder's Apple credential boundary and remains manual. Cask creation,
+installation, publication, VM launch, analyzer execution, production, and
+macOS IAR-1B remain gated.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
