@@ -417,3 +417,21 @@ runs no analyzer or compatibility corpus.
 - No app was assembled; no Apple identity, signing, notarization, cask,
   installation, VM, analyzer, release, production, or macOS IAR-1B evidence
   was created.
+
+## 2026-09-01 — ADR-0113 unsigned candidate readiness composition
+
+- Five exact prior evidence sources and the ADR-0109/ADR-0107 contracts were
+  digest-bound under offline metadata-only validation.
+- The future app material projection is closed to eight regular files: four
+  product executables, deterministic `Info.plist`, exact guest metadata seal,
+  and two guest resources.
+- The sorted required path/mode/byte/SHA-256 projection produces prospective
+  compound identity
+  `sha256:39ae0afbb77eff80ff5308cc4fe811b7cc266b42d02b4457aa5295310908b11e`.
+- Product and guest components were materialized only in separate prior roots
+  and deleted. No complete app tree existed and candidate modes were not
+  jointly verified, so the materialized unsigned-candidate schema is not
+  satisfied and release identity remains unbound.
+- No process, network, credential, runnable artifact, app, Apple identity,
+  signing, notarization, cask, installation, VM, analyzer, production, or
+  macOS IAR-1B authority was added.

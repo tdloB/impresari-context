@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-unsigned-candidate-composition-profile.schema.json",
+  "title": "ADR-0113 macOS unsigned candidate composition profile",
+  "type": "object", "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "decision", "composition_path", "composition_digest", "required_source_records", "required_material_members", "offline_only", "metadata_only", "claims"],
+  "$defs": {"falseClaim": {"const": false}},
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-unsigned-candidate-composition-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-unsigned-candidate-composition-v1"},
+    "decision": {"const": "ADR-0113"},
+    "composition_path": {"const": "platform/macos-vm-feasibility/unsigned-release-candidate-composition-v1.json"},
+    "composition_digest": {"const": "sha256:88ee55c39b6735d645b285ca43ba203f4517f3d695aeaafc29d604c25eb6a167"},
+    "required_source_records": {"const": "5"}, "required_material_members": {"const": "8"},
+    "offline_only": {"const": true}, "metadata_only": {"const": true},
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["candidate_materialized", "app_assembled", "release_identity_bound", "apple_identity_access", "developer_id_signature_verified", "apple_notarization_verified", "cask_created", "bundle_installed", "vm_launch", "analyzer_execution", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "candidate_materialized": {"$ref": "#/$defs/falseClaim"}, "app_assembled": {"$ref": "#/$defs/falseClaim"},
+        "release_identity_bound": {"$ref": "#/$defs/falseClaim"}, "apple_identity_access": {"$ref": "#/$defs/falseClaim"},
+        "developer_id_signature_verified": {"$ref": "#/$defs/falseClaim"}, "apple_notarization_verified": {"$ref": "#/$defs/falseClaim"},
+        "cask_created": {"$ref": "#/$defs/falseClaim"}, "bundle_installed": {"$ref": "#/$defs/falseClaim"},
+        "vm_launch": {"$ref": "#/$defs/falseClaim"}, "analyzer_execution": {"$ref": "#/$defs/falseClaim"},
+        "production_admitted": {"$ref": "#/$defs/falseClaim"}, "macos_iar_1b_admitted": {"$ref": "#/$defs/falseClaim"},
+        "authority_added": {"$ref": "#/$defs/falseClaim"}
+      }
+    }
+  }
+}

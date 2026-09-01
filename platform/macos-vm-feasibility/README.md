@@ -94,3 +94,11 @@ before retaining metadata. The guest was not executed or retained. This does
 not assemble an app, access Apple identity, sign, notarize, install or publish
 a cask, launch a VM, execute an analyzer, bind a release, admit production, or
 admit macOS IAR-1B.
+
+ADR-0113 composes the retained product, guest, metadata-seal, and deterministic
+`Info.plist` identities into one closed eight-file prospective app projection
+and compound digest. It deliberately does not satisfy the materialized
+unsigned-candidate schema: the product and guest existed in separate deleted
+rehearsals, no complete app tree existed, and candidate filesystem modes were
+not verified. The next gate is one complete ephemeral build, assembly,
+verification, and deletion rehearsal without Apple identity or execution.

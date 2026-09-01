@@ -1,0 +1,18 @@
+{
+  "schema_name": "macos-local-vm-unsigned-candidate-composition-receipt",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-unsigned-candidate-composition-v1",
+  "profile_digest": "sha256:70b44b73a8f1412cae5be5d94a944333ba1a80e65ac362da87b4cd2f391fb45a",
+  "composition_id": "iar-macos-local-vm-unsigned-candidate-composition-2026-09-01.1",
+  "composition_digest": "sha256:88ee55c39b6735d645b285ca43ba203f4517f3d695aeaafc29d604c25eb6a167",
+  "status": "source_free_candidate_projection_ready_for_complete_rehearsal",
+  "source_bindings_exact": true, "material_projection_exact": true,
+  "prospective_identity_exact": true, "unresolved_gates_explicit": true,
+  "candidate_materialized": true,
+  "app_assembled": false, "release_identity_bound": false,
+  "runnable_artifacts_retained": false, "apple_identity_access": false,
+  "developer_id_signature_verified": false, "apple_notarization_verified": false,
+  "cask_created": false, "bundle_installed": false, "vm_launch": false,
+  "analyzer_execution": false, "production_admitted": false,
+  "macos_iar_1b_admitted": false, "authority_added": false
+}
