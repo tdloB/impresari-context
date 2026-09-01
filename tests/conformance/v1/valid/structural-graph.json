@@ -17,7 +17,7 @@
       "confidence": "confirmed",
       "provenance": {
         "method": "tree_sitter_syntax",
-        "parser_version": "tree-sitter-0.26.12",
+        "parser_version": "tree-sitter-0.26.13",
         "grammar_version": "tree-sitter-typescript-0.23.2",
         "resolver_version": "0.1.0",
         "graph_version": "1.0.0"

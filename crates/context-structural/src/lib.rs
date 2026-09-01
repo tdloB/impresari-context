@@ -1142,7 +1142,7 @@ fn graph_edge(
 fn default_provenance() -> FactProvenance {
     FactProvenance {
         method: "tree_sitter_syntax".into(),
-        parser_version: "tree-sitter-0.26.12".into(),
+        parser_version: "tree-sitter-0.26.13".into(),
         grammar_version: "mixed-pinned-grammars".into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -1565,7 +1565,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         || request.schema_version != PROTOCOL_VERSION
         || request.graph_version != GRAPH_VERSION
         || request.resolver_version != RESOLVER_VERSION
-        || request.parser_version != "tree-sitter-0.26.12"
+        || request.parser_version != "tree-sitter-0.26.13"
         || request.max_facts == 0
         || request.max_facts > 100_000
         || request.max_nesting_depth == 0
@@ -2495,7 +2495,7 @@ mod tests {
             max_facts: 100,
             max_nesting_depth: 128,
             max_response_bytes: 1_048_576,
-            parser_version: "tree-sitter-0.26.12".into(),
+            parser_version: "tree-sitter-0.26.13".into(),
             grammar_version: grammar.into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),

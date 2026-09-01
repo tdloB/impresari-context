@@ -61,7 +61,7 @@ fn request(fixture: &Fixture) -> WorkerRequest {
         max_facts: 1000,
         max_nesting_depth: 128,
         max_response_bytes: 1_048_576,
-        parser_version: "tree-sitter-0.26.12".into(),
+        parser_version: "tree-sitter-0.26.13".into(),
         grammar_version: "tree-sitter-typescript-0.23.2".into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
