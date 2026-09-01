@@ -571,9 +571,9 @@ ADR-0104 now implements the approved boundary for that next step: one manually
 dispatched, no-secret, Linux x86-64 build in an exact digest-pinned image; one
 authenticated, non-release seven-day GitHub Actions artifact containing only
 the engine and bounded supply-chain evidence; and a separate non-executing
-verifier. The first authorized exact-main dispatch follows implementation
-merge. Signing, publication, production rules, activation, repository scans,
-and IAR-2 remain
+verifier. Exact-main run `33460329608` retained exactly one candidate and
+passed the separate non-executing verifier and both cleanup gates. Signing,
+publication, production rules, activation, repository scans, and IAR-2 remain
 later independent decisions.
 
 ADR-0105 completed its active pre-retention diagnostic in run `33443483096`.

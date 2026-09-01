@@ -1,6 +1,6 @@
 # YARA Analyzer Admission ARD
 
-- Status: ADR-0104 no-secret retention workflow implemented; first authorized dispatch pending; signing, ruleset, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention and same-run verification passed; signing, ruleset, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Governing PRD: [YARA Analyzer Admission PRD](../product/yara-analyzer-admission-prd.md)
 - Decision: [ADR-0089](../decisions/0089-yara-first-real-analyzer-admission.md), [ADR-0099](../decisions/0099-build-yara-x-synthetic-compatibility-candidate.md), [ADR-0100](../decisions/0100-freeze-yara-x-ndjson-adapter-before-runner-linkage.md), [ADR-0101](../decisions/0101-prove-synthetic-runner-to-adapter-envelope-before-artifact-admission.md), [ADR-0102](../decisions/0102-compose-real-yara-x-synthetic-output-with-frozen-adapter.md), [ADR-0103](../decisions/0103-separate-yara-x-production-artifact-ruleset-and-release-admission.md), [ADR-0104](../decisions/0104-retain-no-secret-yara-x-linux-engine-candidate.md), [ADR-0105](../decisions/0105-diagnose-yara-x-build-reproducibility-before-retention.md)
