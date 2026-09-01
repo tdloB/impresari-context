@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-synthetic-guest-materialization-profile.schema.json",
+  "title": "ADR-0112 macOS synthetic guest materialization profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "decision", "contract_path", "contract_digest", "host", "resource_limits", "network", "child_processes", "expected_payload_members", "cleanup", "claims"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "falseClaim": {"const": false},
+    "member": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["relative_path", "mode", "bytes", "sha256"],
+      "properties": {
+        "relative_path": {"enum": ["Image", "impresari-initramfs.gz"]},
+        "mode": {"const": "0644"},
+        "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+        "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-synthetic-guest-materialization-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-synthetic-guest-materialization-v1"},
+    "decision": {"const": "ADR-0112"},
+    "contract_path": {"const": "platform/macos-vm-feasibility/synthetic-guest-payload-contract-v1.json"},
+    "contract_digest": {"const": "sha256:4e43e28f325d7ab67ff2bb23595eb9273320ff5e8597553b9a681bfdc51033d4"},
+    "host": {
+      "type": "object", "additionalProperties": false,
+      "required": ["operating_system", "architecture", "zig_version"],
+      "properties": {
+        "operating_system": {"const": "macos"}, "architecture": {"const": "arm64"}, "zig_version": {"const": "0.16.0"}
+      }
+    },
+    "resource_limits": {
+      "type": "object", "additionalProperties": false,
+      "required": ["private_root_mode", "maximum_download_bytes", "maximum_apkv2_segments", "maximum_selected_kernel_bytes", "maximum_selected_module_gzip_bytes", "maximum_inflated_module_bytes", "maximum_kernel_output_bytes", "maximum_initramfs_output_bytes", "maximum_child_output_bytes", "download_connect_timeout_seconds", "download_total_timeout_seconds"],
+      "properties": {
+        "private_root_mode": {"const": "0700"},
+        "maximum_download_bytes": {"const": "41557960"},
+        "maximum_apkv2_segments": {"const": "3"},
+        "maximum_selected_kernel_bytes": {"const": "67108864"},
+        "maximum_selected_module_gzip_bytes": {"const": "2097152"},
+        "maximum_inflated_module_bytes": {"const": "2097152"},
+        "maximum_kernel_output_bytes": {"const": "36175872"},
+        "maximum_initramfs_output_bytes": {"const": "2097152"},
+        "maximum_child_output_bytes": {"const": "262144"},
+        "download_connect_timeout_seconds": {"const": "10"},
+        "download_total_timeout_seconds": {"const": "120"}
+      }
+    },
+    "network": {
+      "type": "object", "additionalProperties": false,
+      "required": ["allowed", "https_only", "maximum_redirects", "endpoints"],
+      "properties": {
+        "allowed": {"const": true}, "https_only": {"const": true}, "maximum_redirects": {"const": "0"},
+        "endpoints": {"const": ["https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk"]}
+      }
+    },
+    "child_processes": {
+      "const": ["curl-exact-public-input", "ruby-apkv2-verifier", "ruby-arm64-kernel-extractor", "zig-static-aarch64-linux-musl-compiler", "file-format-inspector", "ruby-canonical-initramfs-builder"]
+    },
+    "expected_payload_members": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/member"}},
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["delete_download", "delete_extracted_inputs", "delete_build_outputs", "delete_compiler_caches", "delete_raw_logs", "retain_root_name", "retain_runnable_guest_artifacts", "retain_metadata_only"],
+      "properties": {
+        "delete_download": {"const": true}, "delete_extracted_inputs": {"const": true}, "delete_build_outputs": {"const": true},
+        "delete_compiler_caches": {"const": true}, "delete_raw_logs": {"const": true}, "retain_root_name": {"const": false},
+        "retain_runnable_guest_artifacts": {"const": false}, "retain_metadata_only": {"const": true}
+      }
+    },
+    "claims": {
+      "type": "object", "additionalProperties": false,
+      "required": ["guest_payload_execution", "app_assembly", "apple_identity_access", "signing", "notarization", "cask_creation", "installation", "vm_launch", "analyzer_execution", "release_identity", "production_admission", "macos_iar_1b_admission", "authority_added"],
+      "properties": {
+        "guest_payload_execution": {"$ref": "#/$defs/falseClaim"}, "app_assembly": {"$ref": "#/$defs/falseClaim"},
+        "apple_identity_access": {"$ref": "#/$defs/falseClaim"}, "signing": {"$ref": "#/$defs/falseClaim"},
+        "notarization": {"$ref": "#/$defs/falseClaim"}, "cask_creation": {"$ref": "#/$defs/falseClaim"},
+        "installation": {"$ref": "#/$defs/falseClaim"}, "vm_launch": {"$ref": "#/$defs/falseClaim"},
+        "analyzer_execution": {"$ref": "#/$defs/falseClaim"}, "release_identity": {"$ref": "#/$defs/falseClaim"},
+        "production_admission": {"$ref": "#/$defs/falseClaim"}, "macos_iar_1b_admission": {"$ref": "#/$defs/falseClaim"},
+        "authority_added": {"$ref": "#/$defs/falseClaim"}
+      }
+    }
+  }
+}

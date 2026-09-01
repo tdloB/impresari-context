@@ -1,0 +1,72 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-materialization-record",
+  "schema_version": "1.0.0",
+  "record_id": "iar-macos-local-vm-synthetic-guest-materialization-2026-09-01.1",
+  "decision": "ADR-0112",
+  "contract_id": "iar-macos-local-vm-synthetic-guest-payload-2026-09-01.1",
+  "contract_digest": "sha256:4e43e28f325d7ab67ff2bb23595eb9273320ff5e8597553b9a681bfdc51033d4",
+  "profile_id": "iar-macos-local-vm-synthetic-guest-materialization-v1",
+  "profile_digest": "sha256:32a4f3ba1c719dc84207ecf0463e25313dea1f72df89f6dbacb3525c1b64c0a4",
+  "rehearsal_completed_at": "2026-09-01T07:18:13Z",
+  "host": {
+    "operating_system": "macos",
+    "architecture": "arm64",
+    "zig_version": "0.16.0"
+  },
+  "public_input": {
+    "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk",
+    "bytes": "41557960",
+    "sha256": "sha256:c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616",
+    "publisher_signature_verified": true,
+    "signed_datahash_verified": true,
+    "package_name": "linux-virt",
+    "package_version": "6.18.48-r0",
+    "package_architecture": "aarch64",
+    "package_commit": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"
+  },
+  "payload_members": [
+    {
+      "relative_path": "Image",
+      "mode": "0644",
+      "bytes": "36175872",
+      "sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
+    },
+    {
+      "relative_path": "impresari-initramfs.gz",
+      "mode": "0644",
+      "bytes": "38207",
+      "sha256": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b"
+    }
+  ],
+  "cleanup": {
+    "private_root_mode": "0700",
+    "private_root_name_retained": false,
+    "download_deleted": true,
+    "extracted_inputs_deleted": true,
+    "build_outputs_deleted": true,
+    "compiler_caches_deleted": true,
+    "raw_logs_retained": false,
+    "runnable_guest_artifacts_retained": false,
+    "metadata_only_retained": true
+  },
+  "controls": {
+    "network_access": true,
+    "network_scope": "exact-public-apk-only",
+    "credential_access": false,
+    "compiler_process_launch": true,
+    "guest_payload_materialized": true,
+    "guest_payload_executed": false,
+    "app_assembled": false,
+    "apple_identity_access": false,
+    "signed": false,
+    "notarized": false,
+    "cask_created": false,
+    "bundle_installed": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "release_identity_bound": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "authority_added": false
+  }
+}

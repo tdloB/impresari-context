@@ -1,0 +1,18 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-materialization-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_guest_payload_bytes": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": true,
+  "notes": "The bounded rehearsal authenticated one exact public Alpine APK. Fixtures retain only Impresari-authored contracts and measured metadata. No APK, extracted member, compiled guest byte, raw log, cache, temporary path, credential, or provider response body is retained.",
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-synthetic-guest-materialization-profile.json", "sha256": "0f25d49153412882e3644b06e76f70695349761a098ccf78faae7520b1e4d99f"},
+    {"path": "valid/macos-local-vm-synthetic-guest-materialization-record.json", "sha256": "086463985889891b5bdf6b797b8891768a7b6a8f519c689336d55ae95dc18399"},
+    {"path": "valid/macos-local-vm-synthetic-guest-materialization-receipt.json", "sha256": "05f228149f41eeb9b919de6614bf114d43e3e76ec3617cd34d2977d5badb2a4f"},
+    {"path": "invalid/macos-local-vm-synthetic-guest-materialization-overclaim.json", "sha256": "0eb7913e5188dc3aa327b89f022aa54943f4cef113e031b6e44424ec48988892"}
+  ]
+}

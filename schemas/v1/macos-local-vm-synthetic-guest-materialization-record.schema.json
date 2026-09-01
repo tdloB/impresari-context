@@ -1,0 +1,73 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-synthetic-guest-materialization-record.schema.json",
+  "title": "ADR-0112 macOS synthetic guest materialization record",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "record_id", "decision", "contract_id", "contract_digest", "profile_id", "profile_digest", "rehearsal_completed_at", "host", "public_input", "payload_members", "cleanup", "controls"],
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+    "falseClaim": {"const": false},
+    "member": {
+      "type": "object", "additionalProperties": false,
+      "required": ["relative_path", "mode", "bytes", "sha256"],
+      "properties": {
+        "relative_path": {"enum": ["Image", "impresari-initramfs.gz"]}, "mode": {"const": "0644"},
+        "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"}, "sha256": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  },
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-synthetic-guest-materialization-record"},
+    "schema_version": {"const": "1.0.0"},
+    "record_id": {"const": "iar-macos-local-vm-synthetic-guest-materialization-2026-09-01.1"},
+    "decision": {"const": "ADR-0112"},
+    "contract_id": {"const": "iar-macos-local-vm-synthetic-guest-payload-2026-09-01.1"},
+    "contract_digest": {"const": "sha256:4e43e28f325d7ab67ff2bb23595eb9273320ff5e8597553b9a681bfdc51033d4"},
+    "profile_id": {"const": "iar-macos-local-vm-synthetic-guest-materialization-v1"},
+    "profile_digest": {"const": "sha256:32a4f3ba1c719dc84207ecf0463e25313dea1f72df89f6dbacb3525c1b64c0a4"},
+    "rehearsal_completed_at": {"const": "2026-09-01T07:18:13Z"},
+    "host": {
+      "type": "object", "additionalProperties": false, "required": ["operating_system", "architecture", "zig_version"],
+      "properties": {"operating_system": {"const": "macos"}, "architecture": {"const": "arm64"}, "zig_version": {"const": "0.16.0"}}
+    },
+    "public_input": {
+      "type": "object", "additionalProperties": false,
+      "required": ["url", "bytes", "sha256", "publisher_signature_verified", "signed_datahash_verified", "package_name", "package_version", "package_architecture", "package_commit"],
+      "properties": {
+        "url": {"const": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk"},
+        "bytes": {"const": "41557960"},
+        "sha256": {"const": "sha256:c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616"},
+        "publisher_signature_verified": {"const": true}, "signed_datahash_verified": {"const": true},
+        "package_name": {"const": "linux-virt"}, "package_version": {"const": "6.18.48-r0"},
+        "package_architecture": {"const": "aarch64"}, "package_commit": {"const": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"}
+      }
+    },
+    "payload_members": {"type": "array", "minItems": 2, "maxItems": 2, "items": {"$ref": "#/$defs/member"}},
+    "cleanup": {
+      "type": "object", "additionalProperties": false,
+      "required": ["private_root_mode", "private_root_name_retained", "download_deleted", "extracted_inputs_deleted", "build_outputs_deleted", "compiler_caches_deleted", "raw_logs_retained", "runnable_guest_artifacts_retained", "metadata_only_retained"],
+      "properties": {
+        "private_root_mode": {"const": "0700"}, "private_root_name_retained": {"const": false},
+        "download_deleted": {"const": true}, "extracted_inputs_deleted": {"const": true}, "build_outputs_deleted": {"const": true},
+        "compiler_caches_deleted": {"const": true}, "raw_logs_retained": {"const": false},
+        "runnable_guest_artifacts_retained": {"const": false}, "metadata_only_retained": {"const": true}
+      }
+    },
+    "controls": {
+      "type": "object", "additionalProperties": false,
+      "required": ["network_access", "network_scope", "credential_access", "compiler_process_launch", "guest_payload_materialized", "guest_payload_executed", "app_assembled", "apple_identity_access", "signed", "notarized", "cask_created", "bundle_installed", "vm_launch", "analyzer_execution", "release_identity_bound", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "network_access": {"const": true}, "network_scope": {"const": "exact-public-apk-only"},
+        "credential_access": {"const": false}, "compiler_process_launch": {"const": true}, "guest_payload_materialized": {"const": true},
+        "guest_payload_executed": {"$ref": "#/$defs/falseClaim"}, "app_assembled": {"$ref": "#/$defs/falseClaim"},
+        "apple_identity_access": {"$ref": "#/$defs/falseClaim"}, "signed": {"$ref": "#/$defs/falseClaim"},
+        "notarized": {"$ref": "#/$defs/falseClaim"}, "cask_created": {"$ref": "#/$defs/falseClaim"},
+        "bundle_installed": {"$ref": "#/$defs/falseClaim"}, "vm_launch": {"$ref": "#/$defs/falseClaim"},
+        "analyzer_execution": {"$ref": "#/$defs/falseClaim"}, "release_identity_bound": {"$ref": "#/$defs/falseClaim"},
+        "production_admitted": {"$ref": "#/$defs/falseClaim"}, "macos_iar_1b_admitted": {"$ref": "#/$defs/falseClaim"},
+        "authority_added": {"$ref": "#/$defs/falseClaim"}
+      }
+    }
+  }
+}

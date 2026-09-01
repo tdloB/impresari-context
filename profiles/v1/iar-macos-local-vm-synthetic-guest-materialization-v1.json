@@ -1,0 +1,81 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-materialization-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-synthetic-guest-materialization-v1",
+  "decision": "ADR-0112",
+  "contract_path": "platform/macos-vm-feasibility/synthetic-guest-payload-contract-v1.json",
+  "contract_digest": "sha256:4e43e28f325d7ab67ff2bb23595eb9273320ff5e8597553b9a681bfdc51033d4",
+  "host": {
+    "operating_system": "macos",
+    "architecture": "arm64",
+    "zig_version": "0.16.0"
+  },
+  "resource_limits": {
+    "private_root_mode": "0700",
+    "maximum_download_bytes": "41557960",
+    "maximum_apkv2_segments": "3",
+    "maximum_selected_kernel_bytes": "67108864",
+    "maximum_selected_module_gzip_bytes": "2097152",
+    "maximum_inflated_module_bytes": "2097152",
+    "maximum_kernel_output_bytes": "36175872",
+    "maximum_initramfs_output_bytes": "2097152",
+    "maximum_child_output_bytes": "262144",
+    "download_connect_timeout_seconds": "10",
+    "download_total_timeout_seconds": "120"
+  },
+  "network": {
+    "allowed": true,
+    "https_only": true,
+    "maximum_redirects": "0",
+    "endpoints": [
+      "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk"
+    ]
+  },
+  "child_processes": [
+    "curl-exact-public-input",
+    "ruby-apkv2-verifier",
+    "ruby-arm64-kernel-extractor",
+    "zig-static-aarch64-linux-musl-compiler",
+    "file-format-inspector",
+    "ruby-canonical-initramfs-builder"
+  ],
+  "expected_payload_members": [
+    {
+      "relative_path": "Image",
+      "mode": "0644",
+      "bytes": "36175872",
+      "sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5"
+    },
+    {
+      "relative_path": "impresari-initramfs.gz",
+      "mode": "0644",
+      "bytes": "38207",
+      "sha256": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b"
+    }
+  ],
+  "cleanup": {
+    "delete_download": true,
+    "delete_extracted_inputs": true,
+    "delete_build_outputs": true,
+    "delete_compiler_caches": true,
+    "delete_raw_logs": true,
+    "retain_root_name": false,
+    "retain_runnable_guest_artifacts": false,
+    "retain_metadata_only": true
+  },
+  "claims": {
+    "guest_payload_execution": false,
+    "app_assembly": false,
+    "apple_identity_access": false,
+    "signing": false,
+    "notarization": false,
+    "cask_creation": false,
+    "installation": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "release_identity": false,
+    "production_admission": false,
+    "macos_iar_1b_admission": false,
+    "authority_added": false
+  }
+}
