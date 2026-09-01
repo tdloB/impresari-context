@@ -1,0 +1,98 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-payload-contract",
+  "schema_version": "1.0.0",
+  "contract_id": "iar-macos-local-vm-synthetic-guest-payload-2026-09-01.1",
+  "contract_state": "source-free-unmaterialized-synthetic-guest-contract",
+  "decision": "ADR-0111",
+  "repository": "tdloB/impresari-context",
+  "contract_baseline_revision": "bd43b522987fd428008a2a1bb0d56123fd4c955c",
+  "payload_root": "Contents/Resources/macos-vm/guest",
+  "guest_release_id": "iar-macos-local-vm-guest-2026-08-31.1",
+  "guest_release_manifest_path": "platform/macos-vm-feasibility/guest-release-manifest-v2.json",
+  "guest_release_manifest_digest": "sha256:d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff",
+  "guest_component_set_digest": "sha256:8efcfea3386d6397ffb34cc27d6f14547b3c5f20e010dcd6d357348abae391fc",
+  "guest_metadata_seal_path": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json",
+  "guest_metadata_seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+  "guest_metadata_set_digest": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b",
+  "payload_canonicalization": "relative-path-tab-mode-tab-bytes-tab-prefixed-sha256-tab-role-lf-v1",
+  "payload_members": [
+    {"relative_path": "Image", "bundle_path": "Contents/Resources/macos-vm/guest/Image", "mode": "0644", "bytes": "36175872", "sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5", "source_component_id": "linux-kernel-image", "runtime_role": "ordinary-arm64-boot-kernel", "controller_asset_name": "Image"},
+    {"relative_path": "impresari-initramfs.gz", "bundle_path": "Contents/Resources/macos-vm/guest/impresari-initramfs.gz", "mode": "0644", "bytes": "38207", "sha256": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b", "source_component_id": "synthetic-guest-initramfs", "runtime_role": "ordinary-synthetic-initramfs", "controller_asset_name": "impresari-initramfs.gz"}
+  ],
+  "excluded_manifest_components": [
+    {"component_id": "synthetic-guest-init", "reason": "embedded-initramfs-build-intermediate"},
+    {"component_id": "synthetic-resource-guest-init", "reason": "resource-canary-build-intermediate"},
+    {"component_id": "synthetic-resource-guest-initramfs", "reason": "resource-canary-test-only-runtime"},
+    {"component_id": "virtio-blk-kernel-module", "reason": "embedded-initramfs-build-intermediate"}
+  ],
+  "controller_binding": {
+    "source_path": "platform/macos-vm-feasibility/Sources/Controller/main.swift",
+    "source_sha256": "sha256:777c29af52ef823c4f24d852526c62af236dbc880a74de69de8e4ad7baac92f6",
+    "asset_root_argument_index": "1",
+    "kernel_asset_name": "Image",
+    "kernel_bytes": "36175872",
+    "kernel_sha256": "sha256:4c78ec153e7b8cf17011d44423ec2e11c9618933d4b931c60e63c240bf6db2f5",
+    "ordinary_initramfs_asset_name": "impresari-initramfs.gz",
+    "ordinary_initramfs_sha256": "sha256:89c50636f21054dfcfd1761a1bfcf613df302960317876b3e137e1267b45397b",
+    "maximum_initramfs_bytes": "2097152"
+  },
+  "future_materialization_recipe": {
+    "fresh_private_temp_root_required": true,
+    "symlinked_input_or_output_denied": true,
+    "public_input": {
+      "url": "https://dl-cdn.alpinelinux.org/alpine/v3.24/main/aarch64/linux-virt-6.18.48-r0.apk",
+      "bytes": "41557960",
+      "sha256": "sha256:c9ec62df20409d06f201cea7355140d5f99d421629ad35e9a023621a3c881616",
+      "verification_key_path": "platform/macos-vm-feasibility/alpine-devel-616ae350.rsa.pub",
+      "verification_key_sha256": "sha256:d11f6b21c61b4274e182eb888883a8ba8acdbf820dcc7a6d82a7d9fc2fd2836d",
+      "package_signature_sha256": "sha256:bb8cf07336a154e23901069049e9ca6e6315c35104d829219711406033b4362e",
+      "package_datahash": "sha256:e2ec28de6d80fa2b3535fc29475a7657ed8375dec99d4da96871ffd5b1077263",
+      "package_name": "linux-virt",
+      "package_version": "6.18.48-r0",
+      "architecture": "aarch64",
+      "package_commit": "c83b91e0fde4c1bada9b80d4e67c395b5335597b"
+    },
+    "extracted_inputs": [
+      {"archive_path": "boot/vmlinuz-virt", "output_role": "compressed-kernel-input"},
+      {"archive_path": "lib/modules/6.18.48-0-virt/kernel/drivers/block/virtio_blk.ko.gz", "output_role": "initramfs-module-input"}
+    ],
+    "build_inputs": [
+      {"path": "platform/macos-vm-feasibility/Sources/GuestInit/main.c", "sha256": "sha256:53a0b2c35851927e3574631044369448fc2330150ecedeeea589c190db101fe3", "role": "ordinary-synthetic-pid-one"},
+      {"path": "scripts/build-macos-vm-feasibility.sh", "sha256": "sha256:79aca92d02ab6c23130db9828c9032090a3c59e2739e087148e4562a2d28ea96", "role": "pinned-build-reference"},
+      {"path": "scripts/build-macos-vm-initramfs.rb", "sha256": "sha256:d48be1a09716e0fdfb230be32af09a2d04c695b476429bcae0ee85df55d40344", "role": "canonical-initramfs-builder"},
+      {"path": "scripts/extract-macos-vm-kernel.rb", "sha256": "sha256:0bbf2d0be65d0bfcfa1eb7fa427440a08637d194a6f491cc386e541dd241c192", "role": "arm64-image-extractor"},
+      {"path": "scripts/prepare-macos-vm-feasibility.sh", "sha256": "sha256:42d0b76ea9cfd6138455062b944c05c1570062b189ae1506aed044c288039449", "role": "authenticated-input-reference"},
+      {"path": "scripts/verify-alpine-apkv2.rb", "sha256": "sha256:0f688de0d883a9a64b17f05b33b3d1a8cc2482eafa6ebd3fb91a759ad888eb94", "role": "apkv2-verifier"}
+    ],
+    "zig_version": "0.16.0",
+    "zig_target": "aarch64-linux-musl",
+    "zig_arguments": ["cc", "-target", "aarch64-linux-musl", "-static", "-Os", "-fno-ident", "-Wl,--build-id=none"],
+    "initramfs_builder": "ruby-stdlib-canonical-cpio-gzip-mtime-1",
+    "output_identity_must_match_payload_members": true,
+    "all_download_build_cache_and_output_paths_deleted_before_receipt": true,
+    "metadata_only_retained": true
+  },
+  "controls": {
+    "contract_frozen": true,
+    "offline_validation": true,
+    "repository_metadata_read": true,
+    "workspace_scanned": false,
+    "network_access": false,
+    "credential_access": false,
+    "process_launch": false,
+    "guest_payload_materialized": false,
+    "runnable_guest_artifacts_retained": false,
+    "release_bundle_assembled": false,
+    "archive_created": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "bundle_installed": false,
+    "cask_created": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "release_identity_bound": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "authority_added": false
+  }
+}

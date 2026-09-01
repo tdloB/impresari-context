@@ -378,3 +378,22 @@ runs no analyzer or compatibility corpus.
   executable, cache, or raw build log was retained.
 - Guest completion, app assembly, signing, notarization, cask lifecycle, VM,
   analyzer, release identity, production, and macOS IAR-1B remain false.
+
+## 2026-09-01 — ADR-0111 synthetic guest payload contract
+
+- The ordinary Option C guest root is closed to exactly `Image` and
+  `impresari-initramfs.gz`, both future mode-`0644` regular files.
+- Exact bytes and SHA-256 identities are bound to guest release
+  `iar-macos-local-vm-guest-2026-08-31.1`, manifest SHA-256
+  `d0aad27ee855cac8969b189ab24cd10b58d6ceffae42f43ff0fbf4952c1785ff`,
+  and metadata seal SHA-256
+  `c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1`.
+- Four manifest components are explicitly excluded as build or
+  resource-canary intermediates rather than silently packaged.
+- The future recipe binds the exact authenticated Alpine APK and verification
+  key, two extracted inputs, Impresari guest source, Zig target/options,
+  canonical initramfs builder, private-root custody, exact remeasurement, and
+  mandatory deletion.
+- This was source-free validation. No download, build, guest bytes, app,
+  signing, notarization, cask, install, VM, analyzer, release, production, or
+  macOS IAR-1B evidence was created.

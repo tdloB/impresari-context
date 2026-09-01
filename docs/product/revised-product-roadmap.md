@@ -645,6 +645,20 @@ design that can complete the unsigned release record without yet accessing
 Apple credentials, signing, notarizing, installing or publishing a cask,
 launching a VM, or executing an analyzer.
 
+ADR-0111 completes that source-free substitution design. The ordinary guest
+payload is now closed to exactly two mode-`0644` runtime resources, `Image` and
+`impresari-initramfs.gz`, while the standalone init, module, and resource-canary
+assets remain explicit build or test intermediates. The contract binds the
+ADR-0091 manifest and metadata seal, the controller's exact ordinary asset
+names, the publisher-authenticated Alpine APK, exact extraction inputs,
+Impresari-owned guest source, Zig target/options, canonical initramfs builder,
+and mandatory later private-root cleanup. No package was downloaded, no guest
+byte was built or retained, and no release, app, signing, notarization, cask,
+VM, analyzer, production, or macOS IAR-1B authority was added. The next
+reversible checkpoint is an ephemeral authenticated materialization-and-delete
+rehearsal for only those two synthetic guest resources; it must remain separate
+from app assembly, Apple credentials, distribution, VM launch, and analyzers.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

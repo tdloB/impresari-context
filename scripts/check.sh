@@ -62,6 +62,7 @@ ruby ./scripts/check-macos-vm-cask-lifecycle-contract.rb
 ruby ./scripts/check-macos-vm-unsigned-bundle-assembly.rb
 ruby ./scripts/check-macos-vm-release-identity-contract.rb
 ruby ./scripts/check-macos-vm-ephemeral-product-candidate.rb
+ruby ./scripts/check-macos-vm-synthetic-guest-payload-contract.rb
 ruby ./scripts/check-windows-native-feasibility-contract.rb
 ruby ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby ./scripts/check-windows-basecontainer-capability-contract.rb
@@ -83,6 +84,7 @@ ruby -c ./scripts/check-macos-vm-cask-lifecycle-contract.rb
 ruby -c ./scripts/check-macos-vm-unsigned-bundle-assembly.rb
 ruby -c ./scripts/check-macos-vm-release-identity-contract.rb
 ruby -c ./scripts/check-macos-vm-ephemeral-product-candidate.rb
+ruby -c ./scripts/check-macos-vm-synthetic-guest-payload-contract.rb
 ruby -c ./scripts/check-windows-native-feasibility-contract.rb
 ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby -c ./scripts/check-windows-basecontainer-capability-contract.rb

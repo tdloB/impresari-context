@@ -1,0 +1,17 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-payload-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_guest_payload_bytes": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-synthetic-guest-payload-profile.json", "sha256": "3cbcd2a65c268477ab0d01207f0a97da3bbc5543c6415c67140ff9f19b6b10cc"},
+    {"path": "valid/macos-local-vm-synthetic-guest-payload-contract.json", "sha256": "b852d058a89a32d4c701ae0e1bfc2bfd9e0308d65d123334516fc175fff1431c"},
+    {"path": "valid/macos-local-vm-synthetic-guest-payload-receipt.json", "sha256": "bb3e0d3c24c062bd01e5eb955768145c353863e61132edb05c174f5e2365e5c1"},
+    {"path": "invalid/macos-local-vm-synthetic-guest-payload-overclaim.json", "sha256": "7cb3b7d7bd1c7f005b472e376b519e7358ed0320582c05e17426acb5cc9cc5a0"}
+  ]
+}

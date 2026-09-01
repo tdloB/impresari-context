@@ -78,3 +78,10 @@ and canonical set digest without network, credentials, prepared executable
 assets, or source input. It does not verify a GitHub publication attestation,
 Developer ID signature, Apple notarization, Homebrew cask lifecycle, sealed
 distribution, production admission, or analyzer execution.
+
+ADR-0111 additionally closes the future ordinary app guest payload to only
+`Image` and `impresari-initramfs.gz`. Its offline checker binds those two
+runtime identities, excludes the resource-test and standalone build
+intermediates, and freezes a later authenticated private-root build-and-delete
+recipe. The contract does not download or build the guest and does not admit a
+release, VM, analyzer, production backend, or macOS IAR-1B.
