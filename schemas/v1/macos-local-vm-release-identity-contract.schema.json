@@ -1,0 +1,119 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-release-identity-contract.schema.json",
+  "title": "ADR-0109 macOS local-VM build and release-identity contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "contract_id", "contract_state", "repository", "contract_baseline_revision", "product_version", "target_platform", "target_architecture", "rust_target", "rust_toolchain", "package_contract_id", "package_contract_digest", "guest_release_id", "guest_metadata_set_digest", "guest_metadata_seal_digest", "source_set_canonicalization", "source_set_digest", "source_inputs", "build_units", "candidate_record_requirements", "rollback", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-release-identity-contract"},
+    "schema_version": {"const": "1.0.0"},
+    "contract_id": {"const": "iar-macos-local-vm-release-identity-2026-09-01.1"},
+    "contract_state": {"const": "source-free-unmaterialized-candidate-contract"},
+    "repository": {"const": "tdloB/impresari-context"},
+    "contract_baseline_revision": {"const": "f160c2042c287d0a7188f16516610b21711db8d4"},
+    "product_version": {"const": "0.2.0"},
+    "target_platform": {"const": "macos"},
+    "target_architecture": {"const": "arm64"},
+    "rust_target": {"const": "aarch64-apple-darwin"},
+    "rust_toolchain": {"const": "1.98.0"},
+    "package_contract_id": {"const": "iar-macos-local-vm-cask-contract-2026-09-01.1"},
+    "package_contract_digest": {"const": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676"},
+    "guest_release_id": {"const": "iar-macos-local-vm-guest-2026-08-31.1"},
+    "guest_metadata_set_digest": {"const": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b"},
+    "guest_metadata_seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+    "source_set_canonicalization": {"const": "path-tab-bytes-tab-prefixed-sha256-lf-v1"},
+    "source_set_digest": {"const": "sha256:d5e98d46ba5294f147bdd44a5eb8fb307247472f69b9fed0b482f33feeef733e"},
+    "source_inputs": {
+      "type": "array",
+      "minItems": 15,
+      "maxItems": 15,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "bytes", "sha256", "role"],
+        "properties": {
+          "path": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]*$"},
+          "bytes": {"type": "string", "pattern": "^[1-9][0-9]*$"},
+          "sha256": {"type": "string", "pattern": "^sha256:[0-9a-f]{64}$"},
+          "role": {"type": "string", "minLength": 1}
+        }
+      }
+    },
+    "build_units": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["unit_id", "bundle_path", "artifact_kind", "build_system", "command", "unsigned_output", "candidate_identity"],
+        "properties": {
+          "unit_id": {"enum": ["cli-supervisor-entrypoint", "local-stdio-mcp-server", "isolated-structural-worker", "local-vm-controller", "closed-guest-payload-root"]},
+          "bundle_path": {"type": "string", "pattern": "^Contents/"},
+          "artifact_kind": {"enum": ["mach-o-arm64-executable", "metadata-sealed-guest-payload-set"]},
+          "build_system": {"enum": ["cargo", "xcrun-swiftc", "separate-authenticated-guest-candidate"]},
+          "command": {"type": "array", "minItems": 1, "items": {"type": "string", "minLength": 1}},
+          "unsigned_output": {"type": "string", "pattern": "^target/"},
+          "candidate_identity": {"enum": ["required-at-candidate-build", "metadata-bound-but-unmaterialized"]}
+        }
+      }
+    },
+    "candidate_record_requirements": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["candidate_source_revision", "candidate_source_archive_sha256", "build_environment", "per_artifact", "product_evidence", "guest_evidence", "compound_identity_canonicalization", "all_fields_required_before_substitution"],
+      "properties": {
+        "candidate_source_revision": {"const": "exact-git-commit-required"},
+        "candidate_source_archive_sha256": {"const": "required"},
+        "build_environment": {"type": "array", "minItems": 9, "maxItems": 9, "uniqueItems": true, "items": {"type": "string"}},
+        "per_artifact": {"type": "array", "minItems": 8, "maxItems": 8, "uniqueItems": true, "items": {"type": "string"}},
+        "product_evidence": {"type": "array", "minItems": 4, "maxItems": 4, "uniqueItems": true, "items": {"type": "string"}},
+        "guest_evidence": {"type": "array", "minItems": 3, "maxItems": 3, "uniqueItems": true, "items": {"type": "string"}},
+        "compound_identity_canonicalization": {"const": "candidate-source-revision-tab-product-version-tab-sorted-bundle-path-bytes-sha256-lf-then-sha256-v1"},
+        "all_fields_required_before_substitution": {"const": true}
+      }
+    },
+    "rollback": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["application_predecessor", "guest_predecessor_release_id", "whole_bundle_only", "mixed_version_rollback"],
+      "properties": {
+        "application_predecessor": {"const": "none-first-cask-release"},
+        "guest_predecessor_release_id": {"const": "iar-macos-local-vm-guest-2026-08-30.1"},
+        "whole_bundle_only": {"const": true},
+        "mixed_version_rollback": {"const": false}
+      }
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["contract_frozen", "offline_validation", "repository_build_input_metadata_read", "workspace_scanned", "network_access", "credential_access", "process_launch", "candidate_materialized", "release_bundle_assembled", "archive_created", "bundle_installed", "cask_created", "release_identity_bound", "developer_id_signature_verified", "apple_notarization_verified", "github_publication_attestation_verified", "cask_lifecycle_verified", "sealed_distribution", "vm_launch", "analyzer_execution", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "contract_frozen": {"const": true},
+        "offline_validation": {"const": true},
+        "repository_build_input_metadata_read": {"const": true},
+        "workspace_scanned": {"const": false},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "process_launch": {"const": false},
+        "candidate_materialized": {"const": false},
+        "release_bundle_assembled": {"const": false},
+        "archive_created": {"const": false},
+        "bundle_installed": {"const": false},
+        "cask_created": {"const": false},
+        "release_identity_bound": {"const": false},
+        "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false},
+        "github_publication_attestation_verified": {"const": false},
+        "cask_lifecycle_verified": {"const": false},
+        "sealed_distribution": {"const": false},
+        "vm_launch": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "macos_iar_1b_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

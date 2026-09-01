@@ -1,0 +1,20 @@
+{
+  "schema_name": "macos-local-vm-release-identity-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-release-identity-v1",
+  "contract_path": "platform/macos-vm-feasibility/release-identity-contract-v1.json",
+  "contract_digest": "sha256:ebf78abf0a8b1609cf891b96f092065a3e957d4b819e221d47440bacc4f9cf9c",
+  "package_contract_path": "platform/macos-vm-feasibility/cask-package-contract-v1.json",
+  "package_contract_digest": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676",
+  "metadata_seal_path": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json",
+  "metadata_seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+  "candidate_schema_path": "schemas/v1/macos-local-vm-unsigned-release-candidate.schema.json",
+  "candidate_schema_digest": "sha256:b1d0e93ce5917825018913017796ae1c9fbb84b824f28feb6fd37a38c04e2e41",
+  "required_build_units": "5",
+  "required_source_inputs": "15",
+  "required_product_artifacts": "4",
+  "required_guest_payload_sets": "1",
+  "offline_only": true,
+  "candidate_materialized": false,
+  "status": "release_identity_contract_candidate"
+}

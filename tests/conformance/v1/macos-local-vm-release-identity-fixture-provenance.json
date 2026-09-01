@@ -1,0 +1,15 @@
+{
+  "schema_name": "macos-local-vm-release-identity-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-release-identity-profile.json", "sha256": "3bf687ea0c9acc5a2e381d64343a9704b97b6467f3f4016a81bfb091df886076", "origin": "exact-copy-of-project-profile"},
+    {"path": "valid/macos-local-vm-release-identity-receipt.json", "sha256": "ffa4f72092c1b18850c2a1386d2be180bce64fe273d1bf19363062ab0481b772", "origin": "original-project-contract-receipt"},
+    {"path": "invalid/macos-local-vm-release-identity-overclaim.json", "sha256": "07e29e2528497e39a48f770c2d2b0b726d87e9924dc8c9d066e0f181b75b0b39", "origin": "original-project-overclaim-mutation"}
+  ]
+}

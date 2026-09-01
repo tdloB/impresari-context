@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-release-identity-profile.schema.json",
+  "title": "ADR-0109 macOS local-VM release-identity profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "contract_path", "contract_digest", "package_contract_path", "package_contract_digest", "metadata_seal_path", "metadata_seal_digest", "candidate_schema_path", "candidate_schema_digest", "required_build_units", "required_source_inputs", "required_product_artifacts", "required_guest_payload_sets", "offline_only", "candidate_materialized", "status"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-release-identity-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-release-identity-v1"},
+    "contract_path": {"const": "platform/macos-vm-feasibility/release-identity-contract-v1.json"},
+    "contract_digest": {"const": "sha256:ebf78abf0a8b1609cf891b96f092065a3e957d4b819e221d47440bacc4f9cf9c"},
+    "package_contract_path": {"const": "platform/macos-vm-feasibility/cask-package-contract-v1.json"},
+    "package_contract_digest": {"const": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676"},
+    "metadata_seal_path": {"const": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json"},
+    "metadata_seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+    "candidate_schema_path": {"const": "schemas/v1/macos-local-vm-unsigned-release-candidate.schema.json"},
+    "candidate_schema_digest": {"const": "sha256:b1d0e93ce5917825018913017796ae1c9fbb84b824f28feb6fd37a38c04e2e41"},
+    "required_build_units": {"const": "5"},
+    "required_source_inputs": {"const": "15"},
+    "required_product_artifacts": {"const": "4"},
+    "required_guest_payload_sets": {"const": "1"},
+    "offline_only": {"const": true},
+    "candidate_materialized": {"const": false},
+    "status": {"const": "release_identity_contract_candidate"}
+  }
+}
