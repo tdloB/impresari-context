@@ -595,6 +595,18 @@ continues, but remains mandatory before compilation or retention. No analyzer
 execution, signing, publication, production, repository-scan, or IAR-2
 authority is added.
 
+ADR-0107 returns to the accepted macOS local-VM distribution sequence without
+crossing the Apple credential boundary. It freezes one source-free,
+CLI-compatible cask contract: one `Impresari Context.app`, one public
+`impresari-context` link, a closed embedded role layout, exact ADR-0091 metadata
+binding, whole-bundle install/upgrade/rollback, formula-conflict rejection, and
+narrow uninstall without `zap`, package scripts, privileged helpers, or
+background services. The deterministic receipt keeps assembly, publication
+attestation, Developer ID signing, notarization, live cask lifecycle, sealed
+distribution, production, macOS IAR-1B, and analyzer execution false. The next
+reversible checkpoint is unsigned synthetic-only bundle assembly and exact
+layout verification without installation.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

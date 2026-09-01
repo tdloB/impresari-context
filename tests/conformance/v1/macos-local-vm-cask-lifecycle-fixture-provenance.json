@@ -1,0 +1,40 @@
+{
+  "schema_name": "macos-local-vm-cask-lifecycle-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_synthetic_and_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/macos-local-vm-cask-package-contract.json",
+      "sha256": "4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676",
+      "origin": "original_project_metadata",
+      "license": "Apache-2.0",
+      "purpose": "freeze the source-free app layout and cask ownership contract"
+    },
+    {
+      "path": "valid/iar-macos-local-vm-cask-lifecycle-profile.json",
+      "sha256": "1373511a5ed419337df562bd66a9bfd57441bd58c5ae9f0d0d9333fc64fb5213",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "validate the bounded offline cask contract checks"
+    },
+    {
+      "path": "valid/macos-local-vm-cask-lifecycle-receipt.json",
+      "sha256": "693a1d1016f905db023830f5573f8ef7d091e9591458107a2ca0a4b2e8b05bc3",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "record contract freezing without assembly or distribution claims"
+    },
+    {
+      "path": "invalid/macos-local-vm-cask-lifecycle-overclaim.json",
+      "sha256": "12f3ecfaa81625c706c58b7cc7ca5ac1f6428054668c42685b26f7b729491b06",
+      "origin": "original_synthetic",
+      "license": "Apache-2.0",
+      "purpose": "reject assembly, signing, cask lifecycle, production, IAR-1B, and analyzer overclaims"
+    }
+  ]
+}

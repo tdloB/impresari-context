@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-cask-lifecycle-profile.schema.json",
+  "title": "ADR-0107 macOS local-VM cask lifecycle profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "profile_version", "package_contract_path", "package_contract_digest", "metadata_seal_digest", "required_checks", "controls"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-cask-lifecycle-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-cask-lifecycle-v1"},
+    "profile_version": {"const": "1.0.0"},
+    "package_contract_path": {"const": "platform/macos-vm-feasibility/cask-package-contract-v1.json"},
+    "package_contract_digest": {"const": "sha256:4f249a15c1cd0b5283c937d49cc1888c3ab56b2a9a22847b8913901c72d5f676"},
+    "metadata_seal_digest": {"const": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1"},
+    "required_checks": {
+      "type": "array",
+      "minItems": 14,
+      "maxItems": 14,
+      "uniqueItems": true,
+      "items": {"enum": ["exact-package-contract-identity", "exact-release-metadata-seal-binding", "closed-app-relative-layout", "unique-component-destinations", "one-public-cli-entrypoint", "one-app-and-one-cli-link", "whole-bundle-version-alignment", "formula-conflict-fails-before-mutation", "narrow-cask-owned-uninstall", "no-zap-or-package-scripts", "no-privileged-or-background-services", "no-automatic-update-authority", "deny-unproven-distribution-claims", "deny-production-and-analyzer-claims"]}
+    },
+    "controls": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["network_access", "credential_access", "repository_source_access", "filesystem_mutation", "process_launch", "contract_frozen", "app_bundle_assembled", "cask_lifecycle_verified", "sealed_distribution", "production_admitted", "macos_iar_1b_admitted", "analyzer_execution", "authority_added"],
+      "properties": {
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "repository_source_access": {"const": false},
+        "filesystem_mutation": {"const": false},
+        "process_launch": {"const": false},
+        "contract_frozen": {"const": true},
+        "app_bundle_assembled": {"const": false},
+        "cask_lifecycle_verified": {"const": false},
+        "sealed_distribution": {"const": false},
+        "production_admitted": {"const": false},
+        "macos_iar_1b_admitted": {"const": false},
+        "analyzer_execution": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

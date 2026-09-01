@@ -1,0 +1,104 @@
+{
+  "schema_name": "macos-local-vm-cask-package-contract",
+  "schema_version": "1.0.0",
+  "contract_id": "iar-macos-local-vm-cask-contract-2026-09-01.1",
+  "contract_state": "source-free-contract-only",
+  "distribution": {
+    "mechanism": "homebrew-cask",
+    "cask_token": "impresari-context",
+    "app_bundle": "Impresari Context.app",
+    "terminal_command": "impresari-context",
+    "architecture": "arm64",
+    "minimum_macos": "unresolved-before-live-rehearsal"
+  },
+  "bundle_layout": [
+    {
+      "path": "Contents/Helpers/impresari-context-mcp",
+      "role": "local-stdio-mcp-server",
+      "public_command": false,
+      "release_identity": "required-at-assembly"
+    },
+    {
+      "path": "Contents/Helpers/impresari-context-structural-worker",
+      "role": "isolated-structural-worker",
+      "public_command": false,
+      "release_identity": "required-at-assembly"
+    },
+    {
+      "path": "Contents/Helpers/impresari-context-vm-controller",
+      "role": "local-vm-controller",
+      "public_command": false,
+      "release_identity": "required-at-assembly"
+    },
+    {
+      "path": "Contents/MacOS/impresari-context",
+      "role": "cli-supervisor-entrypoint",
+      "public_command": true,
+      "release_identity": "required-at-assembly"
+    },
+    {
+      "path": "Contents/Resources/macos-vm/guest",
+      "role": "closed-guest-payload-root",
+      "public_command": false,
+      "release_identity": "required-at-assembly"
+    },
+    {
+      "path": "Contents/Resources/macos-vm/guest-release-metadata-seal-v1.json",
+      "role": "release-metadata-seal",
+      "public_command": false,
+      "release_identity": "bound-by-contract"
+    }
+  ],
+  "release_bindings": {
+    "repository": "tdloB/impresari-context",
+    "guest_release_id": "iar-macos-local-vm-guest-2026-08-31.1",
+    "metadata_seal_path": "platform/macos-vm-feasibility/guest-release-metadata-seal-v1.json",
+    "metadata_seal_digest": "sha256:c0294a88c2c7fe1d33bdd8ddfbb55e26e6595f02c12a9645c898f36148aa82e1",
+    "metadata_set_digest": "sha256:ea29c43f36493f7e61935f33a64822805c8275d804c5384c3e8becea849fc54b",
+    "source_revision": "required-at-assembly",
+    "product_version": "required-at-assembly",
+    "app_bundle_digest": "required-after-assembly"
+  },
+  "cask_ownership": {
+    "installed_artifacts": [
+      "Impresari Context.app",
+      "impresari-context-cli-link"
+    ],
+    "internal_helper_links": "none",
+    "postflight": false,
+    "uninstall_script": false,
+    "zap": false,
+    "privileged_helper": false,
+    "launch_daemon": false,
+    "launch_agent": false,
+    "login_item": false
+  },
+  "lifecycle": {
+    "install": "atomic-whole-bundle-and-cli-link",
+    "upgrade": "explicit-homebrew-whole-bundle-replacement",
+    "rollback": "explicit-previous-accepted-whole-bundle",
+    "migration": "reject-coexisting-formula-and-cask-before-mutation",
+    "uninstall": "remove-only-cask-owned-app-and-cli-link",
+    "mixed_versions": "rejected",
+    "automatic_update": false
+  },
+  "controls": {
+    "contract_frozen": true,
+    "offline_validation": true,
+    "network_access": false,
+    "credential_access": false,
+    "repository_source_access": false,
+    "filesystem_mutation": false,
+    "process_launch": false,
+    "app_bundle_assembled": false,
+    "github_publication_attestation_verified": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "cask_lifecycle_verified": false,
+    "sealed_distribution": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "analyzer_execution": false,
+    "authority_added": false
+  }
+}
