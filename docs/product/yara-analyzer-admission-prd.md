@@ -1,6 +1,6 @@
 # Impresari Context — YARA Analyzer Admission PRD
 
-- Status: ADR-0104 no-secret retention and same-run verification passed; ADR-0106 Option A source package implemented with independent human review pending; compilation, signing, activation, and IAR-2 remain gated
+- Status: ADR-0104 no-secret retention and same-run verification passed; ADR-0106 Option A source package implemented with independent human review backlogged; compilation, signing, activation, and IAR-2 remain gated
 - Date: 2026-08-31
 - Owner: Aaron Boldt
 - Decision: ADR-0089, superseded engine direction by ADR-0097, bounded compatibility by ADR-0099, pure adapter boundary by ADR-0100, synthetic envelope by ADR-0101, real-engine synthetic composition by ADR-0102, separated production admission by ADR-0103, approved retained-engine custody by ADR-0104, ephemeral reproducibility diagnosis by ADR-0105, and approved source-only production-ruleset boundary by ADR-0106

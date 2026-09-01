@@ -3,7 +3,7 @@
 - Decision: ADR-0106 Option A
 - Date: 2026-08-31
 - State: `source_candidate_review_required`
-- Independent human review: pending
+- Independent human review: backlogged; mandatory before compilation
 
 ## Frozen identities
 
@@ -42,3 +42,5 @@ An attributable human independent of the rule authorship, with practical YARA
 or malware-analysis experience, must review the exact source and scope
 digests, disclose conflicts, disposition every rule, and leave zero open
 critical, high, or unknown issues. Any source change invalidates that review.
+Reviewer engagement is intentionally deferred while other roadmap work
+continues. Deferral does not satisfy or weaken this gate.
