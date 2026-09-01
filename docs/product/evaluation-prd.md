@@ -13,6 +13,7 @@
   - [Master Product PRD](master-prd.md)
   - [Verifiable Local Context MVP PRD](verifiable-local-context-mvp-prd.md)
   - [Security Threat Model](../security/threat-model.md)
+  - [Provider-Free Product Read Observer PRD](provider-free-product-read-observer-prd.md)
 
 ## Goal
 
@@ -48,6 +49,21 @@ comparison baseline.
 13. Do hostile-repository admission contracts preserve incomplete coverage and
     reject every safety or ordinary-host execution claim without invoking an
     analyzer, parser, process, network, or upload capability?
+14. Are product repository reads measured at the actual source-read boundary,
+    including startup snapshot work, rather than inferred from outer calls or
+    returned evidence?
+
+### Provider-free effectiveness admission
+
+- Product read telemetry must be bound to the exact isolated source
+  fingerprint and report `complete=true`.
+- Repeated reads must not exceed total product reads, and every counter join
+  must use checked arithmetic.
+- Provider-free fixtures must pass source identity, evidence density, task-noise
+  stability, overlap, exact-source recovery, and read-accounting gates before a
+  paid provider study is authorized.
+- Telemetry admission is not evidence of token, cost, latency, correctness, or
+  repository-read improvement.
 
 ### Slice C/D hard gates
 

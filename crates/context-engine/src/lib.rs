@@ -85,6 +85,25 @@ pub struct WorkspaceHandle {
     pub state: String,
 }
 
+/// Source-free process-lifecycle repository read attestation.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
+pub struct RepositoryReadTelemetry {
+    /// Closed schema discriminator consumed by the independent evaluator.
+    pub schema_name: String,
+    /// Closed schema version.
+    pub schema_version: String,
+    /// Contract-form SHA-256 over sorted portable paths and exact source bytes.
+    pub source_fingerprint_sha256: String,
+    /// File reads measured at the capability-relative byte boundary.
+    pub repository_file_reads: u64,
+    /// Reads of paths already observed during this process lifecycle.
+    pub repeated_repository_file_reads: u64,
+    /// Exact source bytes materialized by those reads.
+    pub source_bytes_read: u64,
+    /// True only when counters and source identity are exhaustive.
+    pub complete: bool,
+}
+
 /// One aggregated snapshot omission category.
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 pub struct SkippedSummary {
@@ -594,6 +613,32 @@ impl LocalEngine {
         root: &Path,
     ) -> Result<(Self, WorkspaceHandle), EngineError> {
         Self::open_internal(config, context, root, None)
+    }
+
+    /// Projects cumulative product read telemetry without adding authority.
+    #[must_use]
+    pub fn repository_read_telemetry(&self) -> RepositoryReadTelemetry {
+        let counters = self.workspace.repository_read_counters();
+        let (source_fingerprint_sha256, source_complete) = self.snapshot.as_ref().map_or_else(
+            || (contract_sha256(&[]), false),
+            |snapshot| {
+                (
+                    snapshot.source_fingerprint_sha256.clone(),
+                    snapshot.complete
+                        && snapshot.source_fingerprint_compatible
+                        && snapshot.skipped.is_empty(),
+                )
+            },
+        );
+        RepositoryReadTelemetry {
+            schema_name: "impresari_context_repository_read_telemetry".into(),
+            schema_version: "1.0".into(),
+            source_fingerprint_sha256,
+            repository_file_reads: counters.repository_file_reads,
+            repeated_repository_file_reads: counters.repeated_repository_file_reads,
+            source_bytes_read: counters.source_bytes_read,
+            complete: counters.complete && source_complete,
+        }
     }
 
     /// Opens an explicit workspace with an exact-owned local budget policy store.
@@ -4823,6 +4868,16 @@ fn valid_sha256(value: &str) -> bool {
             .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
+fn contract_sha256(bytes: &[u8]) -> String {
+    let mut value = String::with_capacity(71);
+    value.push_str("sha256:");
+    for byte in Sha256::digest(bytes) {
+        use fmt::Write as _;
+        write!(value, "{byte:02x}").expect("writing to a string cannot fail");
+    }
+    value
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -4873,6 +4928,37 @@ mod tests {
     fn budget() -> ResourceBudget {
         ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
             .expect("budget")
+    }
+
+    #[test]
+    fn repository_read_telemetry_requires_an_exhaustive_current_snapshot() {
+        let source = TestRoot::new("read-telemetry-source");
+        let cache = TestRoot::new("read-telemetry-cache");
+        fs::write(source.0.join("lib.rs"), b"fn answer() {}\n").expect("source");
+        fs::create_dir(source.0.join("target")).expect("excluded directory");
+        fs::write(source.0.join("target/generated"), b"generated").expect("excluded source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(20, 4096, 4096, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 100, 1_048_576)
+                .expect("audit"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "telemetry"), &source.0).expect("open");
+
+        let before = engine.repository_read_telemetry();
+        assert!(!before.complete);
+        assert_eq!(before.repository_file_reads, 0);
+        assert_eq!(before.source_fingerprint_sha256.len(), 71);
+
+        engine
+            .build_snapshot(&request(2, "telemetry"), budget())
+            .expect("snapshot");
+        let after = engine.repository_read_telemetry();
+        assert!(!after.complete, "a skipped object must fail closed");
+        assert_eq!(after.repository_file_reads, 1);
+        assert_eq!(after.repeated_repository_file_reads, 0);
+        assert_eq!(after.source_bytes_read, 15);
     }
 
     #[test]

@@ -16,6 +16,7 @@
   - [Verifiable Local Context MVP PRD](verifiable-local-context-mvp-prd.md)
   - [Security Threat Model](../security/threat-model.md)
   - [Evaluation PRD](evaluation-prd.md)
+  - [Provider-Free Product Read Observer PRD](provider-free-product-read-observer-prd.md)
   - [Phase 0: Language and Client Foundation PRD](phase-0-language-and-client-foundation-prd.md)
   - [Revised Product Roadmap](revised-product-roadmap.md)
   - [Client Integration Depth Roadmap](client-integration-roadmap.md)
@@ -112,6 +113,8 @@ or assets.
 8. MCP is a transport, not the internal architecture.
 9. Consumers own orchestration, approvals, and business policy.
 10. One stable capability surface is preferable to overlapping context stacks.
+11. Product efficiency claims require product-owned read telemetry measured at
+    the repository I/O boundary, not inferred from tool calls or packet output.
 
 ## Users
 
