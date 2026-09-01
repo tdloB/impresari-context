@@ -1,0 +1,19 @@
+{
+  "schema_name": "progressive-disclosure-map",
+  "schema_version": "1.0.0",
+  "map_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "graph_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "state": "ready",
+  "items": [{
+    "item_handle": "sha256:dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    "display_path": "src/lib.rs",
+    "relationship_class": "declares",
+    "symbol_label": "open_workspace",
+    "confidence": "confirmed",
+    "freshness": "current_snapshot",
+    "unknowns": [],
+    "source_excerpt": "not permitted in a compact map"
+  }],
+  "omissions": []
+}

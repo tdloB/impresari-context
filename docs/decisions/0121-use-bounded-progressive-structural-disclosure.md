@@ -1,6 +1,6 @@
 # ADR-0121: Use Bounded Progressive Structural Disclosure
 
-- Status: Accepted for implementation after the ADR-0120 provider-free MCP gate
+- Status: Implemented; provider-free mechanics gate passed locally
 - Date: 2026-09-01
 - Decider: Aaron Boldt through the accepted evaluation-integrity roadmap
 - Related PRD: [Progressive Structural Disclosure PRD](../product/progressive-structural-disclosure-prd.md)
@@ -77,3 +77,21 @@ exact-recovery, read-amplification, tool-parity, or cumulative-budget checks; if
 a controlled pilot shows correctness regression or excessive expansion calls;
 or before adding durable sessions, generated context, embeddings, automatic
 refresh, model-specific policy, remote transport, or server-initiated actions.
+
+## Implementation evidence
+
+The implementation adds trusted `ordinary`, `eager_structural`, and
+`progressive_structural` startup modes; always-advertised lookup and expansion
+tools; source-free session-owned handles; exact current-source recovery; and a
+checked cumulative disclosure ledger. Closed map and receipt schemas reject
+source and authority overclaims.
+
+The frozen provider-free gate in
+`crates/context-evaluation/tests/progressive_structural_gate.rs` runs six
+TypeScript, Rust, and Ruby fixtures through fresh ordinary, eager, progressive,
+and repeated-progressive MCP servers plus an eager warm-cache seed/reuse arm. It
+verifies identical tool definitions, smaller progressive initial tool results,
+ordinary-anchor preservation, deterministic map and receipt identities, equal
+fresh/warm evidence, full exact-evidence recovery, receipt-byte accounting, and
+source immutability. It performs zero provider calls and makes no model-effect,
+correctness, token, cost, or latency claim.

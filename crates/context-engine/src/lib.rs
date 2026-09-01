@@ -335,6 +335,17 @@ pub struct StructuralSeedRequest {
     pub edge_kinds: Vec<String>,
 }
 
+/// Narrowing-only exact-source bounds for one deferred structural expansion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StructuralEvidenceExpansion {
+    /// Maximum bytes admitted before the exact structural span.
+    pub before_bytes: u64,
+    /// Maximum bytes admitted after the exact structural span.
+    pub after_bytes: u64,
+    /// Hard maximum bytes returned by the expansion.
+    pub max_bytes: u64,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StructuralPlanAnnotation<'a> {
     Available(&'a str),
@@ -1771,6 +1782,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -1833,6 +1845,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -1866,6 +1879,50 @@ impl LocalEngine {
         query: &str,
         structural_request: &StructuralSeedRequest,
         budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        self.build_profiled_seeded_structural_context_internal(
+            context,
+            profile,
+            query,
+            structural_request,
+            budget,
+            true,
+        )
+    }
+
+    /// Builds a profiled structural plan and ordinary anchor packet while
+    /// deferring exact structural-source recovery to a later authorized call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same policy, graph, seed, traversal, retrieval, and packet
+    /// failures as [`Self::build_profiled_seeded_structural_context`].
+    pub fn build_profiled_seeded_progressive_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralSeedRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        self.build_profiled_seeded_structural_context_internal(
+            context,
+            profile,
+            query,
+            structural_request,
+            budget,
+            false,
+        )
+    }
+
+    fn build_profiled_seeded_structural_context_internal(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralSeedRequest,
+        budget: ResourceBudget,
+        recover_structural_evidence: bool,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot_id = self
             .snapshot
@@ -1942,6 +1999,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            recover_structural_evidence,
         );
         let outcome = result
             .as_ref()
@@ -2063,6 +2121,7 @@ impl LocalEngine {
             None,
             Some(&orientation),
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -2114,6 +2173,7 @@ impl LocalEngine {
                 None,
                 None,
                 None,
+                true,
             )
         })();
         let outcome = result
@@ -2162,6 +2222,7 @@ impl LocalEngine {
                 Some(&associated),
                 None,
                 None,
+                true,
             )
         })();
         let outcome = result
@@ -2209,6 +2270,7 @@ impl LocalEngine {
                 None,
                 None,
                 Some(&conventions),
+                true,
             )
         })();
         let outcome = result
@@ -2224,7 +2286,7 @@ impl LocalEngine {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Sequential plan assembly keeps policy, supplemental evidence, and packet ordering auditable together.
     fn build_profiled_context_internal(
         &mut self,
         context: &RequestContext,
@@ -2239,6 +2301,7 @@ impl LocalEngine {
         declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
         repository_orientation: Option<&RepositoryOrientationMap>,
         declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
+        recover_structural_evidence: bool,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -2284,10 +2347,30 @@ impl LocalEngine {
             apply_repository_orientation_to_plan(&mut plan, orientation)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
-        let (structural_evidence, structural_unknowns) = structural_query.map_or_else(
-            || Ok((Vec::new(), Vec::new())),
-            |value| self.structural_evidence(context, value, &budget, started),
-        )?;
+        let (structural_evidence, structural_unknowns) = if recover_structural_evidence {
+            structural_query.map_or_else(
+                || Ok((Vec::new(), Vec::new())),
+                |value| {
+                    self.structural_evidence(
+                        context,
+                        Capability::ContextBuild,
+                        value,
+                        &budget,
+                        started,
+                    )
+                },
+            )?
+        } else {
+            let mut unknowns = structural_query
+                .map(|value| value.result.unknowns.clone())
+                .unwrap_or_default();
+            if structural_query.is_some_and(|value| value.result.truncated) {
+                unknowns.push("structural_query_limited".into());
+            }
+            unknowns.sort();
+            unknowns.dedup();
+            (Vec::new(), unknowns)
+        };
         let (declared_evidence, declared_unknowns) = declared_change_set.map_or_else(
             || Ok((Vec::new(), Vec::new())),
             |value| self.declared_change_set_evidence(context, value, &budget, started),
@@ -2534,6 +2617,7 @@ impl LocalEngine {
     fn structural_evidence(
         &self,
         context: &RequestContext,
+        capability: Capability,
         structural_query: &StructuralPlannerQuery,
         budget: &ResourceBudget,
         started: Instant,
@@ -2541,7 +2625,7 @@ impl LocalEngine {
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
                 context,
-                Capability::ContextBuild,
+                capability,
                 PublicErrorCode::StaleState,
                 "workspace snapshot required",
                 Some(self.workspace.identity()),
@@ -2553,7 +2637,7 @@ impl LocalEngine {
         if result.workspace_snapshot != snapshot.snapshot_id {
             return Err(failure(
                 context,
-                Capability::ContextBuild,
+                capability,
                 PublicErrorCode::StaleState,
                 "structural query is stale",
                 Some(self.workspace.identity()),
@@ -2567,16 +2651,16 @@ impl LocalEngine {
             .map(|node| (node.node_id.as_str(), &node.path))
             .collect::<std::collections::BTreeMap<_, _>>();
         let source_budget = search_budget(budget)
-            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
-            core_error(context, Capability::ContextBuild, error.code(), self.ids())
-        })?;
+            .map_err(|code| core_error(context, capability, code, self.ids()))?;
+        let elapsed_limit = budget
+            .max_elapsed_ms_u64()
+            .map_err(|error| core_error(context, capability, error.code(), self.ids()))?;
         let mut evidence = std::collections::BTreeMap::new();
         for edge in &result.edges {
             if elapsed_ms(started) >= elapsed_limit {
                 return Err(failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::ResourceLimit,
                     "context planning resource limit exceeded",
                     Some(self.workspace.identity()),
@@ -2587,7 +2671,7 @@ impl LocalEngine {
             let worker_path = paths.get(edge.source_node.as_str()).ok_or_else(|| {
                 failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::IntegrityFailure,
                     "structural query has an invalid source node",
                     Some(self.workspace.identity()),
@@ -2603,7 +2687,7 @@ impl LocalEngine {
             .map_err(|_| {
                 failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::IntegrityFailure,
                     "structural query has an invalid source path",
                     Some(self.workspace.identity()),
@@ -2620,9 +2704,7 @@ impl LocalEngine {
                 source_budget,
                 "structural_graph_edge",
             )
-            .map_err(|error| {
-                retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
-            })?;
+            .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
             let record = evidence_record(&recovered);
             evidence.entry(record.evidence_id.clone()).or_insert(record);
         }
@@ -3156,6 +3238,135 @@ impl LocalEngine {
             entries,
         };
         self.declared_change_set_evidence(context, &declaration, budget, started)
+    }
+
+    /// Reauthorizes and recovers one exact structural edge from current source.
+    ///
+    /// This is the deferred counterpart to eager structural packet evidence.
+    /// It accepts only an edge already present in the validated, snapshot-bound
+    /// planner traversal and returns the same canonical evidence record.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure for an unavailable edge, stale traversal,
+    /// changed source, authorization failure, or exhausted budget.
+    #[allow(clippy::too_many_lines)] // Authorization, recovery, optional expansion, and audit finalization remain one gateway transaction.
+    pub fn expand_structural_edge_evidence(
+        &mut self,
+        context: &RequestContext,
+        structural_query: &StructuralPlannerQuery,
+        edge_id: &str,
+        expansion: StructuralEvidenceExpansion,
+        budget: ResourceBudget,
+    ) -> Result<EvidenceRecord, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::EvidenceExpand, Some(budget))?;
+        let budget = admitted_budget(context, Capability::EvidenceExpand, &decision, self.ids())?;
+        let admitted_max = budget
+            .requested
+            .parse::<u64>()
+            .ok()
+            .zip(budget.max_excerpt_bytes_per_item.parse::<u64>().ok())
+            .map_or(0, |(requested, excerpt)| requested.min(excerpt));
+        let max_bytes = expansion.max_bytes.min(admitted_max);
+        let result = (|| {
+            let edge = structural_query
+                .result
+                .edges
+                .iter()
+                .find(|edge| edge.edge_id == edge_id)
+                .cloned()
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::InvalidInput,
+                        "structural evidence handle is unavailable",
+                        Some(self.workspace.identity()),
+                        self.snapshot
+                            .as_ref()
+                            .map(|value| value.snapshot_id.as_str()),
+                        Some(RecoveryAction::ReduceScope),
+                    )
+                })?;
+            let mut selected = structural_query.clone();
+            selected.result.edges = vec![edge];
+            let recovered = self
+                .structural_evidence(
+                    context,
+                    Capability::EvidenceExpand,
+                    &selected,
+                    &budget,
+                    started,
+                )?
+                .0
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::StaleState,
+                        "structural evidence is unavailable",
+                        Some(self.workspace.identity()),
+                        self.snapshot
+                            .as_ref()
+                            .map(|value| value.snapshot_id.as_str()),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            if expansion.before_bytes == 0
+                && expansion.after_bytes == 0
+                && recovered
+                    .span
+                    .end_byte
+                    .parse::<u64>()
+                    .ok()
+                    .zip(recovered.span.start_byte.parse::<u64>().ok())
+                    .is_some_and(|(end, start)| end.saturating_sub(start) <= max_bytes)
+            {
+                Ok(recovered)
+            } else {
+                let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::StaleState,
+                        "workspace snapshot is unavailable",
+                        Some(self.workspace.identity()),
+                        None,
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+                expand_evidence_record(
+                    &self.workspace,
+                    snapshot,
+                    &recovered,
+                    expansion.before_bytes,
+                    expansion.after_bytes,
+                    max_bytes,
+                )
+                .map_err(|error| {
+                    retrieval_error(
+                        context,
+                        Capability::EvidenceExpand,
+                        error.code(),
+                        self.ids(),
+                    )
+                })
+            }
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::EvidenceExpand,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
     }
 
     /// Reauthorizes and expands exact evidence from current source.

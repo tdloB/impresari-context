@@ -1,0 +1,16 @@
+{
+  "schema_version": "1.0.0",
+  "fixture_manifest": "evaluation/v1/structural-utility-manifest.json",
+  "fixture_manifest_sha256": "sha256:406557b5c5268c754c6f233fc484918b5be68e64fef1e2c0298e00cfdacd2e0f",
+  "delivery_modes": ["ordinary", "eager_structural", "progressive_structural"],
+  "scripted_expansion_policy": "lookup_all_admitted_then_expand_every_returned_handle",
+  "requirements": {
+    "identical_tool_definitions": true,
+    "warm_cache_arm": true,
+    "progressive_initial_smaller_than_eager": true,
+    "preserve_ordinary_anchors": true,
+    "full_expansion_equals_eager_structural_evidence": true,
+    "source_immutable": true,
+    "provider_calls": 0
+  }
+}

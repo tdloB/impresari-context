@@ -14,7 +14,7 @@ use context_extensions::{
     ExtensionOutput, ExtensionPolicy, NormalizationVerdict, RequestedCapabilities,
     normalize_output,
 };
-use context_mcp::{MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
+use context_mcp::{DeliveryMode, MCP_PROTOCOL_VERSION, McpServer, ServerConfig};
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
 use context_workspace::DiscoveryPolicy;
@@ -169,6 +169,7 @@ fn local_mcp_is_semantically_equivalent_read_only_and_adds_no_authority() {
             role: context.subject.role.clone(),
             session_policy: SessionPolicy::new(2, 4, 65_536).expect("session policy"),
             structural_runtime: None,
+            delivery_mode: DeliveryMode::Ordinary,
         },
     );
     let initialize = serde_json::json!({

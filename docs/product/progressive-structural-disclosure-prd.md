@@ -1,8 +1,7 @@
 # Progressive Structural Disclosure PRD
 
 - PRD ID/version: IC-PSD-121 / 1.0.
-- Status: Approved for implementation after ADR-0120 passes its independent
-  provider-free MCP comparison.
+- Status: Implemented; frozen provider-free MCP mechanics gate passed locally.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
 - Governing architecture:

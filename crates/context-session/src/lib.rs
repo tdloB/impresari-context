@@ -122,6 +122,20 @@ impl SessionStore {
         Ok(())
     }
 
+    /// Confirms that one open session belongs to the exact consumer without
+    /// exposing any session contents.
+    ///
+    /// # Errors
+    ///
+    /// Fails without distinguishing a missing session from a foreign one.
+    pub fn authorize(&self, session_id: &str, consumer_id: &str) -> Result<(), SessionError> {
+        let session = self.sessions.get(session_id).ok_or(SessionError::Denied)?;
+        if session.consumer_id != consumer_id {
+            return Err(SessionError::Denied);
+        }
+        Ok(())
+    }
+
     /// Attaches one already-valid immutable packet to its exact consumer session.
     ///
     /// # Errors
@@ -299,6 +313,13 @@ mod tests {
         store
             .open("session_alpha01", "consumer_alpha01")
             .expect("open");
+        store
+            .authorize("session_alpha01", "consumer_alpha01")
+            .expect("owner authorized");
+        assert_eq!(
+            store.authorize("session_alpha01", "consumer_other01"),
+            Err(SessionError::Denied)
+        );
         let packet = packet();
         let reference = store
             .attach("session_alpha01", "consumer_alpha01", &packet)
@@ -319,6 +340,10 @@ mod tests {
         store
             .close("session_alpha01", "consumer_alpha01")
             .expect("close");
+        assert_eq!(
+            store.authorize("session_alpha01", "consumer_alpha01"),
+            Err(SessionError::Denied)
+        );
         assert_eq!(
             store.resolve("session_alpha01", "consumer_alpha01", &packet.packet_id),
             Err(SessionError::NotFound)

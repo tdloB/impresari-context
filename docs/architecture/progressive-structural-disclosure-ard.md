@@ -1,6 +1,6 @@
 # Progressive Structural Disclosure — Architecture Requirements and Design
 
-- Status: Proposed for the accepted post-ADR-0120 increment.
+- Status: Implemented and verified by the frozen provider-free MCP mechanics gate.
 - Date: 2026-09-01.
 - Governing PRD:
   [Progressive Structural Disclosure PRD](../product/progressive-structural-disclosure-prd.md).

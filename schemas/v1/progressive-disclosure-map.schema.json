@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/progressive-disclosure-map.schema.json",
+  "title": "Progressive structural disclosure map",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "map_id", "workspace_snapshot", "graph_id", "state", "items", "omissions"],
+  "properties": {
+    "schema_name": {"const": "progressive-disclosure-map"},
+    "schema_version": {"const": "1.0.0"},
+    "map_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "state": {"enum": ["ready", "partial"]},
+    "items": {
+      "type": "array",
+      "maxItems": 256,
+      "items": {"$ref": "#/$defs/item"}
+    },
+    "omissions": {"$ref": "common.schema.json#/$defs/stringList"}
+  },
+  "$defs": {
+    "item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["item_handle", "display_path", "relationship_class", "confidence", "freshness", "unknowns"],
+      "properties": {
+        "item_handle": {"$ref": "common.schema.json#/$defs/sha256"},
+        "display_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "relationship_class": {"enum": ["declares", "contains", "imports", "exports", "calls", "references"]},
+        "symbol_label": {"type": "string", "minLength": 1, "maxLength": 128},
+        "confidence": {"enum": ["confirmed", "heuristic", "unresolved", "unsupported"]},
+        "freshness": {"const": "current_snapshot"},
+        "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+      }
+    }
+  }
+}
