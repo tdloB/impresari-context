@@ -21,6 +21,8 @@
   - [Deterministic Structural-Seed Selection PRD](deterministic-structural-seed-selection-prd.md)
   - [Provider-Free Structural Utility Gate PRD](provider-free-structural-utility-gate-prd.md)
   - [Trusted MCP Structural Lifecycle PRD](trusted-mcp-structural-lifecycle-prd.md)
+  - [Progressive Structural Disclosure PRD](progressive-structural-disclosure-prd.md)
+  - [Historical Release Evidence Gate Separation PRD](historical-release-evidence-gate-separation-prd.md)
   - [Phase 0: Language and Client Foundation PRD](phase-0-language-and-client-foundation-prd.md)
   - [Revised Product Roadmap](revised-product-roadmap.md)
   - [Client Integration Depth Roadmap](client-integration-roadmap.md)

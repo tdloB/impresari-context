@@ -114,6 +114,24 @@ selection, and exposes cold preparation cost and reads. LeanCTX-informed
 progressive disclosure follows only after this static lifecycle passes an
 independent provider-free MCP comparison.
 
+The independent provider-free MCP comparison now passes its source-integrity,
+tool-parity, lifecycle, and cold/warm cache mechanics checks. It also identifies
+the next constraint: eager structural delivery produced an 8,063-byte initial
+response against the ordinary 4,149-byte response on the controlled fixture,
+while warm graph preparation improved from 645 milliseconds to 6 milliseconds.
+The graph/cache lifecycle is retained; unconditional exact-source delivery is
+not accepted as the final architecture.
+
+The next increment is governed by the
+[progressive structural disclosure PRD](progressive-structural-disclosure-prd.md).
+It applies LeanCTX-informed reversible map/lookup/expand delivery to existing
+snapshot-bound graph facts and exact evidence handles, with one cumulative
+process-local disclosure ledger. It preserves ordinary and eager controls,
+equal MCP tool definitions, exact recovery, and provider-free operation. It
+does not add generated summaries, embeddings, proxies, durable memory, provider
+calls, or a product-effect claim. Another paid pilot remains blocked until its
+independent provider-free mechanics gate passes.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three
@@ -355,6 +373,17 @@ publication, Linux production-support admission, or real-analyzer authorization
 may occur first. At candidate freeze, the project must refresh the exact source
 scope and reviewer brief, obtain the attributable independent human report,
 remediate or disposition findings, and then run the remaining release gates.
+
+The first later packaged-entrypoint change exposed an inconsistency between
+that accepted historical-candidate state and the ordinary repository gate: the
+gate still compared current source bytes with the historical macOS release-
+identity input manifest. Historical hashes must not be rewritten, and the old
+candidate must not block accepted development while pretending to remain
+current. The proposed
+[historical release evidence gate separation PRD](historical-release-evidence-gate-separation-prd.md)
+and ADR-0122 separate source-free historical integrity from a strict future
+current-candidate release gate. Because this changes a validation rule, its
+implementation remains founder-gated.
 
 The historical candidate-freeze portion is complete. PR 156 froze product source at
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run
