@@ -90,7 +90,7 @@
   "release_controls": [
     {
       "path": ".github/workflows/release.yml",
-      "sha256": "0575b2d98cfc18136efcbb0921382d98550ae0b0a1010fe25ab64ec1f181d2f0"
+      "sha256": "51bd3a519fb3e41bc527e1deaafb7e8850529a392a24b4accadbc70456ccc886"
     },
     {
       "path": "schemas/v1/independent-security-review.schema.json",
