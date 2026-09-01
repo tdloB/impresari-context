@@ -17,15 +17,16 @@
 ## Proven
 
 - two private temporary assemblies produced the same 13-entry tree;
-- every path, kind, mode, byte count, and digest matched the closed spec;
+- every path, kind, byte count, and digest matched the closed spec;
 - the synthetic `Info.plist` and ADR-0091 seal copy were exact;
 - all apparent executable payloads were non-executable text markers;
 - symlinks and special files were absent; and
 - both temporary roots were removed before the receipt was accepted.
 
-The target macOS/POSIX run additionally verifies exact `0700` temporary-root
-mode. Windows CI covers structure, determinism, non-symlink roots, and cleanup
-only; Windows mode bits are not macOS privacy evidence.
+The target macOS/POSIX run additionally verifies every exact file/directory
+mode, non-executable entrypoint policy, and `0700` temporary-root mode. Windows
+CI covers portable structure, determinism, non-symlink roots, and cleanup only;
+Windows mode bits are not macOS privacy or executable-bit evidence.
 
 ## Not proven
 

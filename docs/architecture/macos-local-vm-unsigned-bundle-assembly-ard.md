@@ -45,9 +45,11 @@ tree. Nothing else is permitted.
 All regular files have mode `0644`. This intentionally leaves the apparent CLI
 and helper destinations non-executable. Directories use `0755` inside a private
 `0700` temporary parent on macOS/POSIX. No symlink or special file is permitted.
-Windows CI retains the portable tree, determinism, non-symlink, and cleanup
-checks, but its Ruby mode bits are not treated as proof of macOS directory
-privacy.
+Windows CI retains the portable path, kind, byte, digest, determinism,
+non-symlink, and cleanup checks, but its Ruby mode bits are not treated as proof
+of macOS directory privacy or executable-bit policy. On Windows, the canonical
+digest is recomputed from the exact target-mode specification after the
+portable fields match.
 
 The canonical tree digest uses one sorted UTF-8 line per entry:
 

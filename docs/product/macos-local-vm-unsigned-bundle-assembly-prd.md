@@ -28,11 +28,13 @@ cleanup. Retain only schemas, metadata, and receipts; retain no app bundle.
 4. The metadata-seal copy is byte-identical to ADR-0091.
 5. Symlinks, special files, unexpected paths, files above 8 KiB, and path
    traversal fail closed.
-6. Two independent assemblies produce the same canonical tree digest.
+6. Two independent assemblies produce the same canonical tree digest. Windows
+   structural CI compares paths, kinds, bytes, and digests against that target
+   tree without treating Windows mode bits as target evidence.
 7. Each macOS/POSIX temporary root has mode `0700` and is removed before
    success. Windows CI verifies only fresh non-symlinked temporary roots,
    deterministic structure, and cleanup; Windows mode bits are not accepted as
-   evidence of the target macOS privacy policy.
+   evidence of the target macOS privacy or executable-bit policy.
 8. No archive, cask, install, signing, notarization, network, credential,
    child-process, VM, analyzer, production, or IAR-1B authority is added.
 

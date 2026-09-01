@@ -168,10 +168,20 @@ def assemble_once(spec, seal_bytes)
 
     actual = filesystem_records(app)
     expected = entries.map { |entry| entry.slice("path", "kind", "mode", "bytes", "sha256") }.sort_by { |entry| entry.fetch("path") }
-    abort "assembled bundle tree does not match the closed specification" unless actual == expected
-    digest = tree_digest(actual)
+    if Gem.win_platform?
+      # Windows CI proves the portable tree only. Its Ruby mode bits are not
+      # evidence for the target macOS bundle modes or executable-bit policy.
+      structural_keys = %w[path kind bytes sha256]
+      actual_structure = actual.map { |entry| entry.slice(*structural_keys) }
+      expected_structure = expected.map { |entry| entry.slice(*structural_keys) }
+      abort "assembled bundle structure does not match the closed specification" unless actual_structure == expected_structure
+      digest = tree_digest(expected)
+    else
+      abort "assembled bundle tree does not match the closed specification" unless actual == expected
+      digest = tree_digest(actual)
+      abort "synthetic entrypoint became executable" unless (app.join("Contents/MacOS/impresari-context").stat.mode & 0o111).zero?
+    end
     abort "assembled bundle tree digest changed" unless digest == TREE_DIGEST
-    abort "synthetic entrypoint became executable" unless (app.join("Contents/MacOS/impresari-context").stat.mode & 0o111).zero?
     abort "synthetic Info.plist changed" unless app.join("Contents/Info.plist").binread == info_plist
     abort "metadata seal copy changed" unless Digest::SHA256.file(app.join("Contents/Resources/macos-vm/guest-release-metadata-seal-v1.json")).hexdigest == SEAL_DIGEST
   end
