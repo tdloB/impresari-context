@@ -1,0 +1,35 @@
+{
+  "schema_name": "macos-local-vm-product-license-disposition",
+  "schema_version": "1.0.0",
+  "candidate_source_revision": "aca656771f9286b13fbcc046b133ade62b58da2a",
+  "cargo_lock_sha256": "sha256:d04f92d689b5d92fba1b49442258b9db82c0f141f07bc3b45dd04b6883278add",
+  "cargo_deny_version": "cargo-deny 0.20.2",
+  "command": [
+    "cargo",
+    "deny",
+    "--offline",
+    "--locked",
+    "check",
+    "licenses"
+  ],
+  "inventory_command": [
+    "cargo",
+    "deny",
+    "--offline",
+    "--locked",
+    "list",
+    "-f",
+    "json"
+  ],
+  "inventory_stdout_sha256": "sha256:6cf81d7cd2c91fa9c055456488cd29144dc91c64f6a873b59cb3a8d44693649d",
+  "errors": "0",
+  "warnings": "3",
+  "warning_codes": [
+    "license-not-encountered:BSD-2-Clause",
+    "license-not-encountered:BSD-3-Clause",
+    "license-not-encountered:ISC"
+  ],
+  "status": "pass_with_unmatched_allowance_warnings",
+  "network_access": false,
+  "production_approved": false
+}

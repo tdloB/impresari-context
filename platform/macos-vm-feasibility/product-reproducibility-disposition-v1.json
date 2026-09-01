@@ -1,0 +1,19 @@
+{
+  "schema_name": "macos-local-vm-product-reproducibility-disposition",
+  "schema_version": "1.0.0",
+  "candidate_source_revision": "aca656771f9286b13fbcc046b133ade62b58da2a",
+  "source_date_epoch": "1788243888",
+  "independent_private_build_roots": "2",
+  "artifact_count_per_build": "4",
+  "byte_identical_artifact_count": "4",
+  "build_log_identity_equal_count": "1",
+  "artifact_result": "same_host_same_toolchain_byte_identical",
+  "build_log_result": "changed_for_three_cargo_units_identical_for_swift_unit",
+  "canonical_product_identity": "sha256:7bd280339e2a8cf30c26fc2ad96225f52cad5593c63ea621e7e44ba62b9bd5ca",
+  "same_host_reproducibility_observed": true,
+  "cross_run_reproducibility_established": false,
+  "cross_host_reproducibility_established": false,
+  "production_reproducibility_established": false,
+  "runnable_artifacts_retained": false,
+  "production_approved": false
+}

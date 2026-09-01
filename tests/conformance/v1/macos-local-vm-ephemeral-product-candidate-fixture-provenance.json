@@ -1,0 +1,29 @@
+{
+  "schema_name": "macos-local-vm-ephemeral-product-candidate-fixture-provenance",
+  "schema_version": "1.0.0",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_raw_build_logs": false,
+  "contains_malware_or_live_signatures": false,
+  "contains_third_party_source": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {
+      "path": "valid/iar-macos-local-vm-ephemeral-product-candidate-profile.json",
+      "sha256": "df0536a8d19eacfc3175074b4a557643526a80353e3e31927a51effd9aea02c5"
+    },
+    {
+      "path": "valid/macos-local-vm-ephemeral-product-candidate-record.json",
+      "sha256": "01f63f748a3b0ad4fd34bcf4556d6d22ee79ac3655f7f330e89fa1c08815ffc0"
+    },
+    {
+      "path": "valid/macos-local-vm-ephemeral-product-candidate-receipt.json",
+      "sha256": "b696f0b120480650d816eeb08e0895bb91cf483d68ecd1d3aad0c23410ce38bd"
+    },
+    {
+      "path": "invalid/macos-local-vm-ephemeral-product-candidate-overclaim.json",
+      "sha256": "1897011cd1a1959ef351f02b46ad181aa7766a398fb01b589ed2fb4bb856e8d9"
+    }
+  ]
+}
