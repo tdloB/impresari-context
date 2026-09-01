@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/macos-local-vm-developer-id-notarization-preparation-profile.schema.json",
+  "title": "ADR-0115 source-free signing and notarization preparation profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "profile_id", "decision", "contract_path", "contract_digest", "candidate_record_path", "candidate_record_digest", "source_free_validation", "manual_owner_action_required", "claims"],
+  "properties": {
+    "schema_name": {"const": "macos-local-vm-developer-id-notarization-preparation-profile"},
+    "schema_version": {"const": "1.0.0"},
+    "profile_id": {"const": "iar-macos-local-vm-developer-id-notarization-preparation-v1"},
+    "decision": {"const": "ADR-0115"},
+    "contract_path": {"const": "platform/macos-vm-feasibility/developer-id-notarization-preparation-v1.json"},
+    "contract_digest": {"const": "sha256:a580be3e137e412c4a450c6377e4dbaba57abca49b68910e26ef4ad7690a86d1"},
+    "candidate_record_path": {"const": "platform/macos-vm-feasibility/ephemeral-unsigned-release-candidate-v1.json"},
+    "candidate_record_digest": {"const": "sha256:54257bb6a89f0930d7d80a87b15e302eac3756411fc719d100e9c2f5bfcfc362"},
+    "source_free_validation": {"const": true},
+    "manual_owner_action_required": {"const": true},
+    "claims": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["credential_boundary_frozen", "signing_plan_frozen", "notarization_plan_frozen", "network_access", "credential_access", "process_launch", "candidate_materialized", "developer_id_signature_verified", "apple_notarization_verified", "archive_created", "cask_created", "bundle_installed", "signed_or_notarized_artifact_retained", "vm_launch", "analyzer_execution", "production_admitted", "macos_iar_1b_admitted", "authority_added"],
+      "properties": {
+        "credential_boundary_frozen": {"const": true},
+        "signing_plan_frozen": {"const": true},
+        "notarization_plan_frozen": {"const": true},
+        "network_access": {"const": false},
+        "credential_access": {"const": false},
+        "process_launch": {"const": false},
+        "candidate_materialized": {"const": false},
+        "developer_id_signature_verified": {"const": false},
+        "apple_notarization_verified": {"const": false},
+        "archive_created": {"const": false},
+        "cask_created": {"const": false},
+        "bundle_installed": {"const": false},
+        "signed_or_notarized_artifact_retained": {"const": false},
+        "vm_launch": {"const": false},
+        "analyzer_execution": {"const": false},
+        "production_admitted": {"const": false},
+        "macos_iar_1b_admitted": {"const": false},
+        "authority_added": {"const": false}
+      }
+    }
+  }
+}

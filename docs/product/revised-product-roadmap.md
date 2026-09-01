@@ -696,6 +696,19 @@ the founder's Apple credential boundary and remains manual. Cask creation,
 installation, publication, VM launch, analyzer execution, production, and
 macOS IAR-1B remain gated.
 
+ADR-0115 completes the source-free preparation that must precede Apple
+credential use. It binds the exact ADR-0114 synthetic candidate to explicit
+inside-out Developer ID signing, hardened runtime, secure timestamps, the
+frozen controller entitlement, strict recursive verification, `ditto`
+archiving, `notarytool --wait` through an opaque Keychain profile reference,
+accepted-log inspection, stapling, Gatekeeper assessment, final archive
+recreation, and whole-root deletion. The contract contains no credential or
+identity subject and performs no process or network action. The next checkpoint
+is the credential-bound live signing and notarization rehearsal and therefore
+requires the founder's manual Apple identity and Keychain-profile action. Cask
+creation, installation, publication, VM launch, analyzer execution, production,
+and macOS IAR-1B remain gated.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

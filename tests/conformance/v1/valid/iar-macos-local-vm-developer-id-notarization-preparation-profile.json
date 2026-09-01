@@ -1,0 +1,32 @@
+{
+  "schema_name": "macos-local-vm-developer-id-notarization-preparation-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-developer-id-notarization-preparation-v1",
+  "decision": "ADR-0115",
+  "contract_path": "platform/macos-vm-feasibility/developer-id-notarization-preparation-v1.json",
+  "contract_digest": "sha256:a580be3e137e412c4a450c6377e4dbaba57abca49b68910e26ef4ad7690a86d1",
+  "candidate_record_path": "platform/macos-vm-feasibility/ephemeral-unsigned-release-candidate-v1.json",
+  "candidate_record_digest": "sha256:54257bb6a89f0930d7d80a87b15e302eac3756411fc719d100e9c2f5bfcfc362",
+  "source_free_validation": true,
+  "manual_owner_action_required": true,
+  "claims": {
+    "credential_boundary_frozen": true,
+    "signing_plan_frozen": true,
+    "notarization_plan_frozen": true,
+    "network_access": false,
+    "credential_access": false,
+    "process_launch": false,
+    "candidate_materialized": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "archive_created": false,
+    "cask_created": false,
+    "bundle_installed": false,
+    "signed_or_notarized_artifact_retained": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "authority_added": false
+  }
+}

@@ -111,3 +111,13 @@ identity and ADR-0113 material identity reproduced. No produced artifact was
 executed, and the source, download, app, build products, caches, and raw logs
 were deleted with the complete private root. The retained record is an unsigned
 candidate, not a signed, notarized, installed, sandboxed, or production app.
+
+ADR-0115 freezes the next manual Developer ID and Apple notarization rehearsal
+without crossing that boundary. Its source-free contract fixes the exact
+synthetic candidate, inside-out signing order, hardened runtime, secure
+timestamp, controller entitlement, strict verification, Keychain-reference
+only notarization, accepted-log review, stapling, Gatekeeper assessment, final
+archive recreation, and whole-root cleanup. The checker accesses no Keychain,
+launches no process, contacts no service, and creates or retains no executable
+or archive. Live signing and notarization still require founder action; cask,
+installation, publication, VM, analyzer, production, and IAR-1B remain false.
