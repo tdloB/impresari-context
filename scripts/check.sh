@@ -45,6 +45,7 @@ ruby ./scripts/check-yara-x-production-admission.rb
 ruby ./scripts/check-yara-x-reproducibility.rb
 ruby ./scripts/check-yara-x-reproducibility-workflow.rb
 ruby ./scripts/check-yara-x-retained-engine-candidate.rb
+ruby ./scripts/check-yara-x-production-ruleset.rb
 ruby ./scripts/check-codex-client-lifecycle.rb
 ruby ./scripts/check-claude-client-lifecycle.rb
 ruby ./scripts/check-cursor-client-lifecycle.rb
@@ -96,6 +97,7 @@ ruby -c ./scripts/yara-x-reproducibility-receipt.rb
 ruby -c ./scripts/package-yara-x-retained-engine-candidate.rb
 ruby -c ./scripts/verify-yara-x-retained-engine-candidate.rb
 ruby -c ./scripts/check-yara-x-retained-engine-candidate.rb
+ruby -c ./scripts/check-yara-x-production-ruleset.rb
 sh -n ./scripts/yara-x-artifact-compatibility.sh
 sh -n ./scripts/yara-x-synthetic-envelope.sh
 sh -n ./scripts/yara-x-reproducibility-diagnostic.sh

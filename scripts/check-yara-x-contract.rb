@@ -189,9 +189,12 @@ abort "YARA-X executable or rule artifact entered the repository" unless artifac
 
 allowed_rules = Dir.glob(ROOT.join("rules/**/*.{yar,yara,yarc}").to_s).map do |path|
   Pathname.new(path).relative_path_from(ROOT).to_s
-end
+end.sort
 abort "unexpected YARA-X rule artifact entered the repository" unless
-  allowed_rules == ["rules/yara-x/synthetic-compatibility-v1.yar"]
+  allowed_rules == [
+    "rules/yara-x/production-v1-candidate.yar",
+    "rules/yara-x/synthetic-compatibility-v1.yar"
+  ]
 
 allowed_parser = ROOT.join("crates/context-yara-x-adapter/src/lib.rs").to_s
 synthetic_envelope_root = ROOT.join("crates/context-yara-x-envelope")
