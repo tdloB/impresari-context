@@ -1,0 +1,101 @@
+{
+  "schema_name": "macos-local-vm-developer-id-notarization-preparation",
+  "schema_version": "1.0.0",
+  "contract_id": "iar-macos-local-vm-developer-id-notarization-preparation-2026-09-01.1",
+  "contract_state": "source-free-manual-rehearsal-contract",
+  "candidate": {
+    "record_path": "platform/macos-vm-feasibility/ephemeral-unsigned-release-candidate-v1.json",
+    "record_digest": "sha256:54257bb6a89f0930d7d80a87b15e302eac3756411fc719d100e9c2f5bfcfc362",
+    "candidate_id": "impresari-context-macos-arm64-0.2.0-candidate-1",
+    "material_projection_identity": "sha256:39ae0afbb77eff80ff5308cc4fe811b7cc266b42d02b4457aa5295310908b11e",
+    "app_path": "Impresari Context.app",
+    "synthetic_identity_only": true
+  },
+  "credential_boundary": {
+    "manual_owner_action_required": true,
+    "signing_identity_class": "Developer ID Application",
+    "signing_identity_reference": "{developer_id_application_identity_from_keychain}",
+    "notary_credential_reference": "{notarytool_keychain_profile_name}",
+    "credential_access_mode": "reference-existing-keychain-items-in-place",
+    "credential_values_in_arguments": false,
+    "credential_values_in_environment": false,
+    "credential_values_in_source": false,
+    "credential_values_in_logs": false,
+    "inspect_copy_print_export_or_delete_credentials": false,
+    "keychain_creation_unlock_or_mutation": "manual-outside-operator"
+  },
+  "signing_plan": {
+    "hardened_runtime": true,
+    "secure_timestamp": true,
+    "deep_signing": false,
+    "order": [
+      {"path": "Contents/Helpers/impresari-context-mcp", "entitlements": "none"},
+      {"path": "Contents/Helpers/impresari-context-structural-worker", "entitlements": "none"},
+      {"path": "Contents/Helpers/impresari-context-vm-controller", "entitlements": "platform/macos-vm-feasibility/Resources/Controller.entitlements"},
+      {"path": "Contents/MacOS/impresari-context", "entitlements": "none"},
+      {"path": "Impresari Context.app", "entitlements": "none"}
+    ],
+    "nested_command": ["codesign", "--force", "--sign", "{developer_id_application_identity_from_keychain}", "--options", "runtime", "--timestamp", "{optional_entitlements_pair}", "{code_path}"],
+    "verification_command": ["codesign", "--verify", "--deep", "--strict", "--verbose=4", "Impresari Context.app"],
+    "identity_inspection_command": ["codesign", "-dv", "--verbose=4", "{code_path}"],
+    "required_identity_observations": ["Authority=Developer ID Application", "TeamIdentifier-present-and-consistent", "Runtime Version-present", "Timestamp-present"]
+  },
+  "notarization_plan": {
+    "archive_format": "ditto-zip",
+    "archive_command": ["ditto", "-c", "-k", "--keepParent", "--sequesterRsrc", "Impresari Context.app", "Impresari-Context-0.2.0-macos-arm64.zip"],
+    "submit_command": ["xcrun", "notarytool", "submit", "Impresari-Context-0.2.0-macos-arm64.zip", "--keychain-profile", "{notarytool_keychain_profile_name}", "--wait", "--output-format", "json"],
+    "required_submission_status": "Accepted",
+    "submission_log_required_even_when_accepted": true,
+    "log_command": ["xcrun", "notarytool", "log", "{submission_id}", "--keychain-profile", "{notarytool_keychain_profile_name}", "notarization-log.json"],
+    "error_severity_issue_count": "0",
+    "warning_disposition_required": true,
+    "staple_command": ["xcrun", "stapler", "staple", "Impresari Context.app"],
+    "staple_validation_command": ["xcrun", "stapler", "validate", "Impresari Context.app"],
+    "gatekeeper_command": ["spctl", "--assess", "--type", "execute", "--verbose=4", "Impresari Context.app"],
+    "final_archive_recreated_after_stapling": true
+  },
+  "custody_and_cleanup": {
+    "fresh_private_root_required": true,
+    "unsigned_input_rebuilt_in_same_root": true,
+    "signed_app_never_launched": true,
+    "archive_never_launched": true,
+    "notarization_network_only_through_notarytool_and_stapler": true,
+    "raw_notary_log_retained": false,
+    "signed_or_notarized_artifact_retained": false,
+    "complete_private_root_deleted_before_receipt": true,
+    "metadata_only_receipt": true
+  },
+  "future_receipt_requirements": [
+    "candidate_record_digest",
+    "signing_certificate_sha256_without_subject_or_email",
+    "team_identifier_sha256",
+    "per-code-object-designated-requirement-sha256",
+    "per-code-object-code-directory-sha256",
+    "entitlements_sha256",
+    "notary_submission_id",
+    "notary_status",
+    "notary_log_sha256",
+    "stapled_app_tree_sha256",
+    "final_archive_sha256",
+    "cleanup_verified"
+  ],
+  "controls": {
+    "contract_frozen": true,
+    "source_free_validation": true,
+    "network_access": false,
+    "credential_access": false,
+    "process_launch": false,
+    "candidate_materialized": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "archive_created": false,
+    "cask_created": false,
+    "bundle_installed": false,
+    "signed_or_notarized_artifact_retained": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "authority_added": false
+  }
+}

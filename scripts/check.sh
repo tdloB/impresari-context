@@ -66,6 +66,7 @@ ruby ./scripts/check-macos-vm-synthetic-guest-payload-contract.rb
 ruby ./scripts/check-macos-vm-synthetic-guest-materialization.rb
 ruby ./scripts/check-macos-vm-unsigned-candidate-composition.rb
 ruby ./scripts/check-macos-vm-ephemeral-unsigned-release-candidate.rb
+ruby ./scripts/check-macos-vm-developer-id-notarization-preparation.rb
 ruby ./scripts/check-windows-native-feasibility-contract.rb
 ruby ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby ./scripts/check-windows-basecontainer-capability-contract.rb
@@ -93,6 +94,7 @@ ruby -c ./scripts/materialize-macos-vm-synthetic-guest-candidate.rb
 ruby -c ./scripts/check-macos-vm-unsigned-candidate-composition.rb
 ruby -c ./scripts/check-macos-vm-ephemeral-unsigned-release-candidate.rb
 ruby -c ./scripts/rehearse-macos-vm-ephemeral-unsigned-release-candidate.rb
+ruby -c ./scripts/check-macos-vm-developer-id-notarization-preparation.rb
 ruby -c ./scripts/check-windows-native-feasibility-contract.rb
 ruby -c ./scripts/check-windows-native-synthetic-worker-contract.rb
 ruby -c ./scripts/check-windows-basecontainer-capability-contract.rb

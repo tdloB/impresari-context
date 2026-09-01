@@ -457,3 +457,21 @@ runs no analyzer or compatibility corpus.
   the entire private root. Only schema-bound metadata remains.
 - Signing, notarization, archive/cask creation, installation, publication, VM,
   analyzer, production, and macOS IAR-1B remain false.
+
+## 2026-09-01 — ADR-0115 Developer ID and notarization preparation
+
+- The exact ADR-0114 candidate record is digest-bound as a synthetic-only
+  future input; no unsigned or signed app is retained.
+- Signing is frozen to four explicit nested Mach-O objects followed by the
+  outer app, with hardened runtime, secure timestamps, no deep signing, and
+  only the VM controller receiving the exact virtualization entitlement.
+- Apple identity and notarization inputs are opaque references to existing
+  Keychain items. No certificate subject, email, password, API key, private
+  key, Team Identifier value, or credential content enters source or fixtures.
+- The future manual sequence requires strict signature verification, a
+  `notarytool --wait` accepted result, notarization-log review, stapling,
+  ticket validation, Gatekeeper assessment, final archive recreation, and
+  deletion of the complete private root.
+- This source-free checkpoint ran no process, contacted no network service,
+  accessed no credential, and created no archive, cask, installation, signed
+  artifact, notarization, VM, analyzer, production, or macOS IAR-1B evidence.

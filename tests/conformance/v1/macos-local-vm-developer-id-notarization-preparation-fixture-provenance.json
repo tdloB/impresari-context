@@ -1,0 +1,16 @@
+{
+  "schema_name": "fixture-provenance-record",
+  "schema_version": "1.0.0",
+  "suite": "macos-local-vm-developer-id-notarization-preparation-v1",
+  "review_status": "approved_original_project_metadata_only",
+  "contains_executable_artifacts": false,
+  "contains_guest_payload_bytes": false,
+  "contains_apple_credentials_or_identity_subjects": false,
+  "contains_private_or_customer_source": false,
+  "network_or_provider_data_used": false,
+  "cases": [
+    {"path": "valid/iar-macos-local-vm-developer-id-notarization-preparation-profile.json", "sha256": "e02319909a0d4393c33833ac29d5e349edf2fe24fcd0d97ac5a327e3c442d850", "origin": "project-authored source-free profile"},
+    {"path": "valid/macos-local-vm-developer-id-notarization-preparation-receipt.json", "sha256": "2bba22f5bd72c1a7bc662c909288384d3525aa5f0fcb577ae7d05417d4858fef", "origin": "project-authored source-free receipt"},
+    {"path": "invalid/macos-local-vm-developer-id-notarization-preparation-overclaim.json", "sha256": "9284aa30365193304165bda939edc498054b29c4572f2af304c38629e473bc1e", "origin": "project-authored overclaim mutation"}
+  ]
+}
