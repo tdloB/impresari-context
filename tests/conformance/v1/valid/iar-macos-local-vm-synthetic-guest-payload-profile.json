@@ -1,0 +1,29 @@
+{
+  "schema_name": "macos-local-vm-synthetic-guest-payload-profile",
+  "schema_version": "1.0.0",
+  "profile_id": "iar-macos-local-vm-synthetic-guest-payload-v1",
+  "decision": "ADR-0111",
+  "contract_path": "platform/macos-vm-feasibility/synthetic-guest-payload-contract-v1.json",
+  "contract_digest": "sha256:4e43e28f325d7ab67ff2bb23595eb9273320ff5e8597553b9a681bfdc51033d4",
+  "payload_root": "Contents/Resources/macos-vm/guest",
+  "required_member_count": "2",
+  "required_mode": "0644",
+  "source_free_validation": true,
+  "future_private_materialization_and_cleanup_required": true,
+  "claims": {
+    "payload_layout_frozen": true,
+    "materialization_recipe_frozen": true,
+    "guest_payload_materialized": false,
+    "release_candidate_complete": false,
+    "release_bundle_assembled": false,
+    "developer_id_signature_verified": false,
+    "apple_notarization_verified": false,
+    "cask_created": false,
+    "bundle_installed": false,
+    "vm_launch": false,
+    "analyzer_execution": false,
+    "production_admitted": false,
+    "macos_iar_1b_admitted": false,
+    "authority_added": false
+  }
+}
