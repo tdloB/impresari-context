@@ -607,6 +607,17 @@ distribution, production, macOS IAR-1B, and analyzer execution false. The next
 reversible checkpoint is unsigned synthetic-only bundle assembly and exact
 layout verification without installation.
 
+ADR-0108 completes that checkpoint. A portable offline checker assembles the
+13-entry `Impresari Context.app` tree twice under private temporary roots,
+binds the ADR-0107 contract and ADR-0091 metadata seal, verifies the exact
+canonical tree digest, keeps every apparent executable as a mode-`0644`
+synthetic marker, and removes both roots. No release app, archive, cask,
+installation, source-revision binding, signing, notarization, publication, VM,
+analyzer, production, or macOS IAR-1B authority is added. The next reversible
+checkpoint is to freeze the build and release-identity contract for substituting
+real unsigned product and guest candidates; it must not yet sign, install,
+publish, launch a VM, or execute an analyzer.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate

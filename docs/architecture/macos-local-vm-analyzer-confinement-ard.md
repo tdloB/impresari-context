@@ -164,3 +164,8 @@ install, upgrade, rollback, formula-conflict rejection, and narrow uninstall
 are exact; scripts, `zap`, privilege, background services, automatic updates,
 assembly, signing, notarization, distribution, production, and analyzers remain
 absent.
+
+The twelfth checkpoint assembles the closed tree twice under private temporary
+roots using only non-runnable synthetic markers and the exact seal copy. Exact
+tree identity and cleanup pass; release binaries, installation, signing,
+notarization, VM launch, production, and analyzer authority remain absent.
