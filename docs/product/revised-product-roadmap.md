@@ -618,6 +618,20 @@ checkpoint is to freeze the build and release-identity contract for substituting
 real unsigned product and guest candidates; it must not yet sign, install,
 publish, launch a VM, or execute an analyzer.
 
+ADR-0109 completes that contract checkpoint. It separates the current contract
+baseline from a future candidate source revision, hashes the exact direct
+build-control inputs, closes four product build units plus the metadata-sealed
+guest role, freezes the future unsigned-candidate schema, and requires exact
+Apple/Rust build identities, artifact digests, SBOM, licenses, vulnerability,
+reproducibility, guest, compound-identity, and rollback evidence before any
+marker can be replaced. No candidate was compiled or retained, and release
+identity, bundle assembly, signing, notarization, installation, publication,
+VM, analyzer, production, and macOS IAR-1B remain false. The next reversible
+checkpoint is a bounded unsigned-candidate build-and-cleanup design; it must
+resolve exact build-host identity and artifact custody before implementation
+and still must not access Apple credentials, install or publish a cask, launch
+a VM, or execute an analyzer.
+
 ## Parallel Client Integration Depth Track
 
 Codex, Claude Code, Cursor, and GitHub Copilot follow the separate
