@@ -88,12 +88,14 @@ docker run --rm --user "$uid:$gid" \
     rustc --version | grep -q "^rustc 1.93.0 "
     cd /usr/src/yara-x
     cargo fetch --locked --target x86_64-unknown-linux-gnu
-    cargo install cargo-audit --version 0.22.2 --locked
+    CARGO_TARGET_DIR=/cargo/cargo-audit-target \
+      cargo install cargo-audit --version 0.22.2 --locked
     cargo audit --file Cargo.lock \
       --ignore RUSTSEC-2023-0071 \
       --ignore RUSTSEC-2026-0222 \
       --ignore RUSTSEC-2026-0269
     git -C /cargo/advisory-db rev-parse HEAD > /usr/src/yara-x/.impresari-advisory-db-commit
+    rm -rf -- /cargo/cargo-audit-target
   '
 
 docker run --rm --network none --read-only --user "$uid:$gid" \
