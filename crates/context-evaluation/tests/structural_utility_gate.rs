@@ -13,7 +13,7 @@ use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralGraph,
     StructuralLanguage, WorkerPath, WorkerRequest, build_graph, process_request, validate_graph,
 };
-use context_workspace::DiscoveryPolicy;
+use context_workspace::{DiscoveryPolicy, PathIdentity};
 use serde::Deserialize;
 use sha2::{Digest as _, Sha256};
 use std::{
@@ -111,16 +111,18 @@ fn grammar_version(language: StructuralLanguage) -> &'static str {
 
 fn graph(fixture: &Fixture, snapshot_id: &str) -> StructuralGraph {
     let source = fixture.source.as_bytes();
+    let path = PathIdentity::from_portable_relative_path(&fixture.path)
+        .expect("portable structural fixture path");
     let request = WorkerRequest {
         schema_name: "structural-worker-request".into(),
         schema_version: PROTOCOL_VERSION.into(),
         request_id: format!("req_structural_{}", fixture.id),
         language: fixture.language,
         path: WorkerPath {
-            display_path: fixture.path.clone(),
-            platform_family: "unix".into(),
-            unit_encoding: "unix_bytes".into(),
-            relative_units_base64url: URL_SAFE_NO_PAD.encode(fixture.path.as_bytes()),
+            display_path: path.display_path,
+            platform_family: path.platform_family.into(),
+            unit_encoding: path.unit_encoding.into(),
+            relative_units_base64url: path.relative_units_base64url,
         },
         content_hash: hash(source),
         source_base64url: URL_SAFE_NO_PAD.encode(source),

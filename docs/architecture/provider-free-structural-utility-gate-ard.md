@@ -38,10 +38,11 @@ boundary rather than semantic inference.
 
 ## Comparison algorithm
 
-1. Materialize the fixture under two private disposable roots and record the
-   exact pre-run source digest.
-2. Open two engines with distinct caches and equal policies; build complete
-   snapshots and assert equal source fingerprints.
+1. Materialize the fixture under one private disposable source root and record
+   the exact pre-run source digest.
+2. Open baseline, seeded, and repeated seeded engines with distinct caches and
+   equal policies; build complete snapshots and assert equal source
+   fingerprints.
 3. Build a validated graph from the seeded snapshot using a fixed worker
    request and closed fact classes.
 4. Build one ordinary profiled packet and one seeded structural packet.
@@ -52,9 +53,7 @@ boundary rather than semantic inference.
    bounded by the graph query result.
 7. Compare complete product read telemetry. Snapshot work is included equally;
    the seeded delta may contain only exact relationship recovery reads.
-8. Repeat from fresh roots and require byte-stable normalized results except
-   for request/location-bound identities that the contract intentionally
-   scopes to a run.
+8. Repeat through a fresh engine and cache and require byte-stable results.
 9. Re-hash source bytes and require no mutation.
 
 ## Metrics and interpretation
@@ -79,6 +78,9 @@ be accounted separately by any future external lifecycle.
 
 - Disposable roots remain capability-relative and symlinks are rejected by
   the existing workspace layer.
+- Portable fixture paths are converted through the workspace layer into the
+  host's authoritative Unix-byte or Windows-UTF-16LE path identity before
+  graph construction.
 - Graphs must validate and match the current snapshot.
 - Missing anchors, reordered anchors, no structural delta, incomplete
   telemetry, excess reads, packet growth above the ceiling, mutation, or
