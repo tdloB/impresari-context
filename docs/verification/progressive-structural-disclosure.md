@@ -35,8 +35,9 @@ and checks:
 
 Focused negative tests additionally cover missing sessions, forged and
 cross-session handles, closed sessions, changed source, startup mode/tuple
-mismatch, and cumulative exhaustion before an additional repository read.
-Closed conformance fixtures reject source excerpts in compact maps and authority
+mismatch, cumulative exhaustion before an additional repository read, and
+deterministic partial worker responses at fact and response ceilings. Closed
+conformance fixtures reject source excerpts in compact maps and authority
 claims in receipts.
 
 ## Commands
