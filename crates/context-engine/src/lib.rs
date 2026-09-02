@@ -1372,6 +1372,16 @@ impl LocalEngine {
         let limits = structural_limits(context, budget, self.ids())?;
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
+        let mut remaining_facts = limits.facts;
+        let mut remaining_supported_files = u32::try_from(
+            snapshot
+                .artifacts
+                .iter()
+                .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+                .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
+                .count(),
+        )
+        .unwrap_or(u32::MAX);
         for artifact in snapshot
             .artifacts
             .iter()
@@ -1393,6 +1403,12 @@ impl LocalEngine {
                 unknowns.push("unsupported_structural_language".into());
                 continue;
             };
+            let Some(file_fact_quota) =
+                structural_fact_quota(remaining_facts, remaining_supported_files)
+            else {
+                unknowns.push("structural_fact_limit_reached".into());
+                break;
+            };
             let exact = self
                 .workspace
                 .read_exact(&artifact.path, artifact.size_bytes)
@@ -1410,9 +1426,14 @@ impl LocalEngine {
                     Some(RecoveryAction::RefreshSnapshot),
                 ));
             }
-            let request = structural_request(context, language, exact, limits);
+            let mut file_limits = limits;
+            file_limits.facts = file_fact_quota;
+            let request = structural_request(context, language, exact, file_limits);
             let response =
                 self.load_or_parse_structural(context, &snapshot.snapshot_id, &request, launcher)?;
+            remaining_facts = remaining_facts
+                .saturating_sub(u32::try_from(response.facts.len()).unwrap_or(u32::MAX));
+            remaining_supported_files = remaining_supported_files.saturating_sub(1);
             files.push(GraphFileInput {
                 path: request.path,
                 response,
@@ -5141,6 +5162,10 @@ struct StructuralLimits {
     response_bytes: u32,
 }
 
+fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u32> {
+    (remaining_facts > 0 && remaining_files > 0).then(|| remaining_facts.div_ceil(remaining_files))
+}
+
 fn structural_limits(
     context: &RequestContext,
     budget: &ResourceBudget,
@@ -5758,6 +5783,15 @@ mod tests {
     };
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn structural_fact_quota_is_repository_wide_and_fair() {
+        assert_eq!(structural_fact_quota(10_000, 1_173), Some(9));
+        assert_eq!(structural_fact_quota(9_991, 1_172), Some(9));
+        assert_eq!(structural_fact_quota(3, 5), Some(1));
+        assert_eq!(structural_fact_quota(0, 5), None);
+        assert_eq!(structural_fact_quota(5, 0), None);
+    }
 
     struct TestRoot(PathBuf);
     impl TestRoot {

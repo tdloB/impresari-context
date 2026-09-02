@@ -68,6 +68,24 @@ The session stores the validated internal graph/evidence descriptors behind
 the public handles. It does not persist tasks, source excerpts, maps, handles,
 or ledgers to disk. Closing the session or process destroys their authority.
 
+## Repository-wide structural preparation bounds
+
+`max_matches` is one repository-wide structural-fact allowance, not a
+per-file multiplier. Preparation counts the supported files admitted by the
+file ceiling and assigns each remaining file a deterministic fair share of the
+remaining facts. Unused capacity remains available to later files, while no
+file can consume the entire repository budget merely because it appears early
+in canonical path order.
+
+The structural worker always returns a framed response within the requested
+response ceiling. If traversal reaches its fact/depth ceiling, or a complete
+success would exceed the response ceiling, it returns the deterministic prefix
+that fits and a closed limitation warning. Graph construction converts that
+warning into explicit partiality. Malformed framing, identity mismatch,
+invalid spans, source drift, and parser/process failure continue to fail
+closed; resource exhaustion alone cannot erase otherwise valid repository
+structure.
+
 ## Handle identities and ownership
 
 Map, item, and evidence handles use separate domain-separated SHA-256

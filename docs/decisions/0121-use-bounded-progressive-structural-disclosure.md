@@ -39,6 +39,11 @@ session ledger limits operations, items, exact bytes, serialized bytes, reads,
 repeated reads, and elapsed time. Exact source is returned only through the
 existing evidence-expansion authority.
 
+Structural preparation also applies budgets cumulatively across the repository.
+Per-file worker responses are deterministically reduced to an explicit partial
+result when fact or response limits are reached, so a large artifact cannot
+multiply a repository budget or abort all graph availability.
+
 ## Consequences
 
 - Initial structural context can be smaller without discarding recoverability.
@@ -49,6 +54,9 @@ existing evidence-expansion authority.
 - Process-local state grows modestly and remains bounded, consumer scoped, and
   non-durable.
 - Ordinary and eager delivery remain compatibility and evaluation controls.
+- Large repositories retain bounded cross-file structural coverage, with
+  resource omissions represented as graph unknowns instead of whole-graph
+  failure.
 - Provider-free mechanics must pass before another paid benchmark.
 - No claim follows about model behavior, correctness, token use, cost, or
   latency until a separately frozen controlled study is officially graded.
@@ -95,3 +103,7 @@ ordinary-anchor preservation, deterministic map and receipt identities, equal
 fresh/warm evidence, full exact-evidence recovery, receipt-byte accounting, and
 source immutability. It performs zero provider calls and makes no model-effect,
 correctness, token, cost, or latency claim.
+
+Boundary regressions verify that oversized complete worker results become
+deterministic framed partial results and that the admitted fact allowance is
+distributed across the repository rather than multiplied by file count.

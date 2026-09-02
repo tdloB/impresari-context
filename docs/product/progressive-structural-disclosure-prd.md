@@ -1,6 +1,6 @@
 # Progressive Structural Disclosure PRD
 
-- PRD ID/version: IC-PSD-121 / 1.0.
+- PRD ID/version: IC-PSD-121 / 1.1.
 - Status: Implemented; frozen provider-free MCP mechanics gate passed locally.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
@@ -78,6 +78,11 @@ configuration, never repository content or tool input.
     ordinary/eager/progressive mechanics gate.
 13. Perform no provider call, official grading, benchmark submission,
     publication, or product-effect claim in this increment.
+14. Treat structural resource ceilings as repository-wide limits. Distribute
+    the admitted fact allowance across supported files, return a bounded
+    deterministic partial worker result when a per-file fact or response
+    ceiling is reached, and preserve the limitation as an explicit graph
+    unknown. One oversized artifact must not abort the repository graph.
 
 ## Acceptance
 
@@ -96,6 +101,8 @@ configuration, never repository content or tool input.
 - Wrong consumer/session/workspace/snapshot/graph/content, closed sessions,
   changed source, forged handles, and replay after process exit all fail closed.
 - Existing clients that omit delivery mode retain current behavior.
+- Oversized and high-fact source files produce framed, validated partial
+  results; total admitted facts never exceed the repository request budget.
 - Formatting, warnings-denied Clippy, all-target tests, schemas, docs,
   repository policy, security boundaries, SBOM, and hosted macOS/Linux/Windows
   checks pass before merge.
