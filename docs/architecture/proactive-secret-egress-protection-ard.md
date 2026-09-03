@@ -3,7 +3,7 @@
 - Status: Proposed; documentation only; implementation not authorized
 - Date: 2026-09-01
 - Product requirements: [Proactive Secret Egress Protection PRD](../product/proactive-secret-egress-protection-prd.md)
-- Decision: [ADR-0116](../decisions/0116-gate-external-delivery-with-local-secret-detection.md)
+- Decision: [ADR-0123](../decisions/0123-gate-external-delivery-with-local-secret-detection.md)
 
 ## Architectural objective
 

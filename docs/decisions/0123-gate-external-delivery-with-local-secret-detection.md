@@ -1,4 +1,4 @@
-# ADR-0116: Gate External Delivery With Local Secret Detection
+# ADR-0123: Gate External Delivery With Local Secret Detection
 
 - Status: Proposed; documentation only; implementation not authorized
 - Date: 2026-09-01

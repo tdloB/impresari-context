@@ -5,7 +5,7 @@
 - Owner: Aaron Boldt
 - Related roadmap: [Revised Product Roadmap](revised-product-roadmap.md)
 - Architecture: [Proactive Secret Egress Protection ARD](../architecture/proactive-secret-egress-protection-ard.md)
-- Decision: [ADR-0116](../decisions/0116-gate-external-delivery-with-local-secret-detection.md)
+- Decision: [ADR-0123](../decisions/0123-gate-external-delivery-with-local-secret-detection.md)
 
 ## Product statement
 
