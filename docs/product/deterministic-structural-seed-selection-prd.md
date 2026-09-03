@@ -1,14 +1,15 @@
 # Deterministic Structural-Seed Selection PRD
 
-- PRD ID/version: IC-DSSS-118 / 1.0.
+- PRD ID/version: IC-DSSS-118 / 1.1.
 - Status: Core selector and provider-free utility comparison implemented and
   locally verified; external protocol integration remains gated.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
 - Governing architecture:
   [Deterministic Structural-Seed Selection ARD](../architecture/deterministic-structural-seed-selection-ard.md).
-- Governing decision:
-  [ADR-0118](../decisions/0118-select-structural-seeds-from-admitted-task-signals.md).
+- Governing decisions:
+  [ADR-0118](../decisions/0118-select-structural-seeds-from-admitted-task-signals.md),
+  [ADR-0124](../decisions/0124-classify-task-signals-by-code-shape-not-token-position.md).
 
 ## Problem
 
@@ -34,6 +35,15 @@ exact retrieval continues without structural evidence.
 2. Reuse version-1 task signals. Lexical fallback terms, arbitrary prose,
    quoted sentences, shell-looking text, and caller-supplied node identifiers
    cannot become graph authority.
+2a. Reach the path and identifier ceilings by classified signals rather than by
+    raw token position, so leading prose and issue-template boilerplate cannot
+    consume the allowance before the first code signal appears.
+2b. Admit a token as a code identifier on code shape: a separator form
+    (`snake_case`, `kebab-case`, `path::qualified`) or interior capitalization
+    (`CamelCase`). Reject markup runs such as `--` and `---`, and reject tokens
+    that do not begin with a letter or underscore.
+2c. Reject version and measurement forms such as `1.22.3` or `99.9` as file
+    paths by requiring a letter in the final path component.
 3. Prefer an exact symbol-name match inside an exact task path, then an exact
    file-path match, then one globally unique exact symbol-name match.
 4. Select no seed when the highest applicable class is ambiguous. Report a

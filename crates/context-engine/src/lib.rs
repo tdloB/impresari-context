@@ -4351,6 +4351,11 @@ fn planned_step(kind: QueryKind, query: &str, reason_code: &str) -> PlannedConte
 }
 
 const MAX_TASK_SIGNAL_TOKENS: usize = 16;
+/// Raw tokens scanned before classification. Prose, issue-template boilerplate,
+/// and markup punctuation routinely precede the first code signal, so the
+/// per-list ceiling must be reached by classified signals rather than by the
+/// first few words of a task description.
+const MAX_TASK_SCANNED_TOKENS: usize = 4_096;
 const MAX_TASK_SIGNAL_BYTES: usize = 256;
 const MAX_PROFILE_STEPS: usize = 8;
 
@@ -4480,20 +4485,27 @@ fn task_signals(query: &str) -> TaskSignals {
     let mut signals = TaskSignals::default();
     extract_quoted_signals(query, &mut signals.quoted);
 
-    let mut tokens = query
+    let tokens = query
         .split(|character: char| {
             !(character.is_ascii_alphanumeric()
                 || matches!(character, '_' | '-' | '.' | '/' | ':' | '\\'))
         })
         .filter_map(normalize_signal_token)
-        .take(MAX_TASK_SIGNAL_TOKENS)
-        .collect::<Vec<_>>();
-    tokens.dedup();
-    for token in &tokens {
-        if is_portable_path_signal(token) {
-            push_unique_text(&mut signals.paths, token.clone());
-        } else if is_code_identifier_signal(token) {
-            push_unique_text(&mut signals.identifiers, token.clone());
+        .take(MAX_TASK_SCANNED_TOKENS);
+    for token in tokens {
+        if signals.paths.len() >= MAX_TASK_SIGNAL_TOKENS
+            && signals.identifiers.len() >= MAX_TASK_SIGNAL_TOKENS
+        {
+            break;
+        }
+        if is_portable_path_signal(&token) {
+            if signals.paths.len() < MAX_TASK_SIGNAL_TOKENS {
+                push_unique_text(&mut signals.paths, token);
+            }
+        } else if is_code_identifier_signal(&token)
+            && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
+        {
+            push_unique_text(&mut signals.identifiers, token);
         }
     }
 
@@ -4653,11 +4665,34 @@ fn is_portable_path_signal(token: &str) -> bool {
         !stem.is_empty()
             && (1..=16).contains(&extension.len())
             && extension.bytes().all(|byte| byte.is_ascii_alphanumeric())
+            // A version or measurement such as `1.22.3` or `99.9` is not a
+            // file path. Require a letter in the final component.
+            && extension.bytes().any(|byte| byte.is_ascii_alphabetic())
     })
 }
 
+/// True when the token is shaped like source code rather than prose or markup.
+///
+/// Separator shapes (`snake_case`, `kebab-case`, `path::qualified`) and interior
+/// capitalization (`CamelCase`) both qualify. Markup runs such as `--` and
+/// `---`, which open and close HTML comments in issue templates, do not.
 fn is_code_identifier_signal(token: &str) -> bool {
-    token.contains('_') || token.contains('-') || token.contains("::")
+    if !token.starts_with(|character: char| character.is_ascii_alphabetic() || character == '_') {
+        return false;
+    }
+    token.contains('_')
+        || token.contains('-')
+        || token.contains("::")
+        || has_interior_capital(token)
+}
+
+/// True when an uppercase letter follows a lowercase letter, as in `TimeSeries`
+/// or `ValueError`. A leading capital alone, as in `This`, is ordinary prose.
+fn has_interior_capital(token: &str) -> bool {
+    token
+        .as_bytes()
+        .windows(2)
+        .any(|pair| pair[0].is_ascii_lowercase() && pair[1].is_ascii_uppercase())
 }
 
 fn push_unique_text(output: &mut Vec<String>, value: String) {
@@ -5891,6 +5926,61 @@ mod tests {
             .join(" ");
         let flooded_signals = task_signals(&flooded);
         assert_eq!(flooded_signals.identifiers.len(), MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn issue_template_prose_does_not_starve_or_pollute_code_signals() {
+        // A real bug report opens with a title and an HTML comment block. The
+        // first code signal appears far past the first sixteen words.
+        let query = "TimeSeries: misleading exception when required column check fails.\n             <!-- This comments are hidden when you submit the issue,\n             so you do not need to remove them! -->\n             <!-- Please be sure to check out our contributing guidelines. -->\n             ### Description\n             ts.remove_column(\"flux\") raises after setting _required_columns.\n             See astropy/timeseries/sampled.py for the check.\n             Numpy 1.22.3 and Python 3.9.10.";
+        let signals = task_signals(query);
+
+        // Markup runs are not code identifiers.
+        assert!(!signals.identifiers.iter().any(|value| value == "--"));
+        assert!(!signals.identifiers.iter().any(|value| value == "---"));
+
+        // Interior capitalization is a code shape; a leading capital is prose.
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "TimeSeries")
+        );
+        assert!(!signals.identifiers.iter().any(|value| value == "This"));
+        assert!(!signals.identifiers.iter().any(|value| value == "Please"));
+
+        // Signals past the sixteenth word still reach the lists.
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "_required_columns")
+        );
+        assert!(
+            signals
+                .paths
+                .iter()
+                .any(|value| value == "astropy/timeseries/sampled.py")
+        );
+
+        // Versions and measurements are not file paths.
+        assert!(!signals.paths.iter().any(|value| value == "1.22.3"));
+        assert!(!signals.paths.iter().any(|value| value == "3.9.10"));
+
+        // Each list stays bounded.
+        assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
+        assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn scanned_token_ceiling_still_bounds_a_hostile_query() {
+        let hostile = (0..100_000)
+            .map(|index| format!("word{index} -- ."))
+            .collect::<Vec<_>>()
+            .join(" ");
+        let signals = task_signals(&hostile);
+        assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
+        assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
     }
 
     #[test]
