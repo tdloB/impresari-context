@@ -30,6 +30,8 @@ fi
 
 ruby ./scripts/check-release-assurance-policy.rb
 
+ruby ./scripts/check-decision-identities.rb
+
 if find crates -type f -name '*.rs' -exec grep -L '#!\[forbid(unsafe_code)\]' {} \; | grep -q .; then
     printf 'every first-party Rust crate root must forbid unsafe code\n' >&2
     exit 1
