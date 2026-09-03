@@ -5,8 +5,9 @@
 - Date: 2026-09-01.
 - Governing PRD:
   [Deterministic Structural-Seed Selection PRD](../product/deterministic-structural-seed-selection-prd.md).
-- Governing decision:
-  [ADR-0118](../decisions/0118-select-structural-seeds-from-admitted-task-signals.md).
+- Governing decisions:
+  [ADR-0118](../decisions/0118-select-structural-seeds-from-admitted-task-signals.md),
+  [ADR-0124](../decisions/0124-classify-task-signals-by-code-shape-not-token-position.md).
 
 ## Architecture outcome
 
@@ -38,6 +39,21 @@ and cannot accept a raw node id from task text or an external evaluator.
 Inputs are one validated graph and the already bounded `TaskSignals` produced
 from the exact task. Version 1 considers only portable path candidates and
 code-like identifiers.
+
+Signal admission decides what the selector can ever see, so its shape rules are
+part of this boundary. A bounded number of raw tokens is scanned, and each of
+the path and identifier lists fills to its own ceiling from classified signals
+rather than from token position; leading prose therefore cannot exhaust the
+allowance before the first code signal. A token is code-shaped when it begins
+with a letter or underscore and either carries a separator (`snake_case`,
+`kebab-case`, `path::qualified`) or contains interior capitalization
+(`CamelCase`, `ValueError`). Markup runs such as `--` are excluded by the
+leading-character rule. A path's final component must contain a letter, so a
+version such as `1.22.3` cannot displace a real path candidate.
+
+Widening code shape does not widen authority. Lexical terms, quoted sentences,
+and caller-supplied node identifiers still cannot seed, and a leading capital
+alone remains prose.
 
 1. Resolve task paths against graph file-node `display_path` using exact
    portable bytes. Zero or multiple matches do not produce a path scope.
