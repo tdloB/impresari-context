@@ -127,6 +127,9 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0122](0122-separate-historical-evidence-from-current-release-gates.md) | Validate immutable historical evidence separately from a fresh current release candidate | Accepted for scoped implementation; final candidate and release gates remain closed |
 | [ADR-0123](0123-gate-external-delivery-with-local-secret-detection.md) | Block, never redact, source-bearing packets on a deterministic local secret-egress scan before external delivery | Proposed; documentation only, implementation not authorized |
 | [ADR-0124](0124-classify-task-signals-by-code-shape-not-token-position.md) | Classify task signals by code shape, not token position | Accepted |
+| [ADR-0125](0125-select-ranked-seed-sets-and-traverse-to-definitions.md) | Select ranked structural seed sets and traverse to declarations and supertypes | Accepted |
+| [ADR-0126](0126-answer-host-executed-operations-without-execution-authority.md) | Answer host-executed operations without gaining execution authority | Accepted |
+| [ADR-0127](0127-emit-a-cache-stable-context-prefix.md) | Emit a cache-stable, keyed context prefix without performing caching | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
