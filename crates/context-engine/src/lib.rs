@@ -823,11 +823,55 @@ impl LocalEngine {
     ///
     /// Returns a structured policy, stale-state, workspace, worker, resource, or
     /// graph-validation failure. Partial worker output is never returned.
+    /// Build a structural graph over an explicit, bounded set of files.
+    ///
+    /// A whole-repository graph divides one fact allowance across every file,
+    /// which on a large repository leaves roughly one fact each — too thin to
+    /// hold a module's declarations. Scoping to the files a task actually
+    /// nominated gives each of them a large share of the same allowance, so the
+    /// graph is dense where it matters and small enough to store.
+    ///
+    /// The resulting graph is **partial by construction**. A caller must treat
+    /// it as covering only `paths`.
+    ///
+    /// # Errors
+    /// Returns the same failures as a whole-repository build.
+    pub fn build_structure_for_paths(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        paths: &std::collections::BTreeSet<String>,
+    ) -> Result<StructuralGraph, EngineError> {
+        self.build_structure_scoped(context, budget, launcher, Some(paths))
+    }
+
+    /// Build a structural graph over every eligible file in the snapshot.
+    ///
+    /// The result is thin but complete. Prefer
+    /// [`Self::build_structure_for_paths`] when a task has nominated files, and
+    /// see [ADR-0128] for why density beats coverage on a large repository.
+    ///
+    /// [ADR-0128]: https://github.com/tdloB/impresari-context/blob/main/docs/decisions/0128-extract-structure-for-nominated-files-not-whole-repositories.md
+    ///
+    /// # Errors
+    /// Returns a closed engine failure for authorization, snapshot, worker,
+    /// resource, or store failures.
     pub fn build_structure(
         &mut self,
         context: &RequestContext,
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
+    ) -> Result<StructuralGraph, EngineError> {
+        self.build_structure_scoped(context, budget, launcher, None)
+    }
+
+    fn build_structure_scoped(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        scope: Option<&std::collections::BTreeSet<String>>,
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
@@ -847,7 +891,7 @@ impl LocalEngine {
             );
         }
         let result = self
-            .build_structure_internal(context, &budget, launcher, started)
+            .build_structure_internal(context, &budget, launcher, started, scope)
             .and_then(|graph| {
                 let payload = serde_json::to_vec(&graph).map_err(|_| {
                     failure(
@@ -1346,6 +1390,7 @@ impl LocalEngine {
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
         started: Instant,
+        scope: Option<&std::collections::BTreeSet<String>>,
     ) -> Result<StructuralGraph, EngineError> {
         let snapshot = self
             .snapshot
@@ -1366,19 +1411,24 @@ impl LocalEngine {
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
         let mut remaining_facts = limits.facts;
-        let mut remaining_supported_files = u32::try_from(
-            snapshot
-                .artifacts
-                .iter()
-                .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
-                .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
-                .count(),
-        )
-        .unwrap_or(u32::MAX);
+        // Scoping decides density. The same allowance divided across sixteen
+        // nominated files gives each of them hundreds of facts; divided across
+        // a whole repository it gives each of them about one.
+        let in_scope = |artifact: &&context_workspace::ArtifactRecord| {
+            artifact_in_scope(&artifact.path.display_path, scope)
+        };
+        let mut remaining_supported_files =
+            supported_file_count(&snapshot.artifacts, limits.files, scope);
+        if scope.is_some() {
+            // A scoped graph is dense but partial and must never read as a
+            // whole-repository one.
+            unknowns.push("structural_scope_limited_to_nominated_files".into());
+        }
         for artifact in snapshot
             .artifacts
             .iter()
             .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+            .filter(in_scope)
         {
             if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
             {
@@ -5338,6 +5388,34 @@ struct StructuralLimits {
     response_bytes: u32,
 }
 
+/// Supported files the build will visit, which is the fact-quota divisor.
+fn supported_file_count(
+    artifacts: &[context_workspace::ArtifactRecord],
+    file_limit: u64,
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> u32 {
+    u32::try_from(
+        artifacts
+            .iter()
+            .take(usize::try_from(file_limit).unwrap_or(usize::MAX))
+            .filter(|artifact| artifact_in_scope(&artifact.path.display_path, scope))
+            .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
+            .count(),
+    )
+    .unwrap_or(u32::MAX)
+}
+
+/// Whether one artifact belongs to the admitted structural scope.
+///
+/// No scope means a whole-repository build, which is thin but complete. A scope
+/// means a nominated build, which is dense but partial.
+fn artifact_in_scope(
+    display_path: &str,
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> bool {
+    scope.is_none_or(|paths| paths.contains(display_path))
+}
+
 fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u32> {
     (remaining_facts > 0 && remaining_files > 0).then(|| remaining_facts.div_ceil(remaining_files))
 }
@@ -5966,6 +6044,44 @@ mod tests {
     };
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn scope_admits_only_nominated_files_and_no_scope_admits_everything() {
+        let nominated: std::collections::BTreeSet<String> =
+            ["a.py".to_owned(), "pkg/b.py".to_owned()]
+                .into_iter()
+                .collect();
+        assert!(artifact_in_scope("a.py", Some(&nominated)));
+        assert!(artifact_in_scope("pkg/b.py", Some(&nominated)));
+        assert!(!artifact_in_scope("pkg/c.py", Some(&nominated)));
+        // A prefix or suffix of a nominated path is a different file.
+        assert!(!artifact_in_scope("b.py", Some(&nominated)));
+        assert!(!artifact_in_scope("pkg/b.pyc", Some(&nominated)));
+
+        // No scope keeps whole-repository behaviour exactly.
+        assert!(artifact_in_scope("anything.py", None));
+
+        // An empty scope admits nothing rather than everything.
+        let empty = std::collections::BTreeSet::new();
+        assert!(!artifact_in_scope("a.py", Some(&empty)));
+    }
+
+    #[test]
+    fn scoping_is_what_produces_density() {
+        // The allowance is fixed and the divisor is the supported file count,
+        // which is the whole argument for nominating files: the same budget
+        // over sixteen files is hundreds of facts each, and over a repository
+        // is one.
+        let allowance = 10_000;
+        let scoped = structural_fact_quota(allowance, 16).expect("scoped quota");
+        let whole_repository = structural_fact_quota(allowance, 1_172).expect("repository quota");
+        assert!(scoped > 600, "scoped quota was {scoped}");
+        assert!(
+            whole_repository < 10,
+            "repository quota was {whole_repository}"
+        );
+        assert!(scoped > whole_repository * 60);
+    }
 
     #[test]
     fn structural_fact_quota_is_repository_wide_and_fair() {
