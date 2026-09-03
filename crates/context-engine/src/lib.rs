@@ -354,15 +354,6 @@ enum StructuralPlanAnnotation<'a> {
     Omitted(&'a str),
 }
 
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum StructuralSeedDecision {
-    Selected {
-        node_id: String,
-        reason_code: &'static str,
-    },
-    Omitted(&'static str),
-}
-
 /// Explicit bounded repository-map input for the orientation adapter.
 #[derive(Clone, Debug)]
 pub struct RepositoryOrientationRequest {
@@ -1840,7 +1831,7 @@ impl LocalEngine {
         structural_request: &StructuralImpactRequest,
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let structure_context = derived_structure_query_context(context);
+        let structure_context = derived_structure_query_context(context, 0);
         let traversal = self.query_structure(
             &structure_context,
             &structural_request.graph,
@@ -1938,6 +1929,72 @@ impl LocalEngine {
         )
     }
 
+    /// Resolve a ranked seed set and traverse from every admitted seed.
+    ///
+    /// One anchor cannot describe a task whose answer spans a subclass and the
+    /// parent it inherits from, so each seed contributes a traversal and the
+    /// results are merged deterministically.
+    fn seeded_structural_query(
+        &mut self,
+        context: &RequestContext,
+        structural_request: &StructuralSeedRequest,
+        query: &str,
+        budget: &ResourceBudget,
+    ) -> Result<
+        (
+            Option<StructuralPlannerQuery>,
+            StructuralPlanAnnotation<'static>,
+        ),
+        EngineError,
+    > {
+        let selection = structural_seed_selection(&structural_request.graph, query)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let Some(primary) = selection.seeds.first() else {
+            let reason_code = selection
+                .unknowns
+                .first()
+                .copied()
+                .unwrap_or("structural_seed_unavailable");
+            return Ok((None, StructuralPlanAnnotation::Omitted(reason_code)));
+        };
+        let reason_code = primary.reason_code;
+        let seed_budget = narrow_structural_seed_budget(budget)
+            .map_err(|code| core_error(context, Capability::StructureQuery, code, self.ids()))?;
+        let mut traversals = Vec::with_capacity(selection.seeds.len());
+        for (ordinal, seed) in selection.seeds.iter().enumerate() {
+            let structure_context = derived_structure_query_context(context, ordinal);
+            traversals.push(self.query_structure(
+                &structure_context,
+                &structural_request.graph,
+                &seed.node_id,
+                &structural_request.edge_kinds,
+                &seed_budget,
+            )?);
+        }
+        let mut traversal = merge_structural_traversals(traversals).ok_or_else(|| {
+            core_error(
+                context,
+                Capability::ContextBuild,
+                context_core::CoreErrorCode::IntegrityFailure,
+                self.ids(),
+            )
+        })?;
+        traversal.unknowns.extend(
+            selection
+                .unknowns
+                .iter()
+                .map(|unknown| (*unknown).to_owned()),
+        );
+        traversal.unknowns.sort();
+        traversal.unknowns.dedup();
+        let planner_query = structural_planner_query(&structural_request.edge_kinds, traversal)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok((
+            Some(planner_query),
+            StructuralPlanAnnotation::Available(reason_code),
+        ))
+    }
+
     fn build_profiled_seeded_structural_context_internal(
         &mut self,
         context: &RequestContext,
@@ -1976,36 +2033,7 @@ impl LocalEngine {
         validate_graph(&structural_request.graph).map_err(|error| {
             structural_query_failure(context, error, self.workspace.identity(), &snapshot_id)
         })?;
-        let seed = structural_seed_decision(&structural_request.graph, query)
-            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let selected = match seed {
-            StructuralSeedDecision::Selected {
-                node_id,
-                reason_code,
-            } => {
-                let structure_context = derived_structure_query_context(context);
-                let traversal = self.query_structure(
-                    &structure_context,
-                    &structural_request.graph,
-                    &node_id,
-                    &structural_request.edge_kinds,
-                    &narrow_structural_seed_budget(&budget).map_err(|code| {
-                        core_error(context, Capability::StructureQuery, code, self.ids())
-                    })?,
-                )?;
-                let query = structural_planner_query(&structural_request.edge_kinds, traversal)
-                    .map_err(|code| {
-                        core_error(context, Capability::ContextBuild, code, self.ids())
-                    })?;
-                (
-                    Some(query),
-                    StructuralPlanAnnotation::Available(reason_code),
-                )
-            }
-            StructuralSeedDecision::Omitted(reason_code) => {
-                (None, StructuralPlanAnnotation::Omitted(reason_code))
-            }
-        };
+        let selected = self.seeded_structural_query(context, structural_request, query, &budget)?;
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
         let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
@@ -2051,7 +2079,7 @@ impl LocalEngine {
         request: &RepositoryOrientationRequest,
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let structure_context = derived_structure_query_context(context);
+        let structure_context = derived_structure_query_context(context, 0);
         let started = Instant::now();
         let structure_decision = self.authorize(
             &structure_context,
@@ -4500,6 +4528,16 @@ fn task_signals(query: &str) -> TaskSignals {
         {
             break;
         }
+        // A dotted token is usually an attribute or module access, so its final
+        // component is the name a graph node actually carries. `ts.remove_column`
+        // and `numpy.__version__` never match a symbol; `remove_column` and
+        // `__version__` do.
+        if let Some((_, member)) = token.rsplit_once('.')
+            && is_code_identifier_signal(member)
+            && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
+        {
+            push_unique_text(&mut signals.identifiers, member.to_owned());
+        }
         if is_portable_path_signal(&token) {
             if signals.paths.len() < MAX_TASK_SIGNAL_TOKENS {
                 push_unique_text(&mut signals.paths, token);
@@ -4528,10 +4566,58 @@ fn task_signals(query: &str) -> TaskSignals {
     signals
 }
 
-fn structural_seed_decision(
+/// Maximum structural seeds admitted for one task.
+///
+/// A closed constant, never caller-supplied: a caller able to widen selection
+/// could steer it, and steering is oracle authority.
+const MAX_STRUCTURAL_SEEDS: usize = 8;
+
+/// Ranked classes of seed candidate, most specific first.
+///
+/// The order is total, so selection is deterministic for a given snapshot.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum SeedRank {
+    UniqueSymbolInExactPath,
+    UniqueExactFilePath,
+    GloballyUniqueSymbol,
+    GloballyAmbiguousSymbol,
+}
+
+impl SeedRank {
+    const fn reason_code(self) -> &'static str {
+        match self {
+            Self::UniqueSymbolInExactPath => "unique_symbol_in_exact_path",
+            Self::UniqueExactFilePath => "unique_exact_file_path",
+            Self::GloballyUniqueSymbol => "globally_unique_symbol",
+            Self::GloballyAmbiguousSymbol => "globally_ambiguous_symbol",
+        }
+    }
+}
+
+/// One admitted seed and why it was admitted.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct StructuralSeed {
+    node_id: String,
+    reason_code: &'static str,
+}
+
+/// Bounded ranked seed set plus anything the caller must disclose.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct StructuralSeedSelection {
+    seeds: Vec<StructuralSeed>,
+    unknowns: Vec<&'static str>,
+}
+
+/// Select a bounded, ranked set of structural seeds from admitted task signals.
+///
+/// Ambiguity is ranked, not abandoned: several nodes sharing a name is the most
+/// common useful signal about where to look, and returning nothing is strictly
+/// worse than returning a ranked list with the ambiguity disclosed. Selection
+/// yields nothing only when no signal matches any node.
+fn structural_seed_selection(
     graph: &StructuralGraph,
     query: &str,
-) -> Result<StructuralSeedDecision, context_core::CoreErrorCode> {
+) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
@@ -4545,65 +4631,118 @@ fn structural_seed_decision(
         })
         .collect::<Result<Vec<_>, context_core::CoreErrorCode>>()?;
 
+    // (rank, portable path, node id) — the tuple is the deterministic order.
+    let mut candidates: Vec<(SeedRank, String, String)> = Vec::new();
+    let mut ambiguous_observed = false;
+
+    let is_named_symbol = |node: &GraphNode, identifier: &str| {
+        node.kind == "symbol"
+            && node.confidence == "confirmed"
+            && node.name.as_deref() == Some(identifier)
+    };
+
     for task_path in &signals.paths {
         let files = nodes
             .iter()
             .filter(|(node, path)| node.kind == "file" && path == task_path)
             .collect::<Vec<_>>();
         if files.len() > 1 {
-            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
+            ambiguous_observed = true;
         }
-        let Some((file, file_path)) = files.first() else {
-            continue;
-        };
-        for identifier in &signals.identifiers {
-            let symbols = nodes
-                .iter()
-                .filter(|(node, path)| {
-                    node.kind == "symbol"
-                        && node.confidence == "confirmed"
-                        && path == file_path
-                        && node.name.as_deref() == Some(identifier.as_str())
-                })
-                .collect::<Vec<_>>();
-            if symbols.len() > 1 {
-                return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
-            }
-            if let Some((symbol, _)) = symbols.first() {
-                return Ok(StructuralSeedDecision::Selected {
-                    node_id: symbol.node_id.clone(),
-                    reason_code: "unique_symbol_in_exact_path",
-                });
+        for (file, file_path) in &files {
+            candidates.push((
+                SeedRank::UniqueExactFilePath,
+                (*file_path).clone(),
+                file.node_id.clone(),
+            ));
+            for identifier in &signals.identifiers {
+                for (symbol, symbol_path) in nodes
+                    .iter()
+                    .filter(|(node, path)| path == file_path && is_named_symbol(node, identifier))
+                {
+                    candidates.push((
+                        SeedRank::UniqueSymbolInExactPath,
+                        symbol_path.clone(),
+                        symbol.node_id.clone(),
+                    ));
+                }
             }
         }
-        return Ok(StructuralSeedDecision::Selected {
-            node_id: file.node_id.clone(),
-            reason_code: "unique_exact_file_path",
-        });
     }
 
     for identifier in &signals.identifiers {
         let symbols = nodes
             .iter()
-            .filter(|(node, _)| {
-                node.kind == "symbol"
-                    && node.confidence == "confirmed"
-                    && node.name.as_deref() == Some(identifier.as_str())
-            })
+            .filter(|(node, _)| is_named_symbol(node, identifier))
             .collect::<Vec<_>>();
-        if symbols.len() > 1 {
-            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
-        }
-        if let Some((symbol, _)) = symbols.first() {
-            return Ok(StructuralSeedDecision::Selected {
-                node_id: symbol.node_id.clone(),
-                reason_code: "globally_unique_symbol",
-            });
+        // An ambiguous identifier no longer aborts the scan. It is retained at
+        // its own rank so a name shared by a subclass and the parent that
+        // actually carries the defect can still reach the map.
+        let rank = if symbols.len() > 1 {
+            ambiguous_observed = true;
+            SeedRank::GloballyAmbiguousSymbol
+        } else {
+            SeedRank::GloballyUniqueSymbol
+        };
+        for (symbol, path) in symbols {
+            candidates.push((rank, path.clone(), symbol.node_id.clone()));
         }
     }
-    Ok(StructuralSeedDecision::Omitted(
-        "structural_seed_unavailable",
-    ))
+
+    candidates.sort();
+    candidates.dedup_by(|left, right| left.2 == right.2);
+
+    let mut selection = StructuralSeedSelection::default();
+    let admitted = candidates.len().min(MAX_STRUCTURAL_SEEDS);
+    if candidates.len() > MAX_STRUCTURAL_SEEDS {
+        selection.unknowns.push("structural_seed_limit_reached");
+    }
+    for (rank, _, node_id) in candidates.into_iter().take(admitted) {
+        selection.seeds.push(StructuralSeed {
+            node_id,
+            reason_code: rank.reason_code(),
+        });
+    }
+    if ambiguous_observed {
+        selection.unknowns.push("structural_seed_ambiguous");
+    }
+    if selection.seeds.is_empty() {
+        selection.unknowns.push("structural_seed_unavailable");
+    }
+    selection.unknowns.sort_unstable();
+    selection.unknowns.dedup();
+    Ok(selection)
+}
+
+/// Merge per-seed traversals into one deterministic result.
+///
+/// The primary seed supplies `start_node`; nodes and edges are the deduplicated
+/// union in identity order, so the merged identity is stable for a snapshot.
+fn merge_structural_traversals(
+    mut results: Vec<StructuralQueryResult>,
+) -> Option<StructuralQueryResult> {
+    let mut merged = results.first().cloned()?;
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+    let mut unknowns = Vec::new();
+    let mut truncated = false;
+    for result in results.drain(..) {
+        truncated |= result.truncated;
+        nodes.extend(result.nodes);
+        edges.extend(result.edges);
+        unknowns.extend(result.unknowns);
+    }
+    nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
+    nodes.dedup_by(|left, right| left.node_id == right.node_id);
+    edges.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
+    edges.dedup_by(|left, right| left.edge_id == right.edge_id);
+    unknowns.sort();
+    unknowns.dedup();
+    merged.nodes = nodes;
+    merged.edges = edges;
+    merged.unknowns = unknowns;
+    merged.truncated = truncated;
+    Some(merged)
 }
 
 fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::CoreErrorCode> {
@@ -5770,10 +5909,17 @@ fn valid_identifier(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
-fn derived_structure_query_context(context: &RequestContext) -> RequestContext {
+/// Derive the audit identity for one structural traversal.
+///
+/// `ordinal` distinguishes the traversals of a multi-seed selection, because
+/// the audit store rejects a duplicate event identity and every seed records
+/// its own traversal.
+fn derived_structure_query_context(context: &RequestContext, ordinal: usize) -> RequestContext {
     let mut hasher = Sha256::new();
     hasher.update(b"impresari-context\0structural-impact-query-event\0");
     hasher.update(context.event_id.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(ordinal.to_be_bytes());
     let mut event_id = String::from("evt_");
     for byte in hasher.finalize() {
         use fmt::Write as _;
@@ -5975,6 +6121,46 @@ mod tests {
     }
 
     #[test]
+    fn attribute_chains_yield_the_member_a_graph_node_actually_carries() {
+        // A report writes `ts.remove_column("flux")`, but the graph holds
+        // `remove_column`. Without the final component the signal never matches.
+        let signals = task_signals(
+            "ts._required_columns = [\"time\"] then ts.remove_column(\"flux\") \
+             and numpy.__version__ printed",
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "_required_columns")
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "remove_column")
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "__version__")
+        );
+
+        // The whole chain is retained too, so an exact dotted name still works.
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "ts._required_columns")
+        );
+
+        // A member that is not code-shaped is not admitted.
+        let prose = task_signals("The end. Another sentence.");
+        assert!(!prose.identifiers.iter().any(|value| value == "Another"));
+    }
+
+    #[test]
     fn scanned_token_ceiling_still_bounds_a_hostile_query() {
         let hostile = (0..100_000)
             .map(|index| format!("word{index} -- ."))
@@ -6086,56 +6272,68 @@ mod tests {
             WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
         );
 
-        let exact = structural_seed_decision(
+        let exact = structural_seed_selection(
             &graph,
             "Inspect reviewed_change in review.ts and explain its helper call",
         )
         .expect("seed");
-        assert!(matches!(
-            &exact,
-            StructuralSeedDecision::Selected {
-                reason_code: "unique_symbol_in_exact_path",
-                ..
-            }
-        ));
-        let reordered_non_signal = structural_seed_decision(
+        assert_eq!(
+            exact.seeds.first().map(|seed| seed.reason_code),
+            Some("unique_symbol_in_exact_path")
+        );
+        let reordered_non_signal = structural_seed_selection(
             &graph,
             "Could you carefully explain reviewed_change in review.ts",
         )
         .expect("reordered non-signal seed");
         assert_eq!(exact, reordered_non_signal);
-        let file = structural_seed_decision(&graph, "Inspect review.ts").expect("file seed");
-        assert!(matches!(
-            file,
-            StructuralSeedDecision::Selected {
-                reason_code: "unique_exact_file_path",
-                ..
-            }
-        ));
+
+        let file = structural_seed_selection(&graph, "Inspect review.ts").expect("file seed");
+        assert_eq!(
+            file.seeds.first().map(|seed| seed.reason_code),
+            Some("unique_exact_file_path")
+        );
+
         let global =
-            structural_seed_decision(&graph, "Inspect reviewed_change").expect("global seed");
-        assert!(matches!(
-            global,
-            StructuralSeedDecision::Selected {
-                reason_code: "globally_unique_symbol",
-                ..
-            }
-        ));
-        let ambiguous =
-            structural_seed_decision(&graph, "Investigate duplicate_name").expect("ambiguous seed");
-        assert!(matches!(
-            ambiguous,
-            StructuralSeedDecision::Omitted("structural_seed_ambiguous")
-        ));
-        let unavailable = structural_seed_decision(
+            structural_seed_selection(&graph, "Inspect reviewed_change").expect("global seed");
+        assert_eq!(
+            global.seeds.first().map(|seed| seed.reason_code),
+            Some("globally_unique_symbol")
+        );
+
+        // An ambiguous name is now retained and disclosed rather than
+        // abandoned. Returning nothing was strictly worse than returning a
+        // ranked list with the ambiguity recorded.
+        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name")
+            .expect("ambiguous seed");
+        assert!(ambiguous.seeds.len() > 1);
+        assert!(
+            ambiguous
+                .seeds
+                .iter()
+                .all(|seed| seed.reason_code == "globally_ambiguous_symbol")
+        );
+        assert!(ambiguous.unknowns.contains(&"structural_seed_ambiguous"));
+
+        // Selection yields nothing only when no signal matches any node.
+        let unavailable = structural_seed_selection(
             &graph,
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
         )
         .expect("unavailable seed");
-        assert!(matches!(
-            unavailable,
-            StructuralSeedDecision::Omitted("structural_seed_unavailable")
-        ));
+        assert!(unavailable.seeds.is_empty());
+        assert!(
+            unavailable
+                .unknowns
+                .contains(&"structural_seed_unavailable")
+        );
+
+        // Every seed set stays bounded and deterministically ordered.
+        assert!(exact.seeds.len() <= MAX_STRUCTURAL_SEEDS);
+        assert!(ambiguous.seeds.len() <= MAX_STRUCTURAL_SEEDS);
+        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name")
+            .expect("repeat ambiguous seed");
+        assert_eq!(ambiguous, repeated);
 
         let seeded = engine
             .build_profiled_seeded_structural_context(
@@ -6187,7 +6385,10 @@ mod tests {
         );
         validate_packet(&seeded.packet).expect("valid seeded packet");
 
-        let fallback = engine
+        // An ambiguous name now produces structural context covering every
+        // candidate, with the ambiguity disclosed, instead of suppressing the
+        // query. Abandoning on ambiguity is what left maps empty on real tasks.
+        let ambiguous_packet = engine
             .build_profiled_seeded_structural_context(
                 &request(4, "structural_seed_fallback"),
                 TaskProfile::BugInvestigation,
@@ -6198,14 +6399,45 @@ mod tests {
                 },
                 budget(),
             )
-            .expect("fallback packet");
-        assert!(fallback.plan.structural_query.is_none());
-        assert!(fallback.plan.coverage.iter().any(|coverage| {
+            .expect("ambiguous packet");
+        let ambiguous_query = ambiguous_packet
+            .plan
+            .structural_query
+            .as_ref()
+            .expect("ambiguous structural query");
+        assert!(
+            ambiguous_query
+                .result
+                .unknowns
+                .iter()
+                .any(|unknown| unknown == "structural_seed_ambiguous")
+        );
+        assert!(ambiguous_packet.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.reason_code == "globally_ambiguous_symbol"
+        }));
+        validate_packet(&ambiguous_packet.packet).expect("valid ambiguous packet");
+
+        // Nothing matching still yields no structural query.
+        let unavailable_packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(7, "structural_seed_unavailable"),
+                TaskProfile::BugInvestigation,
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ../escape",
+                &StructuralSeedRequest {
+                    graph: graph.clone(),
+                    edge_kinds: vec!["calls".into()],
+                },
+                budget(),
+            )
+            .expect("unavailable packet");
+        assert!(unavailable_packet.plan.structural_query.is_none());
+        assert!(unavailable_packet.plan.coverage.iter().any(|coverage| {
             coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
                 && coverage.status == "unavailable"
-                && coverage.reason_code == "structural_seed_ambiguous"
+                && coverage.reason_code == "structural_seed_unavailable"
         }));
-        validate_packet(&fallback.packet).expect("valid fallback packet");
+        validate_packet(&unavailable_packet.packet).expect("valid unavailable packet");
 
         let mut stale_graph = graph;
         stale_graph.workspace_snapshot =
