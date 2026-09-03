@@ -13,6 +13,30 @@ const VERSION: &str = "1.0.0";
 pub const POLICY_PROFILE: &str =
     "sha256:aba86621046ccc86cff7aabb81f4eab1020ab6db53ae1b649ea3977dec9649e8";
 
+/// Returns a domain-separated SHA-256 identity for a JSON contract value.
+///
+/// The domain is part of the preimage so equal payloads used by different
+/// contracts cannot share an identity. Callers must use a stable, versioned
+/// domain name.
+///
+/// # Errors
+///
+/// Returns [`CoreErrorCode::InvalidInput`] for an empty domain and
+/// [`CoreErrorCode::CanonicalizationFailure`] when the value cannot be
+/// serialized.
+pub fn json_contract_identity<T: Serialize>(domain: &str, value: &T) -> Result<String, CoreError> {
+    if domain.is_empty() {
+        return Err(CoreError::new(CoreErrorCode::InvalidInput));
+    }
+    let bytes = canonical_bytes(value)?;
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0");
+    hasher.update(domain.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(bytes);
+    Ok(label(hasher.finalize()))
+}
+
 /// Stable core failure categories.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum CoreErrorCode {
@@ -1256,6 +1280,26 @@ mod tests {
     use super::*;
     const A: &str = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
     const B: &str = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+
+    #[test]
+    fn contract_identities_are_canonical_and_domain_separated() {
+        let first = serde_json::json!({"b": 2, "a": 1});
+        let reordered = serde_json::json!({"a": 1, "b": 2});
+        assert_eq!(
+            json_contract_identity("example-v1", &first).expect("first identity"),
+            json_contract_identity("example-v1", &reordered).expect("reordered identity")
+        );
+        assert_ne!(
+            json_contract_identity("example-v1", &first).expect("first domain"),
+            json_contract_identity("other-v1", &first).expect("other domain")
+        );
+        assert_eq!(
+            json_contract_identity("", &first)
+                .expect_err("empty domain")
+                .code(),
+            CoreErrorCode::InvalidInput
+        );
+    }
 
     fn budget(bytes: u64) -> ResourceBudget {
         ResourceBudget::conservative(bytes, 100, 20, 2000, 1000, 32, 30_000, 536_870_912)

@@ -32,8 +32,7 @@ use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
     RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
     WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
-    query_graph, repository_map, validate_graph, validate_worker_success,
-    worker_toolchain_identity,
+    query_graph, repository_map, validate_graph, validate_worker_success, worker_cache_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -336,6 +335,17 @@ pub struct StructuralSeedRequest {
     pub edge_kinds: Vec<String>,
 }
 
+/// Narrowing-only exact-source bounds for one deferred structural expansion.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct StructuralEvidenceExpansion {
+    /// Maximum bytes admitted before the exact structural span.
+    pub before_bytes: u64,
+    /// Maximum bytes admitted after the exact structural span.
+    pub after_bytes: u64,
+    /// Hard maximum bytes returned by the expansion.
+    pub max_bytes: u64,
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum StructuralPlanAnnotation<'a> {
     Available(&'a str),
@@ -386,6 +396,8 @@ pub struct IncrementalStructuralReplacement {
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct IncrementalStructuralUpdate {
+    /// Exact worker executable identity that owns cached parser results.
+    pub worker_sha256: String,
     /// Canonical graph from which this update proceeds.
     pub prior_graph: StructuralGraph,
     /// Current parser results replacing changed artifacts.
@@ -942,6 +954,19 @@ impl LocalEngine {
         budget: &ResourceBudget,
         started: Instant,
     ) -> Result<StructuralGraph, EngineError> {
+        if !valid_sha256(&update.worker_sha256) {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::InvalidInput,
+                "invalid incremental worker identity",
+                Some(self.workspace.identity()),
+                self.snapshot
+                    .as_ref()
+                    .map(|snapshot| snapshot.snapshot_id.as_str()),
+                Some(RecoveryAction::ReduceScope),
+            ));
+        }
         validate_graph(&update.prior_graph).map_err(|error| {
             structural_failure(
                 context,
@@ -1096,7 +1121,12 @@ impl LocalEngine {
                 })?;
                 replacement.response.clone()
             } else {
-                self.load_cached_structural(context, &snapshot.snapshot_id, &request)?
+                self.load_cached_structural(
+                    context,
+                    &snapshot.snapshot_id,
+                    &request,
+                    &update.worker_sha256,
+                )?
             };
             files.push(GraphFileInput {
                 path: request.path,
@@ -1167,10 +1197,12 @@ impl LocalEngine {
         context: &RequestContext,
         snapshot_id: &str,
         request: &WorkerRequest,
+        worker_sha256: &str,
     ) -> Result<WorkerSuccess, EngineError> {
-        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
-            structural_failure(context, error, self.workspace.identity(), snapshot_id)
-        })?;
+        let toolchain_identity =
+            worker_cache_identity(request, worker_sha256).map_err(|error| {
+                structural_failure(context, error, self.workspace.identity(), snapshot_id)
+            })?;
         let cached = self
             .cache
             .as_ref()
@@ -1191,7 +1223,7 @@ impl LocalEngine {
                 )
             })?;
         let response = cached
-            .and_then(|entry| serde_json::from_slice(&entry.payload).ok())
+            .and_then(|entry| cached_worker_success(&entry.payload, request))
             .ok_or_else(|| {
                 failure(
                     context,
@@ -1340,6 +1372,16 @@ impl LocalEngine {
         let limits = structural_limits(context, budget, self.ids())?;
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
+        let mut remaining_facts = limits.facts;
+        let mut remaining_supported_files = u32::try_from(
+            snapshot
+                .artifacts
+                .iter()
+                .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+                .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
+                .count(),
+        )
+        .unwrap_or(u32::MAX);
         for artifact in snapshot
             .artifacts
             .iter()
@@ -1361,6 +1403,12 @@ impl LocalEngine {
                 unknowns.push("unsupported_structural_language".into());
                 continue;
             };
+            let Some(file_fact_quota) =
+                structural_fact_quota(remaining_facts, remaining_supported_files)
+            else {
+                unknowns.push("structural_fact_limit_reached".into());
+                break;
+            };
             let exact = self
                 .workspace
                 .read_exact(&artifact.path, artifact.size_bytes)
@@ -1378,9 +1426,14 @@ impl LocalEngine {
                     Some(RecoveryAction::RefreshSnapshot),
                 ));
             }
-            let request = structural_request(context, language, exact, limits);
+            let mut file_limits = limits;
+            file_limits.facts = file_fact_quota;
+            let request = structural_request(context, language, exact, file_limits);
             let response =
                 self.load_or_parse_structural(context, &snapshot.snapshot_id, &request, launcher)?;
+            remaining_facts = remaining_facts
+                .saturating_sub(u32::try_from(response.facts.len()).unwrap_or(u32::MAX));
+            remaining_supported_files = remaining_supported_files.saturating_sub(1);
             files.push(GraphFileInput {
                 path: request.path,
                 response,
@@ -1406,9 +1459,10 @@ impl LocalEngine {
         request: &WorkerRequest,
         launcher: &WorkerLauncher,
     ) -> Result<context_structural::WorkerSuccess, EngineError> {
-        let toolchain_identity = worker_toolchain_identity(request).map_err(|error| {
-            structural_failure(context, error, self.workspace.identity(), snapshot_id)
-        })?;
+        let toolchain_identity = worker_cache_identity(request, &launcher.expected_sha256)
+            .map_err(|error| {
+                structural_failure(context, error, self.workspace.identity(), snapshot_id)
+            })?;
         let cached = self
             .cache
             .as_ref()
@@ -1429,8 +1483,7 @@ impl LocalEngine {
                 )
             })?;
         let response = cached
-            .and_then(|record| serde_json::from_slice(&record.payload).ok())
-            .filter(|success| validate_worker_success(success, request).is_ok())
+            .and_then(|record| cached_worker_success(&record.payload, request))
             .map_or_else(|| launcher.execute(request), Ok)
             .map_err(|error| {
                 structural_failure(context, error, self.workspace.identity(), snapshot_id)
@@ -1750,6 +1803,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -1812,6 +1866,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -1845,6 +1900,50 @@ impl LocalEngine {
         query: &str,
         structural_request: &StructuralSeedRequest,
         budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        self.build_profiled_seeded_structural_context_internal(
+            context,
+            profile,
+            query,
+            structural_request,
+            budget,
+            true,
+        )
+    }
+
+    /// Builds a profiled structural plan and ordinary anchor packet while
+    /// deferring exact structural-source recovery to a later authorized call.
+    ///
+    /// # Errors
+    ///
+    /// Returns the same policy, graph, seed, traversal, retrieval, and packet
+    /// failures as [`Self::build_profiled_seeded_structural_context`].
+    pub fn build_profiled_seeded_progressive_context(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralSeedRequest,
+        budget: ResourceBudget,
+    ) -> Result<ProfiledContextPacket, EngineError> {
+        self.build_profiled_seeded_structural_context_internal(
+            context,
+            profile,
+            query,
+            structural_request,
+            budget,
+            false,
+        )
+    }
+
+    fn build_profiled_seeded_structural_context_internal(
+        &mut self,
+        context: &RequestContext,
+        profile: TaskProfile,
+        query: &str,
+        structural_request: &StructuralSeedRequest,
+        budget: ResourceBudget,
+        recover_structural_evidence: bool,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot_id = self
             .snapshot
@@ -1921,6 +2020,7 @@ impl LocalEngine {
             None,
             None,
             None,
+            recover_structural_evidence,
         );
         let outcome = result
             .as_ref()
@@ -2042,6 +2142,7 @@ impl LocalEngine {
             None,
             Some(&orientation),
             None,
+            true,
         );
         let outcome = result
             .as_ref()
@@ -2093,6 +2194,7 @@ impl LocalEngine {
                 None,
                 None,
                 None,
+                true,
             )
         })();
         let outcome = result
@@ -2141,6 +2243,7 @@ impl LocalEngine {
                 Some(&associated),
                 None,
                 None,
+                true,
             )
         })();
         let outcome = result
@@ -2188,6 +2291,7 @@ impl LocalEngine {
                 None,
                 None,
                 Some(&conventions),
+                true,
             )
         })();
         let outcome = result
@@ -2203,7 +2307,7 @@ impl LocalEngine {
         )
     }
 
-    #[allow(clippy::too_many_arguments)]
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)] // Sequential plan assembly keeps policy, supplemental evidence, and packet ordering auditable together.
     fn build_profiled_context_internal(
         &mut self,
         context: &RequestContext,
@@ -2218,6 +2322,7 @@ impl LocalEngine {
         declared_associated_tests: Option<&VerifiedDeclaredAssociatedTests>,
         repository_orientation: Option<&RepositoryOrientationMap>,
         declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
+        recover_structural_evidence: bool,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -2263,10 +2368,30 @@ impl LocalEngine {
             apply_repository_orientation_to_plan(&mut plan, orientation)
                 .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         }
-        let (structural_evidence, structural_unknowns) = structural_query.map_or_else(
-            || Ok((Vec::new(), Vec::new())),
-            |value| self.structural_evidence(context, value, &budget, started),
-        )?;
+        let (structural_evidence, structural_unknowns) = if recover_structural_evidence {
+            structural_query.map_or_else(
+                || Ok((Vec::new(), Vec::new())),
+                |value| {
+                    self.structural_evidence(
+                        context,
+                        Capability::ContextBuild,
+                        value,
+                        &budget,
+                        started,
+                    )
+                },
+            )?
+        } else {
+            let mut unknowns = structural_query
+                .map(|value| value.result.unknowns.clone())
+                .unwrap_or_default();
+            if structural_query.is_some_and(|value| value.result.truncated) {
+                unknowns.push("structural_query_limited".into());
+            }
+            unknowns.sort();
+            unknowns.dedup();
+            (Vec::new(), unknowns)
+        };
         let (declared_evidence, declared_unknowns) = declared_change_set.map_or_else(
             || Ok((Vec::new(), Vec::new())),
             |value| self.declared_change_set_evidence(context, value, &budget, started),
@@ -2513,6 +2638,7 @@ impl LocalEngine {
     fn structural_evidence(
         &self,
         context: &RequestContext,
+        capability: Capability,
         structural_query: &StructuralPlannerQuery,
         budget: &ResourceBudget,
         started: Instant,
@@ -2520,7 +2646,7 @@ impl LocalEngine {
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
                 context,
-                Capability::ContextBuild,
+                capability,
                 PublicErrorCode::StaleState,
                 "workspace snapshot required",
                 Some(self.workspace.identity()),
@@ -2532,7 +2658,7 @@ impl LocalEngine {
         if result.workspace_snapshot != snapshot.snapshot_id {
             return Err(failure(
                 context,
-                Capability::ContextBuild,
+                capability,
                 PublicErrorCode::StaleState,
                 "structural query is stale",
                 Some(self.workspace.identity()),
@@ -2546,16 +2672,16 @@ impl LocalEngine {
             .map(|node| (node.node_id.as_str(), &node.path))
             .collect::<std::collections::BTreeMap<_, _>>();
         let source_budget = search_budget(budget)
-            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
-            core_error(context, Capability::ContextBuild, error.code(), self.ids())
-        })?;
+            .map_err(|code| core_error(context, capability, code, self.ids()))?;
+        let elapsed_limit = budget
+            .max_elapsed_ms_u64()
+            .map_err(|error| core_error(context, capability, error.code(), self.ids()))?;
         let mut evidence = std::collections::BTreeMap::new();
         for edge in &result.edges {
             if elapsed_ms(started) >= elapsed_limit {
                 return Err(failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::ResourceLimit,
                     "context planning resource limit exceeded",
                     Some(self.workspace.identity()),
@@ -2566,7 +2692,7 @@ impl LocalEngine {
             let worker_path = paths.get(edge.source_node.as_str()).ok_or_else(|| {
                 failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::IntegrityFailure,
                     "structural query has an invalid source node",
                     Some(self.workspace.identity()),
@@ -2582,7 +2708,7 @@ impl LocalEngine {
             .map_err(|_| {
                 failure(
                     context,
-                    Capability::ContextBuild,
+                    capability,
                     PublicErrorCode::IntegrityFailure,
                     "structural query has an invalid source path",
                     Some(self.workspace.identity()),
@@ -2599,9 +2725,7 @@ impl LocalEngine {
                 source_budget,
                 "structural_graph_edge",
             )
-            .map_err(|error| {
-                retrieval_error(context, Capability::ContextBuild, error.code(), self.ids())
-            })?;
+            .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
             let record = evidence_record(&recovered);
             evidence.entry(record.evidence_id.clone()).or_insert(record);
         }
@@ -3137,6 +3261,135 @@ impl LocalEngine {
         self.declared_change_set_evidence(context, &declaration, budget, started)
     }
 
+    /// Reauthorizes and recovers one exact structural edge from current source.
+    ///
+    /// This is the deferred counterpart to eager structural packet evidence.
+    /// It accepts only an edge already present in the validated, snapshot-bound
+    /// planner traversal and returns the same canonical evidence record.
+    ///
+    /// # Errors
+    ///
+    /// Returns a structured failure for an unavailable edge, stale traversal,
+    /// changed source, authorization failure, or exhausted budget.
+    #[allow(clippy::too_many_lines)] // Authorization, recovery, optional expansion, and audit finalization remain one gateway transaction.
+    pub fn expand_structural_edge_evidence(
+        &mut self,
+        context: &RequestContext,
+        structural_query: &StructuralPlannerQuery,
+        edge_id: &str,
+        expansion: StructuralEvidenceExpansion,
+        budget: ResourceBudget,
+    ) -> Result<EvidenceRecord, EngineError> {
+        let started = Instant::now();
+        let decision = self.authorize(context, Capability::EvidenceExpand, Some(budget))?;
+        let budget = admitted_budget(context, Capability::EvidenceExpand, &decision, self.ids())?;
+        let admitted_max = budget
+            .requested
+            .parse::<u64>()
+            .ok()
+            .zip(budget.max_excerpt_bytes_per_item.parse::<u64>().ok())
+            .map_or(0, |(requested, excerpt)| requested.min(excerpt));
+        let max_bytes = expansion.max_bytes.min(admitted_max);
+        let result = (|| {
+            let edge = structural_query
+                .result
+                .edges
+                .iter()
+                .find(|edge| edge.edge_id == edge_id)
+                .cloned()
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::InvalidInput,
+                        "structural evidence handle is unavailable",
+                        Some(self.workspace.identity()),
+                        self.snapshot
+                            .as_ref()
+                            .map(|value| value.snapshot_id.as_str()),
+                        Some(RecoveryAction::ReduceScope),
+                    )
+                })?;
+            let mut selected = structural_query.clone();
+            selected.result.edges = vec![edge];
+            let recovered = self
+                .structural_evidence(
+                    context,
+                    Capability::EvidenceExpand,
+                    &selected,
+                    &budget,
+                    started,
+                )?
+                .0
+                .into_iter()
+                .next()
+                .ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::StaleState,
+                        "structural evidence is unavailable",
+                        Some(self.workspace.identity()),
+                        self.snapshot
+                            .as_ref()
+                            .map(|value| value.snapshot_id.as_str()),
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+            if expansion.before_bytes == 0
+                && expansion.after_bytes == 0
+                && recovered
+                    .span
+                    .end_byte
+                    .parse::<u64>()
+                    .ok()
+                    .zip(recovered.span.start_byte.parse::<u64>().ok())
+                    .is_some_and(|(end, start)| end.saturating_sub(start) <= max_bytes)
+            {
+                Ok(recovered)
+            } else {
+                let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+                    failure(
+                        context,
+                        Capability::EvidenceExpand,
+                        PublicErrorCode::StaleState,
+                        "workspace snapshot is unavailable",
+                        Some(self.workspace.identity()),
+                        None,
+                        Some(RecoveryAction::RefreshSnapshot),
+                    )
+                })?;
+                expand_evidence_record(
+                    &self.workspace,
+                    snapshot,
+                    &recovered,
+                    expansion.before_bytes,
+                    expansion.after_bytes,
+                    max_bytes,
+                )
+                .map_err(|error| {
+                    retrieval_error(
+                        context,
+                        Capability::EvidenceExpand,
+                        error.code(),
+                        self.ids(),
+                    )
+                })
+            }
+        })();
+        let outcome = result
+            .as_ref()
+            .map_or(AuditOutcome::Failed, |_| AuditOutcome::Allowed);
+        self.finalize(
+            context,
+            &decision,
+            Capability::EvidenceExpand,
+            outcome,
+            result,
+            elapsed_ms(started),
+        )
+    }
+
     /// Reauthorizes and expands exact evidence from current source.
     ///
     /// # Errors
@@ -3497,24 +3750,37 @@ impl LocalEngine {
             }
             QueryKind::Lexical => {
                 if self.cache.is_none() {
-                    let mut cache =
+                    self.cache = Some(
                         WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
                             .map_err(|error| {
                                 cache_error(context, capability, error.code(), Some(self.ids()))
-                            })?;
+                            })?,
+                    );
+                }
+                let current_generation = self
+                    .cache
+                    .as_ref()
+                    .expect("cache initialized")
+                    .current()
+                    .map_err(|error| {
+                        cache_error(context, capability, error.code(), Some(self.ids()))
+                    })?;
+                let generation_is_current = current_generation
+                    .as_ref()
+                    .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
+                if !generation_is_current {
                     let max_memory = budget.max_memory_bytes_u64().map_err(|error| {
                         core_error(context, capability, error.code(), self.ids())
                     })?;
                     build_lexical_generation_bounded(
                         &self.workspace,
                         snapshot,
-                        &mut cache,
+                        self.cache.as_mut().expect("cache initialized"),
                         max_memory,
                     )
                     .map_err(|error| {
                         retrieval_error(context, capability, error.code(), self.ids())
                     })?;
-                    self.cache = Some(cache);
                 }
                 search_lexical(
                     &self.workspace,
@@ -3910,6 +4176,15 @@ fn search_budget(budget: &ResourceBudget) -> Result<SearchBudget, context_core::
         parse(&budget.max_memory_bytes)?,
     )
     .map_err(|_| context_core::CoreErrorCode::ResourceLimit)
+}
+
+fn cached_worker_success(payload: &[u8], request: &WorkerRequest) -> Option<WorkerSuccess> {
+    let mut response: WorkerSuccess = serde_json::from_slice(payload).ok()?;
+    // Request identity is transport correlation, not parser-result provenance.
+    // Every cache hit is rebound to the current request before full validation.
+    response.request_id.clone_from(&request.request_id);
+    validate_worker_success(&response, request).ok()?;
+    Some(response)
 }
 
 fn resource_budget_max_literal_bytes(
@@ -4887,6 +5162,10 @@ struct StructuralLimits {
     response_bytes: u32,
 }
 
+fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u32> {
+    (remaining_facts > 0 && remaining_files > 0).then(|| remaining_facts.div_ceil(remaining_files))
+}
+
 fn structural_limits(
     context: &RequestContext,
     budget: &ResourceBudget,
@@ -5505,6 +5784,15 @@ mod tests {
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
+    #[test]
+    fn structural_fact_quota_is_repository_wide_and_fair() {
+        assert_eq!(structural_fact_quota(10_000, 1_173), Some(9));
+        assert_eq!(structural_fact_quota(9_991, 1_172), Some(9));
+        assert_eq!(structural_fact_quota(3, 5), Some(1));
+        assert_eq!(structural_fact_quota(0, 5), None);
+        assert_eq!(structural_fact_quota(5, 0), None);
+    }
+
     struct TestRoot(PathBuf);
     impl TestRoot {
         fn new(label: &str) -> Self {
@@ -5539,6 +5827,50 @@ mod tests {
     fn budget() -> ResourceBudget {
         ResourceBudget::conservative(8192, 20, 100, 128, 100, 16, 30_000, 536_870_912)
             .expect("budget")
+    }
+
+    #[test]
+    fn cached_worker_results_rebind_only_transport_correlation() {
+        let source = b"export function value() { return 1; }";
+        let path = PathIdentity::from_portable_relative_path("src/value.ts").expect("path");
+        let request = WorkerRequest {
+            schema_name: "structural-worker-request".into(),
+            schema_version: PROTOCOL_VERSION.into(),
+            request_id: "req_cached_worker_a".into(),
+            language: StructuralLanguage::TypeScript,
+            path: WorkerPath {
+                display_path: path.display_path,
+                platform_family: path.platform_family.into(),
+                unit_encoding: path.unit_encoding.into(),
+                relative_units_base64url: path.relative_units_base64url,
+            },
+            content_hash: contract_sha256(source),
+            source_base64url: URL_SAFE_NO_PAD.encode(source),
+            fact_classes: vec![FactClass::Declaration],
+            max_facts: 100,
+            max_nesting_depth: 8,
+            max_response_bytes: 65_536,
+            parser_version: "tree-sitter-0.26.13".into(),
+            grammar_version: "tree-sitter-typescript-0.23.2".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let response = context_structural::process_request(&request).expect("worker result");
+        let payload = serde_json::to_vec(&response).expect("payload");
+        let mut repeated = request.clone();
+        repeated.request_id = "req_cached_worker_b".into();
+        let rebound = cached_worker_success(&payload, &repeated).expect("rebound cache result");
+        assert_eq!(rebound.request_id, repeated.request_id);
+
+        let mut corrupt = response;
+        corrupt.content_hash = contract_sha256(b"different");
+        assert!(
+            cached_worker_success(
+                &serde_json::to_vec(&corrupt).expect("corrupt payload"),
+                &repeated
+            )
+            .is_none()
+        );
     }
 
     #[test]
@@ -5654,6 +5986,13 @@ mod tests {
             })
             .collect::<Vec<_>>();
         let graph = context_structural::build_graph(&snapshot.snapshot_id, inputs).expect("graph");
+
+        // Structural preparation opens the shared namespace before lexical
+        // retrieval. An open cache is not proof that this snapshot has a
+        // promoted lexical generation.
+        engine.cache = Some(
+            WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
+        );
 
         let exact = structural_seed_decision(
             &graph,

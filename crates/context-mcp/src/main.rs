@@ -4,14 +4,18 @@
 
 use context_core::{PolicySubject, ResourceBudget, validate_utc_timestamp};
 use context_engine::{EngineConfig, LocalEngine, RequestContext};
-use context_mcp::{McpServer, ServerConfig};
+use context_mcp::{
+    DeliveryMode, McpServer, ServerConfig, StructuralLifecycleReceipt, StructuralRuntime,
+};
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
+use context_structural::WorkerLauncher;
 use context_workspace::DiscoveryPolicy;
 use std::{
+    fs,
     io::{self, BufReader},
-    path::PathBuf,
-    time::{SystemTime, UNIX_EPOCH},
+    path::{Path, PathBuf},
+    time::{Duration, Instant, SystemTime, UNIX_EPOCH},
 };
 
 fn main() {
@@ -37,14 +41,16 @@ fn run() -> Result<(), &'static str> {
         },
         occurred_at: startup.occurred_at,
     };
+    let workspace = startup.workspace;
+    let cache = startup.cache;
+    let structural = startup.structural;
     let config = EngineConfig {
-        cache_root: startup.cache,
+        cache_root: cache.clone(),
         discovery: DiscoveryPolicy::new(100_000, 2_147_483_648, 16_777_216, 64)
             .map_err(|_| "invalid discovery policy")?,
         audit_retention: AuditRetention::new("2026-01-01T00:00:00Z", 100_000, 67_108_864)
             .map_err(|_| "invalid audit policy")?,
     };
-    let workspace = startup.workspace;
     let (mut engine, _) =
         LocalEngine::open(config, &context, &workspace).map_err(|_| "engine open failed")?;
     engine
@@ -68,6 +74,11 @@ fn run() -> Result<(), &'static str> {
             .map_err(|_| "invalid budget")?,
         )
         .map_err(|_| "snapshot failed")?;
+    let structural_runtime = structural
+        .map(|structural| {
+            prepare_structural_runtime(&mut engine, &context, &workspace, &cache, structural, &seed)
+        })
+        .transpose()?;
     let mut server = McpServer::new(
         engine,
         ServerConfig {
@@ -75,6 +86,8 @@ fn run() -> Result<(), &'static str> {
             role,
             session_policy: SessionPolicy::new(64, 256, 67_108_864)
                 .map_err(|_| "invalid session policy")?,
+            structural_runtime,
+            delivery_mode: startup.delivery_mode,
         },
     );
     server
@@ -88,32 +101,209 @@ struct StartupArgs {
     consumer_id: String,
     role: String,
     occurred_at: String,
+    structural: Option<StructuralStartup>,
+    delivery_mode: DeliveryMode,
+}
+
+struct StructuralStartup {
+    worker: PathBuf,
+    worker_sha256: String,
+    empty_directory: PathBuf,
 }
 
 fn parse_startup_args(args: &[String]) -> Result<StartupArgs, &'static str> {
-    let valid_prefix = (args.len() == 8 || args.len() == 10)
+    let valid_prefix = args.len() >= 8
         && args[0] == "--workspace"
         && args[2] == "--cache"
         && args[4] == "--consumer-id"
         && args[6] == "--role";
-    if !valid_prefix || (args.len() == 10 && args[8] != "--occurred-at") {
+    if !valid_prefix {
         return Err(
-            "usage: --workspace PATH --cache PATH --consumer-id ID --role ROLE [--occurred-at UTC]",
+            "usage: --workspace PATH --cache PATH --consumer-id ID --role ROLE [--occurred-at UTC] [--delivery-mode ordinary|eager_structural|progressive_structural] [--structural-worker PATH --structural-worker-sha256 SHA256 --structural-empty-directory PATH]",
         );
     }
-    let occurred_at = if args.len() == 10 {
-        args[9].clone()
+    let mut index = 8;
+    let occurred_at = if args.get(index).map(String::as_str) == Some("--occurred-at") {
+        let value = args.get(index + 1).ok_or("missing --occurred-at value")?;
+        index += 2;
+        value.clone()
     } else {
         timestamp_now()?
     };
     validate_utc_timestamp(&occurred_at).map_err(|_| "invalid --occurred-at")?;
+    let explicit_delivery_mode = if args.get(index).map(String::as_str) == Some("--delivery-mode") {
+        let value = args.get(index + 1).ok_or("missing --delivery-mode value")?;
+        index += 2;
+        Some(match value.as_str() {
+            "ordinary" => DeliveryMode::Ordinary,
+            "eager_structural" => DeliveryMode::EagerStructural,
+            "progressive_structural" => DeliveryMode::ProgressiveStructural,
+            _ => return Err("invalid --delivery-mode"),
+        })
+    } else {
+        None
+    };
+    let structural = if index == args.len() {
+        None
+    } else if args.len().saturating_sub(index) == 6
+        && args[index] == "--structural-worker"
+        && args[index + 2] == "--structural-worker-sha256"
+        && args[index + 4] == "--structural-empty-directory"
+    {
+        let worker = PathBuf::from(&args[index + 1]);
+        let worker_sha256 = args[index + 3].clone();
+        let empty_directory = PathBuf::from(&args[index + 5]);
+        if !worker.is_absolute() || !empty_directory.is_absolute() || !valid_sha256(&worker_sha256)
+        {
+            return Err("invalid structural startup tuple");
+        }
+        Some(StructuralStartup {
+            worker,
+            worker_sha256,
+            empty_directory,
+        })
+    } else {
+        return Err("invalid structural startup tuple");
+    };
+    let delivery_mode = explicit_delivery_mode.unwrap_or(if structural.is_some() {
+        DeliveryMode::EagerStructural
+    } else {
+        DeliveryMode::Ordinary
+    });
+    if matches!(
+        delivery_mode,
+        DeliveryMode::EagerStructural | DeliveryMode::ProgressiveStructural
+    ) != structural.is_some()
+    {
+        return Err("delivery mode and structural startup tuple must agree");
+    }
     Ok(StartupArgs {
         workspace: PathBuf::from(&args[1]),
         cache: PathBuf::from(&args[3]),
         consumer_id: args[5].clone(),
         role: args[7].clone(),
         occurred_at,
+        structural,
+        delivery_mode,
     })
+}
+
+fn prepare_structural_runtime(
+    engine: &mut LocalEngine,
+    startup_context: &RequestContext,
+    workspace: &Path,
+    cache: &Path,
+    structural: StructuralStartup,
+    seed: &str,
+) -> Result<StructuralRuntime, &'static str> {
+    validate_structural_paths(
+        workspace,
+        cache,
+        &structural.worker,
+        &structural.empty_directory,
+    )?;
+    let launcher = WorkerLauncher {
+        executable: structural.worker,
+        expected_sha256: structural.worker_sha256.clone(),
+        empty_working_directory: structural.empty_directory,
+        timeout: Duration::from_secs(5),
+    };
+    launcher
+        .validate()
+        .map_err(|_| "invalid structural worker boundary")?;
+    let started = Instant::now();
+    let graph = engine
+        .build_structure(
+            &RequestContext {
+                request_id: format!("req_{seed}structure"),
+                event_id: format!("evt_{seed}structure"),
+                subject: PolicySubject {
+                    caller_id: startup_context.subject.caller_id.clone(),
+                    role: startup_context.subject.role.clone(),
+                    purpose: "mcp_structural_startup".into(),
+                },
+                occurred_at: startup_context.occurred_at.clone(),
+            },
+            &structural_budget()?,
+            &launcher,
+        )
+        .map_err(|_| "structural preparation failed")?;
+    let preparation_elapsed_ms = u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX);
+    Ok(StructuralRuntime {
+        receipt: StructuralLifecycleReceipt {
+            schema_name: "impresari_context_structural_lifecycle".into(),
+            schema_version: "1.0".into(),
+            enabled: true,
+            state: "prepared".into(),
+            graph_id: Some(graph.graph_id.clone()),
+            snapshot_id: Some(graph.workspace_snapshot.clone()),
+            worker_sha256: Some(structural.worker_sha256),
+            graph_completeness: Some(graph.completeness.clone()),
+            preparation_elapsed_ms,
+        },
+        graph,
+        edge_kinds: Vec::new(),
+    })
+}
+
+fn structural_budget() -> Result<ResourceBudget, &'static str> {
+    ResourceBudget::conservative(
+        1_048_576,
+        10_000,
+        100_000,
+        65_536,
+        10_000,
+        64,
+        60_000,
+        2_147_483_648,
+    )
+    .map_err(|_| "invalid structural budget")
+}
+
+fn validate_structural_paths(
+    workspace: &Path,
+    cache: &Path,
+    worker: &Path,
+    empty_directory: &Path,
+) -> Result<(), &'static str> {
+    let workspace = fs::canonicalize(workspace).map_err(|_| "invalid workspace path")?;
+    let cache = fs::canonicalize(cache).map_err(|_| "invalid cache path")?;
+    let worker = canonical_non_symlink(worker, false)?;
+    let empty_directory = canonical_non_symlink(empty_directory, true)?;
+    for left in [&worker, &empty_directory] {
+        for right in [&workspace, &cache] {
+            if paths_overlap(left, right) {
+                return Err("structural path overlaps product roots");
+            }
+        }
+    }
+    if paths_overlap(&worker, &empty_directory) {
+        return Err("structural worker and empty directory overlap");
+    }
+    Ok(())
+}
+
+fn canonical_non_symlink(path: &Path, directory: bool) -> Result<PathBuf, &'static str> {
+    let metadata = fs::symlink_metadata(path).map_err(|_| "structural path is unavailable")?;
+    if metadata.file_type().is_symlink()
+        || (directory && !metadata.is_dir())
+        || (!directory && !metadata.is_file())
+    {
+        return Err("invalid structural path kind");
+    }
+    fs::canonicalize(path).map_err(|_| "invalid structural path")
+}
+
+fn paths_overlap(left: &Path, right: &Path) -> bool {
+    left.starts_with(right) || right.starts_with(left)
+}
+
+fn valid_sha256(value: &str) -> bool {
+    value.len() == 71
+        && value.starts_with("sha256:")
+        && value[7..]
+            .bytes()
+            .all(|byte| byte.is_ascii_digit() || (b'a'..=b'f').contains(&byte))
 }
 
 fn unique_seed() -> Result<String, &'static str> {
@@ -174,10 +364,44 @@ mod tests {
         .collect()
     }
 
+    fn absolute_fixture() -> (PathBuf, PathBuf, PathBuf, PathBuf, PathBuf) {
+        let root =
+            std::env::temp_dir().join(format!("context-mcp-main-test-{}", unique_seed().unwrap()));
+        let workspace = root.join("workspace");
+        let cache = root.join("cache");
+        let worker = root.join("worker");
+        let empty = root.join("empty");
+        fs::create_dir_all(&workspace).unwrap();
+        fs::create_dir_all(&cache).unwrap();
+        fs::create_dir_all(&empty).unwrap();
+        fs::write(&worker, b"pinned worker bytes").unwrap();
+        (root, workspace, cache, worker, empty)
+    }
+
+    fn structural_arguments(worker: &Path, empty: &Path, digest: &str) -> Vec<String> {
+        let mut args = arguments();
+        args.extend([
+            "--occurred-at".into(),
+            "2026-08-23T12:00:00Z".into(),
+            "--structural-worker".into(),
+            worker.display().to_string(),
+            "--structural-worker-sha256".into(),
+            digest.into(),
+            "--structural-empty-directory".into(),
+            empty.display().to_string(),
+        ]);
+        args
+    }
+
+    fn worker_digest() -> String {
+        "sha256:2f60225e24d6e3f76bb5eeb373977ad2f5a159bed992f5ca568ebba8d45e3935".into()
+    }
+
     #[test]
     fn startup_arguments_allow_a_local_clock_or_a_deterministic_override() {
         let automatic = parse_startup_args(&arguments()).expect("automatic startup time");
         validate_utc_timestamp(&automatic.occurred_at).expect("valid local clock time");
+        assert_eq!(automatic.delivery_mode, DeliveryMode::Ordinary);
 
         let mut deterministic = arguments();
         deterministic.extend(["--occurred-at".into(), "2026-08-23T12:00:00Z".into()]);
@@ -196,5 +420,135 @@ mod tests {
         let mut unknown = arguments();
         unknown.extend(["--unknown".into(), "value".into()]);
         assert!(parse_startup_args(&unknown).is_err());
+    }
+
+    #[test]
+    fn startup_arguments_accept_only_the_complete_structural_tuple() {
+        let (root, _, _, worker, empty) = absolute_fixture();
+        let digest = worker_digest();
+        let complete = structural_arguments(&worker, &empty, &digest);
+        let parsed = parse_startup_args(&complete).expect("complete structural tuple");
+        assert_eq!(parsed.delivery_mode, DeliveryMode::EagerStructural);
+        let structural = parsed.structural.expect("structural startup");
+        assert_eq!(structural.worker, worker);
+        assert_eq!(structural.worker_sha256, digest);
+        assert_eq!(structural.empty_directory, empty);
+
+        let mut partial = complete.clone();
+        partial.truncate(partial.len() - 2);
+        assert_eq!(
+            parse_startup_args(&partial).err(),
+            Some("invalid structural startup tuple")
+        );
+
+        let mut noncanonical_digest = complete;
+        let digest_index = noncanonical_digest
+            .iter()
+            .position(|value| value == "--structural-worker-sha256")
+            .unwrap()
+            + 1;
+        noncanonical_digest[digest_index] =
+            "sha256:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA".into();
+        assert_eq!(
+            parse_startup_args(&noncanonical_digest).err(),
+            Some("invalid structural startup tuple")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn delivery_modes_are_closed_and_require_matching_trusted_startup() {
+        let mut ordinary_with_structural_mode = arguments();
+        ordinary_with_structural_mode
+            .extend(["--delivery-mode".into(), "progressive_structural".into()]);
+        assert_eq!(
+            parse_startup_args(&ordinary_with_structural_mode).err(),
+            Some("delivery mode and structural startup tuple must agree")
+        );
+
+        let (root, _, _, worker, empty) = absolute_fixture();
+        let mut progressive = arguments();
+        progressive.extend([
+            "--delivery-mode".into(),
+            "progressive_structural".into(),
+            "--structural-worker".into(),
+            worker.display().to_string(),
+            "--structural-worker-sha256".into(),
+            worker_digest(),
+            "--structural-empty-directory".into(),
+            empty.display().to_string(),
+        ]);
+        assert_eq!(
+            parse_startup_args(&progressive)
+                .expect("progressive startup")
+                .delivery_mode,
+            DeliveryMode::ProgressiveStructural
+        );
+
+        let mut ordinary = progressive;
+        ordinary[9] = "ordinary".into();
+        assert_eq!(
+            parse_startup_args(&ordinary).err(),
+            Some("delivery mode and structural startup tuple must agree")
+        );
+
+        let mut unknown = arguments();
+        unknown.extend(["--delivery-mode".into(), "adaptive".into()]);
+        assert_eq!(
+            parse_startup_args(&unknown).err(),
+            Some("invalid --delivery-mode")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn structural_paths_must_be_disjoint_from_product_roots() {
+        let (root, workspace, cache, worker, empty) = absolute_fixture();
+        validate_structural_paths(&workspace, &cache, &worker, &empty)
+            .expect("disjoint structural paths");
+
+        let overlapping = workspace.join("structural-empty");
+        fs::create_dir(&overlapping).unwrap();
+        assert_eq!(
+            validate_structural_paths(&workspace, &cache, &worker, &overlapping).err(),
+            Some("structural path overlaps product roots")
+        );
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn launcher_preflight_rejects_a_nonempty_empty_directory() {
+        let (root, _, _, worker, empty) = absolute_fixture();
+        fs::write(empty.join("unexpected"), b"authority leak").unwrap();
+        let launcher = WorkerLauncher {
+            executable: worker,
+            expected_sha256: worker_digest(),
+            empty_working_directory: empty,
+            timeout: Duration::from_secs(1),
+        };
+        assert!(launcher.validate().is_err());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn fixed_structural_budget_is_admitted_by_the_core_profile() {
+        let budget = structural_budget().expect("admitted structural budget");
+        assert_eq!(budget.max_matches, "10000");
+        assert_eq!(budget.max_elapsed_ms, "60000");
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn structural_paths_reject_direct_symlinks() {
+        use std::os::unix::fs::symlink;
+
+        let (root, workspace, cache, worker, empty) = absolute_fixture();
+        let worker_link = root.join("worker-link");
+        symlink(&worker, &worker_link).unwrap();
+        assert_eq!(
+            validate_structural_paths(&workspace, &cache, &worker_link, &empty).err(),
+            Some("invalid structural path kind")
+        );
+        fs::remove_dir_all(root).unwrap();
     }
 }

@@ -98,6 +98,50 @@ traversal and exact-source recovery. The first increment changes no external
 protocol. LeanCTX-informed progressive `map`, `lookup`, and `expand` delivery
 remains next only if provider-free structural utility gates pass.
 
+The provider-free structural utility gate passes locally and in hosted macOS,
+Linux, and Windows quality jobs across six frozen TypeScript, Rust, and Ruby
+fixtures. It preserves every baseline anchor, adds one verified structural
+relationship per fixture, and keeps added reads and packet growth within frozen
+ceilings. This permits the next product-owned external graph lifecycle; it does
+not authorize provider tests or progressive delivery.
+
+That next increment is governed by the
+[trusted MCP structural lifecycle PRD](trusted-mcp-structural-lifecycle-prd.md).
+It binds parser-cache lineage to the exact pinned worker digest, prepares one
+snapshot-bound graph from trusted process-startup configuration, keeps the MCP
+tool and request contracts equal between arms, applies product-owned seed
+selection, and exposes cold preparation cost and reads. LeanCTX-informed
+progressive disclosure follows only after this static lifecycle passes an
+independent provider-free MCP comparison.
+
+The independent provider-free MCP comparison now passes its source-integrity,
+tool-parity, lifecycle, and cold/warm cache mechanics checks. It also identifies
+the next constraint: eager structural delivery produced an 8,063-byte initial
+response against the ordinary 4,149-byte response on the controlled fixture,
+while warm graph preparation improved from 645 milliseconds to 6 milliseconds.
+The graph/cache lifecycle is retained; unconditional exact-source delivery is
+not accepted as the final architecture.
+
+The next increment is governed by the
+[progressive structural disclosure PRD](progressive-structural-disclosure-prd.md).
+It applies LeanCTX-informed reversible map/lookup/expand delivery to existing
+snapshot-bound graph facts and exact evidence handles, with one cumulative
+process-local disclosure ledger. It preserves ordinary and eager controls,
+equal MCP tool definitions, exact recovery, and provider-free operation. It
+does not add generated summaries, embeddings, proxies, durable memory, provider
+calls, or a product-effect claim. Another paid pilot remains blocked until its
+independent provider-free mechanics gate passes.
+
+The frozen provider-free progressive mechanics gate now passes across six
+TypeScript, Rust, and Ruby fixtures. Fresh ordinary, eager, progressive, and
+repeated-progressive MCP servers plus a named eager warm-cache arm preserve
+equal evidence and advertise identical tools; progressive startup is smaller
+than eager startup on every fixture; ordinary anchors are preserved; scripted
+full expansion recovers the eager exact-evidence set; identities are
+deterministic; receipts account for serialized tool-result bytes; and source
+remains immutable. This is mechanics evidence only. A separately frozen private
+pilot remains required before any token, cost, latency, or correctness claim.
+
 ## Hostile-repository security expansion track
 
 The earlier `New malware feature chat` design has been recovered into three
@@ -339,6 +383,18 @@ publication, Linux production-support admission, or real-analyzer authorization
 may occur first. At candidate freeze, the project must refresh the exact source
 scope and reviewer brief, obtain the attributable independent human report,
 remediate or disposition findings, and then run the remaining release gates.
+
+The first later packaged-entrypoint change exposed an inconsistency between
+that accepted historical-candidate state and the ordinary repository gate: the
+gate still compared current source bytes with the historical macOS release-
+identity input manifest. Historical hashes must not be rewritten, and the old
+candidate must not block accepted development while pretending to remain
+current. The proposed
+[historical release evidence gate separation PRD](historical-release-evidence-gate-separation-prd.md)
+and ADR-0122 separate source-free historical integrity from a strict future
+current-candidate release gate. The founder approved ADR-0122 on 2026-09-01;
+scoped implementation may proceed while final-candidate and release gates
+remain closed.
 
 The historical candidate-freeze portion is complete. PR 156 froze product source at
 `1a9923c0e5d671581f6b7da3bc4248b604971d63`; exact candidate run

@@ -1,8 +1,8 @@
 # Deterministic Structural-Seed Selection PRD
 
 - PRD ID/version: IC-DSSS-118 / 1.0.
-- Status: Core selector implemented and locally verified; provider-free utility
-  comparison and external protocol integration remain gated.
+- Status: Core selector and provider-free utility comparison implemented and
+  locally verified; external protocol integration remains gated.
 - Date: 2026-09-01.
 - Product owner: Aaron Boldt.
 - Governing architecture:

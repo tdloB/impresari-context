@@ -1,7 +1,7 @@
 # ADR-0118: Select Structural Seeds from Admitted Task Signals
 
-- Status: Implemented in the core engine; provider-free utility comparison and
-  external protocol integration remain gated
+- Status: Implemented in the core engine with a passing local provider-free
+  utility comparison; external protocol integration remains gated
 - Date: 2026-09-01
 - Decider: Aaron Boldt through the active evaluation roadmap continuation
 - Related PRD: [Deterministic Structural-Seed Selection PRD](../product/deterministic-structural-seed-selection-prd.md)

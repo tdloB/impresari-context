@@ -207,6 +207,21 @@ impresari-context-mcp \
   --role <policy-role>
 ```
 
+The default delivery mode is `ordinary`. The trusted structural modes add the
+complete startup-only tuple below; repository content and MCP tool input cannot
+select or change it:
+
+```text
+  --delivery-mode eager_structural|progressive_structural \
+  --structural-worker <absolute-worker-path> \
+  --structural-worker-sha256 sha256:<lowercase-digest> \
+  --structural-empty-directory <absolute-empty-directory>
+```
+
+Supplying the structural tuple without a mode retains the existing
+`eager_structural` behavior. Explicit `ordinary` rejects the tuple, and either
+structural mode rejects a missing or partial tuple before MCP readiness.
+
 Transport is newline-delimited JSON-RPC 2.0 over stdin/stdout. Messages are
 limited to 1 MiB and the process remembers at most 10,000 request identifiers.
 Batch requests, duplicate identifiers, malformed JSON, unknown fields, and
@@ -230,9 +245,22 @@ object accepts only `name`, `arguments`, and the inert optional `_meta` object.
 | Tool | Request | Successful structured content |
 | --- | --- | --- |
 | `context_session_open` | `{"session_id":"..."}` | Session ID, `opened: true`, `authority_added: false` |
-| `context_build` | IDs, purpose, RFC 3339 time, budget, optional session ID, plus either 1-8 explicit plan steps or a declared profile and query | Immutable packet, optional deterministic plan, optional reference, cumulative process-lifecycle repository-read telemetry, false authority flags |
+| `context_build` | IDs, purpose, RFC 3339 time, budget, optional session ID, plus either 1-8 explicit plan steps or a declared profile and query | Ordinary/eager: immutable packet and optional plan/reference. Progressive: anchor packet, compact structural disclosure map, and cumulative receipt. |
+| `context_disclosure_lookup` | Owning session and map/item handle, closed relationship kinds, and narrowing decimal item/depth/byte limits | Compact session-owned items and evidence handles, explicit truncation, and cumulative receipt; closed unavailable result outside progressive mode |
+| `context_evidence_expand` | IDs, purpose, RFC 3339 time, owning session/evidence handle, and narrowing decimal before/after/maximum byte limits | Current-source-revalidated exact evidence and cumulative receipt; closed unavailable result outside progressive mode |
+| `context_convention_exemplar_build` | IDs, purpose, RFC 3339 time, query, verified declaration, and budget | Profiled exact convention-exemplar packet with no inferred convention authority |
+| `structure_incremental_update` | IDs, purpose, RFC 3339 time, bounded verified update, and budget | Current snapshot-bound structural graph; no watcher or parser launch |
 | `context_packet_resolve` | `{"session_id":"...","packet_id":"..."}` | Owning-session reference and immutable packet |
 | `context_session_close` | `{"session_id":"..."}` | Session ID, `closed: true`, `authority_added: false` |
+
+Progressive handles are identities, not authority. They resolve only inside the
+same open process-local owning session. Closing the session invalidates its map,
+item, and evidence handles. Forged, foreign, stale, changed-source, and
+over-limit operations fail without substituting evidence. Every successful map,
+lookup, and expansion carries the cumulative operation, item, exact-byte,
+serialized-tool-result-byte, repository-read, repeated-read, and elapsed-time
+ledger defined by
+[`progressive-disclosure-receipt.schema.json`](../../schemas/v1/progressive-disclosure-receipt.schema.json).
 
 A plan step is
 `{"kind":"exact_path|filename|literal|lexical","query":"..."}`. The budget

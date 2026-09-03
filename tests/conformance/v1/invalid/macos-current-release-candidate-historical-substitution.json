@@ -1,0 +1,12 @@
+{
+  "schema_name": "macos-current-release-candidate-status",
+  "schema_version": "1.0.0",
+  "mode": "current_release_candidate",
+  "status": "historical_not_current",
+  "candidate_manifest_present": false,
+  "current_source_verified": false,
+  "historical_result_accepted": true,
+  "release_admitted": true,
+  "publication_authorized": false,
+  "authority_added": false
+}

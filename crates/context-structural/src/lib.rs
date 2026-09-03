@@ -747,6 +747,14 @@ fn promote_file(
     if file.response.syntax_errors {
         unknowns.push("syntax_recovery_present".into());
     }
+    if file.response.warnings.iter().any(|warning| {
+        matches!(
+            warning.as_str(),
+            "structural_resource_limit_reached" | "structural_fact_response_limit_reached"
+        )
+    }) {
+        unknowns.push("structural_resource_limit_reached".into());
+    }
     Ok(())
 }
 
@@ -1249,6 +1257,17 @@ pub struct WorkerLauncher {
 }
 
 impl WorkerLauncher {
+    /// Validates the pinned executable and empty capability-reduced directory
+    /// without starting a process.
+    ///
+    /// # Errors
+    ///
+    /// Returns an error for a malformed timeout, missing or mismatched worker,
+    /// unsafe path kind, or nonempty working directory.
+    pub fn validate(&self) -> Result<(), StructuralError> {
+        validate_launcher(self)
+    }
+
     /// Starts a fresh worker, sends one request, and validates one complete response.
     ///
     /// # Errors
@@ -1258,7 +1277,7 @@ impl WorkerLauncher {
     /// identity/span/limit mismatch. No partial facts are returned.
     pub fn execute(&self, request: &WorkerRequest) -> Result<WorkerSuccess, StructuralError> {
         validate_request(request)?;
-        validate_launcher(self)?;
+        self.validate()?;
         let request_bytes =
             serde_json::to_vec(request).map_err(|_| StructuralError::InvalidRequest)?;
         if request_bytes.len() > MAX_REQUEST_BYTES {
@@ -1381,6 +1400,15 @@ fn validate_success(
         || success.content_hash != request.content_hash
         || success.facts.len()
             > usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?
+        || success.warnings.iter().any(|warning| {
+            !matches!(
+                warning.as_str(),
+                "syntax_recovery_present"
+                    | "strict_json_validation_failed"
+                    | "structural_resource_limit_reached"
+                    | "structural_fact_response_limit_reached"
+            )
+        })
     {
         return Err(StructuralError::ContractMismatch);
     }
@@ -1436,11 +1464,35 @@ pub fn worker_toolchain_identity(request: &WorkerRequest) -> Result<String, Stru
             "protocol_version": request.schema_version,
             "language": request.language,
             "fact_classes": request.fact_classes,
+            "max_facts": request.max_facts,
             "max_nesting_depth": request.max_nesting_depth,
+            "max_response_bytes": request.max_response_bytes,
             "parser_version": request.parser_version,
             "grammar_version": request.grammar_version,
             "resolver_version": request.resolver_version,
             "graph_version": request.graph_version,
+        }),
+    )
+}
+
+/// Computes the parser-cache identity for one exact worker executable.
+///
+/// # Errors
+///
+/// Returns an error when the worker digest is noncanonical or canonical
+/// serialization fails.
+pub fn worker_cache_identity(
+    request: &WorkerRequest,
+    worker_sha256: &str,
+) -> Result<String, StructuralError> {
+    if !valid_sha256(worker_sha256) {
+        return Err(StructuralError::WorkerIdentity);
+    }
+    graph_identity(
+        "structural-worker-cache",
+        &serde_json::json!({
+            "toolchain_identity": worker_toolchain_identity(request)?,
+            "worker_sha256": worker_sha256,
         }),
     )
 }
@@ -1530,8 +1582,9 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
     let provenance = provenance(request);
     let mut facts = Vec::new();
     let mut ancestors = Vec::new();
+    let mut resource_limit_reached = false;
     if strict_json_valid && toml_syntax_valid && yaml_syntax_valid {
-        visit(
+        resource_limit_reached = match visit(
             tree.root_node(),
             &source,
             request,
@@ -1539,7 +1592,11 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
             0,
             &mut ancestors,
             &mut facts,
-        )?;
+        ) {
+            Ok(()) => false,
+            Err(StructuralError::ResourceLimit) => true,
+            Err(error) => return Err(error),
+        };
     }
     facts.sort_by(|left, right| {
         (left.start_byte, left.end_byte, left.class, &left.local_key).cmp(&(
@@ -1556,7 +1613,11 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         content_hash: request.content_hash.clone(),
         syntax_errors: tree.root_node().has_error() || !strict_json_valid,
         facts,
-        warnings: warnings(tree.root_node().has_error(), strict_json_valid),
+        warnings: warnings(
+            tree.root_node().has_error(),
+            strict_json_valid,
+            resource_limit_reached,
+        ),
     })
 }
 
@@ -1664,16 +1725,21 @@ fn visit(
     let produced = fact_for_node(node, source, request, provenance, parent.as_deref());
     let mut pushed = false;
     if let Some(fact) = produced {
-        if facts.len()
-            >= usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?
+        let adds_containment = parent.is_some()
+            && request.fact_classes.contains(&FactClass::Contains)
+            && fact.class == FactClass::Declaration;
+        let required = 1_usize + usize::from(adds_containment);
+        let maximum =
+            usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?;
+        if facts
+            .len()
+            .checked_add(required)
+            .is_none_or(|count| count > maximum)
         {
             return Err(StructuralError::ResourceLimit);
         }
         let key = fact.local_key.clone();
-        if parent.is_some()
-            && request.fact_classes.contains(&FactClass::Contains)
-            && fact.class == FactClass::Declaration
-        {
+        if adds_containment {
             let contains = StructuralFact {
                 class: FactClass::Contains,
                 local_key: format!("contains:{}:{key}", parent.as_deref().unwrap_or_default()),
@@ -2058,13 +2124,20 @@ fn fact_for_node(
     })
 }
 
-fn warnings(tree_has_error: bool, strict_json_valid: bool) -> Vec<String> {
+fn warnings(
+    tree_has_error: bool,
+    strict_json_valid: bool,
+    resource_limit_reached: bool,
+) -> Vec<String> {
     let mut warnings = Vec::new();
     if tree_has_error {
         warnings.push("syntax_recovery_present".into());
     }
     if !strict_json_valid {
         warnings.push("strict_json_validation_failed".into());
+    }
+    if resource_limit_reached {
+        warnings.push("structural_resource_limit_reached".into());
     }
     warnings
 }
@@ -2415,8 +2488,49 @@ pub fn run_stdio() -> Result<(), StructuralError> {
             MAX_RESPONSE_BYTES,
         ),
     };
-    let bytes = serde_json::to_vec(&response).map_err(|_| StructuralError::InvalidRequest)?;
+    let bytes = bounded_worker_response(response, maximum)?;
     write_frame(&mut io::stdout().lock(), &bytes, maximum)
+}
+
+fn bounded_worker_response(
+    response: WorkerResponse,
+    maximum: usize,
+) -> Result<Vec<u8>, StructuralError> {
+    let WorkerResponse::Success(mut success) = response else {
+        let bytes = serde_json::to_vec(&response).map_err(|_| StructuralError::InvalidRequest)?;
+        return (bytes.len() <= maximum)
+            .then_some(bytes)
+            .ok_or(StructuralError::ResourceLimit);
+    };
+    let bytes = serde_json::to_vec(&WorkerResponse::Success(success.clone()))
+        .map_err(|_| StructuralError::InvalidRequest)?;
+    if bytes.len() <= maximum {
+        return Ok(bytes);
+    }
+
+    success
+        .warnings
+        .push("structural_fact_response_limit_reached".into());
+    let facts = std::mem::take(&mut success.facts);
+    let mut lower = 0_usize;
+    let mut upper = facts.len();
+    let mut best = None;
+    while lower <= upper {
+        let middle = lower + (upper - lower) / 2;
+        success.facts = facts[..middle].to_vec();
+        let candidate = serde_json::to_vec(&WorkerResponse::Success(success.clone()))
+            .map_err(|_| StructuralError::InvalidRequest)?;
+        if candidate.len() <= maximum {
+            best = Some((middle, candidate));
+            lower = middle.saturating_add(1);
+        } else if middle == 0 {
+            break;
+        } else {
+            upper = middle - 1;
+        }
+    }
+    best.map(|(_, bytes)| bytes)
+        .ok_or(StructuralError::ResourceLimit)
 }
 
 fn failure(request_id: Option<String>, error: StructuralError) -> WorkerFailure {
@@ -2500,6 +2614,48 @@ mod tests {
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
         }
+    }
+
+    #[test]
+    fn oversized_success_is_deterministically_reduced_to_a_framed_partial_response() {
+        use std::fmt::Write as _;
+
+        let source = (0..100).fold(String::new(), |mut source, index| {
+            write!(
+                source,
+                "def function_{index}():\n    return function_{index}\n"
+            )
+            .expect("write to string");
+            source
+        });
+        let mut request = request(source.as_bytes(), StructuralLanguage::Python);
+        request.max_facts = 10_000;
+        request.max_response_bytes = 1_024;
+        let success = process_request(&request).expect("parse");
+        let original_count = success.facts.len();
+        let first = bounded_worker_response(
+            WorkerResponse::Success(success.clone()),
+            request.max_response_bytes as usize,
+        )
+        .expect("bounded response");
+        let second = bounded_worker_response(
+            WorkerResponse::Success(success),
+            request.max_response_bytes as usize,
+        )
+        .expect("bounded response");
+        assert_eq!(first, second);
+        assert!(first.len() <= request.max_response_bytes as usize);
+        let WorkerResponse::Success(reduced) =
+            serde_json::from_slice(&first).expect("valid framed payload")
+        else {
+            panic!("success response");
+        };
+        assert!(reduced.facts.len() < original_count);
+        assert_eq!(
+            reduced.warnings.last().map(String::as_str),
+            Some("structural_fact_response_limit_reached")
+        );
+        validate_worker_success(&reduced, &request).expect("valid reduced response");
     }
 
     #[test]
@@ -3439,10 +3595,9 @@ public class Worker {
 
         let mut limited = request(b"const a = 1; const b = 2;", StructuralLanguage::TypeScript);
         limited.max_facts = 1;
-        assert_eq!(
-            process_request(&limited),
-            Err(StructuralError::ResourceLimit)
-        );
+        let limited = process_request(&limited).expect("bounded partial response");
+        assert!(limited.facts.len() <= 1);
+        assert_eq!(limited.warnings, vec!["structural_resource_limit_reached"]);
 
         let mut wrong_toml_grammar = request(b"title = \"example\"\n", StructuralLanguage::Toml);
         wrong_toml_grammar.grammar_version = "tree-sitter-toml-ng-0.0.0".into();
@@ -3494,12 +3649,48 @@ public class Worker {
             identity,
             worker_toolchain_identity(&changed).expect("changed identity")
         );
+        let mut changed = request.clone();
+        changed.max_facts -= 1;
+        assert_ne!(
+            identity,
+            worker_toolchain_identity(&changed).expect("changed fact limit identity")
+        );
+        let mut changed = request.clone();
+        changed.max_response_bytes -= 1;
+        assert_ne!(
+            identity,
+            worker_toolchain_identity(&changed).expect("changed response limit identity")
+        );
+        let worker_a = sha256(b"worker-a");
+        let worker_b = sha256(b"worker-b");
+        assert_ne!(
+            worker_cache_identity(&request, &worker_a).expect("worker A cache identity"),
+            worker_cache_identity(&request, &worker_b).expect("worker B cache identity")
+        );
+        assert_eq!(
+            worker_cache_identity(&request, "sha256:INVALID"),
+            Err(StructuralError::WorkerIdentity)
+        );
 
         let mut corrupt = response;
         corrupt.content_hash = sha256(b"different");
         assert_eq!(
             validate_worker_success(&corrupt, &request),
             Err(StructuralError::ContractMismatch)
+        );
+    }
+
+    #[test]
+    fn capped_worker_streams_reject_the_first_overflow_byte() {
+        assert_eq!(
+            read_capped(std::io::Cursor::new(vec![b'x'; 16_385]), 16_384),
+            Err(StructuralError::ResourceLimit)
+        );
+        assert_eq!(
+            read_capped(std::io::Cursor::new(vec![b'x'; 16_384]), 16_384)
+                .expect("exact bounded stream")
+                .len(),
+            16_384
         );
     }
 

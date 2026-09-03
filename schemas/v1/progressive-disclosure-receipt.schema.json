@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://schemas.impresari-context.invalid/v1/progressive-disclosure-receipt.schema.json",
+  "title": "Progressive disclosure cumulative receipt",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_name", "schema_version", "receipt_id", "mode", "operation", "state", "result_identity", "workspace_identity", "workspace_snapshot", "graph_id", "plan_id", "policy_decision", "session_bound", "per_call", "cumulative", "remaining", "truncated", "exhausted", "authority_added"],
+  "properties": {
+    "schema_name": {"const": "progressive-disclosure-receipt"},
+    "schema_version": {"const": "1.0.0"},
+    "receipt_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "mode": {"const": "progressive_structural"},
+    "operation": {"enum": ["map", "lookup", "expand"]},
+    "state": {"enum": ["ready", "partial", "exhausted", "stale", "unavailable"]},
+    "result_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_identity": {"$ref": "common.schema.json#/$defs/sha256"},
+    "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
+    "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "plan_id": {"$ref": "common.schema.json#/$defs/sha256"},
+    "policy_decision": {"$ref": "common.schema.json#/$defs/sha256"},
+    "session_bound": {"const": true},
+    "per_call": {"$ref": "#/$defs/consumption"},
+    "cumulative": {"$ref": "#/$defs/consumption"},
+    "remaining": {"$ref": "#/$defs/consumption"},
+    "truncated": {"type": "boolean"},
+    "exhausted": {"type": "boolean"},
+    "authority_added": {"const": false}
+  },
+  "$defs": {
+    "consumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["maps", "lookups", "expansions", "returned_items", "exact_source_bytes", "serialized_response_bytes", "repository_reads", "repeated_repository_reads", "elapsed_ms"],
+      "properties": {
+        "maps": {"type": "integer", "minimum": 0},
+        "lookups": {"type": "integer", "minimum": 0},
+        "expansions": {"type": "integer", "minimum": 0},
+        "returned_items": {"type": "integer", "minimum": 0},
+        "exact_source_bytes": {"type": "integer", "minimum": 0},
+        "serialized_response_bytes": {"type": "integer", "minimum": 0},
+        "repository_reads": {"type": "integer", "minimum": 0},
+        "repeated_repository_reads": {"type": "integer", "minimum": 0},
+        "elapsed_ms": {"type": "integer", "minimum": 0}
+      }
+    }
+  }
+}
