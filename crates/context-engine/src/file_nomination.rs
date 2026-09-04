@@ -37,14 +37,26 @@ pub const MAX_NOMINATED_FILES: usize = 16;
 /// against those sixteen, following import edges out of a nominated file
 /// reaches one; files in the same package reach ten.
 ///
-/// Expanding from the top-ranked nomination admits about ten siblings on
-/// average. Twelve bounds the tail — a large flat directory cannot flood a
-/// scope whose fact allowance is shared — without biting in the common case.
+/// The ceiling admits a package whole. Measured on the corpus, packages holding
+/// a missed reference file carry 3 to 28 admitted files, and the missed file
+/// sits at alphabetical rank 1 to 23 within its package. A ceiling of twelve
+/// therefore cut `table/table.py` (rank 20 of 21), `io/ascii/rst.py` (17 of 20)
+/// and `builtin_frames/itrs.py` (23 of 28) — the exact files reach exists to
+/// admit — because truncation orders by path and a package is not alphabetical
+/// by relevance.
+///
+/// Thirty-two clears every package observed. It remains a guard against a
+/// pathological directory, not a selector: reach is meant to admit the
+/// neighbourhood, and a ceiling that trims it is choosing files by name.
+///
+/// Density is protected separately. Reach files divide only the fact allowance
+/// that nominated files leave, so a wider ceiling cannot thin a file the task
+/// named.
 ///
 /// It is a closed constant for the same reason [`MAX_NOMINATED_FILES`] is: a
 /// caller able to widen reach could walk the scope toward a file it already
 /// wanted, which is oracle authority arriving through a configuration field.
-pub const MAX_REACH_FILES: usize = 12;
+pub const MAX_REACH_FILES: usize = 32;
 
 /// Reason code marking a file admitted by reach rather than by task signal.
 pub const REACH_REASON_CODE: &str = "package_proximate_reach";
@@ -499,7 +511,7 @@ mod tests {
     #[test]
     fn reach_is_bounded_and_says_when_it_truncated() {
         let mut admitted = set(&["pkg/anchor.py"]);
-        admitted.extend((0..30).map(|index| format!("pkg/sib{index:02}.py")));
+        admitted.extend((0..40).map(|index| format!("pkg/sib{index:02}.py")));
         let nomination = nominate_files(
             &["pkg/anchor.py".to_owned()],
             &[],

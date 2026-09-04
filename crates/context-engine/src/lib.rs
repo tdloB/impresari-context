@@ -1585,10 +1585,15 @@ impl LocalEngine {
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
         let limits = scoped_limits(limits, &snapshot.artifacts, scope);
-        if scope.is_some() {
+        if let Some(scope) = scope {
             // A scoped graph is dense but partial and must never read as a
             // whole-repository one.
             unknowns.push("structural_scope_limited_to_nominated_files".into());
+            if scope.has_reach() {
+                // Some of these files the task never named. Say which kind of
+                // coverage this is, not merely that it is partial.
+                unknowns.push("structural_scope_includes_reach_expanded_files".into());
+            }
         }
         // Scoping decides density. The same allowance divided across sixteen
         // nominated files gives each of them hundreds of facts; divided across
@@ -2261,6 +2266,13 @@ impl LocalEngine {
                 .iter()
                 .map(|unknown| (*unknown).to_owned()),
         );
+        // The graph knows things the traversal cannot: that coverage was scoped
+        // to nominated files, and whether any of those files the task never
+        // named. A consumer reading a partial map has to be told which kind of
+        // partial it is.
+        traversal
+            .unknowns
+            .extend(structural_request.graph.unknowns.iter().cloned());
         traversal.unknowns.sort();
         traversal.unknowns.dedup();
         let planner_query = structural_planner_query(&structural_request.edge_kinds, traversal)
@@ -5813,6 +5825,12 @@ impl StructuralScope {
     #[must_use]
     pub fn len(&self) -> usize {
         self.nominated.len().saturating_add(self.reach.len())
+    }
+
+    /// Whether reach expansion admitted anything.
+    #[must_use]
+    pub fn has_reach(&self) -> bool {
+        !self.reach.is_empty()
     }
 
     /// Whether the scope admits nothing.
