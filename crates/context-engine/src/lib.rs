@@ -631,6 +631,12 @@ pub struct LocalEngine {
     audit: AuditStore,
     handle: String,
     budget_policy_root: Option<PathBuf>,
+    /// Snapshot-bound identifier index used to nominate candidate files.
+    ///
+    /// Present only after preparation builds it. Absent means nomination is
+    /// unavailable, not that it silently falls back to scanning: searching per
+    /// identifier costs thousands of repository reads and exhausts the request.
+    identifier_index: Option<crate::identifier_index::TaskIdentifierIndex>,
 }
 
 impl LocalEngine {
@@ -752,6 +758,7 @@ impl LocalEngine {
         let identity = workspace.identity().to_owned();
         let handle = format!("wsp_{}", &identity[7..23]);
         let mut engine = Self {
+            identifier_index: None,
             config,
             workspace,
             snapshot: None,
@@ -825,6 +832,141 @@ impl LocalEngine {
     ///
     /// Returns a structured policy, stale-state, workspace, worker, resource, or
     /// graph-validation failure. Partial worker output is never returned.
+    /// Build the snapshot-bound identifier index used to nominate files.
+    ///
+    /// Reads each admitted file once, during preparation. Nomination is a
+    /// planning step, so its cost belongs here rather than in a request's
+    /// context read budget — searching per identifier instead cost roughly
+    /// 3,900 repository reads each and exhausted every request.
+    ///
+    /// # Errors
+    /// Returns a closed engine failure when no snapshot is prepared.
+    pub fn build_identifier_index(&mut self, context: &RequestContext) -> Result<(), EngineError> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        let mut builder =
+            crate::identifier_index::TaskIdentifierIndexBuilder::new(&snapshot.snapshot_id);
+        for artifact in snapshot
+            .artifacts
+            .iter()
+            .take(crate::identifier_index::MAX_INDEXED_FILES)
+        {
+            // An unreadable file contributes nothing and must not fail
+            // preparation for every other file.
+            if let Ok(exact) = self
+                .workspace
+                .read_exact(&artifact.path, artifact.size_bytes)
+            {
+                builder.admit(&artifact.path.display_path, &exact.bytes);
+            }
+        }
+        self.identifier_index = Some(builder.finish());
+        Ok(())
+    }
+
+    /// Whether a usable identifier index is prepared for the current snapshot.
+    #[must_use]
+    pub fn has_identifier_index(&self) -> bool {
+        self.snapshot.as_ref().is_some_and(|snapshot| {
+            self.identifier_index
+                .as_ref()
+                .is_some_and(|index| index.workspace_snapshot == snapshot.snapshot_id)
+        })
+    }
+
+    /// Nominate candidate files from the task, then build a dense structural
+    /// graph over only those files.
+    ///
+    /// The whole seed-scoped pipeline in one call: admitted task signals, an
+    /// index lookup that reads nothing, ranked nomination, and a scoped build.
+    /// It exists as one method so `task_signals` stays private and no caller can
+    /// supply its own nomination — a caller able to choose the files could steer
+    /// selection, and steering is oracle authority.
+    ///
+    /// The returned graph is **partial by construction**. The nomination beside
+    /// it carries the scope disclosure a consumer needs to read it safely.
+    ///
+    /// # Errors
+    /// Returns a closed engine failure for an invalid task, or for
+    /// authorization, snapshot, worker, resource, or store failures.
+    pub fn build_task_scoped_structure(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+    ) -> Result<(StructuralGraph, crate::file_nomination::FileNomination), EngineError> {
+        use std::collections::BTreeSet;
+
+        if !valid_task_query(query) {
+            return Err(core_error(
+                context,
+                Capability::StructureBuild,
+                context_core::CoreErrorCode::InvalidInput,
+                self.ids(),
+            ));
+        }
+        let signals = task_signals(query);
+        let snapshot_id = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.snapshot_id.clone())
+            .unwrap_or_default();
+        let tracked: BTreeSet<String> = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| {
+                snapshot
+                    .artifacts
+                    .iter()
+                    .map(|artifact| artifact.path.display_path.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Nomination reads nothing. The index answers from memory.
+        let identifier_matches = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| {
+                index
+                    .identifier_matches(&snapshot_id, &signals.identifiers)
+                    .ok()
+            })
+            .unwrap_or_default();
+
+        let nomination = crate::file_nomination::nominate_files(
+            &signals.paths,
+            &signals.identifiers,
+            &tracked,
+            &identifier_matches,
+        );
+        let scope: BTreeSet<String> = nomination
+            .files
+            .iter()
+            .map(|file| file.display_path.clone())
+            .collect();
+        // A distinct audit identity: the caller's own context is still to be
+        // used for the context build that follows, and the store rejects a
+        // duplicate event identity.
+        let build_context = derived_task_scope_context(context);
+        let graph = self.build_structure_for_paths(&build_context, budget, launcher, &scope)?;
+        Ok((graph, nomination))
+    }
+
     /// Build a structural graph over an explicit, bounded set of files.
     ///
     /// A whole-repository graph divides one fact allowance across every file,
@@ -5994,6 +6136,27 @@ fn valid_identifier(value: &str) -> bool {
 /// `ordinal` distinguishes the traversals of a multi-seed selection, because
 /// the audit store rejects a duplicate event identity and every seed records
 /// its own traversal.
+/// Derive the audit identity for one task-scoped structural build.
+///
+/// The caller's context is still to be used for the context build that follows,
+/// and the audit store rejects a duplicate event identity.
+fn derived_task_scope_context(context: &RequestContext) -> RequestContext {
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0task-scoped-structure-event\0");
+    hasher.update(context.event_id.as_bytes());
+    let mut event_id = String::from("evt_");
+    for byte in hasher.finalize() {
+        use fmt::Write as _;
+        write!(event_id, "{byte:02x}").expect("string write");
+    }
+    RequestContext {
+        request_id: context.request_id.clone(),
+        event_id,
+        subject: context.subject.clone(),
+        occurred_at: context.occurred_at.clone(),
+    }
+}
+
 fn derived_structure_query_context(context: &RequestContext, ordinal: usize) -> RequestContext {
     let mut hasher = Sha256::new();
     hasher.update(b"impresari-context\0structural-impact-query-event\0");

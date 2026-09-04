@@ -254,6 +254,7 @@ fn run_arm_with_cache(
     let structural_runtime = (mode != DeliveryMode::Ordinary).then(|| {
         let graph = graph(fixture, &snapshot.snapshot_id);
         StructuralRuntime {
+            task_scoped: None,
             receipt: StructuralLifecycleReceipt {
                 schema_name: "impresari_context_structural_lifecycle".into(),
                 schema_version: "1.0".into(),
