@@ -5090,12 +5090,33 @@ fn is_code_identifier_signal(token: &str) -> bool {
     // A dunder is a real name even without an interior separator: `__eq__`,
     // `__version__`, `__call__` all matter and all survive edge trimming to a
     // bare word.
+    // A version string or a line range is not a name. Bug reports carry them in
+    // bulk — environment dumps and source citations — and each one occupies a
+    // slot a real symbol could use: `Windows-10-10.0.19044-SP0`, `L1300-L1302`,
+    // `Linux-5.10.0-1029-oem-x86_64`.
+    if is_version_shaped(token) {
+        return false;
+    }
     let dunder = token.starts_with("__") && token.ends_with("__");
     dunder
         || core.contains('_')
         || core.contains('-')
         || token.contains("::")
         || has_interior_capital(token)
+}
+
+/// True when a hyphenated token carries a version or line-number segment.
+///
+/// Kebab-case names stay admissible: `conda-forge` and `hello-rust` have no
+/// numeric segment, while every segment of a version or citation does.
+fn is_version_shaped(token: &str) -> bool {
+    let mut segments = token.split('-').filter(|segment| !segment.is_empty());
+    segments.any(|segment| {
+        segment.bytes().any(|byte| byte.is_ascii_digit())
+            && segment
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || byte == b'.' || byte.is_ascii_uppercase())
+    }) && token.contains('-')
 }
 
 /// True when an uppercase letter follows a lowercase letter, as in `TimeSeries`
@@ -6619,6 +6640,36 @@ mod tests {
         // Each list stays bounded.
         assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
         assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn version_strings_and_line_citations_are_not_identifiers() {
+        // Harvested verbatim from real bug reports in the evaluation corpus.
+        for noise in [
+            "Windows-10-10.0.19044-SP0",
+            "Linux-5.10.0-1029-oem-x86_64-with-glibc2.29",
+            "L1300-L1302",
+            "v1-2-3",
+        ] {
+            assert!(
+                !is_code_identifier_signal(noise),
+                "{noise} must not be a code identifier"
+            );
+        }
+
+        // Kebab-case names carry no numeric segment and stay admissible.
+        for name in [
+            "conda-forge",
+            "hello-rust",
+            "http-equiv",
+            "some-package-name",
+        ] {
+            assert!(is_code_identifier_signal(name), "{name} must be admitted");
+        }
+
+        // A digit inside a name is fine; a segment that is only digits is not.
+        assert!(is_code_identifier_signal("utf8-decoder"));
+        assert!(!is_code_identifier_signal("release-2024"));
     }
 
     #[test]
