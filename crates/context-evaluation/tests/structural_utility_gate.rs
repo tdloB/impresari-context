@@ -181,6 +181,7 @@ fn run_arm(
                 TaskProfile::BugInvestigation,
                 &fixture.task,
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: fixture.edge_kinds.clone(),
                 },

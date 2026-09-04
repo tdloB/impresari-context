@@ -701,9 +701,20 @@ impl McpServer {
                             )
                             .ok()
                             .filter(|(_, nomination)| !nomination.files.is_empty())
-                            .map(|(graph, _)| graph)
+                            .map(|(graph, nomination)| {
+                                let order = nomination
+                                    .files
+                                    .iter()
+                                    .map(|file| file.display_path.clone())
+                                    .collect::<Vec<_>>();
+                                (graph, order)
+                            })
                     });
-                    let graph = scoped.unwrap_or_else(|| runtime.graph.clone());
+                    // Carry the nomination order so a name shared by several
+                    // files resolves to the file the task is about rather than
+                    // to whichever path sorts first.
+                    let (graph, nominated_order) =
+                        scoped.unwrap_or_else(|| (runtime.graph.clone(), Vec::new()));
                     if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                         self.engine
                             .build_profiled_seeded_progressive_context(
@@ -711,6 +722,7 @@ impl McpServer {
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
+                                    nominated_order: nominated_order.clone(),
                                     graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
@@ -724,6 +736,7 @@ impl McpServer {
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
+                                    nominated_order: nominated_order.clone(),
                                     graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },

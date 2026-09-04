@@ -337,6 +337,12 @@ pub struct StructuralSeedRequest {
     pub graph: StructuralGraph,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+    /// Nominated files in rank order, best first; empty expresses no preference.
+    ///
+    /// Without it, a name shared by several files is broken alphabetically,
+    /// which is unrelated to relevance: `coordinates/angles.py` wins over
+    /// `units/quantity.py` for no better reason than the letter `c`.
+    pub nominated_order: Vec<String>,
 }
 
 /// Narrowing-only exact-source bounds for one deferred structural expansion.
@@ -1555,6 +1561,7 @@ impl LocalEngine {
         let limits = structural_limits(context, budget, self.ids())?;
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
+        let limits = scoped_limits(limits, &snapshot.artifacts, scope);
         let mut remaining_facts = limits.facts;
         // Scoping decides density. The same allowance divided across sixteen
         // nominated files gives each of them hundreds of facts; divided across
@@ -2142,8 +2149,12 @@ impl LocalEngine {
         ),
         EngineError,
     > {
-        let selection = structural_seed_selection(&structural_request.graph, query)
-            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let selection = structural_seed_selection(
+            &structural_request.graph,
+            query,
+            &structural_request.nominated_order,
+        )
+        .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         let Some(primary) = selection.seeds.first() else {
             let reason_code = selection
                 .unknowns
@@ -4840,6 +4851,7 @@ struct StructuralSeedSelection {
 fn structural_seed_selection(
     graph: &StructuralGraph,
     query: &str,
+    nominated_order: &[String],
 ) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
@@ -4855,8 +4867,18 @@ fn structural_seed_selection(
         })
         .collect::<Result<Vec<_>, context_core::CoreErrorCode>>()?;
 
-    // (rank, portable path, node id) — the tuple is the deterministic order.
-    let mut candidates: Vec<(SeedRank, String, String)> = Vec::new();
+    // A file's position in the nomination, or one past the end when it was not
+    // nominated. Nomination ranked relevance using how many distinct task
+    // identifiers each file carries; seed rank only knows whether one name
+    // happened to be unique.
+    let nominated_position = |path: &str| -> usize {
+        nominated_order
+            .iter()
+            .position(|nominated| nominated == path)
+            .unwrap_or(nominated_order.len())
+    };
+    // (rank, nomination position, portable path, node id).
+    let mut candidates: Vec<(SeedRank, usize, String, String)> = Vec::new();
     let mut ambiguous_observed = false;
 
     let is_named_symbol = |node: &GraphNode, identifier: &str| {
@@ -4876,6 +4898,7 @@ fn structural_seed_selection(
         for (file, file_path) in &files {
             candidates.push((
                 SeedRank::UniqueExactFilePath,
+                nominated_position(file_path),
                 (*file_path).clone(),
                 file.node_id.clone(),
             ));
@@ -4886,6 +4909,7 @@ fn structural_seed_selection(
                 {
                     candidates.push((
                         SeedRank::UniqueSymbolInExactPath,
+                        nominated_position(symbol_path),
                         symbol_path.clone(),
                         symbol.node_id.clone(),
                     ));
@@ -4909,19 +4933,23 @@ fn structural_seed_selection(
             SeedRank::GloballyUniqueSymbol
         };
         for (symbol, path) in symbols {
-            candidates.push((rank, path.clone(), symbol.node_id.clone()));
+            candidates.push((
+                rank,
+                nominated_position(path),
+                path.clone(),
+                symbol.node_id.clone(),
+            ));
         }
     }
 
-    candidates.sort();
-    candidates.dedup_by(|left, right| left.2 == right.2);
+    sort_seed_candidates(&mut candidates);
 
     let mut selection = StructuralSeedSelection::default();
     let admitted = candidates.len().min(MAX_STRUCTURAL_SEEDS);
     if candidates.len() > MAX_STRUCTURAL_SEEDS {
         selection.unknowns.push("structural_seed_limit_reached");
     }
-    for (rank, _, node_id) in candidates.into_iter().take(admitted) {
+    for (rank, _, _, node_id) in candidates.into_iter().take(admitted) {
         selection.seeds.push(StructuralSeed {
             node_id,
             reason_code: rank.reason_code(),
@@ -5596,6 +5624,57 @@ fn supported_file_count(
             .count(),
     )
     .unwrap_or(u32::MAX)
+}
+
+/// Order seed candidates and drop duplicates of the same node.
+///
+/// Rank first, then the nomination position, so a name shared by several files
+/// resolves to the file the task is about rather than to whichever path sorts
+/// first alphabetically.
+fn sort_seed_candidates(candidates: &mut Vec<(SeedRank, usize, String, String)>) {
+    candidates.sort();
+    candidates.dedup_by(|left, right| left.3 == right.3);
+}
+
+/// Raise the fact allowance when a build is scoped to nominated files.
+///
+/// A scope is a couple of dozen files rather than a repository, so it receives
+/// the whole admitted residency allowance instead of a repository-wide budget
+/// that leaves each file a few hundred facts.
+fn scoped_limits(
+    mut limits: StructuralLimits,
+    artifacts: &[context_workspace::ArtifactRecord],
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> StructuralLimits {
+    if scope.is_some() {
+        limits.facts = scoped_fact_allowance(supported_file_count(artifacts, limits.files, scope))
+            .max(limits.facts);
+    }
+    limits
+}
+
+/// Repository-wide fact allowance for a scoped build.
+///
+/// The store caps a serialized graph at 16 MiB and one fact costs roughly 530
+/// bytes of it, so about 31,600 facts fit. This leaves headroom under that.
+///
+/// A scope is bounded at a couple of dozen files, so the whole allowance is
+/// spent on them rather than reserving a fixed share each. Measured need: a
+/// 2,229-line Python module yields 3,337 facts, and a per-file share below that
+/// truncates its later declarations — which is how a seed ends up anchored in a
+/// small sibling that fitted whole.
+const MAX_SCOPED_FACTS: u32 = 28_000;
+
+/// Fact allowance for a build scoped to `supported_files` nominated files.
+///
+/// Zero supported files ask for nothing; otherwise the scope receives the whole
+/// admitted residency allowance.
+const fn scoped_fact_allowance(supported_files: u32) -> u32 {
+    if supported_files == 0 {
+        0
+    } else {
+        MAX_SCOPED_FACTS
+    }
 }
 
 /// Whether one artifact belongs to the admitted structural scope.
@@ -6299,6 +6378,59 @@ mod tests {
     }
 
     #[test]
+    fn a_scope_receives_the_whole_residency_allowance() {
+        // A scope is a couple of dozen files, not a repository. Measured need:
+        // a 2,229-line Python module yields 3,337 facts, and the repository
+        // budget left it 667 — enough to truncate the declaration the task
+        // named.
+        assert_eq!(scoped_fact_allowance(9), MAX_SCOPED_FACTS);
+        assert_eq!(scoped_fact_allowance(16), MAX_SCOPED_FACTS);
+        assert_eq!(scoped_fact_allowance(0), 0);
+        // Nine nominated files must each afford a real module.
+        const { assert!(MAX_SCOPED_FACTS / 9 > 3_000) };
+    }
+
+    #[test]
+    fn nomination_order_breaks_a_shared_name_before_the_alphabet_does() {
+        let mut candidates = vec![
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                5,
+                "astropy/coordinates/angles.py".to_owned(),
+                "node-angles".to_owned(),
+            ),
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                3,
+                "astropy/units/quantity.py".to_owned(),
+                "node-quantity".to_owned(),
+            ),
+        ];
+        sort_seed_candidates(&mut candidates);
+        // Alphabetically `coordinates` wins; by nomination `units` does, and
+        // nomination is the signal that knows what the task is about.
+        assert_eq!(candidates[0].3, "node-quantity");
+
+        // Without a nomination the order stays deterministic by path.
+        let mut unranked = vec![
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                0,
+                "b.py".to_owned(),
+                "node-b".to_owned(),
+            ),
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                0,
+                "a.py".to_owned(),
+                "node-a".to_owned(),
+            ),
+        ];
+        sort_seed_candidates(&mut unranked);
+        assert_eq!(unranked[0].3, "node-a");
+    }
+
+    #[test]
     fn scope_admits_only_nominated_files_and_no_scope_admits_everything() {
         let nominated: std::collections::BTreeSet<String> =
             ["a.py".to_owned(), "pkg/b.py".to_owned()]
@@ -6672,6 +6804,7 @@ mod tests {
         let exact = structural_seed_selection(
             &graph,
             "Inspect reviewed_change in review.ts and explain its helper call",
+            &[],
         )
         .expect("seed");
         assert_eq!(
@@ -6681,18 +6814,19 @@ mod tests {
         let reordered_non_signal = structural_seed_selection(
             &graph,
             "Could you carefully explain reviewed_change in review.ts",
+            &[],
         )
         .expect("reordered non-signal seed");
         assert_eq!(exact, reordered_non_signal);
 
-        let file = structural_seed_selection(&graph, "Inspect review.ts").expect("file seed");
+        let file = structural_seed_selection(&graph, "Inspect review.ts", &[]).expect("file seed");
         assert_eq!(
             file.seeds.first().map(|seed| seed.reason_code),
             Some("unique_exact_file_path")
         );
 
         let global =
-            structural_seed_selection(&graph, "Inspect reviewed_change").expect("global seed");
+            structural_seed_selection(&graph, "Inspect reviewed_change", &[]).expect("global seed");
         assert_eq!(
             global.seeds.first().map(|seed| seed.reason_code),
             Some("globally_unique_symbol")
@@ -6701,7 +6835,7 @@ mod tests {
         // An ambiguous name is now retained and disclosed rather than
         // abandoned. Returning nothing was strictly worse than returning a
         // ranked list with the ambiguity recorded.
-        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name")
+        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name", &[])
             .expect("ambiguous seed");
         assert!(ambiguous.seeds.len() > 1);
         assert!(
@@ -6716,6 +6850,7 @@ mod tests {
         let unavailable = structural_seed_selection(
             &graph,
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
+            &[],
         )
         .expect("unavailable seed");
         assert!(unavailable.seeds.is_empty());
@@ -6728,7 +6863,7 @@ mod tests {
         // Every seed set stays bounded and deterministically ordered.
         assert!(exact.seeds.len() <= MAX_STRUCTURAL_SEEDS);
         assert!(ambiguous.seeds.len() <= MAX_STRUCTURAL_SEEDS);
-        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name")
+        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name", &[])
             .expect("repeat ambiguous seed");
         assert_eq!(ambiguous, repeated);
 
@@ -6738,6 +6873,7 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "Inspect reviewed_change in review.ts and explain its helper call",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6791,6 +6927,7 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "Investigate duplicate_name",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6822,6 +6959,7 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ../escape",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6845,6 +6983,7 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "Inspect reviewed_change in review.ts",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
                     graph: stale_graph,
                     edge_kinds: vec!["calls".into()],
                 },
