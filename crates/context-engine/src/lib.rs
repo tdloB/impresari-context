@@ -874,6 +874,10 @@ impl LocalEngine {
         for artifact in snapshot
             .artifacts
             .iter()
+            // A changelog, a CI manifest and a README declare nothing. Indexing
+            // them let a prose line opening with a keyword declare a name,
+            // which put `CHANGES.rst` at the top of a nomination.
+            .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
             .take(crate::identifier_index::MAX_INDEXED_FILES)
         {
             // An unreadable file contributes nothing and must not fail
@@ -4782,7 +4786,24 @@ fn task_signals(query: &str) -> TaskSignals {
 /// index passes a closure that admits nothing and gets exactly the previous
 /// behaviour.
 fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignals {
-    let admitted = |token: &str| is_code_identifier_signal(token) || declares(token);
+    // A bare word must be a *type* name to enter on the repository's say-so.
+    //
+    // Measured, the declaring-file count cannot tell a name from a word:
+    // `Header` is declared in one file and so are `a`, `but`, `can`, `work`,
+    // `string` and `type`, while `fromstring` is declared in four and so are
+    // `does` and `that`. Twelve of sixteen identifier slots on `astropy-8707`
+    // were ordinary prose admitted this way.
+    //
+    // Case does separate them. A capitalised bare word the repository declares
+    // is the single-word class name this rule exists for — `Header`, `Card`,
+    // `Quantity`, `WCS` — and a lowercase one is almost always prose. A
+    // lowercase method name still enters through a dotted access, where the
+    // position carries the evidence the word itself lacks.
+    let admitted = |token: &str| {
+        is_code_identifier_signal(token)
+            || (token.starts_with(|character: char| character.is_ascii_uppercase())
+                && declares(token))
+    };
     let mut signals = TaskSignals::default();
     extract_quoted_signals(query, &mut signals.quoted);
 
@@ -4804,7 +4825,11 @@ fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignal
         // and `numpy.__version__` never match a symbol; `remove_column` and
         // `__version__` do.
         if let Some((receiver, member)) = token.rsplit_once('.') {
-            if admitted(member) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
+            // A dotted member carries its own evidence: `Header.fromstring`
+            // names a method whatever its case, unlike a bare `fromstring`.
+            if (is_code_identifier_signal(member) || declares(member))
+                && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
+            {
                 push_unique_text(&mut signals.identifiers, member.to_owned());
             }
             // The receiver is usually a variable — `ts` in `ts.remove_column` —
@@ -6853,6 +6878,48 @@ mod tests {
             task_signals(query).identifiers,
             task_signals_with(query, &|_| false).identifiers
         );
+    }
+
+    #[test]
+    fn a_lowercase_word_the_repository_declares_is_not_a_bare_identifier() {
+        // Measured on `astropy-8707`, twelve of sixteen identifier slots were
+        // prose admitted because some file declared the word. The declaring
+        // file count does not separate them: `Header` is declared in one file
+        // and so are `a`, `but`, `can`, `work` and `string`.
+        let declares_everything = |_: &str| true;
+        let signals = task_signals_with(
+            "the method creates a string header that does work here",
+            &declares_everything,
+        );
+        for prose in [
+            "method", "creates", "a", "string", "header", "does", "work", "here", "that",
+        ] {
+            assert!(
+                !signals.identifiers.contains(&prose.to_owned()),
+                "{prose} must not be admitted as a bare identifier"
+            );
+        }
+    }
+
+    #[test]
+    fn a_declared_type_name_and_a_dotted_member_both_still_enter() {
+        // The two shapes IC-DAN-131 exists for must survive the tightening.
+        let declares =
+            |name: &str| matches!(name, "Header" | "Card" | "Quantity" | "WCS" | "fromstring");
+        for bare in ["Header", "Card", "Quantity", "WCS"] {
+            let signals = task_signals_with(&format!("{bare} misbehaves"), &declares);
+            assert!(
+                signals.identifiers.contains(&bare.to_owned()),
+                "{bare} must still be admitted"
+            );
+        }
+        // `astropy-8707` writes `Header.fromstring` and bare `Header` never.
+        let dotted = task_signals_with("Header.fromstring rejects bytes", &declares);
+        assert!(dotted.identifiers.contains(&"Header".to_owned()));
+        assert!(dotted.identifiers.contains(&"fromstring".to_owned()));
+        // The same word bare, without the dotted position, stays out.
+        let bare = task_signals_with("fromstring rejects bytes", &declares);
+        assert!(!bare.identifiers.contains(&"fromstring".to_owned()));
     }
 
     #[test]
