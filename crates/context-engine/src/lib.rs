@@ -343,6 +343,12 @@ pub struct StructuralSeedRequest {
     /// which is unrelated to relevance: `coordinates/angles.py` wins over
     /// `units/quantity.py` for no better reason than the letter `c`.
     pub nominated_order: Vec<String>,
+    /// Identifiers nomination admitted, including any the shape rule alone
+    /// would have rejected because the repository declares them (IC-DAN-131).
+    ///
+    /// Carried rather than re-derived so the two stages cannot disagree about
+    /// what the task named.
+    pub admitted_identifiers: Vec<String>,
 }
 
 /// Narrowing-only exact-source bounds for one deferred structural expansion.
@@ -926,12 +932,18 @@ impl LocalEngine {
             ));
         }
         let (query, _) = bounded_task_query(query);
-        let signals = task_signals(query);
         let snapshot_id = self
             .snapshot
             .as_ref()
             .map(|snapshot| snapshot.snapshot_id.clone())
             .unwrap_or_default();
+        // The repository decides what looks like code. A single-word class name
+        // fails the shape rule, and the index knows whether the snapshot
+        // declares it distinctly enough to identify a file.
+        let index = self.identifier_index.as_ref();
+        let signals = task_signals_with(query, &|name| {
+            index.is_some_and(|index| index.declares(&snapshot_id, name).unwrap_or(false))
+        });
         let tracked: BTreeSet<String> = self
             .snapshot
             .as_ref()
@@ -955,10 +967,21 @@ impl LocalEngine {
             })
             .unwrap_or_default();
 
+        let declaration_matches = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| {
+                index
+                    .declaration_matches(&snapshot_id, &signals.identifiers)
+                    .ok()
+            })
+            .unwrap_or_default();
+
         let nomination = crate::file_nomination::nominate_files(
             &signals.paths,
             &signals.identifiers,
             &tracked,
+            &declaration_matches,
             &identifier_matches,
         );
         let scope: BTreeSet<String> = nomination
@@ -2153,6 +2176,7 @@ impl LocalEngine {
             &structural_request.graph,
             query,
             &structural_request.nominated_order,
+            &structural_request.admitted_identifiers,
         )
         .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         let Some(primary) = selection.seeds.first() else {
@@ -4746,6 +4770,19 @@ fn push_unique_planned_step(
 }
 
 fn task_signals(query: &str) -> TaskSignals {
+    task_signals_with(query, &|_| false)
+}
+
+/// Task signals, with an oracle that can admit a name the shape rule rejects.
+///
+/// `declares` answers whether the repository declares a name distinctly enough
+/// to identify a file (IC-DAN-131). Shape alone rejects every single-word class
+/// name — `Header`, `Card`, `Quantity` — which is the commonest shape a class
+/// takes, so a caller holding an index passes one here. A caller without an
+/// index passes a closure that admits nothing and gets exactly the previous
+/// behaviour.
+fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignals {
+    let admitted = |token: &str| is_code_identifier_signal(token) || declares(token);
     let mut signals = TaskSignals::default();
     extract_quoted_signals(query, &mut signals.quoted);
 
@@ -4766,19 +4803,24 @@ fn task_signals(query: &str) -> TaskSignals {
         // component is the name a graph node actually carries. `ts.remove_column`
         // and `numpy.__version__` never match a symbol; `remove_column` and
         // `__version__` do.
-        if let Some((_, member)) = token.rsplit_once('.')
-            && is_code_identifier_signal(member)
-            && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
-        {
-            push_unique_text(&mut signals.identifiers, member.to_owned());
+        if let Some((receiver, member)) = token.rsplit_once('.') {
+            if admitted(member) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
+                push_unique_text(&mut signals.identifiers, member.to_owned());
+            }
+            // The receiver is usually a variable — `ts` in `ts.remove_column` —
+            // and naming it would be noise. When the repository *declares* it,
+            // it is a type instead, and often the only place the task names the
+            // class at all: `astropy-8707` writes `Header.fromstring` five
+            // times and bare `Header` never.
+            if declares(receiver) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
+                push_unique_text(&mut signals.identifiers, receiver.to_owned());
+            }
         }
         if is_portable_path_signal(&token) {
             if signals.paths.len() < MAX_TASK_SIGNAL_TOKENS {
                 push_unique_text(&mut signals.paths, token);
             }
-        } else if is_code_identifier_signal(&token)
-            && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
-        {
+        } else if admitted(&token) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
             push_unique_text(&mut signals.identifiers, token);
         }
     }
@@ -4848,16 +4890,42 @@ struct StructuralSeedSelection {
 /// common useful signal about where to look, and returning nothing is strictly
 /// worse than returning a ranked list with the ambiguity disclosed. Selection
 /// yields nothing only when no signal matches any node.
+/// Task signals for seeding, carrying nomination's admission decision.
+///
+/// Admission was decided once, during nomination, by an index that knows
+/// whether a name is declared distinctly enough to identify a file. Reusing
+/// that answer keeps the two stages from disagreeing about what the task named,
+/// and keeps prose from steering selection: deriving an oracle from the graph
+/// instead would make any English word matching a symbol here a signal, so
+/// "explain its helper call" would seed on `helper`.
+fn seed_signals(query: &str, admitted_identifiers: &[String]) -> TaskSignals {
+    let mut signals = task_signals(query);
+    for identifier in admitted_identifiers {
+        if signals.identifiers.len() >= MAX_TASK_SIGNAL_TOKENS {
+            break;
+        }
+        push_unique_text(&mut signals.identifiers, identifier.clone());
+    }
+    signals
+}
+
 fn structural_seed_selection(
     graph: &StructuralGraph,
     query: &str,
     nominated_order: &[String],
+    admitted_identifiers: &[String],
 ) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let (query, query_truncated) = bounded_task_query(query);
-    let signals = task_signals(query);
+    // Admission was decided once, during nomination, by an index that knows
+    // whether a name is declared distinctly enough to identify a file. Reusing
+    // that answer keeps the two stages from disagreeing about what the task
+    // named, and keeps prose from steering selection: deriving the oracle from
+    // this graph instead would make any English word matching a symbol here a
+    // signal, so "explain its helper call" would seed on `helper`.
+    let signals = seed_signals(query, admitted_identifiers);
     let nodes = graph
         .nodes
         .iter()
@@ -6752,6 +6820,56 @@ mod tests {
     }
 
     #[test]
+    fn the_repository_can_admit_a_name_shape_alone_rejects() {
+        // Every single-word class name fails the shape rule, which is the
+        // commonest shape a class takes.
+        for name in ["Header", "Card", "Quantity", "Table", "WCS", "HDUList"] {
+            assert!(
+                !is_code_identifier_signal(name),
+                "{name} should fail the shape rule"
+            );
+        }
+        let query = "Header.fromstring does not accept Python 3 bytes";
+        let shape_only = task_signals(query);
+        assert!(!shape_only.identifiers.contains(&"Header".to_owned()));
+
+        // `astropy-8707` writes `Header.fromstring` five times and bare
+        // `Header` never, so the receiver of a dotted access has to be reached.
+        let declared = task_signals_with(query, &|name| name == "Header");
+        assert!(declared.identifiers.contains(&"Header".to_owned()));
+
+        // A receiver the repository does not declare is a variable, and stays
+        // out.
+        let variable = task_signals_with("ts.remove_column drops a column", &|_| false);
+        assert!(variable.identifiers.contains(&"remove_column".to_owned()));
+        assert!(!variable.identifiers.contains(&"ts".to_owned()));
+    }
+
+    #[test]
+    fn an_oracle_that_declares_nothing_changes_nothing() {
+        // The shape rule stays the answer whenever no index is available.
+        let query = "Investigate TimeSeries and _required_columns in table.py";
+        assert_eq!(
+            task_signals(query).identifiers,
+            task_signals_with(query, &|_| false).identifiers
+        );
+    }
+
+    #[test]
+    fn a_prose_word_the_repository_never_declares_is_still_rejected() {
+        let signals = task_signals_with(
+            "The Description explains that Something Happened here",
+            &|name| name == "Header",
+        );
+        for prose in ["Description", "Something", "Happened", "The"] {
+            assert!(
+                !signals.identifiers.contains(&prose.to_owned()),
+                "{prose} must stay out"
+            );
+        }
+    }
+
+    #[test]
     #[allow(clippy::too_many_lines)]
     fn structural_seed_selection_is_deterministic_bounded_and_non_oracular() {
         let source = TestRoot::new("structural-seed-source");
@@ -6856,6 +6974,7 @@ mod tests {
             &graph,
             "Inspect reviewed_change in review.ts and explain its helper call",
             &[],
+            &[],
         )
         .expect("seed");
         assert_eq!(
@@ -6866,18 +6985,20 @@ mod tests {
             &graph,
             "Could you carefully explain reviewed_change in review.ts",
             &[],
+            &[],
         )
         .expect("reordered non-signal seed");
         assert_eq!(exact, reordered_non_signal);
 
-        let file = structural_seed_selection(&graph, "Inspect review.ts", &[]).expect("file seed");
+        let file =
+            structural_seed_selection(&graph, "Inspect review.ts", &[], &[]).expect("file seed");
         assert_eq!(
             file.seeds.first().map(|seed| seed.reason_code),
             Some("unique_exact_file_path")
         );
 
-        let global =
-            structural_seed_selection(&graph, "Inspect reviewed_change", &[]).expect("global seed");
+        let global = structural_seed_selection(&graph, "Inspect reviewed_change", &[], &[])
+            .expect("global seed");
         assert_eq!(
             global.seeds.first().map(|seed| seed.reason_code),
             Some("globally_unique_symbol")
@@ -6886,7 +7007,7 @@ mod tests {
         // An ambiguous name is now retained and disclosed rather than
         // abandoned. Returning nothing was strictly worse than returning a
         // ranked list with the ambiguity recorded.
-        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name", &[])
+        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name", &[], &[])
             .expect("ambiguous seed");
         assert!(ambiguous.seeds.len() > 1);
         assert!(
@@ -6902,6 +7023,7 @@ mod tests {
             &graph,
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
             &[],
+            &[],
         )
         .expect("unavailable seed");
         assert!(unavailable.seeds.is_empty());
@@ -6914,7 +7036,7 @@ mod tests {
         // Every seed set stays bounded and deterministically ordered.
         assert!(exact.seeds.len() <= MAX_STRUCTURAL_SEEDS);
         assert!(ambiguous.seeds.len() <= MAX_STRUCTURAL_SEEDS);
-        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name", &[])
+        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name", &[], &[])
             .expect("repeat ambiguous seed");
         assert_eq!(ambiguous, repeated);
 
@@ -6925,6 +7047,7 @@ mod tests {
                 "Inspect reviewed_change in review.ts and explain its helper call",
                 &StructuralSeedRequest {
                     nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6979,6 +7102,7 @@ mod tests {
                 "Investigate duplicate_name",
                 &StructuralSeedRequest {
                     nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -7011,6 +7135,7 @@ mod tests {
                 "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ../escape",
                 &StructuralSeedRequest {
                     nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -7035,6 +7160,7 @@ mod tests {
                 "Inspect reviewed_change in review.ts",
                 &StructuralSeedRequest {
                     nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: stale_graph,
                     edge_kinds: vec!["calls".into()],
                 },

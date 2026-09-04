@@ -182,6 +182,7 @@ fn run_arm(
                 &fixture.task,
                 &StructuralSeedRequest {
                     nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: fixture.edge_kinds.clone(),
                 },
