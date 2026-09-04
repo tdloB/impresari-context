@@ -367,6 +367,8 @@ fn civil_from_days(days_since_epoch: i64) -> (i64, i64, i64) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
 
     fn arguments() -> Vec<String> {
@@ -385,9 +387,20 @@ mod tests {
         .collect()
     }
 
+    /// Distinguishes concurrent fixtures within one test binary.
+    ///
+    /// `unique_seed` is pid plus nanoseconds, and every test in a binary shares
+    /// the pid. Two tests scheduled inside the same clock tick — routine on
+    /// Windows, whose timer is coarser — then derive the same root, and each
+    /// removes it on the way out, so the other's fixture vanishes mid-test.
+    static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
+
     fn absolute_fixture() -> (PathBuf, PathBuf, PathBuf, PathBuf, PathBuf) {
-        let root =
-            std::env::temp_dir().join(format!("context-mcp-main-test-{}", unique_seed().unwrap()));
+        let sequence = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "context-mcp-main-test-{}-{sequence}",
+            unique_seed().unwrap()
+        ));
         let workspace = root.join("workspace");
         let cache = root.join("cache");
         let worker = root.join("worker");
