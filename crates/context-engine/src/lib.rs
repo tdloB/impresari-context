@@ -4799,13 +4799,21 @@ fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignal
     // `Quantity`, `WCS` — and a lowercase one is almost always prose. A
     // lowercase method name still enters through a dotted access, where the
     // position carries the evidence the word itself lacks.
-    let admitted = |token: &str| {
-        is_code_identifier_signal(token)
-            || (token.starts_with(|character: char| character.is_ascii_uppercase())
-                && declares(token))
-    };
     let mut signals = TaskSignals::default();
     extract_quoted_signals(query, &mut signals.quoted);
+    // A word the author wrapped in backticks or quotes is marked as code by
+    // the person writing the report. That is explicit authored markup, not the
+    // token's position in a sentence, so it carries evidence a bare lowercase
+    // word does not: `astropy-7671` is about `minversion`, a lowercase
+    // function named bare seven times and backticked twice.
+    let quoted: std::collections::BTreeSet<&str> =
+        signals.quoted.iter().map(String::as_str).collect();
+    let admitted = |token: &str| {
+        is_code_identifier_signal(token)
+            || (declares(token)
+                && (token.starts_with(|character: char| character.is_ascii_uppercase())
+                    || quoted.contains(token)))
+    };
 
     let tokens = query
         .split(|character: char| {
@@ -6899,6 +6907,30 @@ mod tests {
                 "{prose} must not be admitted as a bare identifier"
             );
         }
+    }
+
+    #[test]
+    fn a_lowercase_name_the_author_marked_as_code_still_enters() {
+        // `astropy-7671` is about `minversion`: a lowercase function named
+        // bare seven times and backticked twice. Backticks are the report
+        // author marking code explicitly, which is evidence the bare word
+        // itself does not carry.
+        let declares = |name: &str| name == "minversion";
+        let backticked = task_signals_with(
+            "The change causes `minversion` to fail in certain cases",
+            &declares,
+        );
+        assert!(backticked.identifiers.contains(&"minversion".to_owned()));
+
+        let bare = task_signals_with("The change causes minversion to fail", &declares);
+        assert!(!bare.identifiers.contains(&"minversion".to_owned()));
+    }
+
+    #[test]
+    fn quoting_a_prose_word_does_not_make_it_an_identifier() {
+        // Marking still requires the repository to declare the name.
+        let signals = task_signals_with("this is `really` annoying", &|_| false);
+        assert!(!signals.identifiers.contains(&"really".to_owned()));
     }
 
     #[test]
