@@ -955,17 +955,40 @@ impl LocalEngine {
             })
             .unwrap_or_default();
 
+        // Reach draws siblings only from files the product can parse, so a
+        // scope slot is never spent on a file structural extraction will skip.
+        let admitted_paths = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| index.admitted_paths(&snapshot_id).ok())
+            .unwrap_or_default();
+
         let nomination = crate::file_nomination::nominate_files(
             &signals.paths,
             &signals.identifiers,
             &tracked,
+            &admitted_paths,
             &identifier_matches,
         );
-        let scope: BTreeSet<String> = nomination
-            .files
-            .iter()
-            .map(|file| file.display_path.clone())
-            .collect();
+        // Split by ground, so extraction can spend the allowance on files the
+        // task named before files reach inferred.
+        let is_reach = |file: &crate::file_nomination::NominatedFile| {
+            file.reason_code == crate::file_nomination::REACH_REASON_CODE
+        };
+        let scope = StructuralScope::new(
+            nomination
+                .files
+                .iter()
+                .filter(|file| !is_reach(file))
+                .map(|file| file.display_path.clone())
+                .collect(),
+            nomination
+                .files
+                .iter()
+                .filter(|file| is_reach(file))
+                .map(|file| file.display_path.clone())
+                .collect(),
+        );
         // A distinct audit identity: the caller's own context is still to be
         // used for the context build that follows, and the store rejects a
         // duplicate event identity.
@@ -992,9 +1015,9 @@ impl LocalEngine {
         context: &RequestContext,
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
-        paths: &std::collections::BTreeSet<String>,
+        scope: &StructuralScope,
     ) -> Result<StructuralGraph, EngineError> {
-        self.build_structure_scoped(context, budget, launcher, Some(paths))
+        self.build_structure_scoped(context, budget, launcher, Some(scope))
     }
 
     /// Build a structural graph over every eligible file in the snapshot.
@@ -1022,7 +1045,7 @@ impl LocalEngine {
         context: &RequestContext,
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
-        scope: Option<&std::collections::BTreeSet<String>>,
+        scope: Option<&StructuralScope>,
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
@@ -1541,7 +1564,7 @@ impl LocalEngine {
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
         started: Instant,
-        scope: Option<&std::collections::BTreeSet<String>>,
+        scope: Option<&StructuralScope>,
     ) -> Result<StructuralGraph, EngineError> {
         let snapshot = self
             .snapshot
@@ -1562,25 +1585,87 @@ impl LocalEngine {
         let mut files = Vec::new();
         let mut unknowns = Vec::new();
         let limits = scoped_limits(limits, &snapshot.artifacts, scope);
-        let mut remaining_facts = limits.facts;
-        // Scoping decides density. The same allowance divided across sixteen
-        // nominated files gives each of them hundreds of facts; divided across
-        // a whole repository it gives each of them about one.
-        let in_scope = |artifact: &&context_workspace::ArtifactRecord| {
-            artifact_in_scope(&artifact.path.display_path, scope)
-        };
-        let mut remaining_supported_files =
-            supported_file_count(&snapshot.artifacts, limits.files, scope);
-        if scope.is_some() {
+        if let Some(scope) = scope {
             // A scoped graph is dense but partial and must never read as a
             // whole-repository one.
             unknowns.push("structural_scope_limited_to_nominated_files".into());
+            if scope.has_reach() {
+                // Some of these files the task never named. Say which kind of
+                // coverage this is, not merely that it is partial.
+                unknowns.push("structural_scope_includes_reach_expanded_files".into());
+            }
         }
+        // Scoping decides density. The same allowance divided across sixteen
+        // nominated files gives each of them hundreds of facts; divided across
+        // a whole repository it gives each of them about one.
+        //
+        // Nominated files take their share first and reach-expanded files
+        // divide only what survives, so an inferred file cannot thin one the
+        // task named. An unscoped build has a single pass over everything.
+        let tiers: &[ScopeTier] = if scope.is_some() {
+            &[ScopeTier::Nominated, ScopeTier::Reach]
+        } else {
+            &[ScopeTier::Nominated]
+        };
+        let mut remaining_facts = limits.facts;
+        for tier in tiers.iter().copied() {
+            self.extract_scope_tier(
+                &ExtractionPass {
+                    context,
+                    launcher,
+                    limits,
+                    started,
+                    scope,
+                    tier,
+                },
+                &snapshot,
+                &mut remaining_facts,
+                &mut files,
+                &mut unknowns,
+            )?;
+        }
+        unknowns.dedup();
+        if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
+            unknowns.push("structural_file_limit_reached".into());
+        }
+        build_graph_with_unknowns(&snapshot.snapshot_id, files, unknowns).map_err(|error| {
+            structural_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &snapshot.snapshot_id,
+            )
+        })
+    }
+
+    /// Extract one scope tier, spending from the shared fact allowance.
+    ///
+    /// The divisor counts only this tier's files, so nominated files split the
+    /// whole allowance between themselves and reach-expanded files split what
+    /// is left. Unspent share rolls forward within a tier as before.
+    fn extract_scope_tier(
+        &mut self,
+        pass: &ExtractionPass<'_>,
+        snapshot: &WorkspaceSnapshot,
+        remaining_facts: &mut u32,
+        files: &mut Vec<GraphFileInput>,
+        unknowns: &mut Vec<String>,
+    ) -> Result<(), EngineError> {
+        let ExtractionPass {
+            context,
+            launcher,
+            limits,
+            started,
+            scope,
+            tier,
+        } = *pass;
+        let mut remaining_supported_files =
+            supported_file_count(&snapshot.artifacts, limits.files, scope, tier);
         for artifact in snapshot
             .artifacts
             .iter()
             .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
-            .filter(in_scope)
+            .filter(|artifact| artifact_in_scope(&artifact.path.display_path, scope, tier))
         {
             if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
             {
@@ -1599,7 +1684,7 @@ impl LocalEngine {
                 continue;
             };
             let Some(file_fact_quota) =
-                structural_fact_quota(remaining_facts, remaining_supported_files)
+                structural_fact_quota(*remaining_facts, remaining_supported_files)
             else {
                 unknowns.push("structural_fact_limit_reached".into());
                 break;
@@ -1626,7 +1711,7 @@ impl LocalEngine {
             let request = structural_request(context, language, exact, file_limits);
             let response =
                 self.load_or_parse_structural(context, &snapshot.snapshot_id, &request, launcher)?;
-            remaining_facts = remaining_facts
+            *remaining_facts = remaining_facts
                 .saturating_sub(u32::try_from(response.facts.len()).unwrap_or(u32::MAX));
             remaining_supported_files = remaining_supported_files.saturating_sub(1);
             files.push(GraphFileInput {
@@ -1634,17 +1719,7 @@ impl LocalEngine {
                 response,
             });
         }
-        if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
-            unknowns.push("structural_file_limit_reached".into());
-        }
-        build_graph_with_unknowns(&snapshot.snapshot_id, files, unknowns).map_err(|error| {
-            structural_failure(
-                context,
-                error,
-                self.workspace.identity(),
-                &snapshot.snapshot_id,
-            )
-        })
+        Ok(())
     }
 
     fn load_or_parse_structural(
@@ -2190,6 +2265,23 @@ impl LocalEngine {
                 .unknowns
                 .iter()
                 .map(|unknown| (*unknown).to_owned()),
+        );
+        // The graph knows things the traversal cannot: that coverage was scoped
+        // to nominated files, and whether any of those files the task never
+        // named. A consumer reading a partial map has to be told which kind of
+        // partial it is.
+        //
+        // Only the scope disclosures cross over. The graph's remaining unknowns
+        // are per-file parse detail — an unresolved call target, an unsupported
+        // language — which describe how the graph was built rather than what
+        // this map covers, and a consumer cannot act on them.
+        traversal.unknowns.extend(
+            structural_request
+                .graph
+                .unknowns
+                .iter()
+                .filter(|unknown| SCOPE_DISCLOSURES.contains(&unknown.as_str()))
+                .cloned(),
         );
         traversal.unknowns.sort();
         traversal.unknowns.dedup();
@@ -5634,13 +5726,14 @@ struct StructuralLimits {
 fn supported_file_count(
     artifacts: &[context_workspace::ArtifactRecord],
     file_limit: u64,
-    scope: Option<&std::collections::BTreeSet<String>>,
+    scope: Option<&StructuralScope>,
+    tier: ScopeTier,
 ) -> u32 {
     u32::try_from(
         artifacts
             .iter()
             .take(usize::try_from(file_limit).unwrap_or(usize::MAX))
-            .filter(|artifact| artifact_in_scope(&artifact.path.display_path, scope))
+            .filter(|artifact| artifact_in_scope(&artifact.path.display_path, scope, tier))
             .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
             .count(),
     )
@@ -5665,11 +5758,17 @@ fn sort_seed_candidates(candidates: &mut Vec<(SeedRank, usize, String, String)>)
 fn scoped_limits(
     mut limits: StructuralLimits,
     artifacts: &[context_workspace::ArtifactRecord],
-    scope: Option<&std::collections::BTreeSet<String>>,
+    scope: Option<&StructuralScope>,
 ) -> StructuralLimits {
     if scope.is_some() {
-        limits.facts = scoped_fact_allowance(supported_file_count(artifacts, limits.files, scope))
-            .max(limits.facts);
+        let supported = supported_file_count(artifacts, limits.files, scope, ScopeTier::Nominated)
+            .saturating_add(supported_file_count(
+                artifacts,
+                limits.files,
+                scope,
+                ScopeTier::Reach,
+            ));
+        limits.facts = scoped_fact_allowance(supported).max(limits.facts);
     }
     limits
 }
@@ -5698,15 +5797,119 @@ const fn scoped_fact_allowance(supported_files: u32) -> u32 {
     }
 }
 
+/// A bounded structural scope, split by how each file earned its place.
+///
+/// Extraction divides one fact allowance across the scope. Nominated files
+/// divide it among themselves and reach-expanded files divide only what
+/// survives, so a file the product inferred can never take density from a file
+/// the task named. Without the split, admitting a dozen siblings would lower
+/// every nominated file's share by a third — turning reach from an addition
+/// into a trade.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct StructuralScope {
+    nominated: std::collections::BTreeSet<String>,
+    reach: std::collections::BTreeSet<String>,
+}
+
+impl StructuralScope {
+    /// Build a scope from its two tiers.
+    ///
+    /// A path present in both is kept as nominated only: the graph builder
+    /// rejects a file offered twice, and the stronger ground wins.
+    #[must_use]
+    pub fn new(
+        nominated: std::collections::BTreeSet<String>,
+        mut reach: std::collections::BTreeSet<String>,
+    ) -> Self {
+        reach.retain(|path| !nominated.contains(path));
+        Self { nominated, reach }
+    }
+
+    /// A scope of nominated files with no reach expansion.
+    #[must_use]
+    pub fn nominated_only(nominated: std::collections::BTreeSet<String>) -> Self {
+        Self {
+            nominated,
+            reach: std::collections::BTreeSet::new(),
+        }
+    }
+
+    /// Whether the scope admits this path at all.
+    #[must_use]
+    pub fn contains(&self, display_path: &str) -> bool {
+        self.is_nominated(display_path) || self.is_reach(display_path)
+    }
+
+    /// Whether the task named or matched this path.
+    #[must_use]
+    pub fn is_nominated(&self, display_path: &str) -> bool {
+        self.nominated.contains(display_path)
+    }
+
+    /// Whether reach expansion admitted this path.
+    #[must_use]
+    pub fn is_reach(&self, display_path: &str) -> bool {
+        self.reach.contains(display_path)
+    }
+
+    /// Files admitted, both tiers.
+    #[must_use]
+    pub fn len(&self) -> usize {
+        self.nominated.len().saturating_add(self.reach.len())
+    }
+
+    /// Whether reach expansion admitted anything.
+    #[must_use]
+    pub fn has_reach(&self) -> bool {
+        !self.reach.is_empty()
+    }
+
+    /// Whether the scope admits nothing.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.nominated.is_empty() && self.reach.is_empty()
+    }
+}
+
+/// Graph unknowns that describe what a map covers rather than how it was built.
+///
+/// These cross from the graph into a consumer's omissions; the rest stay
+/// internal. A scoped map is partial in a way the consumer must know about,
+/// and a reach-expanded one is partial in a second way on top of it.
+const SCOPE_DISCLOSURES: [&str; 2] = [
+    "structural_scope_limited_to_nominated_files",
+    "structural_scope_includes_reach_expanded_files",
+];
+
+/// One extraction pass over a single scope tier.
+#[derive(Clone, Copy)]
+struct ExtractionPass<'a> {
+    context: &'a RequestContext,
+    launcher: &'a WorkerLauncher,
+    limits: StructuralLimits,
+    started: Instant,
+    scope: Option<&'a StructuralScope>,
+    tier: ScopeTier,
+}
+
+/// Which tier of a scope one extraction pass covers.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum ScopeTier {
+    /// Files the task named or matched. Extracted first, at full density.
+    Nominated,
+    /// Files reached by package proximity. Extracted from what survives.
+    Reach,
+}
+
 /// Whether one artifact belongs to the admitted structural scope.
 ///
 /// No scope means a whole-repository build, which is thin but complete. A scope
 /// means a nominated build, which is dense but partial.
-fn artifact_in_scope(
-    display_path: &str,
-    scope: Option<&std::collections::BTreeSet<String>>,
-) -> bool {
-    scope.is_none_or(|paths| paths.contains(display_path))
+fn artifact_in_scope(display_path: &str, scope: Option<&StructuralScope>, tier: ScopeTier) -> bool {
+    scope.is_none_or(|scope| match tier {
+        ScopeTier::Nominated => scope.is_nominated(display_path),
+        ScopeTier::Reach => scope.is_reach(display_path),
+    })
 }
 
 fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u32> {
@@ -6452,24 +6655,89 @@ mod tests {
     }
 
     #[test]
+    fn only_scope_disclosures_cross_from_the_graph_into_a_consumer_omission() {
+        // Per-file parse detail describes how the graph was built, not what
+        // this map covers, and a consumer cannot act on it.
+        assert!(SCOPE_DISCLOSURES.contains(&"structural_scope_limited_to_nominated_files"));
+        assert!(SCOPE_DISCLOSURES.contains(&"structural_scope_includes_reach_expanded_files"));
+        for internal in [
+            "unresolved_call_target",
+            "unresolved_module_import",
+            "unsupported_structural_language",
+            "structural_fact_limit_reached",
+        ] {
+            assert!(
+                !SCOPE_DISCLOSURES.contains(&internal),
+                "{internal} must stay internal"
+            );
+        }
+    }
+
+    #[test]
+    fn a_reach_file_is_extracted_in_its_own_pass_and_never_the_nominated_one() {
+        let scope = StructuralScope::new(
+            ["pkg/named.py".to_owned()].into_iter().collect(),
+            ["pkg/sibling.py".to_owned()].into_iter().collect(),
+        );
+        assert!(artifact_in_scope(
+            "pkg/named.py",
+            Some(&scope),
+            ScopeTier::Nominated
+        ));
+        assert!(!artifact_in_scope(
+            "pkg/named.py",
+            Some(&scope),
+            ScopeTier::Reach
+        ));
+        assert!(artifact_in_scope(
+            "pkg/sibling.py",
+            Some(&scope),
+            ScopeTier::Reach
+        ));
+        assert!(!artifact_in_scope(
+            "pkg/sibling.py",
+            Some(&scope),
+            ScopeTier::Nominated
+        ));
+        assert_eq!(scope.len(), 2);
+    }
+
+    #[test]
+    fn a_path_in_both_tiers_is_offered_once_as_nominated() {
+        // The graph builder rejects a file supplied twice, and the stronger
+        // ground is the one the task gave.
+        let scope = StructuralScope::new(
+            ["pkg/a.py".to_owned()].into_iter().collect(),
+            ["pkg/a.py".to_owned(), "pkg/b.py".to_owned()]
+                .into_iter()
+                .collect(),
+        );
+        assert!(scope.is_nominated("pkg/a.py"));
+        assert!(!scope.is_reach("pkg/a.py"));
+        assert_eq!(scope.len(), 2);
+    }
+
+    #[test]
     fn scope_admits_only_nominated_files_and_no_scope_admits_everything() {
-        let nominated: std::collections::BTreeSet<String> =
+        let scope = StructuralScope::nominated_only(
             ["a.py".to_owned(), "pkg/b.py".to_owned()]
                 .into_iter()
-                .collect();
-        assert!(artifact_in_scope("a.py", Some(&nominated)));
-        assert!(artifact_in_scope("pkg/b.py", Some(&nominated)));
-        assert!(!artifact_in_scope("pkg/c.py", Some(&nominated)));
+                .collect(),
+        );
+        let nominated = ScopeTier::Nominated;
+        assert!(artifact_in_scope("a.py", Some(&scope), nominated));
+        assert!(artifact_in_scope("pkg/b.py", Some(&scope), nominated));
+        assert!(!artifact_in_scope("pkg/c.py", Some(&scope), nominated));
         // A prefix or suffix of a nominated path is a different file.
-        assert!(!artifact_in_scope("b.py", Some(&nominated)));
-        assert!(!artifact_in_scope("pkg/b.pyc", Some(&nominated)));
+        assert!(!artifact_in_scope("b.py", Some(&scope), nominated));
+        assert!(!artifact_in_scope("pkg/b.pyc", Some(&scope), nominated));
 
         // No scope keeps whole-repository behaviour exactly.
-        assert!(artifact_in_scope("anything.py", None));
+        assert!(artifact_in_scope("anything.py", None, nominated));
 
         // An empty scope admits nothing rather than everything.
-        let empty = std::collections::BTreeSet::new();
-        assert!(!artifact_in_scope("a.py", Some(&empty)));
+        let empty = StructuralScope::default();
+        assert!(!artifact_in_scope("a.py", Some(&empty), nominated));
     }
 
     #[test]

@@ -30,6 +30,37 @@ pub const FILE_NOMINATION_SCHEMA_VERSION: &str = "1.0";
 /// nomination could steer it, and steering is oracle authority.
 pub const MAX_NOMINATED_FILES: usize = 16;
 
+/// Files admitted by package proximity beyond those the task names (IC-PPNR-130).
+///
+/// Fifteen of the sixteen reference files map recall misses are files the task
+/// report never names, so no ranking over task signals reaches them. Measured
+/// against those sixteen, following import edges out of a nominated file
+/// reaches one; files in the same package reach ten.
+///
+/// The ceiling admits a package whole. Measured on the corpus, packages holding
+/// a missed reference file carry 3 to 28 admitted files, and the missed file
+/// sits at alphabetical rank 1 to 23 within its package. A ceiling of twelve
+/// therefore cut `table/table.py` (rank 20 of 21), `io/ascii/rst.py` (17 of 20)
+/// and `builtin_frames/itrs.py` (23 of 28) — the exact files reach exists to
+/// admit — because truncation orders by path and a package is not alphabetical
+/// by relevance.
+///
+/// Thirty-two clears every package observed. It remains a guard against a
+/// pathological directory, not a selector: reach is meant to admit the
+/// neighbourhood, and a ceiling that trims it is choosing files by name.
+///
+/// Density is protected separately. Reach files divide only the fact allowance
+/// that nominated files leave, so a wider ceiling cannot thin a file the task
+/// named.
+///
+/// It is a closed constant for the same reason [`MAX_NOMINATED_FILES`] is: a
+/// caller able to widen reach could walk the scope toward a file it already
+/// wanted, which is oracle authority arriving through a configuration field.
+pub const MAX_REACH_FILES: usize = 32;
+
+/// Reason code marking a file admitted by reach rather than by task signal.
+pub const REACH_REASON_CODE: &str = "package_proximate_reach";
+
 /// Why one file was nominated.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum NominationRank {
@@ -37,6 +68,11 @@ pub enum NominationRank {
     ExactTaskPath,
     /// The file contains identifiers the task named.
     IdentifierMatch,
+    /// The file sits in the same package as the best-ranked nomination.
+    ///
+    /// Ordered last deliberately: a file the task named outranks one the
+    /// product inferred.
+    PackageProximateReach,
 }
 
 impl NominationRank {
@@ -46,6 +82,7 @@ impl NominationRank {
         match self {
             Self::ExactTaskPath => "exact_task_path",
             Self::IdentifierMatch => "task_identifier_match",
+            Self::PackageProximateReach => REACH_REASON_CODE,
         }
     }
 }
@@ -72,7 +109,11 @@ pub struct FileNomination {
     pub schema_version: String,
     /// Admitted files, best first.
     pub files: Vec<NominatedFile>,
-    /// Candidates considered before the ceiling applied.
+    /// Directly nominated candidates considered before the ceiling applied.
+    ///
+    /// Counts the files task signals reached. Reach-expanded files are not
+    /// candidates in this sense — they are admitted after the ranking closes —
+    /// so they are excluded here and disclosed by their own reason code.
     pub considered_files: u64,
     /// Explicit scope and shortfall reasons.
     pub unknowns: Vec<String>,
@@ -93,15 +134,17 @@ impl FileNomination {
 /// Nominate a bounded, ranked set of candidate files.
 ///
 /// `task_paths` and `task_identifiers` are admitted task signals.
-/// `tracked_paths` is the snapshot's file inventory. `identifier_matches` maps
-/// a portable path to the distinct task identifiers that file contains; the
-/// caller supplies it from whatever index it already holds, so nomination stays
-/// a pure ranking decision.
+/// `tracked_paths` is the snapshot's file inventory. `admitted_paths` is the
+/// subset this product can parse, from which reach draws siblings.
+/// `identifier_matches` maps a portable path to the distinct task identifiers
+/// that file contains; the caller supplies it from whatever index it already
+/// holds, so nomination stays a pure ranking decision.
 #[must_use]
 pub fn nominate_files(
     task_paths: &[String],
     task_identifiers: &[String],
     tracked_paths: &BTreeSet<String>,
+    admitted_paths: &BTreeSet<String>,
     identifier_matches: &BTreeMap<String, BTreeSet<String>>,
 ) -> FileNomination {
     let admitted_identifiers: BTreeSet<&str> =
@@ -160,6 +203,25 @@ pub fn nominate_files(
     if files.is_empty() {
         unknowns.push("no_candidate_file_nominated".to_owned());
     }
+
+    // Reach runs after ranking has closed and after the truncation verdict is
+    // recorded, so it can neither promote a file above a direct nomination nor
+    // inflate the file count into hiding that direct candidates were dropped.
+    let (reach, reach_truncated) = package_proximate_reach(
+        files.first(),
+        admitted_paths,
+        &seen,
+        identifier_matches,
+        &admitted_identifiers,
+    );
+    if !reach.is_empty() {
+        unknowns.push("structural_scope_includes_reach_expanded_files".to_owned());
+    }
+    if reach_truncated {
+        unknowns.push("reach_ceiling_reached".to_owned());
+    }
+    files.extend(reach);
+
     unknowns.sort();
     unknowns.dedup();
 
@@ -170,6 +232,66 @@ pub fn nominate_files(
         considered_files,
         unknowns,
     }
+}
+
+/// Admit the anchor's package siblings, best first, bounded.
+///
+/// The anchor is the single highest-ranked direct nomination. Two anchors were
+/// measured and reach one further reference file for three more admitted files;
+/// three anchors reach none for ten more. The scoped fact allowance is divided
+/// across the scope, so those extra files thin every file already in it.
+fn package_proximate_reach(
+    anchor: Option<&NominatedFile>,
+    admitted_paths: &BTreeSet<String>,
+    nominated: &BTreeSet<&str>,
+    identifier_matches: &BTreeMap<String, BTreeSet<String>>,
+    admitted_identifiers: &BTreeSet<&str>,
+) -> (Vec<NominatedFile>, bool) {
+    let Some(anchor) = anchor else {
+        // No direct nomination is no anchor. Reach infers from a candidate; it
+        // does not invent one.
+        return (Vec::new(), false);
+    };
+    let package = package_of(&anchor.display_path);
+
+    let mut siblings: Vec<(u64, &str)> = admitted_paths
+        .iter()
+        .map(String::as_str)
+        .filter(|path| package_of(path) == package && !nominated.contains(path))
+        .map(|path| {
+            let matched = identifier_matches
+                .get(path)
+                .map_or(0, |held| count_admitted(held, admitted_identifiers));
+            (matched, path)
+        })
+        .collect();
+    // A sibling carrying task identifiers was a direct candidate that fell
+    // below the nomination ceiling. Re-admit those first; ties break by path so
+    // truncation stays deterministic.
+    siblings.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(right.1)));
+
+    let truncated = siblings.len() > MAX_REACH_FILES;
+    let files = siblings
+        .into_iter()
+        .take(MAX_REACH_FILES)
+        .map(|(matched, path)| NominatedFile {
+            display_path: path.to_owned(),
+            reason_code: NominationRank::PackageProximateReach
+                .reason_code()
+                .to_owned(),
+            matched_identifiers: matched,
+        })
+        .collect();
+    (files, truncated)
+}
+
+/// A package is the immediate parent directory of a portable path.
+///
+/// Deliberately crude. A language-aware definition needs a resolver per
+/// admitted language, and the measurement says the crude rule already captures
+/// the effect.
+fn package_of(path: &str) -> &str {
+    path.rsplit_once('/').map_or("", |(parent, _)| parent)
 }
 
 fn count_admitted(matched: &BTreeSet<String>, admitted: &BTreeSet<&str>) -> u64 {
@@ -185,6 +307,11 @@ fn count_admitted(matched: &BTreeSet<String>, admitted: &BTreeSet<&str>) -> u64 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// No admitted file inventory, so no reach: these cases test ranking.
+    fn none() -> BTreeSet<String> {
+        BTreeSet::new()
+    }
 
     fn set(values: &[&str]) -> BTreeSet<String> {
         values.iter().map(|value| (*value).to_owned()).collect()
@@ -206,6 +333,7 @@ mod tests {
                 "astropy/timeseries/core.py",
                 "astropy/timeseries/sampled.py",
             ]),
+            &none(),
             &matches(&[
                 (
                     "astropy/timeseries/sampled.py",
@@ -232,6 +360,7 @@ mod tests {
             &[],
             &["alpha".to_owned(), "beta".to_owned(), "gamma".to_owned()],
             &set(&["a.py", "b.py", "c.py"]),
+            &none(),
             &matches(&[
                 ("c.py", &["alpha"]),
                 ("a.py", &["alpha", "beta", "gamma"]),
@@ -254,6 +383,7 @@ mod tests {
             &["astropy.timeseries".to_owned(), "gone.py".to_owned()],
             &[],
             &set(&["real.py"]),
+            &none(),
             &BTreeMap::new(),
         );
         assert!(nomination.files.is_empty());
@@ -270,6 +400,7 @@ mod tests {
             &[],
             &["alpha".to_owned()],
             &set(&["a.py", "b.py"]),
+            &none(),
             &matches(&[("a.py", &["alpha"]), ("b.py", &["unrelated"])]),
         );
         let paths: Vec<&str> = nomination
@@ -288,7 +419,7 @@ mod tests {
             .iter()
             .map(|path| (path.clone(), set(&["alpha"])))
             .collect();
-        let nomination = nominate_files(&[], &["alpha".to_owned()], &tracked, &matched);
+        let nomination = nominate_files(&[], &["alpha".to_owned()], &tracked, &none(), &matched);
         assert_eq!(nomination.files.len(), MAX_NOMINATED_FILES);
         assert_eq!(nomination.considered_files, 40);
         assert!(
@@ -304,6 +435,7 @@ mod tests {
             &[],
             &["alpha".to_owned()],
             &set(&["a.py"]),
+            &none(),
             &matches(&[("a.py", &["alpha"])]),
         );
         assert!(nomination.is_scoped());
@@ -315,11 +447,182 @@ mod tests {
     }
 
     #[test]
+    fn reach_admits_package_siblings_of_the_best_nomination() {
+        let nomination = nominate_files(
+            &["astropy/io/fits/card.py".to_owned()],
+            &["Card".to_owned()],
+            &set(&["astropy/io/fits/card.py"]),
+            &set(&[
+                "astropy/io/fits/card.py",
+                "astropy/io/fits/header.py",
+                "astropy/io/ascii/html.py",
+            ]),
+            &matches(&[("astropy/io/fits/card.py", &["Card"])]),
+        );
+        let paths: Vec<&str> = nomination
+            .files
+            .iter()
+            .map(|file| file.display_path.as_str())
+            .collect();
+        // The sibling is reached; the file in a different package is not.
+        assert_eq!(
+            paths,
+            vec!["astropy/io/fits/card.py", "astropy/io/fits/header.py"]
+        );
+        assert_eq!(nomination.files[1].reason_code, "package_proximate_reach");
+        assert!(
+            nomination
+                .unknowns
+                .contains(&"structural_scope_includes_reach_expanded_files".to_owned())
+        );
+    }
+
+    #[test]
+    fn reach_never_precedes_a_directly_nominated_file() {
+        // Extraction spends a shared allowance in order. A file the task named
+        // must never lose budget to one the product inferred.
+        let mut admitted = set(&["pkg/a.py", "pkg/b.py"]);
+        admitted.extend((0..20).map(|index| format!("pkg/reach{index:02}.py")));
+        let nomination = nominate_files(
+            &[],
+            &["alpha".to_owned()],
+            &admitted,
+            &admitted,
+            &matches(&[("pkg/a.py", &["alpha"]), ("pkg/b.py", &["alpha"])]),
+        );
+        let direct = nomination
+            .files
+            .iter()
+            .filter(|file| file.reason_code != "package_proximate_reach")
+            .count();
+        assert_eq!(direct, 2);
+        assert!(
+            nomination.files[..direct]
+                .iter()
+                .all(|file| file.reason_code != "package_proximate_reach")
+        );
+        assert!(
+            nomination.files[direct..]
+                .iter()
+                .all(|file| file.reason_code == "package_proximate_reach")
+        );
+    }
+
+    #[test]
+    fn reach_is_bounded_and_says_when_it_truncated() {
+        let mut admitted = set(&["pkg/anchor.py"]);
+        admitted.extend((0..40).map(|index| format!("pkg/sib{index:02}.py")));
+        let nomination = nominate_files(
+            &["pkg/anchor.py".to_owned()],
+            &[],
+            &set(&["pkg/anchor.py"]),
+            &admitted,
+            &BTreeMap::new(),
+        );
+        assert_eq!(nomination.files.len(), 1 + MAX_REACH_FILES);
+        assert!(
+            nomination
+                .unknowns
+                .contains(&"reach_ceiling_reached".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_sibling_below_the_nomination_ceiling_is_re_admitted_before_an_unmatched_one() {
+        // Twenty matched files against a ceiling of sixteen the anchor also
+        // occupies, so `m15` onward are dropped from direct nomination.
+        let mut admitted = set(&["pkg/anchor.py", "pkg/aaa_unmatched.py"]);
+        admitted.extend((0..20).map(|index| format!("pkg/m{index:02}.py")));
+        let mut matched: BTreeMap<String, BTreeSet<String>> = (0..20)
+            .map(|index| (format!("pkg/m{index:02}.py"), set(&["alpha"])))
+            .collect();
+        matched.insert("pkg/anchor.py".to_owned(), set(&["alpha", "beta"]));
+
+        let nomination = nominate_files(
+            &[],
+            &["alpha".to_owned(), "beta".to_owned()],
+            &admitted,
+            &admitted,
+            &matched,
+        );
+        let reach: Vec<&str> = nomination
+            .files
+            .iter()
+            .filter(|file| file.reason_code == "package_proximate_reach")
+            .map(|file| file.display_path.as_str())
+            .collect();
+        // Alphabetically last, but it carries a task identifier the ceiling cut,
+        // so reach re-admits it ahead of a sibling that carries none.
+        assert_eq!(reach[0], "pkg/m15.py");
+        assert!(reach.contains(&"pkg/aaa_unmatched.py"));
+    }
+
+    #[test]
+    fn no_direct_nomination_means_no_reach() {
+        // Reach infers from a candidate. With none, it invents nothing.
+        let nomination = nominate_files(
+            &[],
+            &["alpha".to_owned()],
+            &set(&["pkg/a.py"]),
+            &set(&["pkg/a.py", "pkg/b.py"]),
+            &BTreeMap::new(),
+        );
+        assert!(nomination.files.is_empty());
+        assert!(
+            !nomination
+                .unknowns
+                .contains(&"structural_scope_includes_reach_expanded_files".to_owned())
+        );
+    }
+
+    #[test]
+    fn reach_cannot_hide_that_direct_candidates_were_dropped() {
+        // Reach grows the file count. The truncation verdict is taken before it
+        // runs, so a wider result still discloses the dropped candidates.
+        let paths: Vec<String> = (0..40)
+            .map(|index| format!("pkg/file{index:02}.py"))
+            .collect();
+        let tracked: BTreeSet<String> = paths.iter().cloned().collect();
+        let matched: BTreeMap<String, BTreeSet<String>> = paths
+            .iter()
+            .map(|path| (path.clone(), set(&["alpha"])))
+            .collect();
+        let nomination = nominate_files(&[], &["alpha".to_owned()], &tracked, &tracked, &matched);
+        assert_eq!(nomination.considered_files, 40);
+        assert!(nomination.files.len() > MAX_NOMINATED_FILES);
+        assert!(
+            nomination
+                .unknowns
+                .contains(&"nomination_ceiling_reached".to_owned())
+        );
+    }
+
+    #[test]
+    fn reach_admits_only_files_the_product_can_parse() {
+        // A sibling the snapshot tracks but the index never admitted is a file
+        // structural extraction would skip; spending a scope slot on it wastes
+        // the shared allowance.
+        let nomination = nominate_files(
+            &["pkg/anchor.py".to_owned()],
+            &[],
+            &set(&["pkg/anchor.py", "pkg/notes.rst", "pkg/sibling.py"]),
+            &set(&["pkg/anchor.py", "pkg/sibling.py"]),
+            &BTreeMap::new(),
+        );
+        let paths: Vec<&str> = nomination
+            .files
+            .iter()
+            .map(|file| file.display_path.as_str())
+            .collect();
+        assert_eq!(paths, vec!["pkg/anchor.py", "pkg/sibling.py"]);
+    }
+
+    #[test]
     fn nomination_is_deterministic_for_identical_inputs() {
         let tracked = set(&["a.py", "b.py"]);
         let matched = matches(&[("a.py", &["alpha"]), ("b.py", &["alpha"])]);
-        let first = nominate_files(&[], &["alpha".to_owned()], &tracked, &matched);
-        let second = nominate_files(&[], &["alpha".to_owned()], &tracked, &matched);
+        let first = nominate_files(&[], &["alpha".to_owned()], &tracked, &none(), &matched);
+        let second = nominate_files(&[], &["alpha".to_owned()], &tracked, &none(), &matched);
         assert!(first == second);
     }
 
