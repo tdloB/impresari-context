@@ -3,7 +3,7 @@
 ## Document Control
 
 - PRD ID/version: IC-PPNR-130 / 1.0.
-- Status: Accepted for implementation.
+- Status: Implemented; acceptance criteria not met, held unmerged.
 - Date: 2026-09-04.
 - Product owner: Aaron Boldt.
 - Governing architecture:

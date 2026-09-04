@@ -1,6 +1,6 @@
 # ADR-0130: Reach by Package Proximity, Not Import Following
 
-- Status: Accepted
+- Status: Accepted as a decision; implementation measured neutral and held unmerged
 - Date: 2026-09-04
 - Related PRD: [Package-Proximate Nomination Reach](../product/package-proximate-nomination-reach-prd.md)
 - Architecture: [Package-Proximate Nomination Reach](../architecture/package-proximate-nomination-reach-ard.md)
@@ -78,3 +78,39 @@ per-language resolver.
 
 No security invariant changes. Reach performs no additional repository read and
 this record grants no execution, network, publication, or submission authority.
+
+## Measured outcome
+
+Three variants were built and measured over the twenty-two astropy tasks:
+
+| variant | map file recall | bytes |
+| --- | --- | --- |
+| baseline, no reach | 11 of 27 | 18,995,114 |
+| reach, allowance divided equally | 10 of 27 | 18,989,514 |
+| reach, tiered allowance | 11 of 27 | 19,027,888 |
+| reach, tiered allowance, ceiling 32 | 11 of 27 | 19,027,888 |
+
+Reach does not move map file recall. The PRD requires two files gained and none
+lost; it gained none. Widening the ceiling from twelve to thirty-two changed no
+delivered map at all.
+
+The reachability ceiling that motivated this decision was measured offline with
+a nomination ranking that reimplemented the engine's rules rather than calling
+them, and the two rankings do not agree on which file anchors a task. Reach
+expands from the anchor's package, so an anchor in the wrong package expands in
+the wrong direction — measured on `astropy-13398`, the anchor sits in
+`astropy/coordinates` while all four reference files sit in
+`astropy/coordinates/builtin_frames`, a different package under this decision's
+own rule. The 8-of-16 ceiling therefore overstates what reach can reach in the
+product.
+
+Classifying the eleven remaining failures says the same thing from the other
+side. Three produce no seed at all and so no map; two seed into vendored
+`astropy/extern` code; one exceeds the repository read ceiling before it
+answers. Six of eleven are seed-selection failures that no scope widening can
+address, and reach is aimed only at the other half.
+
+The decision stands — package proximity is the right reach mechanism, and
+import following is measurably not — but the implementation is held unmerged
+until nomination picks a better anchor. Reach cannot be evaluated on its merits
+while the file it expands from is the wrong one.
