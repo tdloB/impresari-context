@@ -1,6 +1,6 @@
 # ADR-0131: Admit and Rank Identifiers by Declaration
 
-- Status: Accepted
+- Status: Accepted; admission rule corrected by [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md)
 - Date: 2026-09-04
 - Related PRD: [Declaration-Aware Nomination](../product/declaration-aware-nomination-prd.md)
 - Architecture: [Declaration-Aware Nomination](../architecture/declaration-aware-nomination-ard.md)
@@ -95,3 +95,25 @@ rewritten, because sharpening selection cannot be purely additive.
 
 No security invariant changes. This record grants no execution, network,
 publication, or submission authority.
+
+## Correction
+
+The distinctness argument above is wrong, and was measured wrong after this
+decision merged. It claims a name declared in many files identifies nothing and
+that requiring a small declaring set therefore keeps prose out, naming `get`,
+`set`, `run` and `data` as the words it would exclude.
+
+Measured on `astropy-8707`, the declaring-file count does not separate a name
+from a word. `Header` is declared in one file, and so are `a`, `but`, `can`,
+`work`, `string` and `type`. `fromstring` is declared in four, and so are `does`
+and `that`. Twelve of sixteen identifier slots on that task were ordinary prose
+admitted by this rule, `CHANGES.rst` ranked first in its nomination, and package
+reach expanded across the repository root.
+
+The recall this decision measured — 11 of 27 to 14 of 27 — is real and was
+achieved despite that noise, not because the bound was working. The measurement
+looked only at recall and never at what was being nominated.
+
+[ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md)
+replaces the admission rule. The rationale above is left as written, per the
+change rules in this directory.
