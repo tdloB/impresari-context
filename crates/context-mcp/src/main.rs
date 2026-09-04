@@ -6,6 +6,7 @@ use context_core::{PolicySubject, ResourceBudget, validate_utc_timestamp};
 use context_engine::{EngineConfig, LocalEngine, RequestContext};
 use context_mcp::{
     DeliveryMode, McpServer, ServerConfig, StructuralLifecycleReceipt, StructuralRuntime,
+    TaskScopedStructure,
 };
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
@@ -212,6 +213,20 @@ fn prepare_structural_runtime(
         .validate()
         .map_err(|_| "invalid structural worker boundary")?;
     let started = Instant::now();
+    // Nomination needs this and it reads each admitted file once. Doing it here
+    // keeps the cost out of every request's context read budget.
+    engine
+        .build_identifier_index(&RequestContext {
+            request_id: format!("req_{seed}identifier"),
+            event_id: format!("evt_{seed}identifier"),
+            subject: PolicySubject {
+                caller_id: startup_context.subject.caller_id.clone(),
+                role: startup_context.subject.role.clone(),
+                purpose: "mcp_identifier_index_startup".into(),
+            },
+            occurred_at: startup_context.occurred_at.clone(),
+        })
+        .map_err(|_| "identifier index preparation failed")?;
     let graph = engine
         .build_structure(
             &RequestContext {
@@ -243,6 +258,12 @@ fn prepare_structural_runtime(
         },
         graph,
         edge_kinds: Vec::new(),
+        // Density comes from scoping, so the server builds a graph over the
+        // files each task nominates and keeps the startup graph as a fallback.
+        task_scoped: Some(TaskScopedStructure {
+            launcher,
+            budget: structural_budget()?,
+        }),
     })
 }
 

@@ -17,7 +17,7 @@ use context_engine::{
     StructuralSeedRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
-use context_structural::{GraphEdge, StructuralGraph};
+use context_structural::{GraphEdge, StructuralGraph, WorkerLauncher};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -74,11 +74,30 @@ impl DeliveryMode {
 #[derive(Clone, Debug)]
 pub struct StructuralRuntime {
     /// Exact snapshot-bound graph retained only for this process.
+    ///
+    /// Thin but complete. Used when no task-scoped build is configured, and as
+    /// the fallback when one is configured but nominates nothing.
     pub graph: StructuralGraph,
     /// Closed traversal kinds; empty means every admitted graph edge kind.
     pub edge_kinds: Vec<String>,
     /// Non-authoritative lifecycle receipt returned beside every packet.
     pub receipt: StructuralLifecycleReceipt,
+    /// Present when the server may build a dense task-scoped graph per request.
+    pub task_scoped: Option<TaskScopedStructure>,
+}
+
+/// Inputs a server needs to build a task-scoped structural graph per request.
+///
+/// A whole-repository graph divides one fact allowance across every file, which
+/// on a large repository leaves roughly one fact each. Building per request over
+/// the files a task nominates gives each of them a large share of the same
+/// allowance.
+#[derive(Clone, Debug)]
+pub struct TaskScopedStructure {
+    /// Pinned, hash-attested structural worker boundary.
+    pub launcher: WorkerLauncher,
+    /// Admitted structural budget for a scoped build.
+    pub budget: ResourceBudget,
 }
 
 /// Closed metadata proving which structural lifecycle an MCP result used.
@@ -669,6 +688,22 @@ impl McpServer {
             ),
             (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
                 let profiled = if let Some(runtime) = &self.structural_runtime {
+                    // Prefer a dense graph over the files this task nominated.
+                    // Fall back to the thin whole-repository graph when nothing
+                    // is nominated, so a task naming no code still works.
+                    let scoped = runtime.task_scoped.as_ref().and_then(|scoped| {
+                        self.engine
+                            .build_task_scoped_structure(
+                                &context,
+                                &query,
+                                &scoped.budget,
+                                &scoped.launcher,
+                            )
+                            .ok()
+                            .filter(|(_, nomination)| !nomination.files.is_empty())
+                            .map(|(graph, _)| graph)
+                    });
+                    let graph = scoped.unwrap_or_else(|| runtime.graph.clone());
                     if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                         self.engine
                             .build_profiled_seeded_progressive_context(
@@ -676,7 +711,7 @@ impl McpServer {
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
-                                    graph: runtime.graph.clone(),
+                                    graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
                                 args.budget,
@@ -689,7 +724,7 @@ impl McpServer {
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
-                                    graph: runtime.graph.clone(),
+                                    graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
                                 args.budget,
@@ -1841,6 +1876,7 @@ mod tests {
                 &snapshot.snapshot_id,
             );
             StructuralRuntime {
+                task_scoped: None,
                 receipt: StructuralLifecycleReceipt {
                     schema_name: "impresari_context_structural_lifecycle".into(),
                     schema_version: "1.0".into(),
