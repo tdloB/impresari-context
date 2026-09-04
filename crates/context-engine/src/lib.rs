@@ -955,10 +955,19 @@ impl LocalEngine {
             })
             .unwrap_or_default();
 
+        // Reach draws siblings only from files the product can parse, so a
+        // scope slot is never spent on a file structural extraction will skip.
+        let admitted_paths = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| index.admitted_paths(&snapshot_id).ok())
+            .unwrap_or_default();
+
         let nomination = crate::file_nomination::nominate_files(
             &signals.paths,
             &signals.identifiers,
             &tracked,
+            &admitted_paths,
             &identifier_matches,
         );
         let scope: BTreeSet<String> = nomination

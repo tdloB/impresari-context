@@ -175,6 +175,27 @@ impl TaskIdentifierIndex {
         Ok(matches)
     }
 
+    /// Portable paths the index admitted, for the bound snapshot.
+    ///
+    /// Package-proximate reach (IC-PPNR-130) needs the set of files this
+    /// product can parse at all. A sibling it cannot read is a wasted scope
+    /// slot, and the admitted set is exactly that answer without a
+    /// per-language table living in nomination.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`IdentifierIndexErrorCode::SnapshotMismatch`] when the caller
+    /// asks for a snapshot this index was not built from.
+    pub fn admitted_paths(
+        &self,
+        workspace_snapshot: &str,
+    ) -> Result<BTreeSet<String>, IdentifierIndexErrorCode> {
+        if workspace_snapshot != self.workspace_snapshot {
+            return Err(IdentifierIndexErrorCode::SnapshotMismatch);
+        }
+        Ok(self.files.keys().cloned().collect())
+    }
+
     /// Files indexed.
     #[must_use]
     pub fn indexed_files(&self) -> usize {
