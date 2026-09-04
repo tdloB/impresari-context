@@ -68,13 +68,25 @@ before the anchor is read.
 
 ## Ordering is a budget decision
 
-`MAX_SCOPED_FACTS` is a whole-scope allowance, and seeds are consumed in order.
-Placing reach files last means a scope that runs out of allowance loses inferred
-files before it loses files the task actually named.
+`MAX_SCOPED_FACTS` is a whole-scope allowance. Reach files come last in seed
+order, and extraction spends the allowance in two passes: nominated files divide
+the whole allowance between themselves, and reach files divide only what
+survives.
 
-This is the property that makes reach safe to add. Without it, admitting ten
-speculative files could starve the one file the task pointed at directly — the
-exact failure [ADR-0128](../decisions/0128-extract-structure-for-nominated-files-not-whole-repositories.md)
+Both halves are needed, and the second was learned by measurement. Seed ordering
+alone left extraction dividing the allowance equally across the scope, so
+admitting twelve siblings cut every nominated file's share from 1,750 facts to
+1,000. Measured, that cost `astropy-13236` its reference file — `table/table.py`
+no longer fit its share — for a net map file recall of 10 of 27 against a
+baseline of 11.
+
+Equal division makes reach a trade. The tiered pass makes it an addition: a file
+the product inferred cannot take density from a file the task named, which is
+the property that makes reach safe to add at all.
+
+Without it, admitting speculative files starves the file the task pointed at
+directly — the exact failure
+[ADR-0128](../decisions/0128-extract-structure-for-nominated-files-not-whole-repositories.md)
 was written to end.
 
 ## A package is the immediate parent directory
@@ -91,12 +103,36 @@ language, and the measurement says the dumb one already captures the effect.
 
 | bound | why |
 | --- | --- |
-| reach files admitted | a large flat directory cannot flood the scope |
+| reach files admitted | a pathological directory cannot flood the scope |
 | anchor count (one) | measured knee; more anchors dilute without reaching |
 | recursion depth (none) | siblings only; transitive reach is unmeasured |
 
 The reach ceiling is separate from `MAX_NOMINATED_FILES` so the two cannot be
 confused in a receipt, and so raising one never silently raises the other.
+
+### The ceiling admits a package whole
+
+The ceiling is a guard, not a selector. Truncation orders by path, and a package
+is not alphabetical by relevance, so a tight ceiling discards the neighbourhood
+it was asked to admit.
+
+Measured on the corpus, packages holding a missed reference file carry 3 to 28
+admitted files, and the missed file sits at alphabetical rank 1 to 23 within its
+package:
+
+| task | missed reference file | package | rank |
+| --- | --- | --- | --- |
+| 13236 | `table/table.py` | 21 | 20 |
+| 13398 | `builtin_frames/itrs.py` | 28 | 23 |
+| 14182 | `io/ascii/rst.py` | 20 | 17 |
+| 14508 | `io/fits/card.py` | 12 | 2 |
+
+A ceiling of twelve cut the first three — the exact files reach exists to admit.
+Thirty-two clears every package observed.
+
+Widening a ceiling is normally a density risk. Here it is not, because the
+tiered allowance already prevents reach from spending a nominated file's facts.
+The two changes are only safe together.
 
 ## Closed constants
 

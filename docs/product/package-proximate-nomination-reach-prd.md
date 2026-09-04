@@ -57,12 +57,17 @@ inferred.
 2. Define a package as the anchor's immediate parent directory. The rule is
    language-neutral and holds for every admitted language.
 3. Bound reach with a closed maximum reach-file count, separate from and
-   additional to `MAX_NOMINATED_FILES`. Reaching the bound is recorded, never
-   silent.
+   additional to `MAX_NOMINATED_FILES`, set high enough to admit an ordinary
+   package whole. Truncation orders by path, and a package is not alphabetical
+   by relevance, so a tight bound discards the neighbourhood reach exists to
+   admit. Reaching the bound is recorded, never silent.
 4. Admit a reach file only when the snapshot tracks it and it is not already
    nominated. Reach never displaces a directly nominated file.
-5. Order reach files strictly after every directly nominated file. Extraction
-   budget is finite and shared; direct nominations spend it first.
+5. Order reach files strictly after every directly nominated file, in seed
+   order *and* in extraction. Nominated files divide the whole fact allowance
+   between themselves; reach files divide only what survives. Dividing it
+   equally across the scope makes reach a trade rather than an addition, and
+   measurably costs a reference file.
 6. Mark every reach file with its own reason code, distinct from the direct
    nomination reasons, and record an explicit unknown whenever a nomination
    contains reach-expanded files.
@@ -81,7 +86,9 @@ inferred.
 - The reach bound is enforced and its breach recorded as an explicit unknown.
 - Every reach file carries the reach reason code, and every nomination
   containing one carries the reach unknown.
-- Reach files never appear before a directly nominated file.
+- Reach files never appear before a directly nominated file, and admitting them
+  leaves every nominated file's fact share exactly as it was before reach
+  existed.
 - Repeating nomination over identical inputs yields an identical result.
 - A static check proves the module reaches no oracle, execution, or network
   surface.

@@ -35,9 +35,18 @@ closed reach ceiling, ordered strictly after every directly nominated file.
 Do not build import, inheritance, or call-graph following.
 
 Define a package as the immediate parent directory. Keep the anchor rule, the
-package rule, and the reach ceiling as compile-time constants. Mark reach files
-with their own reason code and record an explicit unknown whenever a nomination
-contains one.
+package rule, and the reach ceiling as compile-time constants. Set the ceiling
+high enough to admit an ordinary package whole: it is a guard against a
+pathological directory, not a selector, because truncation orders by path and a
+package is not alphabetical by relevance.
+
+Spend the fact allowance in two passes. Nominated files divide the whole
+allowance between themselves and reach files divide only what survives, so
+admitting a sibling cannot thin a file the task named.
+
+Mark reach files with their own reason code and record an explicit unknown
+whenever a nomination contains one, surfaced to the consumer so a partial map
+says which kind of partial it is.
 
 Claim no improvement until map file recall is measured offline over the whole
 corpus and gains at least two reference files without losing any currently
@@ -49,10 +58,13 @@ The reachable ceiling rises from 11 of 27 to at most 19 of 27. That is a
 ceiling, not a result: admitting a file to the scope makes its declarations
 available to the map without putting them in it.
 
-Every added file thins the others, because `MAX_SCOPED_FACTS` is a whole-scope
-allowance divided across the scope. Ordering reach last is what keeps that
-dilution from reaching the files the task named outright — a scope that runs out
-of allowance loses guesses before it loses evidence.
+Reach and the tiered allowance are one change and are only safe together. Built
+without the tier, reach divided `MAX_SCOPED_FACTS` equally across a wider scope,
+cutting every nominated file's share from 1,750 facts to 1,000; measured, that
+cost `astropy-13236` its reference file for a net 10 of 27 against a baseline of
+11. The tier restores each nominated file's share to exactly what it was before
+reach existed, which is what turns reach from a trade into an addition — and it
+is also what makes a wide reach ceiling safe.
 
 Rejecting import following saves an import resolver per admitted language, which
 is a substantial and recurring cost, and the measurement says it would have
