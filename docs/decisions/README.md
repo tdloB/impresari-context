@@ -133,6 +133,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0128](0128-extract-structure-for-nominated-files-not-whole-repositories.md) | Extract structure for nominated files rather than whole repositories | Accepted |
 | [ADR-0129](0129-build-a-bounded-task-identifier-index-at-preparation.md) | Build a bounded task identifier index at preparation | Accepted |
 | [ADR-0131](0131-admit-and-rank-identifiers-by-declaration.md) | Admit a task token the repository declares, and rank declaring files above mentioning ones | Accepted |
+| [ADR-0132](0132-resolve-references-across-the-scope-not-within-a-file.md) | Resolve call and reference targets across the admitted scope rather than within one file | Accepted |
 | [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md) | Admit a bare declared word only when it names a type or the author marked it as code | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |

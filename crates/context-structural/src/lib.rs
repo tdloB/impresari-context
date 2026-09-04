@@ -682,12 +682,45 @@ pub fn build_graph_with_unknowns(
             return Err(StructuralError::ContractMismatch);
         }
     }
-    for file in files {
+    // Declarations for every file must exist before any relationship resolves,
+    // or a reference could only ever find a target in its own file — which is
+    // exactly the island the graph used to be (ADR-0132).
+    let mut local_by_file = Vec::with_capacity(files.len());
+    let mut scope_declarations: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for file in &files {
+        let file_id = file_nodes
+            .get(&file.path.display_path)
+            .ok_or(StructuralError::ContractMismatch)?;
+        let local_nodes =
+            add_declarations(workspace_snapshot, file, file_id, &mut nodes, &mut edges)?;
+        for fact in &file.response.facts {
+            if fact.class != FactClass::Declaration {
+                continue;
+            }
+            let (Some(name), Some(node_id)) =
+                (fact.name.as_ref(), local_nodes.get(&fact.local_key))
+            else {
+                continue;
+            };
+            scope_declarations
+                .entry(name.clone())
+                .or_default()
+                .push(node_id.clone());
+        }
+        local_by_file.push(local_nodes);
+    }
+    for declaring in scope_declarations.values_mut() {
+        declaring.sort();
+        declaring.dedup();
+    }
+
+    for (file, local_nodes) in files.iter().zip(&local_by_file) {
         promote_file(
             workspace_snapshot,
-            &file,
+            file,
             &file_nodes,
-            &mut nodes,
+            local_nodes,
+            &scope_declarations,
             &mut edges,
             &mut unknowns,
         )?;
@@ -727,20 +760,23 @@ fn promote_file(
     workspace_snapshot: &str,
     file: &GraphFileInput,
     file_nodes: &BTreeMap<String, String>,
-    nodes: &mut Vec<GraphNode>,
+    local_nodes: &BTreeMap<String, String>,
+    scope_declarations: &BTreeMap<String, Vec<String>>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
     let file_id = file_nodes
         .get(&file.path.display_path)
         .ok_or(StructuralError::ContractMismatch)?;
-    let local_nodes = add_declarations(workspace_snapshot, file, file_id, nodes, edges)?;
     add_relationships(
         workspace_snapshot,
         file,
         file_id,
-        file_nodes,
-        &local_nodes,
+        &GraphScope {
+            files: file_nodes,
+            local: local_nodes,
+            declarations: scope_declarations,
+        },
         edges,
         unknowns,
     )?;
@@ -842,15 +878,25 @@ fn add_declarations(
 }
 
 #[allow(clippy::too_many_lines)]
+/// The name maps one file's relationships resolve against.
+struct GraphScope<'a> {
+    /// Every file node in the scope, for module imports.
+    files: &'a BTreeMap<String, String>,
+    /// This file's own declarations, which win (ADR-0132).
+    local: &'a BTreeMap<String, String>,
+    /// Every declaration in the scope, by name.
+    declarations: &'a BTreeMap<String, Vec<String>>,
+}
+
 fn add_relationships(
     workspace_snapshot: &str,
     file: &GraphFileInput,
     file_id: &str,
-    file_nodes: &BTreeMap<String, String>,
-    local_nodes: &std::collections::BTreeMap<String, String>,
+    scope: &GraphScope<'_>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
+    let (file_nodes, local_nodes) = (scope.files, scope.local);
     for fact in &file.response.facts {
         match fact.class {
             FactClass::Contains => {
@@ -906,37 +952,15 @@ fn add_relationships(
                 }
             }
             FactClass::Call => {
-                let source = fact
-                    .parent_key
-                    .as_ref()
-                    .and_then(|key| local_nodes.get(key))
-                    .map_or(file_id, String::as_str);
-                let target = fact.name.as_ref().and_then(|name| {
-                    file.response
-                        .facts
-                        .iter()
-                        .find(|candidate| {
-                            candidate.class == FactClass::Declaration
-                                && candidate.name.as_ref() == Some(name)
-                        })
-                        .and_then(|candidate| local_nodes.get(&candidate.local_key))
-                });
-                edges.push(graph_edge(
+                add_call(
                     workspace_snapshot,
-                    "calls",
-                    source,
-                    target,
-                    None,
-                    if target.is_some() {
-                        "heuristic"
-                    } else {
-                        "unresolved"
-                    },
                     fact,
-                )?);
-                if target.is_none() {
-                    unknowns.push("unresolved_call_target".into());
-                }
+                    file,
+                    file_id,
+                    scope,
+                    edges,
+                    unknowns,
+                )?;
             }
             FactClass::Reference => {
                 add_reference(
@@ -944,7 +968,7 @@ fn add_relationships(
                     fact,
                     file,
                     file_id,
-                    local_nodes,
+                    scope,
                     edges,
                     unknowns,
                 )?;
@@ -955,15 +979,127 @@ fn add_relationships(
     Ok(())
 }
 
+/// Outcome of resolving one named target against the admitted scope.
+struct ScopeResolution<'a> {
+    target: Option<&'a String>,
+    ambiguous: bool,
+}
+
+impl ScopeResolution<'_> {
+    /// The disclosure this outcome owes a consumer, if any.
+    ///
+    /// An ambiguous name and an absent one stop a map in different places for
+    /// different reasons, so they are reported separately.
+    fn unknown(&self, relationship: &str) -> Option<String> {
+        if self.target.is_some() {
+            return None;
+        }
+        Some(if self.ambiguous {
+            format!("ambiguous_{relationship}_target")
+        } else {
+            format!("unresolved_{relationship}_target")
+        })
+    }
+}
+
+/// Resolve a named target, preferring the originating file (ADR-0132).
+///
+/// A declaration in the edge's own file wins, so every edge that resolved
+/// before this rule existed resolves to the same node now: the change turns
+/// dead ends into edges and never redirects a live one.
+///
+/// Across the scope, a name resolves only when exactly one file declares it.
+/// `__init__`, `get` and `read` are declared in dozens of scope files, and
+/// picking one would be inventing a target with extra steps — the thing
+/// traversal must never do.
+fn resolve_in_scope<'a>(
+    local_target: Option<&'a String>,
+    name: Option<&str>,
+    scope_declarations: &'a BTreeMap<String, Vec<String>>,
+) -> ScopeResolution<'a> {
+    if local_target.is_some() {
+        return ScopeResolution {
+            target: local_target,
+            ambiguous: false,
+        };
+    }
+    let Some(declaring) = name.and_then(|name| scope_declarations.get(name)) else {
+        return ScopeResolution {
+            target: None,
+            ambiguous: false,
+        };
+    };
+    match declaring.as_slice() {
+        [only] => ScopeResolution {
+            target: Some(only),
+            ambiguous: false,
+        },
+        [] => ScopeResolution {
+            target: None,
+            ambiguous: false,
+        },
+        _ => ScopeResolution {
+            target: None,
+            ambiguous: true,
+        },
+    }
+}
+
+/// A call edge, resolved against the file first and then the scope.
+fn add_call(
+    workspace_snapshot: &str,
+    fact: &StructuralFact,
+    file: &GraphFileInput,
+    file_id: &str,
+    scope: &GraphScope<'_>,
+    edges: &mut Vec<GraphEdge>,
+    unknowns: &mut Vec<String>,
+) -> Result<(), StructuralError> {
+    let (local_nodes, scope_declarations) = (scope.local, scope.declarations);
+    let source = fact
+        .parent_key
+        .as_ref()
+        .and_then(|key| local_nodes.get(key))
+        .map_or(file_id, String::as_str);
+    let local_target = fact.name.as_ref().and_then(|name| {
+        file.response
+            .facts
+            .iter()
+            .find(|candidate| {
+                candidate.class == FactClass::Declaration && candidate.name.as_ref() == Some(name)
+            })
+            .and_then(|candidate| local_nodes.get(&candidate.local_key))
+    });
+    let resolved = resolve_in_scope(local_target, fact.name.as_deref(), scope_declarations);
+    edges.push(graph_edge(
+        workspace_snapshot,
+        "calls",
+        source,
+        resolved.target,
+        None,
+        if resolved.target.is_some() {
+            "heuristic"
+        } else {
+            "unresolved"
+        },
+        fact,
+    )?);
+    if let Some(unknown) = resolved.unknown("call") {
+        unknowns.push(unknown);
+    }
+    Ok(())
+}
+
 fn add_reference(
     workspace_snapshot: &str,
     fact: &StructuralFact,
     file: &GraphFileInput,
     file_id: &str,
-    local_nodes: &BTreeMap<String, String>,
+    scope: &GraphScope<'_>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
+    let (local_nodes, scope_declarations) = (scope.local, scope.declarations);
     let source = fact
         .parent_key
         .as_ref()
@@ -979,22 +1115,23 @@ fn add_reference(
             .filter_map(|candidate| local_nodes.get(&candidate.local_key))
             .collect::<Vec<_>>()
     });
-    let target = (candidates.len() == 1).then(|| candidates[0]);
+    let local_target = (candidates.len() == 1).then(|| candidates[0]);
+    let resolved = resolve_in_scope(local_target, fact.name.as_deref(), scope_declarations);
     edges.push(graph_edge(
         workspace_snapshot,
         "references",
         source,
-        target,
+        resolved.target,
         None,
-        if target.is_some() {
+        if resolved.target.is_some() {
             "heuristic"
         } else {
             "unresolved"
         },
         fact,
     )?);
-    if target.is_none() {
-        unknowns.push("unresolved_reference_target".into());
+    if let Some(unknown) = resolved.unknown("reference") {
+        unknowns.push(unknown);
     }
     Ok(())
 }
@@ -3726,6 +3863,160 @@ public class Worker {
         let json = serde_json::to_string(&request).expect("json");
         let duplicate = json.replacen('{', "{\"request_id\":\"req_duplicate\",", 1);
         assert!(serde_json::from_str::<WorkerRequest>(&duplicate).is_err());
+    }
+
+    /// A worker request for one named file, so a test can build a scope of
+    /// several.
+    fn request_at(source: &[u8], language: StructuralLanguage, path: &str) -> WorkerRequest {
+        let mut built = request(source, language);
+        built.path.display_path = path.into();
+        built.path.relative_units_base64url = URL_SAFE_NO_PAD.encode(path.as_bytes());
+        built
+    }
+
+    fn file_input(source: &[u8], language: StructuralLanguage, path: &str) -> GraphFileInput {
+        let request = request_at(source, language, path);
+        let response = process_request(&request).expect("parse");
+        GraphFileInput {
+            path: request.path,
+            response,
+        }
+    }
+
+    #[test]
+    fn a_reference_resolves_to_a_declaration_in_another_scope_file() {
+        // The defect this fixes: a reference could only ever find a target in
+        // its own file, so the graph was a set of per-file islands and
+        // traversal could not cross one (ADR-0132).
+        let graph = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"class Card:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "fits/card.py",
+                ),
+                file_input(
+                    b"class Header:\n    def build(self):\n        return Card()\n",
+                    StructuralLanguage::Python,
+                    "fits/header.py",
+                ),
+            ],
+        )
+        .expect("graph");
+
+        let card = graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some("Card") && node.kind == "symbol")
+            .expect("Card declaration");
+        assert!(
+            graph.edges.iter().any(|edge| {
+                edge.target_node.as_deref() == Some(card.node_id.as_str())
+                    && matches!(edge.kind.as_str(), "calls" | "references")
+                    && edge.resolution == "heuristic"
+            }),
+            "a cross-file edge should reach the Card declaration"
+        );
+    }
+
+    #[test]
+    fn a_name_several_scope_files_declare_stays_unresolved_and_says_so() {
+        // Choosing among several declarations would be inventing a target with
+        // extra steps. Ambiguity is disclosed separately from absence, because
+        // they stop a map for different reasons.
+        let graph = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"class Shared:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "a/one.py",
+                ),
+                file_input(
+                    b"class Shared:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "b/two.py",
+                ),
+                file_input(
+                    b"class User:\n    def build(self):\n        return Shared()\n",
+                    StructuralLanguage::Python,
+                    "c/user.py",
+                ),
+            ],
+        )
+        .expect("graph");
+
+        let shared: Vec<&str> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.name.as_deref() == Some("Shared") && node.kind == "symbol")
+            .map(|node| node.node_id.as_str())
+            .collect();
+        assert_eq!(shared.len(), 2, "both declarations are in the graph");
+        assert!(
+            !graph.edges.iter().any(|edge| {
+                edge.target_node
+                    .as_deref()
+                    .is_some_and(|target| shared.contains(&target))
+                    && matches!(edge.kind.as_str(), "calls" | "references")
+            }),
+            "an ambiguous name must not be resolved to either declaration"
+        );
+        assert!(
+            graph
+                .unknowns
+                .iter()
+                .any(|unknown| unknown.starts_with("ambiguous_")),
+            "ambiguity must be disclosed: {:?}",
+            graph.unknowns
+        );
+    }
+
+    #[test]
+    fn a_declaration_in_the_edges_own_file_still_wins() {
+        // Every edge that resolved before this rule existed must resolve to the
+        // same node now, or a recall measurement cannot be attributed.
+        let local_only = build_graph(
+            &sha256(b"snapshot"),
+            vec![file_input(
+                b"def helper():\n    return 1\n\ndef outer():\n    return helper()\n",
+                StructuralLanguage::Python,
+                "solo.py",
+            )],
+        )
+        .expect("graph");
+        let local_target = local_only
+            .edges
+            .iter()
+            .find(|edge| edge.kind == "calls" && edge.target_node.is_some())
+            .and_then(|edge| edge.target_node.clone())
+            .expect("a within-file call resolves");
+
+        // The same file, now beside another file that also declares `helper`.
+        let with_scope = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"def helper():\n    return 1\n\ndef outer():\n    return helper()\n",
+                    StructuralLanguage::Python,
+                    "solo.py",
+                ),
+                file_input(
+                    b"def helper():\n    return 2\n",
+                    StructuralLanguage::Python,
+                    "other.py",
+                ),
+            ],
+        )
+        .expect("graph");
+        assert!(
+            with_scope
+                .edges
+                .iter()
+                .any(|edge| edge.target_node.as_deref() == Some(local_target.as_str())),
+            "the within-file target must be unchanged by a competing declaration"
+        );
     }
 
     #[test]
