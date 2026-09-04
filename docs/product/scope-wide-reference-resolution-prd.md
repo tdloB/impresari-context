@@ -3,7 +3,7 @@
 ## Document Control
 
 - PRD ID/version: IC-SWRR-132 / 1.0.
-- Status: Accepted for implementation.
+- Status: Implemented and measured; file criterion not met, symbol gain substantial.
 - Date: 2026-09-04.
 - Product owner: Aaron Boldt.
 - Governing architecture:
@@ -80,6 +80,40 @@ one declaration of that name; anything else stays unresolved and is disclosed.
   improves by at least two reference files against the 14 of 27 baseline. Any
   reference file lost is reported with its cause, not netted away.
 - The full repository gate passes.
+
+## Measured Outcome
+
+Measured twice, because the first verdict was formed against a scope that was
+mostly noise.
+
+**Against `main` as it stood:** map file recall 14 of 27 before and after, symbol
+recall 10 to 12, for 1.3% more bytes. Delivered maps widened from 68 to 77
+distinct files, and `traversal_edge_limit_reached` rose from 16 of 21 tasks to
+20 of 21 — the cross-file edges were real and being followed, but they were
+being followed through a scope in which twelve of sixteen identifiers were prose
+([IC-NSP-133](nomination-signal-precision-prd.md)).
+
+**On the corrected scope, stacked on IC-NSP-133:**
+
+| | map files | map symbols | distinct map files | bytes |
+| --- | --- | --- | --- | --- |
+| IC-NSP-133 alone | 18 of 27 | 11 of 34 | 77 | 19,416,100 |
+| plus this change | **19 of 27** | **15 of 34** | **86** | 19,633,830 (**+1.1%**) |
+
+One reference file gained, none lost, and symbol recall up by four — from 32% to
+44% of reference symbols.
+
+### The criterion that was not met
+
+This PRD requires two reference files against its baseline. In isolation the
+change contributes **one**, which is inside the noise band a twenty-two task
+corpus supports.
+
+The symbol gain is not: four of thirty-four is a 36% relative improvement, and it
+is the measure that moves when a map reaches the right declarations rather than
+merely the right files. The file criterion was written before that distinction
+mattered, and is recorded as unmet rather than restated in terms the result
+happens to satisfy.
 
 ## Non-Goals
 

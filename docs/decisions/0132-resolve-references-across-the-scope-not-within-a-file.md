@@ -1,6 +1,6 @@
 # ADR-0132: Resolve References Across the Scope, Not Within a File
 
-- Status: Accepted
+- Status: Accepted; lands after ADR-0133, which its measurement depends on
 - Date: 2026-09-04
 - Related PRD: [Scope-Wide Reference Resolution](../product/scope-wide-reference-resolution-prd.md)
 - Architecture: [Scope-Wide Reference Resolution](../architecture/scope-wide-reference-resolution-ard.md)
@@ -73,3 +73,26 @@ unattributable.
 No security invariant changes. Resolution consumes facts the builder already
 holds, adds no repository read, and this record grants no execution, network,
 publication, or submission authority.
+
+## Measured outcome
+
+Measured against `main` as it stood, this changed no reference file at all: 14
+of 27 before and after, symbols 10 to 12. The cross-file edges were live —
+delivered maps widened from 68 to 77 distinct files and the traversal edge limit
+began biting in 20 of 21 tasks rather than 16 — but they were being followed
+through a scope in which twelve of sixteen admitted identifiers were prose.
+
+Re-measured on the scope
+[ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md)
+corrects, the same change gains a reference file and four reference symbols: 18
+of 27 to 19 of 27, and 11 of 34 to 15 of 34, for 1.1% more bytes.
+
+One file is inside this corpus's noise band and the PRD's two-file criterion is
+recorded as unmet. Four symbols is not: it is the measure that moves when a map
+reaches the right declarations rather than merely the right files, which is what
+resolving a cross-file edge does.
+
+The sequencing matters more than either number. A selection change measured
+against a noisy scope will read as neutral whatever its merit, because the noise
+dominates what selection has to work with. This decision was judged neutral once
+on exactly that basis, and the judgement was wrong.
