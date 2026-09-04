@@ -131,6 +131,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0126](0126-answer-host-executed-operations-without-execution-authority.md) | Answer host-executed operations without gaining execution authority | Accepted |
 | [ADR-0127](0127-emit-a-cache-stable-context-prefix.md) | Emit a cache-stable, keyed context prefix without performing caching | Accepted |
 | [ADR-0128](0128-extract-structure-for-nominated-files-not-whole-repositories.md) | Extract structure for nominated files rather than whole repositories | Accepted |
+| [ADR-0129](0129-build-a-bounded-task-identifier-index-at-preparation.md) | Build a bounded task identifier index at preparation | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
