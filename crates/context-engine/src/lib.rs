@@ -5048,8 +5048,24 @@ fn is_code_identifier_signal(token: &str) -> bool {
     if !token.starts_with(|character: char| character.is_ascii_alphabetic() || character == '_') {
         return false;
     }
-    token.contains('_')
-        || token.contains('-')
+    // A separator run carrying no name is not an identifier: `_`, `__`, `--`.
+    if !token.bytes().any(|byte| byte.is_ascii_alphanumeric()) {
+        return false;
+    }
+    // Markdown emphasis wraps prose in separators, so `_and_` reads as
+    // snake_case. Real code puts its separators *between* name parts, so judge
+    // the token with its edge separators removed.
+    let core = token.trim_matches(|character: char| character == '_' || character == '-');
+    if core.is_empty() {
+        return false;
+    }
+    // A dunder is a real name even without an interior separator: `__eq__`,
+    // `__version__`, `__call__` all matter and all survive edge trimming to a
+    // bare word.
+    let dunder = token.starts_with("__") && token.ends_with("__");
+    dunder
+        || core.contains('_')
+        || core.contains('-')
         || token.contains("::")
         || has_interior_capital(token)
 }
@@ -6471,6 +6487,34 @@ mod tests {
         // Each list stays bounded.
         assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
         assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn separator_runs_and_emphasised_prose_are_not_identifiers() {
+        // Markdown emphasis is the pollutant: `_and_` is the word "and" in
+        // italics, and it was reaching the graph as a snake_case name.
+        for prose in ["_", "__", "--", "---", "_and_", "_the_", "input_", "_value"] {
+            assert!(
+                !is_code_identifier_signal(prose),
+                "{prose} must not be a code identifier"
+            );
+        }
+
+        // Real names still qualify, including dunders, which survive edge
+        // trimming to a bare word and would otherwise be lost.
+        for name in [
+            "_required_columns",
+            "remove_column",
+            "__eq__",
+            "__call__",
+            "__version__",
+            "__array_ufunc__",
+            "TimeSeries",
+            "hello-rust",
+            "path::qualified",
+        ] {
+            assert!(is_code_identifier_signal(name), "{name} must be admitted");
+        }
     }
 
     #[test]
