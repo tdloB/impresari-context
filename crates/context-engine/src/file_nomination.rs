@@ -46,6 +46,9 @@ pub const MAX_NOMINATED_FILES: usize = 16;
 /// wanted, which is oracle authority arriving through a configuration field.
 pub const MAX_REACH_FILES: usize = 12;
 
+/// Reason code marking a file admitted by reach rather than by task signal.
+pub const REACH_REASON_CODE: &str = "package_proximate_reach";
+
 /// Why one file was nominated.
 #[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
 pub enum NominationRank {
@@ -67,7 +70,7 @@ impl NominationRank {
         match self {
             Self::ExactTaskPath => "exact_task_path",
             Self::IdentifierMatch => "task_identifier_match",
-            Self::PackageProximateReach => "package_proximate_reach",
+            Self::PackageProximateReach => REACH_REASON_CODE,
         }
     }
 }
