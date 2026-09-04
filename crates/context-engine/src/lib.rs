@@ -2270,9 +2270,19 @@ impl LocalEngine {
         // to nominated files, and whether any of those files the task never
         // named. A consumer reading a partial map has to be told which kind of
         // partial it is.
-        traversal
-            .unknowns
-            .extend(structural_request.graph.unknowns.iter().cloned());
+        //
+        // Only the scope disclosures cross over. The graph's remaining unknowns
+        // are per-file parse detail — an unresolved call target, an unsupported
+        // language — which describe how the graph was built rather than what
+        // this map covers, and a consumer cannot act on them.
+        traversal.unknowns.extend(
+            structural_request
+                .graph
+                .unknowns
+                .iter()
+                .filter(|unknown| SCOPE_DISCLOSURES.contains(&unknown.as_str()))
+                .cloned(),
+        );
         traversal.unknowns.sort();
         traversal.unknowns.dedup();
         let planner_query = structural_planner_query(&structural_request.edge_kinds, traversal)
@@ -5840,6 +5850,16 @@ impl StructuralScope {
     }
 }
 
+/// Graph unknowns that describe what a map covers rather than how it was built.
+///
+/// These cross from the graph into a consumer's omissions; the rest stay
+/// internal. A scoped map is partial in a way the consumer must know about,
+/// and a reach-expanded one is partial in a second way on top of it.
+const SCOPE_DISCLOSURES: [&str; 2] = [
+    "structural_scope_limited_to_nominated_files",
+    "structural_scope_includes_reach_expanded_files",
+];
+
 /// One extraction pass over a single scope tier.
 #[derive(Clone, Copy)]
 struct ExtractionPass<'a> {
@@ -6611,6 +6631,25 @@ mod tests {
         ];
         sort_seed_candidates(&mut unranked);
         assert_eq!(unranked[0].3, "node-a");
+    }
+
+    #[test]
+    fn only_scope_disclosures_cross_from_the_graph_into_a_consumer_omission() {
+        // Per-file parse detail describes how the graph was built, not what
+        // this map covers, and a consumer cannot act on it.
+        assert!(SCOPE_DISCLOSURES.contains(&"structural_scope_limited_to_nominated_files"));
+        assert!(SCOPE_DISCLOSURES.contains(&"structural_scope_includes_reach_expanded_files"));
+        for internal in [
+            "unresolved_call_target",
+            "unresolved_module_import",
+            "unsupported_structural_language",
+            "structural_fact_limit_reached",
+        ] {
+            assert!(
+                !SCOPE_DISCLOSURES.contains(&internal),
+                "{internal} must stay internal"
+            );
+        }
     }
 
     #[test]
