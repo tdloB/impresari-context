@@ -919,6 +919,7 @@ impl LocalEngine {
                 self.ids(),
             ));
         }
+        let (query, _) = bounded_task_query(query);
         let signals = task_signals(query);
         let snapshot_id = self
             .snapshot
@@ -4450,6 +4451,7 @@ fn deterministic_plan(
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
+    let (query, _) = bounded_task_query(query);
     let (base_steps, mut omitted_candidates) = profile_base_plan(profile, query);
     let (steps, original_query_omitted) =
         expand_profile_steps(query, base_steps, max_literal_bytes);
@@ -4591,12 +4593,39 @@ struct TaskSignals {
     lexical: Vec<String>,
 }
 
+/// Task text admitted for signal extraction and planning.
+///
+/// A longer task is bounded, not rejected. Real bug reports routinely exceed
+/// this: four of twenty-two accepted astropy changes carry problem statements
+/// between 4.8 and 7.9 KB, and every one of them failed the whole request
+/// outright when length was a validity condition.
+const MAX_TASK_QUERY_BYTES: usize = 4_096;
+
+/// Whether a task query is usable at all.
+///
+/// Emptiness and embedded control characters are malformed. Length is not:
+/// see [`bounded_task_query`].
 fn valid_task_query(query: &str) -> bool {
     !query.is_empty()
-        && query.len() <= 4_096
         && !query
             .chars()
             .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
+}
+
+/// The admitted prefix of a task query, and whether it was shortened.
+///
+/// Truncation is at a character boundary, so the prefix is always valid UTF-8.
+/// A caller that shortens must disclose it: a limit that bites has to be
+/// visible, and an omission a consumer can detect beats a deletion it cannot.
+fn bounded_task_query(query: &str) -> (&str, bool) {
+    if query.len() <= MAX_TASK_QUERY_BYTES {
+        return (query, false);
+    }
+    let mut end = MAX_TASK_QUERY_BYTES;
+    while end > 0 && !query.is_char_boundary(end) {
+        end -= 1;
+    }
+    (&query[..end], true)
 }
 
 fn expand_profile_steps(
@@ -4815,6 +4844,7 @@ fn structural_seed_selection(
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
+    let (query, query_truncated) = bounded_task_query(query);
     let signals = task_signals(query);
     let nodes = graph
         .nodes
@@ -4899,6 +4929,9 @@ fn structural_seed_selection(
     }
     if ambiguous_observed {
         selection.unknowns.push("structural_seed_ambiguous");
+    }
+    if query_truncated {
+        selection.unknowns.push("task_query_truncated");
     }
     if selection.seeds.is_empty() {
         selection.unknowns.push("structural_seed_unavailable");
@@ -6209,6 +6242,45 @@ mod tests {
     };
 
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
+
+    #[test]
+    fn a_long_task_is_bounded_not_rejected() {
+        // Four of twenty-two accepted astropy changes carry problem statements
+        // over this limit. Rejecting them failed the entire request.
+        let long = "a".repeat(MAX_TASK_QUERY_BYTES * 2);
+        assert!(valid_task_query(&long), "length must not decide validity");
+        let (bounded, truncated) = bounded_task_query(&long);
+        assert!(truncated);
+        assert_eq!(bounded.len(), MAX_TASK_QUERY_BYTES);
+
+        // A query inside the limit is untouched and not reported as shortened.
+        let short = "inspect reviewed_change in review.ts";
+        let (unchanged, shortened) = bounded_task_query(short);
+        assert_eq!(unchanged, short);
+        assert!(!shortened);
+    }
+
+    #[test]
+    fn truncation_never_splits_a_character() {
+        // A multi-byte character straddling the ceiling must not be halved.
+        let mut query = "x".repeat(MAX_TASK_QUERY_BYTES - 1);
+        query.push('\u{1F600}');
+        query.push_str("tail");
+        let (bounded, truncated) = bounded_task_query(&query);
+        assert!(truncated);
+        assert!(bounded.len() < MAX_TASK_QUERY_BYTES);
+        assert!(std::str::from_utf8(bounded.as_bytes()).is_ok());
+        assert!(!bounded.ends_with('\u{FFFD}'));
+    }
+
+    #[test]
+    fn malformed_queries_are_still_rejected() {
+        assert!(!valid_task_query(""));
+        assert!(!valid_task_query("has a \u{0}null"));
+        assert!(!valid_task_query("bell \u{7}"));
+        // Ordinary whitespace is not a control failure.
+        assert!(valid_task_query("line one\nline two\ttabbed\r"));
+    }
 
     #[test]
     fn scope_admits_only_nominated_files_and_no_scope_admits_everything() {
