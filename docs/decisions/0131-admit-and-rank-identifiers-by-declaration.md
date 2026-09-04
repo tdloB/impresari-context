@@ -83,5 +83,15 @@ consumer sends can add a declaration — so `SEC-INV-012` is untouched. The inde
 still holds names and paths only and cannot become a retrieval path around
 `SEC-INV-011`.
 
+Measured over twenty-two accepted astropy changes, map file recall rises from 11
+of 27 to 14 of 27 and symbol recall from 4 of 34 to 10 of 34, for 1.6% more
+delivered bytes. Empty maps fall from three to one and vendored-code seeding
+from three to two.
+
+Six reference files are gained and three lost. The three were incidental
+passengers in broader maps this change sharpened, and the PRD's "none lost"
+criterion — written before the measurement — is recorded as failed rather than
+rewritten, because sharpening selection cannot be purely additive.
+
 No security invariant changes. This record grants no execution, network,
 publication, or submission authority.

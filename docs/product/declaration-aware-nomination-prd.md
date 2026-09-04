@@ -3,7 +3,7 @@
 ## Document Control
 
 - PRD ID/version: IC-DAN-131 / 1.0.
-- Status: Accepted for implementation.
+- Status: Implemented and measured; one acceptance criterion not met (see Measured Outcome).
 - Date: 2026-09-04.
 - Product owner: Aaron Boldt.
 - Governing architecture:
@@ -100,6 +100,44 @@ that merely mentions it.
   reference file currently recalled is lost.
 - Every task that returns `structural_seed_unavailable` today returns a map.
 - The full repository gate passes.
+
+## Measured Outcome
+
+Twenty-two accepted astropy changes, scored offline:
+
+| | map files | map symbols | bytes |
+| --- | --- | --- | --- |
+| baseline (`main`) | 11 of 27 | 4 of 34 | 18,995,114 |
+| declaration as an absolute tier | 12 of 27 | 9 of 34 | 19,289,108 |
+| **declaration weighted** | **14 of 27** | **10 of 34** | 19,293,774 (**+1.6%**) |
+
+Map file recall rises from 41% to 52% and symbol recall from 12% to 29%, for
+1.6% more delivered bytes.
+
+Corpus-wide the delivered maps get broader and cleaner, not narrower: 51 to 68
+distinct files, tasks returning an empty map 3 to 1, tasks seeding into vendored
+`astropy/extern` code 3 to 2.
+
+All three tasks that returned `structural_seed_unavailable` now return a map,
+and each recalls its reference file: `astropy-8707` (`Header`), `astropy-8872`
+(`Quantity`), `astropy-14598` (`Card`).
+
+### The criterion that was not met
+
+Six reference files are gained and **three are lost** — `astropy-13033`,
+`astropy-14309`, `astropy-7336` — so "no reference file currently recalled is
+lost" fails.
+
+In all three the reference file was an incidental passenger in a broader map
+that this change sharpened. `astropy-13033`'s previous map spanned four files
+including vendored `extern/configobj/validate.py`, and reached
+`timeseries/core.py` alongside it; the new map is two files and does not.
+
+That criterion assumed a change could only be additive. Sharpening selection
+cannot be additive by construction — a map that stops including the wrong files
+sometimes stops including a right one. The criterion was mis-specified rather
+than the result being a failure, but it was written before the measurement and
+is recorded as failed rather than rewritten to fit.
 
 ## Non-Goals
 
