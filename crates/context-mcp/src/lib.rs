@@ -707,14 +707,14 @@ impl McpServer {
                                     .iter()
                                     .map(|file| file.display_path.clone())
                                     .collect::<Vec<_>>();
-                                (graph, order)
+                                (graph, order, nomination.admitted_identifiers)
                             })
                     });
                     // Carry the nomination order so a name shared by several
                     // files resolves to the file the task is about rather than
                     // to whichever path sorts first.
-                    let (graph, nominated_order) =
-                        scoped.unwrap_or_else(|| (runtime.graph.clone(), Vec::new()));
+                    let (graph, nominated_order, admitted_identifiers) =
+                        scoped.unwrap_or_else(|| (runtime.graph.clone(), Vec::new(), Vec::new()));
                     if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                         self.engine
                             .build_profiled_seeded_progressive_context(
@@ -723,6 +723,7 @@ impl McpServer {
                                 &query,
                                 &StructuralSeedRequest {
                                     nominated_order: nominated_order.clone(),
+                                    admitted_identifiers: admitted_identifiers.clone(),
                                     graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
@@ -737,6 +738,7 @@ impl McpServer {
                                 &query,
                                 &StructuralSeedRequest {
                                     nominated_order: nominated_order.clone(),
+                                    admitted_identifiers: admitted_identifiers.clone(),
                                     graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },

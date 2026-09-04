@@ -23,6 +23,19 @@ pub const MAX_INDEXED_FILES: usize = 20_000;
 pub const MAX_IDENTIFIERS_PER_FILE: usize = 512;
 /// Largest identifier length retained, matching the task-signal ceiling.
 const MAX_IDENTIFIER_BYTES: usize = 256;
+/// Largest number of files that may declare a name for it to be admitted as a
+/// task identifier on the strength of that declaration.
+///
+/// A name declared in one file points at that file. A name declared in two
+/// hundred points nowhere, and the commonest of those — `get`, `run`, `data` —
+/// are also ordinary English words a task report uses in passing.
+pub const MAX_DECLARING_FILES_ADMITTED: usize = 8;
+
+/// Largest number of declared names retained for one file.
+///
+/// Bounds a generated file so it cannot dominate the declaration side of the
+/// index, the same way [`MAX_IDENTIFIERS_PER_FILE`] bounds the mention side.
+pub const MAX_DECLARATIONS_PER_FILE: usize = 256;
 
 /// Closed failure category for one index lookup.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -57,6 +70,12 @@ pub struct TaskIdentifierIndex {
     pub workspace_snapshot: String,
     /// Portable display path to the identifiers that file contains.
     pub files: BTreeMap<String, BTreeSet<String>>,
+    /// Portable display path to the names that file declares (IC-DAN-131).
+    ///
+    /// A declaration is a far stronger signal than a mention: `Header` occurs
+    /// in hundreds of files and is declared in one.
+    #[serde(default)]
+    pub declarations: BTreeMap<String, BTreeSet<String>>,
     /// Explicit record of every bound that bit.
     pub unknowns: Vec<String>,
 }
@@ -74,6 +93,7 @@ impl TaskIdentifierIndexBuilder {
             index: TaskIdentifierIndex {
                 workspace_snapshot: workspace_snapshot.to_owned(),
                 files: BTreeMap::new(),
+                declarations: BTreeMap::new(),
                 unknowns: Vec::new(),
             },
         }
@@ -133,6 +153,31 @@ impl TaskIdentifierIndexBuilder {
                 .files
                 .insert(display_path.to_owned(), identifiers);
         }
+
+        // The same read answers what this file declares. A declaration is what
+        // makes a single-word name like `Header` recognisable as code at all.
+        let mut declarations = BTreeSet::new();
+        let mut declarations_truncated = false;
+        for name in declared_names(text) {
+            if declarations.len() >= MAX_DECLARATIONS_PER_FILE {
+                declarations_truncated = true;
+                break;
+            }
+            if name.len() <= MAX_IDENTIFIER_BYTES {
+                declarations.insert(name.to_owned());
+            }
+        }
+        if declarations_truncated {
+            push_unknown(
+                &mut self.index.unknowns,
+                "identifier_index_file_declaration_limit_reached",
+            );
+        }
+        if !declarations.is_empty() {
+            self.index
+                .declarations
+                .insert(display_path.to_owned(), declarations);
+        }
     }
 
     /// Finish the index.
@@ -175,6 +220,72 @@ impl TaskIdentifierIndex {
         Ok(matches)
     }
 
+    /// Whether the snapshot declares this name in few enough files to identify
+    /// one.
+    ///
+    /// This is the oracle that lets a single-word name like `Header` be
+    /// admitted as a code identifier when its shape alone would reject it.
+    ///
+    /// Distinctness is the point, not merely declaredness. Nomination exists to
+    /// find *the* file, and a name declared in hundreds of files cannot do
+    /// that: `get`, `set`, `run` and `data` are declared everywhere and appear
+    /// in ordinary prose constantly. Requiring a small declaring set admits
+    /// `Header`, declared once, and rejects them without a hand-written list of
+    /// words to ignore.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`IdentifierIndexErrorCode::SnapshotMismatch`] when the caller
+    /// asks for a snapshot this index was not built from.
+    pub fn declares(
+        &self,
+        workspace_snapshot: &str,
+        name: &str,
+    ) -> Result<bool, IdentifierIndexErrorCode> {
+        if workspace_snapshot != self.workspace_snapshot {
+            return Err(IdentifierIndexErrorCode::SnapshotMismatch);
+        }
+        let declaring = self
+            .declarations
+            .values()
+            .filter(|declared| declared.contains(name))
+            .take(MAX_DECLARING_FILES_ADMITTED.saturating_add(1))
+            .count();
+        Ok(declaring > 0 && declaring <= MAX_DECLARING_FILES_ADMITTED)
+    }
+
+    /// Files declaring any of the named identifiers.
+    ///
+    /// Nomination ranks a file that declares a task identifier above one that
+    /// only mentions it, so it needs the two answers separately.
+    ///
+    /// # Errors
+    ///
+    /// Returns [`IdentifierIndexErrorCode::SnapshotMismatch`] when the caller
+    /// asks for a snapshot this index was not built from.
+    pub fn declaration_matches(
+        &self,
+        workspace_snapshot: &str,
+        identifiers: &[String],
+    ) -> Result<BTreeMap<String, BTreeSet<String>>, IdentifierIndexErrorCode> {
+        if workspace_snapshot != self.workspace_snapshot {
+            return Err(IdentifierIndexErrorCode::SnapshotMismatch);
+        }
+        let wanted: BTreeSet<&str> = identifiers.iter().map(String::as_str).collect();
+        let mut matches: BTreeMap<String, BTreeSet<String>> = BTreeMap::new();
+        for (path, declared) in &self.declarations {
+            let found: BTreeSet<String> = declared
+                .iter()
+                .filter(|name| wanted.contains(name.as_str()))
+                .cloned()
+                .collect();
+            if !found.is_empty() {
+                matches.insert(path.clone(), found);
+            }
+        }
+        Ok(matches)
+    }
+
     /// Files indexed.
     #[must_use]
     pub fn indexed_files(&self) -> usize {
@@ -190,6 +301,88 @@ fn push_unknown(unknowns: &mut Vec<String>, reason: &str) {
 
 /// Split source text the way task signals split task text, so an identifier the
 /// planner can name is an identifier the index can hold.
+/// Keywords that open a declaration, unioned across admitted languages.
+///
+/// One union rather than a table per language: fifteen tables would be fifteen
+/// places to drift out of step with the structural worker, and the cost of the
+/// union is a name admitted that a task would still have to mention before it
+/// changed anything.
+const DECLARATION_KEYWORDS: [&str; 19] = [
+    "class",
+    "def",
+    "defmodule",
+    "defn",
+    "enum",
+    "fn",
+    "func",
+    "function",
+    "impl",
+    "interface",
+    "module",
+    "namespace",
+    "object",
+    "package",
+    "record",
+    "struct",
+    "sub",
+    "trait",
+    "type",
+];
+
+/// Modifiers that may precede a declaration keyword on the same line.
+const DECLARATION_MODIFIERS: [&str; 14] = [
+    "abstract",
+    "async",
+    "case",
+    "data",
+    "export",
+    "final",
+    "internal",
+    "open",
+    "private",
+    "protected",
+    "public",
+    "sealed",
+    "static",
+    "pub",
+];
+
+/// Names declared in this text, found lexically.
+///
+/// A declaration keyword must open the line, after optional modifiers. That
+/// position is what keeps prose out: documentation writes "the class `Header`
+/// is constructed from", but it does not begin a line with `class Header`.
+///
+/// This is not a parser and is not trying to be. The structural worker remains
+/// the only thing that parses; this answers one question — does the repository
+/// declare this name — cheaply enough to run in the pass that already reads
+/// every file.
+fn declared_names(text: &str) -> impl Iterator<Item = &str> {
+    text.lines().filter_map(|line| {
+        let mut words = line.split_whitespace();
+        let mut word = words.next()?;
+        // Skip modifiers, but never the whole line: a keyword must still open
+        // the declaration.
+        let mut skipped = 0;
+        while DECLARATION_MODIFIERS.contains(&word) && skipped < DECLARATION_MODIFIERS.len() {
+            word = words.next()?;
+            skipped += 1;
+        }
+        if !DECLARATION_KEYWORDS.contains(&word) {
+            return None;
+        }
+        let name = words.next()?;
+        // `class Header(_CardAccessor):`, `fn admitted_paths(&self)`, `def f():`
+        let name = name
+            .split(|character: char| !(character.is_ascii_alphanumeric() || character == '_'))
+            .next()?;
+        (!name.is_empty()
+            && name
+                .starts_with(|character: char| character.is_ascii_alphabetic() || character == '_'))
+        .then_some(name)
+    })
+}
+
 fn split_identifier_tokens(text: &str) -> impl Iterator<Item = &str> {
     text.split(|character: char| {
         !(character.is_ascii_alphanumeric() || matches!(character, '_' | '-' | '.' | ':'))
@@ -200,6 +393,97 @@ fn split_identifier_tokens(text: &str) -> impl Iterator<Item = &str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_declaration_keyword_must_open_the_line() {
+        let text = "\
+class Header(_CardAccessor):
+    def fromstring(cls, data):
+        pass
+pub fn admitted_paths(&self) -> BTreeSet<String> {
+public class CardAccessor {
+public static void main(String[] args) {
+";
+        let found: Vec<&str> = declared_names(text).collect();
+        // A C-family method declares a return type rather than a keyword, so
+        // `main` is not found. Type declarations are covered in every admitted
+        // language; method declarations only where a keyword introduces them.
+        assert_eq!(
+            found,
+            vec!["Header", "fromstring", "admitted_paths", "CardAccessor"]
+        );
+    }
+
+    #[test]
+    fn prose_naming_a_declaration_is_not_a_declaration() {
+        // This is the whole reason the keyword must open the line: docs talk
+        // about classes constantly and must not thereby declare them.
+        let prose = "\
+The class Header is constructed from a card image.
+See the function fromstring for details, or type Card to inspect one.
+# class NotDeclared is only mentioned in a comment mid-sentence
+";
+        let found: Vec<&str> = declared_names(prose).collect();
+        assert!(found.is_empty(), "prose declared {found:?}");
+    }
+
+    #[test]
+    fn a_name_declared_almost_everywhere_is_not_admitted() {
+        // `get` is declared in every second file and is also an ordinary
+        // English word. Admitting it would make prose steer nomination.
+        let mut builder = TaskIdentifierIndexBuilder::new(&"a".repeat(64));
+        for index in 0..MAX_DECLARING_FILES_ADMITTED + 4 {
+            builder.admit(&format!("pkg/f{index}.py"), b"def get(self):\n    pass\n");
+        }
+        builder.admit("pkg/header.py", b"class Header(object):\n    pass\n");
+        let index = builder.finish();
+        let snapshot = "a".repeat(64);
+        assert!(
+            index.declares(&snapshot, "Header").expect("declares"),
+            "a name declared once identifies its file"
+        );
+        assert!(
+            !index.declares(&snapshot, "get").expect("declares"),
+            "a name declared everywhere identifies nothing"
+        );
+    }
+
+    #[test]
+    fn a_declaration_answer_refuses_a_different_snapshot() {
+        let mut builder = TaskIdentifierIndexBuilder::new(&"a".repeat(64));
+        builder.admit("pkg/header.py", b"class Header:\n    pass\n");
+        let index = builder.finish();
+        assert_eq!(
+            index.declares(&"b".repeat(64), "Header"),
+            Err(IdentifierIndexErrorCode::SnapshotMismatch)
+        );
+        assert_eq!(
+            index.declaration_matches(&"b".repeat(64), &["Header".to_owned()]),
+            Err(IdentifierIndexErrorCode::SnapshotMismatch)
+        );
+    }
+
+    #[test]
+    fn declaration_matches_names_the_declaring_file_only() {
+        let mut builder = TaskIdentifierIndexBuilder::new(&"a".repeat(64));
+        builder.admit("pkg/header.py", b"class Header:\n    pass\n");
+        builder.admit("pkg/uses.py", b"h = Header()\nprint(Header)\n");
+        let index = builder.finish();
+        let snapshot = "a".repeat(64);
+        let declaring = index
+            .declaration_matches(&snapshot, &["Header".to_owned()])
+            .expect("declaration matches");
+        assert_eq!(declaring.keys().collect::<Vec<_>>(), vec!["pkg/header.py"]);
+        // The mention side still sees both, which is the distinction ranking
+        // needs.
+        // The mention side is a separate answer, which is the distinction
+        // ranking needs; `Header` fails the shape rule so it is not indexed as
+        // a mention at all.
+        let mentioning = index
+            .identifier_matches(&snapshot, &["Header".to_owned()])
+            .expect("identifier matches");
+        assert!(mentioning.is_empty());
+    }
 
     const SNAPSHOT: &str =
         "sha256:1111111111111111111111111111111111111111111111111111111111111111";
