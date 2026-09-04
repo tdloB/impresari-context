@@ -4476,7 +4476,7 @@ fn narrow_structural_seed_budget(
     }
     let mut narrowed = budget.clone();
     narrowed.max_traversal_depth = "2".into();
-    narrowed.max_matches = matches.min(16).to_string();
+    narrowed.max_matches = matches.min(64).to_string();
     Ok(narrowed)
 }
 

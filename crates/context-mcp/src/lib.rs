@@ -918,7 +918,7 @@ impl McpServer {
             .ok_or("progressive structural runtime unavailable")?;
         let packet = &profiled.packet;
         let initial_packet = packet.clone();
-        let items = profiled.plan.structural_query.as_ref().map_or_else(
+        let mut items = profiled.plan.structural_query.as_ref().map_or_else(
             || Ok(Vec::new()),
             |query| {
                 query
@@ -939,6 +939,21 @@ impl McpServer {
                     .collect()
             },
         )?;
+        let ceiling = progressive_ceiling(&budget)?;
+        // A map larger than the session's item ceiling used to be discarded
+        // whole: the traversal ran, the items were built, and the consumer got
+        // nothing. The reads are already spent by this point and returning
+        // nothing does not refund them, so the ceiling is honoured by
+        // disclosing what fits and saying so.
+        //
+        // Truncating here, before the map identity is computed, keeps the
+        // identity, the disclosed items, the session's lookup targets and the
+        // consumption accounting describing the same set.
+        let item_ceiling = usize::try_from(ceiling.returned_items).unwrap_or(usize::MAX);
+        let item_ceiling_reached = items.len() > item_ceiling;
+        if item_ceiling_reached {
+            items.truncate(item_ceiling);
+        }
         let public_items = items
             .iter()
             .map(|item| item.public.clone())
@@ -957,7 +972,6 @@ impl McpServer {
             }),
         )?;
         let reads_after = self.engine.repository_read_telemetry();
-        let ceiling = progressive_ceiling(&budget)?;
         let per_call = DisclosureConsumption {
             maps: 1,
             returned_items: u64::try_from(items.len()).unwrap_or(u64::MAX),
@@ -984,6 +998,7 @@ impl McpServer {
             ceiling,
         };
         let state = if runtime.graph.completeness == "complete"
+            && !item_ceiling_reached
             && !profiled
                 .plan
                 .structural_query
@@ -1006,6 +1021,12 @@ impl McpServer {
                 values
             },
         );
+        let mut omissions = omissions;
+        if item_ceiling_reached {
+            omissions.push("progressive_item_ceiling_reached".to_owned());
+            omissions.sort();
+            omissions.dedup();
+        }
         let base = json!({
             "schema_name":"progressive-context-build-result",
             "schema_version":PROGRESSIVE_CONTRACT_VERSION,
