@@ -1,6 +1,6 @@
 # Deterministic Structural-Seed Selection PRD
 
-- PRD ID/version: IC-DSSS-118 / 1.3.
+- PRD ID/version: IC-DSSS-118 / 1.4.
 - Status: Core selector and provider-free utility comparison implemented and
   locally verified; external protocol integration remains gated.
 - Date: 2026-09-01.
@@ -43,6 +43,10 @@ exact retrieval continues without structural evidence.
     (`snake_case`, `kebab-case`, `path::qualified`) or interior capitalization
     (`CamelCase`). Reject markup runs such as `--` and `---`, and reject tokens
     that do not begin with a letter or underscore.
+2d. Reject a hyphenated token carrying a numeric or version segment. Bug
+    reports supply environment dumps and source citations in bulk, and each
+    occupies a slot a real symbol could use. A digit inside a name is fine; a
+    segment that is only digits is not.
 2e. Require the separator to be interior. Markdown emphasis wraps prose in
     underscores, so `_and_` reads as `snake_case`; judge a token with its edge
     separators removed. Exempt the dunder form `__name__`, which is a real
