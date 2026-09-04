@@ -138,34 +138,32 @@ pub fn nominate_files(
         }
     }
 
-    // Then files that *declare* a task identifier, before files that merely
-    // mention one. A declaration identifies a file; a mention does not.
-    let declaring = rank_by_match_count(declaration_matches, &admitted_identifiers, &seen);
-    let mentioning = rank_by_match_count(identifier_matches, &admitted_identifiers, &seen);
+    // Then files by how strongly they answer the task, counting a declaration
+    // as worth several mentions rather than as an overriding tier. A file that
+    // declares one task identifier is not automatically a better answer than
+    // one that mentions four: ranked as a tier, a task about `Table` anchored
+    // on `io/fits/column.py`, which declares `Column`, over `table/table.py`,
+    // which declares `Table` and mentions most of the rest.
+    let ranked = rank_by_evidence(
+        declaration_matches,
+        identifier_matches,
+        &admitted_identifiers,
+        &seen,
+    );
 
-    let considered_files = u64::try_from(
-        files
-            .len()
-            .saturating_add(declaring.len())
-            .saturating_add(mentioning.len()),
-    )
-    .unwrap_or(u64::MAX);
+    let considered_files =
+        u64::try_from(files.len().saturating_add(ranked.len())).unwrap_or(u64::MAX);
 
-    for (rank, ranked) in [
-        (NominationRank::DeclarationMatch, declaring),
-        (NominationRank::IdentifierMatch, mentioning),
-    ] {
-        for (count, path) in ranked {
-            if files.len() >= MAX_NOMINATED_FILES {
-                break;
-            }
-            if seen.insert(path) {
-                files.push(NominatedFile {
-                    display_path: path.to_owned(),
-                    reason_code: rank.reason_code().to_owned(),
-                    matched_identifiers: count,
-                });
-            }
+    for candidate in ranked {
+        if files.len() >= MAX_NOMINATED_FILES {
+            break;
+        }
+        if seen.insert(candidate.path) {
+            files.push(NominatedFile {
+                display_path: candidate.path.to_owned(),
+                reason_code: candidate.rank.reason_code().to_owned(),
+                matched_identifiers: candidate.declared.saturating_add(candidate.mentioned),
+            });
         }
     }
 
@@ -191,24 +189,73 @@ pub fn nominate_files(
     }
 }
 
+/// How much one declaration outweighs one mention.
+///
+/// `Header` occurs in hundreds of astropy files and is declared in one, so a
+/// declaration has to count for a great deal more. It must not count for
+/// everything: ranked as an absolute tier, a file declaring a single task
+/// identifier displaced one declaring the central type *and* mentioning most of
+/// the rest, and five tasks lost their reference file that way.
+const DECLARATION_WEIGHT: u64 = 3;
+
+/// One ranked candidate and the ground that ranked it.
+struct RankedCandidate<'a> {
+    path: &'a str,
+    rank: NominationRank,
+    declared: u64,
+    mentioned: u64,
+}
+
 /// Files carrying at least one admitted identifier, best first.
 ///
 /// Ties break by path, so a snapshot yields an identical nomination.
-fn rank_by_match_count<'a>(
-    matches: &'a BTreeMap<String, BTreeSet<String>>,
+fn rank_by_evidence<'a>(
+    declaration_matches: &'a BTreeMap<String, BTreeSet<String>>,
+    identifier_matches: &'a BTreeMap<String, BTreeSet<String>>,
     admitted: &BTreeSet<&str>,
     seen: &BTreeSet<&str>,
-) -> Vec<(u64, &'a str)> {
-    let mut ranked: Vec<(u64, &str)> = matches
-        .iter()
-        .filter(|(path, _)| !seen.contains(path.as_str()))
-        .filter_map(|(path, matched)| {
-            let count = count_admitted(matched, admitted);
-            (count > 0).then_some((count, path.as_str()))
+) -> Vec<RankedCandidate<'a>> {
+    let mut ranked: Vec<RankedCandidate<'a>> = declaration_matches
+        .keys()
+        .chain(identifier_matches.keys())
+        .collect::<BTreeSet<&String>>()
+        .into_iter()
+        .filter(|path| !seen.contains(path.as_str()))
+        .filter_map(|path| {
+            let declared = declaration_matches
+                .get(path)
+                .map_or(0, |matched| count_admitted(matched, admitted));
+            let mentioned = identifier_matches
+                .get(path)
+                .map_or(0, |matched| count_admitted(matched, admitted));
+            if declared == 0 && mentioned == 0 {
+                return None;
+            }
+            Some(RankedCandidate {
+                path: path.as_str(),
+                rank: if declared > 0 {
+                    NominationRank::DeclarationMatch
+                } else {
+                    NominationRank::IdentifierMatch
+                },
+                declared,
+                mentioned,
+            })
         })
         .collect();
-    ranked.sort_by(|left, right| right.0.cmp(&left.0).then_with(|| left.1.cmp(right.1)));
+    ranked.sort_by(|left, right| {
+        evidence_score(right)
+            .cmp(&evidence_score(left))
+            .then_with(|| left.path.cmp(right.path))
+    });
     ranked
+}
+
+fn evidence_score(candidate: &RankedCandidate<'_>) -> u64 {
+    candidate
+        .declared
+        .saturating_mul(DECLARATION_WEIGHT)
+        .saturating_add(candidate.mentioned)
 }
 
 fn count_admitted(matched: &BTreeSet<String>, admitted: &BTreeSet<&str>) -> u64 {
@@ -389,6 +436,45 @@ mod tests {
     }
 
     #[test]
+    fn many_mentions_can_outweigh_a_single_unrelated_declaration() {
+        // A declaration is strong evidence, not overriding evidence. Ranked as
+        // an absolute tier, a task about `Table` anchored on the file declaring
+        // `Column` over the file declaring `Table` and mentioning the rest.
+        let nomination = nominate_files(
+            &[],
+            &[
+                "Table".to_owned(),
+                "Column".to_owned(),
+                "Row".to_owned(),
+                "TableColumns".to_owned(),
+            ],
+            &set(&["table/table.py", "io/fits/column.py"]),
+            &matches(&[
+                ("table/table.py", &["Table"]),
+                ("io/fits/column.py", &["Column"]),
+            ]),
+            &matches(&[(
+                "table/table.py",
+                &["Table", "Column", "Row", "TableColumns"],
+            )]),
+        );
+        assert_eq!(nomination.files[0].display_path, "table/table.py");
+    }
+
+    #[test]
+    fn a_declaration_still_outweighs_a_lone_mention() {
+        let nomination = nominate_files(
+            &[],
+            &["Header".to_owned()],
+            &set(&["io/fits/header.py", "io/fits/connect.py"]),
+            &matches(&[("io/fits/header.py", &["Header"])]),
+            &matches(&[("io/fits/connect.py", &["Header"])]),
+        );
+        assert_eq!(nomination.files[0].display_path, "io/fits/header.py");
+        assert_eq!(nomination.files[0].reason_code, "task_identifier_declared");
+    }
+
+    #[test]
     fn an_exact_task_path_still_outranks_a_declaration() {
         // A path the task writes out is the strongest ground there is.
         let nomination = nominate_files(
@@ -416,7 +502,8 @@ mod tests {
         );
         assert_eq!(nomination.files.len(), 1);
         assert_eq!(nomination.files[0].reason_code, "task_identifier_declared");
-        assert_eq!(nomination.considered_files, 2);
+        // One file is one candidate, however many grounds it answers on.
+        assert_eq!(nomination.considered_files, 1);
     }
 
     #[test]

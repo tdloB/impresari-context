@@ -48,8 +48,12 @@ Detect declarations lexically: a declaration keyword at the start of a line,
 after optional modifiers, followed by a name. Use one keyword union across
 admitted languages rather than a table per language.
 
-Rank a file that declares a task identifier above one that only mentions it,
-breaking ties inside each ground by the existing count and path rules.
+Rank by weighted evidence rather than by ground: score a file as its mentions
+plus three times its declarations, breaking ties by path. A declaration is
+strong evidence, not overriding evidence — measured, treating it as an absolute
+tier gained six reference files and lost five, because a file declaring one task
+identifier displaced one declaring the central type and mentioning most of the
+rest.
 
 Keep the shape rule as the fallback whenever no index is available. Bound
 declarations per file, bind them to the index's snapshot, and retain names and

@@ -76,14 +76,25 @@ because a declaration genuinely has a position and a prose mention does not.
 `Header` appears in hundreds of astropy files and is declared in one. Counting a
 mention like a definition puts the anchor almost anywhere.
 
+It is not, however, worth *everything*. Measured, ranking declaration as an
+absolute tier gained six reference files and lost five: a file declaring one
+task identifier displaced a file declaring the central type and mentioning most
+of the rest. A task about `Table` anchored on `io/fits/column.py`, which
+declares `Column`, over `table/table.py`, which declares `Table`.
+
+So a declaration is weighted, not tiered:
+
 ```text
-rank 1   declares a task identifier          ← the file the task is about
-rank 2   mentions task identifiers, by count ← everything that imports it
+score = mentions + 3 × declarations       ties break by path
 ```
 
-Ground first, then the existing count and path tie-breaks inside each ground, so
-nomination stays deterministic and the change is additive rather than a
-re-ordering of what already worked.
+Three is the smallest weight that keeps a lone declaration ahead of a lone
+mention while still letting four mentions outweigh one unrelated declaration.
+
+The split in that measurement is what chose this shape. The six gains came from
+**admission** — tasks that previously produced no identifier at all — and the
+five losses came from **ranking**. Widening admission and softening ranking are
+separable, and only the second needed changing.
 
 This matters beyond nomination. The anchor chosen here is the file seeds
 resolve into and the file traversal expands from, so a wrong anchor is not one
