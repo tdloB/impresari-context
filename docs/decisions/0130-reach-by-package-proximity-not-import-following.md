@@ -114,3 +114,34 @@ The decision stands — package proximity is the right reach mechanism, and
 import following is measurably not — but the implementation is held unmerged
 until nomination picks a better anchor. Reach cannot be evaluated on its merits
 while the file it expands from is the wrong one.
+
+## Re-measured on a better anchor
+
+Combined with declaration-aware nomination
+([ADR-0131](0131-admit-and-rank-identifiers-by-declaration.md)), which gives
+reach the anchor it lacked:
+
+| variant | map files | map symbols | bytes |
+| --- | --- | --- | --- |
+| declaration-aware alone | 14 of 27 | 10 of 34 | 19,293,774 |
+| declaration-aware plus reach | 15 of 27 | 11 of 34 | 19,310,728 (**+0.09%**) |
+
+Reach is now strictly positive — one reference file gained, none lost, for
+essentially no bytes — where on the old anchor it was neutral at best. That is
+still one file, and one file is inside the noise band this corpus supports, so
+it does not yet clear the PRD's two-file bar.
+
+The per-task detail says why, and it is the more useful result. The gain came
+from `astropy-14309`, where reach admitted `io/fits/connect.py` and traversal
+happened to walk into it. The two tasks predicted to gain — `astropy-8707`
+missing `io/fits/card.py`, `astropy-13033` missing `timeseries/core.py`, each a
+sibling of a file already in the map — produced **byte-identical maps**.
+
+Reach admitted those siblings to the graph and the map never reached them.
+Scope and map are separate: reach controls which files a graph covers, while
+seeds and traversal control which files a map returns. Reach pays only when
+traversal incidentally walks into a newly admitted file, which is why its effect
+is small and hard to predict.
+
+That makes traversal, not scope, the binding constraint on map recall, and it is
+the finding this decision's implementation is most useful for having produced.
