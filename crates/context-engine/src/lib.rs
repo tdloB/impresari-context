@@ -4475,7 +4475,7 @@ fn narrow_structural_seed_budget(
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let mut narrowed = budget.clone();
-    narrowed.max_traversal_depth = "1".into();
+    narrowed.max_traversal_depth = "2".into();
     narrowed.max_matches = matches.min(16).to_string();
     Ok(narrowed)
 }
