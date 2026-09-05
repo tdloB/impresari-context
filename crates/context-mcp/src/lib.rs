@@ -949,11 +949,7 @@ impl McpServer {
         // Truncating here, before the map identity is computed, keeps the
         // identity, the disclosed items, the session's lookup targets and the
         // consumption accounting describing the same set.
-        let item_ceiling = usize::try_from(ceiling.returned_items).unwrap_or(usize::MAX);
-        let item_ceiling_reached = items.len() > item_ceiling;
-        if item_ceiling_reached {
-            items.truncate(item_ceiling);
-        }
+        let item_ceiling_reached = truncate_to_item_ceiling(&mut items, ceiling.returned_items);
         let public_items = items
             .iter()
             .map(|item| item.public.clone())
@@ -1394,6 +1390,20 @@ fn disclosure_item(
     })
 }
 
+/// Narrow a map to the items its ceiling admits, reporting whether it bit.
+///
+/// A disclosure that exceeds its ceiling used to be discarded whole, after the
+/// reads that produced it were already spent (ADR-0134). Truncation honours the
+/// same bound and returns what it allows.
+fn truncate_to_item_ceiling<T>(items: &mut Vec<T>, ceiling: u64) -> bool {
+    let ceiling = usize::try_from(ceiling).unwrap_or(usize::MAX);
+    let reached = items.len() > ceiling;
+    if reached {
+        items.truncate(ceiling);
+    }
+    reached
+}
+
 fn progressive_ceiling(budget: &ResourceBudget) -> Result<DisclosureConsumption, &'static str> {
     Ok(DisclosureConsumption {
         maps: MAX_PROGRESSIVE_MAPS,
@@ -1776,6 +1786,37 @@ fn decimal_schema() -> Value {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn a_map_over_its_item_ceiling_is_truncated_not_discarded() {
+        // The reads are already spent when the ceiling is tested, so returning
+        // nothing spends the cost and delivers no value (ADR-0134). Measured,
+        // discarding cost six of twenty-two tasks their entire map.
+        let mut items: Vec<u64> = (0..400).collect();
+        assert!(truncate_to_item_ceiling(&mut items, 256));
+        assert_eq!(items.len(), 256);
+        // The traversal's own order survives: the prefix nearest the seeds.
+        assert_eq!(items.first(), Some(&0));
+        assert_eq!(items.last(), Some(&255));
+    }
+
+    #[test]
+    fn a_map_within_its_item_ceiling_is_untouched() {
+        let mut items: Vec<u64> = (0..10).collect();
+        assert!(!truncate_to_item_ceiling(&mut items, 256));
+        assert_eq!(items, (0..10).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn truncation_only_ever_narrows() {
+        // A ceiling of zero admits nothing; it must never admit more.
+        let mut empty: Vec<u64> = Vec::new();
+        assert!(!truncate_to_item_ceiling(&mut empty, 0));
+        assert!(empty.is_empty());
+        let mut one: Vec<u64> = vec![7];
+        assert!(truncate_to_item_ceiling(&mut one, 0));
+        assert!(one.is_empty());
+    }
     use std::{
         fs,
         io::Cursor,
