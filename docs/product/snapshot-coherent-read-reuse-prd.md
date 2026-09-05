@@ -72,8 +72,8 @@ Twenty-two accepted astropy changes:
 
 | | repository reads | map files | map symbols | tasks with no map | bytes |
 | --- | --- | --- | --- | --- | --- |
-| `main` | 129,499 | 19 of 27 | 15 of 34 | 1 | 19,633,830 |
-| **read reuse** | **40,797** | **20 of 27** | **16 of 34** | **0** | 20,741,958 |
+| `main` | 129,499 | 18 of 27 | 12 of 34 | 1 | 19,412,024 |
+| **read reuse** | **40,797** | **19 of 27** | **13 of 34** | **0** | 20,506,316 |
 
 Repository reads fall **68%**. A representative task, `astropy-12907`, drops
 from 13,609 reads to 3,752.
@@ -88,9 +88,16 @@ so the 86-item map it was already building is delivered instead of discarded,
 and it recalls its reference file.
 
 Delivered bytes rise 5.6%, and the whole rise is that one task: it moves from
-4,211 bytes of failure to 1,112,395 bytes of answer, while every other task gets
-slightly smaller. This is not a compression regression — it is a task that
+a few kilobytes of failure to roughly 1.1 MB of answer, while every other task
+gets slightly smaller. This is not a compression regression — it is a task that
 previously delivered nothing now delivering something.
+
+These figures were re-measured against a restored baseline. An earlier run of
+this change was taken while two uncommitted experiments — a raised traversal
+depth and a raised traversal match ceiling — were live on the branch it was
+compared against. The read reduction is identical either way, because it is
+structural rather than budget-dependent, but the recall and byte figures are the
+restored ones.
 
 ## Non-Goals
 
