@@ -98,22 +98,24 @@ being followed through a scope in which twelve of sixteen identifiers were prose
 | | map files | map symbols | distinct map files | bytes |
 | --- | --- | --- | --- | --- |
 | IC-NSP-133 alone | 18 of 27 | 11 of 34 | 77 | 19,416,100 |
-| plus this change | **19 of 27** | **15 of 34** | **86** | 19,633,830 (**+1.1%**) |
+| plus this change | 18 of 27 | **12 of 34** | 86 | 19,412,024 |
 
-One reference file gained, none lost, and symbol recall up by four — from 32% to
-44% of reference symbols.
+One reference symbol gained, none lost, and no additional reference file.
+
+**These figures are a correction.** This change was first reported as gaining a
+reference file and four symbols. That run also carried an uncommitted
+traversal-depth change from an unrelated experiment; on restored settings the
+depth accounts for the file and three of the four symbols.
 
 ### The criterion that was not met
 
-This PRD requires two reference files against its baseline. In isolation the
-change contributes **one**, which is inside the noise band a twenty-two task
-corpus supports.
+This PRD requires two reference files against its baseline. Measured on restored
+settings the change contributes **none**, and one reference symbol, which is
+inside the noise band a twenty-two task corpus supports.
 
-The symbol gain is not: four of thirty-four is a 36% relative improvement, and it
-is the measure that moves when a map reaches the right declarations rather than
-merely the right files. The file criterion was written before that distinction
-mattered, and is recorded as unmet rather than restated in terms the result
-happens to satisfy.
+The change is kept for the reason the ADR gives — a graph whose cross-file edges
+can never resolve misrepresents its own structure — and not because it earned a
+recall bar. It did not.
 
 ## Non-Goals
 

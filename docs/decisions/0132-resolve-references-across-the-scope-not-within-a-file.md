@@ -84,13 +84,25 @@ through a scope in which twelve of sixteen admitted identifiers were prose.
 
 Re-measured on the scope
 [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md)
-corrects, the same change gains a reference file and four reference symbols: 18
-of 27 to 19 of 27, and 11 of 34 to 15 of 34, for 1.1% more bytes.
+corrects, the same change gains one reference symbol: 18 of 27 reference files
+unchanged, and 11 of 34 reference symbols to 12 of 34, for slightly fewer bytes.
 
-One file is inside this corpus's noise band and the PRD's two-file criterion is
-recorded as unmet. Four symbols is not: it is the measure that moves when a map
-reaches the right declarations rather than merely the right files, which is what
-resolving a cross-file edge does.
+**That figure is a correction.** This decision was first reported as gaining a
+reference file and four reference symbols. That measurement was taken on a
+branch that also carried an uncommitted traversal-depth change from an unrelated
+experiment, which reached `main` alongside this decision and was subsequently
+reverted. The depth setting was worth the extra file and three of the four
+symbols; this decision was worth one symbol.
+
+One symbol is inside this corpus's noise band, and the PRD's two-file criterion
+is recorded as unmet. On the measured evidence this decision does not pay for
+itself in recall.
+
+It is kept on the grounds the Decision states: a graph that emits `calls` and
+`references` edges which can never resolve across files misrepresents its own
+structure, and every consumer inherits that. That argument does not depend on a
+recall number, which is fortunate, because the recall number does not support
+one.
 
 The sequencing matters more than either number. A selection change measured
 against a noisy scope will read as neutral whatever its merit, because the noise
