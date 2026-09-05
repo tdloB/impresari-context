@@ -472,6 +472,10 @@ impl McpServer {
             "context_session_close" => self.session_close(call.arguments),
             _ => return error(id, -32602, "unknown tool"),
         };
+        // A tool call is the request boundary. Content retained to answer a
+        // repeated read within this call is dropped here, so nothing outlives
+        // the request that read it (ADR-0135).
+        self.engine.end_request_read_reuse();
         match result {
             Ok(structured) => success(id, tool_result(structured, false)),
             Err(message) => success(
