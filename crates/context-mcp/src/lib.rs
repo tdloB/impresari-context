@@ -1792,6 +1792,18 @@ fn decimal_schema() -> Value {
 mod tests {
 
     #[test]
+    fn the_disclosure_ceilings_are_pinned() {
+        // These bound what one session may disclose. Raising the item ceiling
+        // changes how much of a map a consumer receives, which is a product
+        // decision rather than a tuning knob.
+        assert_eq!(MAX_PROGRESSIVE_ITEMS, 256);
+        assert_eq!(MAX_PROGRESSIVE_MAPS, 1);
+        assert_eq!(MAX_PROGRESSIVE_LOOKUPS, 64);
+        assert_eq!(MAX_PROGRESSIVE_EXPANSIONS, 64);
+        assert_eq!(MAX_PROGRESSIVE_RESPONSE_BYTES, 4_194_304);
+    }
+
+    #[test]
     fn a_map_over_its_item_ceiling_is_truncated_not_discarded() {
         // The reads are already spent when the ceiling is tested, so returning
         // nothing spends the cost and delivers no value (ADR-0134). Measured,

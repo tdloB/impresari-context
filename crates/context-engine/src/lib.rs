@@ -6876,6 +6876,25 @@ mod tests {
     }
 
     #[test]
+    fn the_selection_constants_are_pinned() {
+        // Each of these decides what the product selects, and each was set by a
+        // measurement rather than by taste. One reached `main` twice as an
+        // uncommitted experiment swept into an unrelated commit, because a bare
+        // literal inside a function body can change without review or the gate
+        // reacting. Changing any of them must now appear in this diff.
+        assert_eq!(MAX_TASK_SIGNAL_TOKENS, 16);
+        assert_eq!(MAX_STRUCTURAL_SEEDS, 8);
+        assert_eq!(MAX_SCOPED_FACTS, 28_000);
+        assert_eq!(MAX_TASK_QUERY_BYTES, 4_096);
+        assert_eq!(MAX_PROFILE_STEPS, 8);
+        assert_eq!(crate::file_nomination::MAX_NOMINATED_FILES, 16);
+        assert_eq!(crate::identifier_index::MAX_DECLARING_FILES_ADMITTED, 8);
+        assert_eq!(crate::identifier_index::MAX_IDENTIFIERS_PER_FILE, 512);
+        assert_eq!(crate::identifier_index::MAX_DECLARATIONS_PER_FILE, 256);
+        assert_eq!(crate::identifier_index::MAX_INDEXED_FILES, 20_000);
+    }
+
+    #[test]
     fn the_seed_traversal_budget_is_pinned() {
         // These reached `main` once as an uncommitted experiment swept into an
         // unrelated commit. Both are product decisions with measured costs, so
