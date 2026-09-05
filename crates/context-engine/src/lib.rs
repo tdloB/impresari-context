@@ -665,6 +665,14 @@ impl LocalEngine {
         Self::open_internal(config, context, root, None)
     }
 
+    /// Forget content retained to answer repeated reads.
+    ///
+    /// Retention is request-scoped (ADR-0135): a later request re-verifies,
+    /// because a workspace may change between requests.
+    pub fn end_request_read_reuse(&self) {
+        self.workspace.clear_reused_reads();
+    }
+
     /// Projects cumulative product read telemetry without adding authority.
     #[must_use]
     pub fn repository_read_telemetry(&self) -> RepositoryReadTelemetry {
