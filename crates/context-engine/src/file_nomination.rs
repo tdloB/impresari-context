@@ -411,6 +411,16 @@ mod tests {
     }
 
     #[test]
+    fn the_nomination_constants_are_pinned() {
+        // A declaration weighted at three was chosen by measurement: ranked as
+        // an absolute tier it gained six reference files and lost five, and
+        // weighted it gained six and lost three. Sixteen nominated files is the
+        // measured knee. Neither should move without that showing up here.
+        assert_eq!(MAX_NOMINATED_FILES, 16);
+        assert_eq!(DECLARATION_WEIGHT, 3);
+    }
+
+    #[test]
     fn a_file_declaring_a_task_identifier_outranks_one_that_mentions_it() {
         // `Header` occurs in hundreds of astropy files and is declared in one.
         // Counting a mention like a definition picks the wrong anchor, and
