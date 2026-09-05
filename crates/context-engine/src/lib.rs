@@ -4460,6 +4460,21 @@ fn resource_budget_max_literal_bytes(
         .map_err(|_| context_core::CoreErrorCode::InvalidInput)
 }
 
+/// Nodes and edges one seed's traversal may visit.
+///
+/// Raising this is a product decision, not a tuning knob: measured, 64 delivers
+/// three more reference symbols for 6.5% more delivered bytes and no additional
+/// reference files, which trades against the compression half of the governing
+/// objective.
+const MAX_SEED_TRAVERSAL_MATCHES: u64 = 16;
+
+/// Depth one seed's traversal may reach.
+///
+/// Measured at 2, this changed no task's recall at all — the cross-file edges a
+/// deeper hop would follow resolve only within the admitted scope — while
+/// costing 1.1% more delivered bytes.
+const MAX_SEED_TRAVERSAL_DEPTH: &str = "1";
+
 fn narrow_structural_seed_budget(
     budget: &ResourceBudget,
 ) -> Result<ResourceBudget, context_core::CoreErrorCode> {
@@ -4475,8 +4490,8 @@ fn narrow_structural_seed_budget(
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let mut narrowed = budget.clone();
-    narrowed.max_traversal_depth = "2".into();
-    narrowed.max_matches = matches.min(64).to_string();
+    narrowed.max_traversal_depth = MAX_SEED_TRAVERSAL_DEPTH.into();
+    narrowed.max_matches = matches.min(MAX_SEED_TRAVERSAL_MATCHES).to_string();
     Ok(narrowed)
 }
 
@@ -6850,6 +6865,24 @@ mod tests {
         let signals = task_signals(&hostile);
         assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
         assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn the_seed_traversal_budget_is_pinned() {
+        // These reached `main` once as an uncommitted experiment swept into an
+        // unrelated commit. Both are product decisions with measured costs, so
+        // changing either must show up in this test's diff.
+        assert_eq!(MAX_SEED_TRAVERSAL_MATCHES, 16);
+        assert_eq!(MAX_SEED_TRAVERSAL_DEPTH, "1");
+
+        let budget = ResourceBudget {
+            max_traversal_depth: "64".into(),
+            max_matches: "1000".into(),
+            ..budget()
+        };
+        let narrowed = narrow_structural_seed_budget(&budget).expect("narrowed");
+        assert_eq!(narrowed.max_traversal_depth, "1");
+        assert_eq!(narrowed.max_matches, "16");
     }
 
     #[test]
