@@ -3,7 +3,7 @@
 ## Document Control
 
 - PRD ID/version: IC-SCRR-135 / 1.0.
-- Status: Accepted for implementation.
+- Status: Implemented and measured; acceptance criteria met.
 - Date: 2026-09-04.
 - Product owner: Aaron Boldt.
 - Governing architecture:
@@ -65,6 +65,32 @@ request. The same evidence is produced from a fraction of the reads.
   and delivered bytes are unchanged.
 - `astropy-13453` returns a map.
 - The full repository gate passes.
+
+## Measured Outcome
+
+Twenty-two accepted astropy changes:
+
+| | repository reads | map files | map symbols | tasks with no map | bytes |
+| --- | --- | --- | --- | --- | --- |
+| `main` | 129,499 | 19 of 27 | 15 of 34 | 1 | 19,633,830 |
+| **read reuse** | **40,797** | **20 of 27** | **16 of 34** | **0** | 20,741,958 |
+
+Repository reads fall **68%**. A representative task, `astropy-12907`, drops
+from 13,609 reads to 3,752.
+
+Evidence is unchanged, as required. **All twenty-one previously answered tasks
+return byte-identical disclosure maps** — identical items and identical
+omissions. The two-to-six byte differences in their totals are the read counters
+themselves, which are smaller numbers and so fewer characters in the receipt.
+
+`astropy-13453` now returns a map. Its reads fall below the consumer's ceiling,
+so the 86-item map it was already building is delivered instead of discarded,
+and it recalls its reference file.
+
+Delivered bytes rise 5.6%, and the whole rise is that one task: it moves from
+4,211 bytes of failure to 1,112,395 bytes of answer, while every other task gets
+slightly smaller. This is not a compression regression — it is a task that
+previously delivered nothing now delivering something.
 
 ## Non-Goals
 
