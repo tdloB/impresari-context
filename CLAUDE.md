@@ -2,10 +2,17 @@
 
 ## North star
 
-**98% quality at 78% compression.**
+**Correctness first. Compression is a constraint, not a target.**
 
-Quality first. Compression second. Every design decision, PR, and benchmark in
-this repository is judged against that order.
+The product owner's standing guidance: *"I'm fine with more compression, but I
+want to focus on correctness. Even 50-60% compression with very high correctness
+is very acceptable."*
+
+So the objective is a floor, not a ratio to hit: **compression of at least 50%,
+and as much more as comes free, in service of the highest achievable
+correctness.** A change that improves correctness and costs compression, while
+staying above the floor, is a good change. A change that improves compression
+and costs correctness is not, at any ratio.
 
 This deliberately inverts the market. LeanCTX publishes roughly 98% compression
 while "preserving 78% quality." Graft publishes 42% token reduction. Competing
@@ -43,11 +50,36 @@ is a failure of this objective, regardless of how good the context looked.
 
 ## How quality is measured
 
-Quality is **task-relative recall**, not text similarity.
+**Correctness is whether the model, given this context, produces a change that
+passes the task's own tests.** That is the number the objective is about, and it
+requires a graded run against a benchmark with real model calls.
 
-For a task with a known correct change, the question is whether the delivered
-context surfaced the files and symbols that change touches. This is computable
-offline, with no model call and no cost, against any dataset that ships a
-reference patch.
+**Task-relative recall is the cheap proxy**, not the goal. For a task with a
+known correct change, it asks whether the delivered context surfaced the files
+and symbols that change touches. It is computable offline with no model call and
+no cost, which makes it the right instrument for iterating quickly.
 
-A map that is dense, fast, and points at the wrong file scores zero.
+A map that is dense, fast, and points at the wrong file scores zero on both.
+
+### The proxy is not the objective
+
+Recall is a **precondition** for correctness — a model cannot patch a file it
+never saw — and it is not correctness. A run may name every reference file and
+still produce a patch that fails.
+
+Two rules follow, both learned the hard way:
+
+1. **Never report a recall movement as though it were a correctness result.**
+   Say which was measured.
+2. **A long run of proxy improvements owes a correctness check.** Recall can be
+   optimised against conventions of whichever repository is being measured, and
+   an unbroken sequence of proxy wins is exactly when that is least visible.
+
+### Compression needs a denominator
+
+"78% compression" is uncheckable until it says *compressed against what*. The
+denominator is **what a baseline agent reads without Impresari on the same
+task** — not the size of the repository, which no agent reads, and not a fixed
+byte budget inherited from a harness.
+
+Report both halves from the same run, or report neither.
