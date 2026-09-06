@@ -1991,6 +1991,7 @@ mod tests {
                 declaration("declaration:0:30", "authenticate", 0, 30),
                 declaration("declaration:31:44", "audit", 31, 44),
             ],
+            total_facts_available: 2,
             warnings: Vec::new(),
         };
         build_graph(snapshot_id, vec![GraphFileInput { path, response }]).expect("graph")

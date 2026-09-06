@@ -46,6 +46,43 @@ costs roughly 530 bytes of it. That affords about 31,600 facts in total.
 | whole repository, ceiling budget | 1,172 | ~27 | still no seed; 113 s |
 | 47-file subtree | 47 | ~213 | 16 relevant items; 3.3 s |
 
+### Dividing it evenly is the second half of the same problem
+
+Scoping fixes the count. It does not fix the division. Each file receives
+`remaining ÷ files remaining`, walked in snapshot order — alphabetical, and
+unrelated to what any file needs. Leftovers flow forward, so a file walked late
+can exceed an equal share; a file walked early cannot, however much the build
+leaves unspent.
+
+Measured on astropy, one build nominated 13 files, used 12,040 of its 28,000
+facts, and truncated a file at exactly `28,000 ÷ 13 = 2,154`. **57% of the
+allowance went unclaimed while a file was cut short.** The capacity was in the
+same build, unspent, and unreachable.
+
+So the allowance is divided by need. The worker reports
+`total_facts_available` — what the file would yield with no ceiling — and the
+unspent remainder is placed with the files that were cut, smallest shortfall
+first, re-parsing only those.
+
+Only the parser can supply that number honestly. The alternative is estimating
+demand from file size, and measured source bytes per fact ranges 18.6 to 35.7
+across eight astropy modules, with inversions: two files 1,200 bytes apart differ
+by 1.7× in facts. An estimator is a model of the parser living outside it, and a
+wrong conclusion has already been drawn in this project from exactly that.
+
+The parse is not the cost. Tree-sitter builds the whole tree before a single fact
+is emitted, so the ceiling was never saving a parse — it was abandoning a
+half-finished walk over a tree already in memory, and discarding the count with
+it. Finishing that walk is what makes the division exact.
+
+Two properties keep this safe to apply unconditionally: no file is granted less
+than it already holds, so a build cannot regress; and only the unspent remainder
+moves, so the allowance cannot be exceeded. The cost is that a first pass which
+spends everything leaves nothing to redistribute — a case the corpus did not
+produce.
+
+## Why density is the whole argument, continued
+
 The budget is not the problem and the ceiling is not the problem. Dividing a
 fixed allowance across an unbounded file count is the problem. Nominating
 sixty-four files at two hundred facts each is roughly 12,800 facts — about

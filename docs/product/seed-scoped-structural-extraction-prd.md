@@ -65,6 +65,19 @@ whole-repository pass.
    ties by portable path.
 3. Extract structure for nominated files at the full admitted per-file fact
    allowance. Density is the point; a nominated file must not be thinned.
+3a. Divide the allowance by what each file needs, not evenly. An even division
+   cuts a file that needs more than its share while the rest of the build leaves
+   its shares unspent — measured, one build used 12,040 of 28,000 facts and still
+   truncated a file at exactly its 2,154 share
+   ([ADR-0138](../decisions/0138-divide-a-fact-allowance-by-what-each-file-needs.md)).
+3b. Take each file's need from the parser, which is the only thing that knows it.
+   A response reports the facts its file would yield with no ceiling, so the
+   division is exact rather than estimated. Estimating it from file size would
+   be a model of the parser living outside the parser, and source bytes per fact
+   measures across a 1.9× range.
+3c. Never reduce a file below what an earlier pass already gave it, and never
+   place more than the unspent remainder. Redistribution must not be able to
+   regress a build or exceed the allowance.
 4. Build, seed, and traverse the graph over the nominated set only.
 5. Reuse the existing content-hash-keyed per-file structural cache, so a file
    already extracted for an earlier task costs nothing to reuse.
@@ -85,6 +98,13 @@ whole-repository pass.
   measured 0 of 27 baseline, and nomination recall is reported for every task.
 - A scoped graph for a task nominating N files contains structure for those N
   files at full per-file density, and for no others.
+- No nominated file is truncated by the fact allowance while that allowance goes
+  unspent. **Measured on ten astropy tasks, thirty-nine nominated files:** fact-
+  quota truncation falls from one file to none, and with the response byte
+  ceiling also lifted, truncation across the corpus falls from twelve files to
+  **zero** and the structure recovered rises 26%. At the shipped byte ceiling
+  this requirement alone recovers 615 facts, because the byte ceiling binds first
+  — that is reported rather than presented as a larger win.
 - Whole-repository structural preparation is no longer required before a first
   request, and initialization time falls accordingly.
 - Repeating a task with an unchanged snapshot reuses cached per-file structure

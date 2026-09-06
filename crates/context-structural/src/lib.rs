@@ -18,7 +18,11 @@ use sha2::{Digest, Sha256};
 use tree_sitter::{Language, Node, Parser};
 
 /// Worker protocol version.
-pub const PROTOCOL_VERSION: &str = "1.0.0";
+///
+/// `1.1.0` adds `total_facts_available` to a successful response. A caller
+/// dividing one fact allowance across several files has to know what each file
+/// would have yielded, and only the parser knows that.
+pub const PROTOCOL_VERSION: &str = "1.1.0";
 /// Graph contract version.
 pub const GRAPH_VERSION: &str = "1.0.0";
 /// Resolver version.
@@ -221,6 +225,20 @@ pub struct WorkerSuccess {
     pub syntax_errors: bool,
     /// Complete deterministically ordered fact collection.
     pub facts: Vec<StructuralFact>,
+    /// Facts this file would yield with no ceiling.
+    ///
+    /// The parse happens in full whichever ceiling applies, so the count is
+    /// already known by the time facts are emitted; reporting it costs the rest
+    /// of a tree walk over a tree that is already built.
+    ///
+    /// A caller sharing one allowance across several files needs this. Without
+    /// it, the only way to divide an allowance is to guess each file's need —
+    /// and a guess from file size is a model of this parser living outside it.
+    ///
+    /// It is a floor, not a promise: a walk stopped by the nesting-depth bound
+    /// stops counting too, and says so with
+    /// `structural_resource_limit_reached`.
+    pub total_facts_available: u64,
     /// Explicit bounded warnings.
     pub warnings: Vec<String>,
 }
@@ -1549,6 +1567,10 @@ fn validate_success(
         || success.content_hash != request.content_hash
         || success.facts.len()
             > usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?
+        // A response cannot carry more facts than the file it parsed yields.
+        // The control process divides an allowance using this number, so a
+        // worker that overstates it would starve every other file.
+        || success.total_facts_available < success.facts.len() as u64
         || success.warnings.iter().any(|warning| {
             !matches!(
                 warning.as_str(),
@@ -1729,24 +1751,36 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
     let yaml_syntax_valid =
         request.language != StructuralLanguage::Yaml || !tree.root_node().has_error();
     let provenance = provenance(request);
-    let mut facts = Vec::new();
-    let mut ancestors = Vec::new();
-    let mut resource_limit_reached = false;
+    let mut walk = Walk {
+        ancestors: Vec::new(),
+        facts: Vec::new(),
+        demand: 0,
+    };
+    let mut depth_bound_stopped_the_walk = false;
     if strict_json_valid && toml_syntax_valid && yaml_syntax_valid {
-        resource_limit_reached = match visit(
+        depth_bound_stopped_the_walk = match visit(
             tree.root_node(),
             &source,
             request,
             &provenance,
             0,
-            &mut ancestors,
-            &mut facts,
+            &mut walk,
         ) {
             Ok(()) => false,
             Err(StructuralError::ResourceLimit) => true,
             Err(error) => return Err(error),
         };
     }
+    // The fact ceiling no longer stops the walk, so it no longer announces
+    // itself by failing. What was withheld is the difference between what the
+    // file yields and what this response carries.
+    let Walk {
+        mut facts,
+        demand: total_facts_available,
+        ..
+    } = walk;
+    let resource_limit_reached =
+        depth_bound_stopped_the_walk || total_facts_available > facts.len() as u64;
     facts.sort_by(|left, right| {
         (left.start_byte, left.end_byte, left.class, &left.local_key).cmp(&(
             right.start_byte,
@@ -1762,6 +1796,7 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         content_hash: request.content_hash.clone(),
         syntax_errors: tree.root_node().has_error() || !strict_json_valid,
         facts,
+        total_facts_available,
         warnings: warnings(
             tree.root_node().has_error(),
             strict_json_valid,
@@ -1858,19 +1893,32 @@ fn provenance(request: &WorkerRequest) -> FactProvenance {
     }
 }
 
+/// What one walk accumulates.
+///
+/// `facts` is bounded by the request's ceiling; `demand` is not, because a
+/// caller dividing an allowance across files needs what each file would have
+/// yielded rather than what it was allowed.
+struct Walk {
+    ancestors: Vec<String>,
+    facts: Vec<StructuralFact>,
+    demand: u64,
+}
+
 fn visit(
     node: Node<'_>,
     source: &[u8],
     request: &WorkerRequest,
     provenance: &FactProvenance,
     depth: u32,
-    ancestors: &mut Vec<String>,
-    facts: &mut Vec<StructuralFact>,
+    walk: &mut Walk,
 ) -> Result<(), StructuralError> {
     if depth > request.max_nesting_depth {
+        // A genuine bound rather than a ceiling: an unbounded recursion is a
+        // safety question, so this still stops the walk, and `demand` is
+        // therefore a floor from here on.
         return Err(StructuralError::ResourceLimit);
     }
-    let parent = ancestors.last().cloned();
+    let parent = walk.ancestors.last().cloned();
     let produced = fact_for_node(node, source, request, provenance, parent.as_deref());
     let mut pushed = false;
     if let Some(fact) = produced {
@@ -1880,15 +1928,17 @@ fn visit(
         let required = 1_usize + usize::from(adds_containment);
         let maximum =
             usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?;
-        if facts
+        // Counted whether or not it is emitted. The tree is already parsed, so
+        // walking the rest of it is what makes the caller's allowance division
+        // exact instead of estimated.
+        walk.demand = walk.demand.saturating_add(required as u64);
+        let fits = walk
+            .facts
             .len()
             .checked_add(required)
-            .is_none_or(|count| count > maximum)
-        {
-            return Err(StructuralError::ResourceLimit);
-        }
+            .is_some_and(|count| count <= maximum);
         let key = fact.local_key.clone();
-        if adds_containment {
+        if fits && adds_containment {
             let contains = StructuralFact {
                 class: FactClass::Contains,
                 local_key: format!("contains:{}:{key}", parent.as_deref().unwrap_or_default()),
@@ -1901,28 +1951,26 @@ fn visit(
                 confidence: "confirmed".into(),
                 provenance: provenance.clone(),
             };
-            facts.push(contains);
+            walk.facts.push(contains);
         }
+        // Ancestor bookkeeping is unconditional. It decides whether a descendant
+        // adds a containment fact, so skipping it past the ceiling would make
+        // the count diverge from what an unbounded parse would produce — and an
+        // inexact count is the thing this field exists to avoid.
         if fact.class == FactClass::Declaration {
-            ancestors.push(key);
+            walk.ancestors.push(key);
             pushed = true;
         }
-        facts.push(fact);
+        if fits {
+            walk.facts.push(fact);
+        }
     }
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
-        visit(
-            child,
-            source,
-            request,
-            provenance,
-            depth + 1,
-            ancestors,
-            facts,
-        )?;
+        visit(child, source, request, provenance, depth + 1, walk)?;
     }
     if pushed {
-        ancestors.pop();
+        walk.ancestors.pop();
     }
     Ok(())
 }
@@ -3731,6 +3779,59 @@ public class Worker {
         assert!(output.facts.iter().any(|fact| {
             fact.class == FactClass::Reference && fact.name.as_deref() == Some("dependency")
         }));
+    }
+
+    // A file with enough declarations that a small ceiling bites well before
+    // the end of it.
+    const CROWDED: &[u8] = b"class A:\n    def one(self):\n        pass\n    def two(self):\n        pass\n\nclass B:\n    def three(self):\n        pass\n    def four(self):\n        pass\n";
+
+    #[test]
+    fn a_ceiling_withholds_facts_without_changing_what_the_file_yields() {
+        // The point of the field. A caller dividing one allowance across files
+        // needs each file's real need, and a capped response must report the
+        // same need as an uncapped one — otherwise the division is built on a
+        // number the ceiling itself distorted.
+        let full = process_request(&request(CROWDED, StructuralLanguage::Python))
+            .expect("unbounded response");
+        assert_eq!(
+            full.total_facts_available,
+            full.facts.len() as u64,
+            "an unbounded parse withholds nothing"
+        );
+        assert!(
+            full.facts.len() > 4,
+            "fixture must exceed the ceiling below"
+        );
+
+        let mut capped = request(CROWDED, StructuralLanguage::Python);
+        capped.max_facts = 3;
+        let capped = process_request(&capped).expect("bounded response");
+        assert!(capped.facts.len() <= 3);
+        assert_eq!(
+            capped.total_facts_available, full.total_facts_available,
+            "the count must not depend on the ceiling applied to it"
+        );
+        assert!(
+            capped
+                .warnings
+                .contains(&"structural_resource_limit_reached".to_owned()),
+            "withholding facts must still be disclosed"
+        );
+    }
+
+    #[test]
+    fn a_response_that_understates_what_it_holds_is_rejected() {
+        // The control process divides an allowance using this number. A worker
+        // understating it would starve every other file in the build, so the
+        // claim is checked against the response rather than trusted.
+        let asked = request(CROWDED, StructuralLanguage::Python);
+        let mut lying = process_request(&asked).expect("response");
+        assert!(lying.facts.len() > 1);
+        lying.total_facts_available = lying.facts.len() as u64 - 1;
+        assert_eq!(
+            validate_success(&lying, &asked),
+            Err(StructuralError::ContractMismatch)
+        );
     }
 
     #[test]
