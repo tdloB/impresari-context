@@ -1010,6 +1010,127 @@ impl LocalEngine {
         Ok((graph, nomination))
     }
 
+    /// Answer a host's read offer with declaration spans (IC-HRS-136).
+    ///
+    /// The host is about to read this file. Instead of the whole file it may
+    /// take declarations, each attested with a content hash and byte range it
+    /// can verify against its own copy.
+    ///
+    /// `symbol` narrows the answer to one declaration. Measured, returning a
+    /// path's declarations is 93% of a Python file and 91% of a TypeScript one,
+    /// because such a file is almost entirely declarations; naming the symbol a
+    /// map already points at is what makes the answer small, in any language.
+    ///
+    /// Structure for the path is built on demand. That costs a parse, which is
+    /// local compute, and saves the file's bytes, which are model tokens — the
+    /// trade this exists to make.
+    ///
+    /// # Errors
+    ///
+    /// Returns a closed failure when the snapshot is unavailable, the path is
+    /// not an admitted artifact, or the source changed under the snapshot.
+    pub fn substitute_host_read(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        display_path: &str,
+        symbol: Option<&str>,
+        maximum_returned_bytes: u64,
+    ) -> Result<crate::read_substitution::ReadSubstitution, EngineError> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        let artifact = snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.path.display_path == display_path)
+            .cloned()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "path is not an admitted snapshot artifact",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+
+        let exact = self
+            .workspace
+            .read_exact(&artifact.path, artifact.size_bytes)
+            .map_err(|error| {
+                self.workspace_failure(context, Capability::StructureBuild, error.code())
+            })?;
+        if exact.content_hash != artifact.content_hash {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "workspace changed during read substitution",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+
+        let scope: std::collections::BTreeSet<String> =
+            [display_path.to_owned()].into_iter().collect();
+        let build_context = derived_task_scope_context(context);
+        let graph = self.build_structure_for_paths(&build_context, budget, launcher, &scope)?;
+        let declarations: Vec<crate::read_substitution::DeclarationSpan<'_>> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == "symbol" && node.path.display_path == display_path)
+            .filter_map(|node| {
+                node.span
+                    .as_ref()
+                    .map(|span| crate::read_substitution::DeclarationSpan {
+                        name: node.name.as_deref(),
+                        start_byte: span.start_byte,
+                        end_byte: span.end_byte,
+                    })
+            })
+            .collect();
+
+        // The worker bounds its response and returns a prefix of the fact list
+        // over the ceiling, which the graph records rather than failing on. A
+        // prefix cannot support "this path does not declare that symbol", so the
+        // shortfall is carried into the answer instead of being swallowed here.
+        let completeness = if graph
+            .unknowns
+            .iter()
+            .any(|unknown| unknown == context_structural::STRUCTURAL_RESOURCE_LIMIT_UNKNOWN)
+        {
+            crate::read_substitution::GraphCompleteness::Truncated
+        } else {
+            crate::read_substitution::GraphCompleteness::Complete
+        };
+
+        Ok(crate::read_substitution::substitute_read(
+            display_path,
+            &exact.bytes,
+            &declarations,
+            symbol,
+            completeness,
+            maximum_returned_bytes,
+        ))
+    }
+
     /// Build a structural graph over an explicit, bounded set of files.
     ///
     /// A whole-repository graph divides one fact allowance across every file,

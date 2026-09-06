@@ -1657,6 +1657,7 @@ fn doctor_mcp_exchange(
             "context_evidence_expand",
             "context_convention_exemplar_build",
             "structure_incremental_update",
+            "context_read_substitute",
             "context_packet_resolve",
             "context_session_close",
         ]);

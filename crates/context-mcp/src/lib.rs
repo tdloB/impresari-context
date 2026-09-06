@@ -468,6 +468,7 @@ impl McpServer {
                 self.context_convention_exemplar_build(call.arguments)
             }
             "structure_incremental_update" => self.structure_incremental_update(call.arguments),
+            "context_read_substitute" => self.context_read_substitute(call.arguments),
             "context_packet_resolve" => self.packet_resolve(call.arguments),
             "context_session_close" => self.session_close(call.arguments),
             _ => return error(id, -32602, "unknown tool"),
@@ -496,6 +497,71 @@ impl McpServer {
             .open(&args.session_id, &self.consumer_id)
             .map_err(|_| "session open failed")?;
         Ok(json!({"session_id": args.session_id, "opened": true, "authority_added": false}))
+    }
+
+    /// Answer a host's read offer with the path's declaration spans.
+    ///
+    /// A host about to read a file may offer that read here and take the
+    /// declarations instead (IC-HRS-136). Every span carries a content hash the
+    /// host verifies against its own copy, so this adds no authority and asks
+    /// for no trust: the response is an offer the host may discard.
+    fn context_read_substitute(&mut self, value: Value) -> Result<Value, &'static str> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            session_id: String,
+            display_path: String,
+            /// Narrows the answer to one declaration. A map points at a symbol,
+            /// and answering the symbol is what makes a substitution small.
+            #[serde(default)]
+            symbol: Option<String>,
+            maximum_returned_bytes: String,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid read substitution input")?;
+        self.sessions
+            .authorize(&args.session_id, &self.consumer_id)
+            .map_err(|_| "read substitution failed")?;
+        let maximum = canonical_decimal(&args.maximum_returned_bytes)?;
+        if maximum == 0 {
+            return Err("invalid read substitution limits");
+        }
+        // Substitution needs a dense graph for the offered path, which is the
+        // same build a task-scoped request performs. A server configured
+        // without one cannot answer, and says so rather than guessing.
+        let Some(runtime) = self.structural_runtime.as_ref() else {
+            return Err("read substitution is unavailable");
+        };
+        let Some(scoped) = runtime.task_scoped.as_ref() else {
+            return Err("read substitution is unavailable");
+        };
+        let (launcher, budget) = (scoped.launcher.clone(), scoped.budget.clone());
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let substitution = self
+            .engine
+            .substitute_host_read(
+                &context,
+                &budget,
+                &launcher,
+                &args.display_path,
+                args.symbol.as_deref(),
+                maximum,
+            )
+            .map_err(|_| "read substitution failed")?;
+        serde_json::to_value(substitution).map_err(|_| "read substitution failed")
     }
 
     fn session_close(&mut self, value: Value) -> Result<Value, &'static str> {
@@ -1775,6 +1841,7 @@ fn tool_definitions() -> Value {
         {"name":"context_evidence_expand","title":"Expand progressive exact evidence","description":"Expand a session-owned evidence handle through the existing exact-evidence gateway with current-source revalidation. The tool is always advertised and returns a closed unavailable result outside progressive_structural mode.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"evidence_handle":{"type":"string"},"before_bytes":decimal_schema(),"after_bytes":decimal_schema(),"max_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","evidence_handle","before_bytes","after_bytes","max_bytes"]}},
         {"name":"context_convention_exemplar_build","title":"Build verified convention exemplar context","description":"Build exact current-source evidence from caller-declared opaque labels and verified artifacts. It does not infer conventions or rank examples.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096},"declaration":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","query","declaration","budget"]}},
         {"name":"structure_incremental_update","title":"Apply verified incremental structural update","description":"Rebuild a current structural graph from exact cached unchanged results and caller-declared validated replacements. Does not watch, poll, or launch a parser.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"update":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","update","budget"]}},
+        {"name":"context_read_substitute","title":"Substitute a repository read","description":"Answer a host read offer for one admitted path with that file's declaration spans, each carrying a content hash and byte range the host can verify against its own copy. Performs no read on the host's behalf, launches nothing, and holds no veto: the response is an offer the host may discard.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"display_path":{"type":"string","minLength":1,"maxLength":4096},"symbol":{"type":"string","minLength":1,"maxLength":256,"description":"Optional. Narrows the answer to one declaration. A whole-path answer is nearly the whole file on a declaration-dense language; naming the symbol a map already points at is what makes the substitution small."},"maximum_returned_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","display_path","maximum_returned_bytes"]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -2135,7 +2202,7 @@ mod tests {
         assert_eq!(values[1]["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(
             values[2]["result"]["tools"].as_array().map(Vec::len),
-            Some(8)
+            Some(9)
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
@@ -2164,7 +2231,7 @@ mod tests {
         );
         assert_eq!(
             values[1]["result"]["tools"].as_array().map(Vec::len),
-            Some(8)
+            Some(9)
         );
     }
 
