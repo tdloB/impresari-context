@@ -43,6 +43,44 @@ naming `_check_required_columns` in `core.py` is answered exactly by that
 method's span, and the surrounding declarations give the reader enough structure
 to know where it sits.
 
+### The path is not the unit; the symbol is
+
+Returning *every* declaration returns the file. Measured through this tool over
+eight astropy files, a whole-path answer is 92.6% of the source — Python is its
+classes and functions, so the declarations are the module minus its imports. A
+host offered that should decline it.
+
+So an offer may name the symbol as well as the path, and then the answer is that
+declaration alone: a median of 0.7% of the file across 494 declarations.
+
+Nesting is deliberately **not** collapsed for a named symbol. The whole-path
+answer drops enclosed declarations so no byte is returned twice, which is right
+when the question is "what does this file declare." It is wrong when the question
+is "where is this method": the enclosing class contains it, so collapsing returns
+the class, which is the whole-path answer again.
+
+A name may be declared more than once in a file. Every declaration carrying it is
+returned, in source order; returning only the first would hide the one the host
+is looking for.
+
+### Absence is a claim, and a prefix cannot support it
+
+The structural worker bounds its response and, over the ceiling, returns a prefix
+of the fact list rather than failing. The graph records this; the substitution
+used to ignore it.
+
+That was survivable while an answer only ever reported what it held. A symbol
+query reports what it *does not* hold, and off a prefix it reported symbols as
+absent that the file plainly declares — on `astropy/io/fits/header.py`, every
+declaration after roughly line 1,920. A host trusting that skips its read and
+loses the declaration.
+
+An answer built from a prefix therefore carries
+`structural_graph_truncated_for_path`, alongside `symbol_not_declared_in_path`
+when it found nothing. The two together say "this graph never reached it"; the
+second alone says "this file does not declare it." A host can act on the
+difference, and both are cheaper than a confident wrong answer.
+
 ## Verifiability is the security model
 
 Every span carries an independently computed content hash over exactly the bytes
@@ -87,6 +125,14 @@ arithmetic rather than assertion.
 
 Reaching a bound is disclosed. A truncated answer that reads as complete would
 be worse than no answer, because the host would stop looking.
+
+One bound is not this hook's to set. The worker's response ceiling comes from
+`budget.requested`, which governs every structural build in the product; at its
+current 1 MiB it truncates the graph for a large file, and 23.5% of the symbols
+measured could not be answered because of it. Raised to 4 MiB in a throwaway
+experiment, every one of the 494 answered. That change is not made here — a
+budget the whole product shares is not something a read hook should move on its
+own — and it is recorded as the follow-up rather than absorbed silently.
 
 ## What this cannot do yet
 

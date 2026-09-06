@@ -5,6 +5,7 @@
 - Related PRD: [Host Read Substitution](../product/host-read-substitution-prd.md)
 - Architecture: [Host Read Substitution](../architecture/host-read-substitution-ard.md)
 - Implements: [ADR-0126](0126-answer-host-executed-operations-without-execution-authority.md)
+- Amended by: [ADR-0137](0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md) — the whole-path answer measured 92.6% of the source; the unit is the symbol, not the path
 
 ## Context
 

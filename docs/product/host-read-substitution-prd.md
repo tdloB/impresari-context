@@ -54,6 +54,14 @@ file, so substitution is the economical choice rather than an act of faith.
 
 1. Accept a read offer naming one portable path in the authorized snapshot, and
    return the declaration spans that path contains.
+1a. Accept an optional symbol name on that offer and return only the declarations
+   carrying it, in source order, without collapsing them into the declaration
+   that encloses them. A map points at a symbol, not a file, and the enclosing
+   class is the whole-path answer again ([ADR-0137](../decisions/0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md)).
+1b. Never report a symbol as absent on the strength of a graph that does not
+   cover the file. A graph built from a bounded worker response may hold a prefix
+   of a file's declarations; an answer drawn from one discloses that, so a host
+   can tell an absent symbol from an unreached one.
 2. Return only bytes recovered from the admitted source. Never synthesize,
    paraphrase, summarize, or reorder content.
 3. Attest every span with an independently computed content hash and byte range,
@@ -87,10 +95,26 @@ file, so substitution is the economical choice rather than an act of faith.
 - The response reports whole-file bytes, returned bytes, and omitted spans.
 - A static check proves the module launches no process, opens no socket, and
   writes nothing.
+- A named symbol returns that declaration and not the class around it; a symbol
+  the graph does not hold returns no content and says which.
+- An answer built from a graph that does not cover the file says so, whether or
+  not it found what was asked for.
 - **Measured, offline, over the corpus:** returned bytes are materially smaller
   than whole-file bytes for the files an agent actually reads. This is the
   substitution ratio, and it is reported before any claim that reads got
   cheaper.
+
+  **Measured through the MCP tool, eight astropy files, 2026-09-06.** A
+  whole-path answer returns **92.6%** of the source and does not meet this
+  criterion; 91% on TypeScript and 63% on Rust, the latter flattered by dropping
+  doc comments. A symbol-targeted answer, over 494 declarations, returns a median
+  of **0.7%** of the file (p90 4.1%, mean 2.9%) and does meet it. The maximum,
+  98.3%, is a top-level class whose span is the file: the saving comes from
+  naming a method, not from naming any symbol.
+
+  Coverage is reported with the ratio. 378 of 494 declarations were answered;
+  every miss fell in a file whose graph was a truncated prefix, and each file
+  with a complete graph answered every symbol it declared.
 - The full repository gate passes.
 
 ## Non-Goals

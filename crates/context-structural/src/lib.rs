@@ -28,6 +28,18 @@ pub const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum emitted response frame size.
 pub const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 
+/// Graph unknown meaning the graph holds a prefix of a file's declarations.
+///
+/// Emitted when a bounded worker response returned fewer facts than the file
+/// yields. A consumer reading this must not treat what the graph lacks as
+/// absent from the source: a read substitution answering a named symbol claims
+/// absence, and off a prefix that claim is false
+/// ([ADR-0137](../../../docs/decisions/0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md)).
+///
+/// It is named here rather than written at each site so the emitter and the
+/// consumers that must honour it cannot drift apart silently.
+pub const STRUCTURAL_RESOURCE_LIMIT_UNKNOWN: &str = "structural_resource_limit_reached";
+
 /// Supported structural language.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -789,7 +801,7 @@ fn promote_file(
             "structural_resource_limit_reached" | "structural_fact_response_limit_reached"
         )
     }) {
-        unknowns.push("structural_resource_limit_reached".into());
+        unknowns.push(STRUCTURAL_RESOURCE_LIMIT_UNKNOWN.into());
     }
     Ok(())
 }
