@@ -13,6 +13,7 @@ use std::{
 pub mod cache_prefix;
 pub mod file_nomination;
 pub mod identifier_index;
+pub mod read_substitution;
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use context_core::{
