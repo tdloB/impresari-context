@@ -6,9 +6,6 @@
 - Architecture: [Seed-Scoped Structural Extraction](../architecture/seed-scoped-structural-extraction-ard.md)
 - Amends: [ADR-0128](0128-extract-structure-for-nominated-files-not-whole-repositories.md)
 
-> ADR-0137 is a read-substitution record in flight on a separate branch; this
-> record is independent of it and takes the next free number.
-
 ## Context
 
 ADR-0128 established that density comes from scoping, and set a scoped allowance
@@ -67,6 +64,12 @@ Do not take facts back from a file that already has them, and place only the
 unspent remainder. A build therefore cannot regress, and the total cannot exceed
 the allowance.
 
+Treat a file the response byte ceiling already truncated as wanting no more than
+it holds. More facts cannot reach a response that is already full of bytes, so
+granting them buys a re-parse and nothing else. Measured, without this the second
+pass re-parsed 12 of 39 files and every one came back cut at the same byte
+ceiling; with it, 1 file is re-parsed and the same 615 facts are recovered.
+
 Do not raise the 28,000 allowance. No measured build came close to exhausting
 it — the heaviest used 68% — so the total is not what binds.
 
@@ -94,9 +97,11 @@ binding, and then it is decisive — 17,595 additional facts across the corpus, 
 and the second one is a separate decision with its own memory and latency
 surface.
 
-Re-parsing costs a second worker invocation per short file, four across ten
-tasks in this sample, and only for files that a first pass cut. A file whose
-first pass was sufficient is never parsed twice.
+Re-parsing costs a second worker invocation per short file, and only for files a
+first pass cut for want of facts. Measured: **1 of 39 files** at the shipped byte
+ceiling, and 4 of 39 with the ceiling raised — the cases where the re-parse
+actually recovers something. A file whose first pass was sufficient, or whose
+response was already full, is never parsed twice.
 
 The approach does not reach the globally fair division when the first pass
 already spent the allowance; with nothing unspent there is nothing to place. That

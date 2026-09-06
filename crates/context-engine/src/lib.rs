@@ -1865,7 +1865,21 @@ impl LocalEngine {
             .collect();
         let demand: Vec<u64> = parsed
             .iter()
-            .map(|(_, response)| response.total_facts_available)
+            .map(|(_, response)| {
+                // A response the byte ceiling already truncated cannot carry
+                // more facts however large an allowance it is given, so its
+                // effective demand is what it holds. Measured, treating these as
+                // short re-parsed 12 of 39 files to recover nothing.
+                if response
+                    .warnings
+                    .iter()
+                    .any(|warning| warning == context_structural::RESPONSE_BYTE_LIMIT_WARNING)
+                {
+                    response.facts.len() as u64
+                } else {
+                    response.total_facts_available
+                }
+            })
             .collect();
         for (index, grant) in redistribute_unspent_facts(&held, &demand, limits.facts)
             .into_iter()

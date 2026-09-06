@@ -44,6 +44,14 @@ pub const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 /// consumers that must honour it cannot drift apart silently.
 pub const STRUCTURAL_RESOURCE_LIMIT_UNKNOWN: &str = "structural_resource_limit_reached";
 
+/// Response warning meaning the byte ceiling truncated the fact list.
+///
+/// A response already at that ceiling cannot carry more facts however large a
+/// fact allowance it is given, so a caller redistributing an allowance must not
+/// spend a re-parse on it. Named here so the emitter and its consumers cannot
+/// drift apart.
+pub const RESPONSE_BYTE_LIMIT_WARNING: &str = "structural_fact_response_limit_reached";
+
 /// Supported structural language.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -2705,9 +2713,7 @@ fn bounded_worker_response(
         return Ok(bytes);
     }
 
-    success
-        .warnings
-        .push("structural_fact_response_limit_reached".into());
+    success.warnings.push(RESPONSE_BYTE_LIMIT_WARNING.into());
     let facts = std::mem::take(&mut success.facts);
     let mut lower = 0_usize;
     let mut upper = facts.len();
