@@ -5,6 +5,7 @@
 - Related PRD: [Seed-Scoped Structural Extraction](../product/seed-scoped-structural-extraction-prd.md)
 - Architecture: [Seed-Scoped Structural Extraction](../architecture/seed-scoped-structural-extraction-ard.md)
 - Refines: [ADR-0121](0121-use-bounded-progressive-structural-disclosure.md), [ADR-0125](0125-select-ranked-seed-sets-and-traverse-to-definitions.md)
+- Amended by: [ADR-0138](0138-divide-a-fact-allowance-by-what-each-file-needs.md) — scoping fixed the file count; the allowance was still divided evenly, cutting files while it went unspent
 
 ## Context
 

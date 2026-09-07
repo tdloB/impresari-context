@@ -139,6 +139,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0135](0135-reuse-a-verified-read-within-one-request.md) | Serve a repeated read within one request from bytes already verified, validated by a metadata probe | Accepted |
 | [ADR-0136](0136-substitute-a-host-read-with-declaration-spans.md) | Answer a host read offer with hash-attested declaration spans instead of the whole file | Accepted |
 | [ADR-0137](0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md) | Answer the symbol a read offer names rather than the whole path, and never claim absence from a truncated graph | Accepted |
+| [ADR-0138](0138-divide-a-fact-allowance-by-what-each-file-needs.md) | Report what each file yields and place the unspent fact allowance with the files a first pass cut | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
