@@ -990,10 +990,18 @@ impl LocalEngine {
             })
             .unwrap_or_default();
 
+        // Reach draws only from files this product can actually parse. A
+        // neighbour it cannot read adds a path to the scope and no structure.
+        let admitted: BTreeSet<String> = tracked
+            .iter()
+            .filter(|path| structural_language(path).is_some())
+            .cloned()
+            .collect();
         let nomination = crate::file_nomination::nominate_files(
             &signals.paths,
             &signals.identifiers,
             &tracked,
+            &admitted,
             &declaration_matches,
             &identifier_matches,
         );
