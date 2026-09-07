@@ -29,8 +29,9 @@ Two consequences, both measured:
    whole-repository one. The map reads as complete.
 2. **Nomination recall cannot be measured.** The governing architecture names it
    the leading indicator — a file never nominated can never be mapped, so it
-   bounds map recall from above — and three consecutive investigations into
-   zero map recall could not rule nomination in or out.
+   bounds map recall from above — and three consecutive investigations into map
+   recall stuck at 19 of 27 could not rule nomination in or out for any of the
+   eight tasks it misses.
 
 ## Product Outcome
 

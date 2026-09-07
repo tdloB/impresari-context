@@ -79,5 +79,5 @@ Nomination recall — whether the files an accepted change touches were nominate
 at all — becomes an offline comparison between the disclosed list and a
 reference change, performed entirely outside the product. The ARD for
 IC-SSSE-128 names it the leading indicator that bounds map recall from above.
-Its first measurement retired nomination as the suspect behind zero map recall
-on the task it was run against.
+Its first measurement retired nomination as the suspect on the task it was run
+against, one of the eight the map currently misses.

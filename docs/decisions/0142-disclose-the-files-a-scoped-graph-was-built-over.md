@@ -21,9 +21,10 @@ Neither shipped. `build_task_scoped_structure` returns the nomination, the MCP
 server projects the file order and admitted identifiers out of it for seeding,
 and discards the rest.
 
-The cost of that gap is not theoretical. Map file recall has measured zero
+The cost of that gap is not theoretical. Map file recall has sat at 19 of 27
 across three separate investigations — structural density, nomination breadth,
-and seed ranking — and none of them could establish whether the file the change
+and seed ranking each moved it by exactly zero — and none of them could
+establish, for any task in the missing eight, whether the file the change
 touches was nominated at all, because nothing in the product ever said.
 
 ## Decision
