@@ -3023,8 +3023,14 @@ impl LocalEngine {
         } else {
             let mut evidence = std::collections::BTreeMap::new();
             let mut evidence_order = Vec::new();
+            let mut delivered = std::collections::BTreeSet::new();
             for item in leading_evidence {
-                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             let mut unknowns = leading_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
@@ -3073,11 +3079,21 @@ impl LocalEngine {
                 }
                 unknowns.extend(search.unknowns);
                 for item in search.matches {
-                    Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+                    Self::insert_ranked_evidence(
+                        &mut evidence,
+                        &mut evidence_order,
+                        &mut delivered,
+                        item,
+                    );
                 }
             }
             for item in trailing_evidence {
-                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             unknowns.extend(trailing_unknowns);
             let snapshot_id = snapshot_id.ok_or_else(|| {
@@ -3116,11 +3132,45 @@ impl LocalEngine {
         }
     }
 
+    /// Admit one evidence record unless the packet already delivers its bytes.
+    ///
+    /// A record is identified by its span, so two matches a few bytes apart in
+    /// one file are distinct records whose expanded excerpts can be
+    /// byte-identical. Delivering both sends the window twice. Measured on
+    /// `astropy/timeseries/binned.py`, twenty delivered records carried only
+    /// twelve distinct excerpts: 32,198 of 80,780 excerpt bytes — 40% — were
+    /// repeats, and the packet budget paid for every copy.
+    ///
+    /// Provenance is part of the key, not decoration. Structural-graph evidence
+    /// and a literal match can expand to the same window and remain two
+    /// different things the product knows, so only records agreeing on path,
+    /// method and kind are treated as the same delivery.
+    ///
+    /// The withheld record's match positions are not carried forward. Carrying
+    /// them grows a record that survives, and under a tight byte budget the
+    /// packet drops whichever record no longer fits — trading a repeat for a
+    /// loss. The reader still receives the window those matches fall inside.
     fn insert_ranked_evidence(
         evidence: &mut std::collections::BTreeMap<String, EvidenceRecord>,
         evidence_order: &mut Vec<String>,
+        delivered: &mut std::collections::BTreeSet<String>,
         item: EvidenceRecord,
     ) {
+        // A path cannot contain NUL and base64url never emits one, so the
+        // fields stay unambiguous when joined.
+        let mut key = String::new();
+        for field in [
+            item.artifact.path.display_path.as_str(),
+            item.extraction.method.as_str(),
+            item.kind.as_str(),
+            item.excerpt.bytes_base64url.as_str(),
+        ] {
+            key.push_str(field);
+            key.push('\0');
+        }
+        if !delivered.insert(crate::contract_sha256(key.as_bytes())) {
+            return;
+        }
         if !evidence.contains_key(&item.evidence_id) {
             evidence_order.push(item.evidence_id.clone());
             evidence.insert(item.evidence_id.clone(), item);
@@ -6875,6 +6925,98 @@ mod tests {
             "repository quota was {whole_repository}"
         );
         assert!(scoped > whole_repository * 60);
+    }
+
+    /// A minimal record whose fields the delivery key actually reads.
+    fn sample_evidence_record() -> EvidenceRecord {
+        EvidenceRecord {
+            schema_name: "evidence".into(),
+            schema_version: "1.0.0".into(),
+            evidence_id: "id".into(),
+            workspace_snapshot: "sha256:snapshot".into(),
+            artifact: context_core::EvidenceArtifact {
+                path: context_core::EvidencePath {
+                    display_path: "lib.rs".into(),
+                    platform_family: "unix".into(),
+                    unit_encoding: "utf8".into(),
+                    relative_units_base64url: "bGliLnJz".into(),
+                },
+                content_hash: "sha256:content".into(),
+                file_kind: "regular_file".into(),
+                decoding: "utf8".into(),
+            },
+            span: context_core::EvidenceSpan {
+                start_byte: "0".into(),
+                end_byte: "6".into(),
+            },
+            excerpt: context_core::EvidenceExcerpt {
+                encoding: "base64url".into(),
+                bytes_base64url: "WINDOW".into(),
+                match_start_byte: "0".into(),
+                match_end_byte: "6".into(),
+            },
+            kind: "exact_source".into(),
+            extraction: context_core::EvidenceExtraction {
+                method: "literal_search".into(),
+                version: "1.0.0".into(),
+            },
+            confidence: "confirmed".into(),
+            trust: "untrusted_workspace_content".into(),
+            freshness: "current".into(),
+            sensitivity: Some("normal".into()),
+        }
+    }
+
+    #[test]
+    fn one_excerpt_is_delivered_once_and_provenance_is_never_merged_away() {
+        // Two matches a few bytes apart expand to the same window, so the same
+        // bytes were delivered twice. Measured on an astropy subset, twenty
+        // delivered records carried only twelve distinct excerpts and 40% of
+        // the excerpt bytes were repeats.
+        let mut evidence = std::collections::BTreeMap::new();
+        let mut order = Vec::new();
+        let mut delivered = std::collections::BTreeSet::new();
+
+        let record = |id: &str, method: &str, excerpt: &str| {
+            let mut item = sample_evidence_record();
+            item.evidence_id = id.to_owned();
+            item.extraction.method = method.to_owned();
+            item.excerpt.bytes_base64url = excerpt.to_owned();
+            item
+        };
+
+        for item in [
+            record("id-1", "literal_search", "WINDOW"),
+            record("id-2", "literal_search", "WINDOW"),
+            record("id-3", "literal_search", "WINDOW"),
+        ] {
+            LocalEngine::insert_ranked_evidence(&mut evidence, &mut order, &mut delivered, item);
+        }
+        assert_eq!(order, vec!["id-1"], "the window is delivered once");
+
+        // Provenance is part of the finding. Structural evidence expanding to
+        // the same window is a different thing the product knows, and merging
+        // it away would erase how it was found.
+        LocalEngine::insert_ranked_evidence(
+            &mut evidence,
+            &mut order,
+            &mut delivered,
+            record("id-4", "structural_graph_edge", "WINDOW"),
+        );
+        assert_eq!(
+            order,
+            vec!["id-1", "id-4"],
+            "a different extraction method is a different delivery"
+        );
+
+        // A genuinely different window is admitted.
+        LocalEngine::insert_ranked_evidence(
+            &mut evidence,
+            &mut order,
+            &mut delivered,
+            record("id-5", "literal_search", "OTHER"),
+        );
+        assert_eq!(order, vec!["id-1", "id-4", "id-5"]);
     }
 
     #[test]
