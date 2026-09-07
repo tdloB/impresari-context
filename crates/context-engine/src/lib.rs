@@ -1716,7 +1716,7 @@ impl LocalEngine {
             })?
             .clone();
         let limits = structural_limits(context, budget, self.ids())?;
-        let mut files = Vec::new();
+        let mut parsed: Vec<(WorkerRequest, context_structural::WorkerSuccess)> = Vec::new();
         let mut unknowns = Vec::new();
         let limits = scoped_limits(limits, &snapshot.artifacts, scope);
         let mut remaining_facts = limits.facts;
@@ -1761,23 +1761,7 @@ impl LocalEngine {
                 unknowns.push("structural_fact_limit_reached".into());
                 break;
             };
-            let exact = self
-                .workspace
-                .read_exact(&artifact.path, artifact.size_bytes)
-                .map_err(|error| {
-                    self.workspace_failure(context, Capability::StructureBuild, error.code())
-                })?;
-            if exact.content_hash != artifact.content_hash {
-                return Err(failure(
-                    context,
-                    Capability::StructureBuild,
-                    PublicErrorCode::StaleState,
-                    "workspace changed during structural analysis",
-                    Some(self.workspace.identity()),
-                    Some(&snapshot.snapshot_id),
-                    Some(RecoveryAction::RefreshSnapshot),
-                ));
-            }
+            let exact = self.read_verified_artifact(context, artifact, &snapshot.snapshot_id)?;
             let mut file_limits = limits;
             file_limits.facts = file_fact_quota;
             let request = structural_request(context, language, exact, file_limits);
@@ -1786,11 +1770,33 @@ impl LocalEngine {
             remaining_facts = remaining_facts
                 .saturating_sub(u32::try_from(response.facts.len()).unwrap_or(u32::MAX));
             remaining_supported_files = remaining_supported_files.saturating_sub(1);
-            files.push(GraphFileInput {
+            parsed.push((request, response));
+        }
+
+        // The pass above hands every file an equal share, so a file needing
+        // more than its share is cut while smaller files leave theirs unspent.
+        // Measured on astropy, one build used 12,040 of 28,000 facts and still
+        // truncated a file — the capacity was sitting unclaimed in the same
+        // build. Each response now reports what its file would have yielded, so
+        // the remainder can be placed where it was actually wanted.
+        if self.widen_short_files(
+            context,
+            &snapshot.snapshot_id,
+            launcher,
+            limits,
+            started,
+            &mut parsed,
+        )? {
+            unknowns.push("structural_fact_redistribution_incomplete".into());
+        }
+
+        let files: Vec<GraphFileInput> = parsed
+            .into_iter()
+            .map(|(request, response)| GraphFileInput {
                 path: request.path,
                 response,
-            });
-        }
+            })
+            .collect();
         if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
             unknowns.push("structural_file_limit_reached".into());
         }
@@ -1802,6 +1808,98 @@ impl LocalEngine {
                 &snapshot.snapshot_id,
             )
         })
+    }
+
+    /// Read one admitted artifact and prove the bytes are the ones admitted.
+    ///
+    /// A snapshot records a hash; the workspace can change under it. Comparing
+    /// the two is what makes every downstream span attributable to source the
+    /// caller authorized rather than to whatever is on disk now.
+    ///
+    /// # Errors
+    ///
+    /// Returns a closed failure when the read fails or the file changed.
+    fn read_verified_artifact(
+        &mut self,
+        context: &RequestContext,
+        artifact: &context_workspace::ArtifactRecord,
+        snapshot_id: &str,
+    ) -> Result<context_workspace::ExactRead, EngineError> {
+        let exact = self
+            .workspace
+            .read_exact(&artifact.path, artifact.size_bytes)
+            .map_err(|error| {
+                self.workspace_failure(context, Capability::StructureBuild, error.code())
+            })?;
+        if exact.content_hash != artifact.content_hash {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "workspace changed during structural analysis",
+                Some(self.workspace.identity()),
+                Some(snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        Ok(exact)
+    }
+
+    /// Re-parse the files an equal-share pass cut, using what it left unspent.
+    ///
+    /// Returns whether the elapsed-time bound stopped it early, which the caller
+    /// discloses. Only files granted more than they hold are parsed again, so a
+    /// build whose first pass satisfied every file does no extra work.
+    fn widen_short_files(
+        &mut self,
+        context: &RequestContext,
+        snapshot_id: &str,
+        launcher: &WorkerLauncher,
+        limits: StructuralLimits,
+        started: std::time::Instant,
+        parsed: &mut [(WorkerRequest, context_structural::WorkerSuccess)],
+    ) -> Result<bool, EngineError> {
+        let held: Vec<u64> = parsed
+            .iter()
+            .map(|(_, response)| response.facts.len() as u64)
+            .collect();
+        let demand: Vec<u64> = parsed
+            .iter()
+            .map(|(_, response)| {
+                // A response the byte ceiling already truncated cannot carry
+                // more facts however large an allowance it is given, so its
+                // effective demand is what it holds. Measured, treating these as
+                // short re-parsed 12 of 39 files to recover nothing.
+                if response
+                    .warnings
+                    .iter()
+                    .any(|warning| warning == context_structural::RESPONSE_BYTE_LIMIT_WARNING)
+                {
+                    response.facts.len() as u64
+                } else {
+                    response.total_facts_available
+                }
+            })
+            .collect();
+        for (index, grant) in redistribute_unspent_facts(&held, &demand, limits.facts)
+            .into_iter()
+            .enumerate()
+        {
+            if u64::from(grant) <= held[index] {
+                continue;
+            }
+            if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
+            {
+                return Ok(true);
+            }
+            let (request, response) = &mut parsed[index];
+            let mut wider = request.clone();
+            wider.max_facts = grant;
+            let improved = self.load_or_parse_structural(context, snapshot_id, &wider, launcher)?;
+            *request = wider;
+            *response = improved;
+        }
+        Ok(false)
     }
 
     fn load_or_parse_structural(
@@ -6009,6 +6107,50 @@ fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u
     (remaining_facts > 0 && remaining_files > 0).then(|| remaining_facts.div_ceil(remaining_files))
 }
 
+/// Place the unspent part of a fact allowance with the files that were cut.
+///
+/// `held` is what each file received from the equal-share pass; `demand` is what
+/// each file would yield with no ceiling, which the worker reports because only
+/// the parser knows it. A file is short when it wanted more than it held.
+///
+/// The remainder is divided smallest-shortfall first, which is the max-min fair
+/// order: every file that the remainder can satisfy is satisfied, and whatever
+/// is left over is shared evenly among the files it cannot.
+///
+/// Two properties make this safe to apply unconditionally. No file is ever
+/// granted less than it already holds, so a build cannot regress; and only the
+/// unspent remainder is placed, so the total cannot exceed the allowance.
+///
+/// The cost of those properties is that it does not reach the globally fair
+/// division when the first pass already spent everything — with nothing unspent
+/// there is nothing to move, even if an even division would have been kinder to
+/// one file than another. That case is not the one measured on the corpus,
+/// where a build left 57% of its allowance unused while truncating a file.
+fn redistribute_unspent_facts(held: &[u64], demand: &[u64], allowance: u32) -> Vec<u32> {
+    let spent: u64 = held.iter().sum();
+    let mut unspent = u64::from(allowance).saturating_sub(spent);
+    let mut grant: Vec<u32> = held
+        .iter()
+        .map(|facts| u32::try_from(*facts).unwrap_or(u32::MAX))
+        .collect();
+    let mut short: Vec<usize> = (0..held.len())
+        .filter(|index| demand[*index] > held[*index])
+        .collect();
+    short.sort_by_key(|index| (demand[*index] - held[*index], *index));
+    let mut remaining_short = short.len() as u64;
+    for index in short {
+        if remaining_short == 0 || unspent == 0 {
+            break;
+        }
+        let shortfall = demand[index] - held[index];
+        let give = shortfall.min(unspent / remaining_short);
+        grant[index] = u32::try_from(held[index].saturating_add(give)).unwrap_or(u32::MAX);
+        unspent -= give;
+        remaining_short -= 1;
+    }
+    grant
+}
+
 fn structural_limits(
     context: &RequestContext,
     budget: &ResourceBudget,
@@ -6886,6 +7028,91 @@ mod tests {
         assert_eq!(structural_fact_quota(5, 0), None);
     }
 
+    #[test]
+    fn an_unspent_allowance_reaches_the_file_that_was_cut() {
+        // The measured case. Thirteen nominated files, 28,000 facts, 12,040
+        // spent — and one file truncated at its 2,154 share while 15,960 facts
+        // went unclaimed in the same build.
+        let mut held = vec![2_154_u64];
+        let mut demand = vec![6_146_u64];
+        for _ in 0..12 {
+            held.push(824);
+            demand.push(824);
+        }
+        let grant = redistribute_unspent_facts(&held, &demand, 28_000);
+        assert_eq!(
+            u64::from(grant[0]),
+            demand[0],
+            "the file that wanted more must get it when the allowance is unspent"
+        );
+        for index in 1..held.len() {
+            assert_eq!(u64::from(grant[index]), held[index], "satisfied files move");
+        }
+    }
+
+    #[test]
+    fn redistribution_never_takes_facts_back_and_never_overspends() {
+        // The two properties that make this safe to run on every build. A file
+        // cannot come out of it with less than it already had, so no build
+        // regresses; and only the unspent remainder moves, so the allowance is
+        // never exceeded however the demands fall.
+        for allowance in [10_u32, 64, 1_000, 28_000] {
+            for shape in [
+                (vec![5_u64, 5, 5], vec![50_u64, 50, 50]),
+                (vec![0, 0, 0], vec![1, 2, 3]),
+                (vec![9, 1], vec![9, 900]),
+                (vec![4, 4, 4, 4], vec![4, 4, 4, 4]),
+                (vec![1], vec![u64::from(u32::MAX) + 10]),
+            ] {
+                let (held, demand) = shape;
+                let grant = redistribute_unspent_facts(&held, &demand, allowance);
+                let spent: u64 = held.iter().sum();
+                let granted: u64 = grant.iter().map(|facts| u64::from(*facts)).sum();
+                for index in 0..held.len() {
+                    assert!(
+                        u64::from(grant[index]) >= held[index],
+                        "a file must never be granted less than it holds"
+                    );
+                    assert!(
+                        u64::from(grant[index]) <= demand[index],
+                        "a file is never granted more than it can use"
+                    );
+                }
+                assert!(
+                    granted <= u64::from(allowance).max(spent),
+                    "the allowance bounds the total unless the first pass already exceeded it"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_smallest_shortfall_is_satisfied_first() {
+        // Max-min fairness: a remainder that cannot satisfy everyone satisfies
+        // as many as it can, rather than spreading itself too thin to complete
+        // any of them. Held 0 of 100 total; two files want 10, one wants 500.
+        let held = vec![0_u64, 0, 0];
+        let demand = vec![500_u64, 10, 10];
+        let grant = redistribute_unspent_facts(&held, &demand, 100);
+        assert_eq!(u64::from(grant[1]), 10, "a satisfiable file is satisfied");
+        assert_eq!(u64::from(grant[2]), 10, "and so is the second");
+        assert_eq!(
+            u64::from(grant[0]),
+            80,
+            "the rest goes to the file that could not be satisfied"
+        );
+    }
+
+    #[test]
+    fn a_fully_spent_allowance_moves_nothing() {
+        // The honest limit of this approach: with nothing unspent there is
+        // nothing to place, even where an even division would have been kinder.
+        let held = vec![50_u64, 50];
+        let demand = vec![50_u64, 5_000];
+        let grant = redistribute_unspent_facts(&held, &demand, 100);
+        assert_eq!(grant, vec![50, 50]);
+    }
+
     struct TestRoot(PathBuf);
     impl TestRoot {
         fn new(label: &str) -> Self {
@@ -7378,6 +7605,7 @@ mod tests {
                         request_id: "req_structural_seed".into(),
                         content_hash: artifact.content_hash.clone(),
                         syntax_errors: false,
+                        total_facts_available: facts.len() as u64,
                         facts,
                         warnings: Vec::new(),
                     },
@@ -8760,6 +8988,7 @@ mod tests {
                             confidence: "confirmed".into(),
                             provenance,
                         }],
+                        total_facts_available: 1,
                         warnings: Vec::new(),
                     },
                 }],
