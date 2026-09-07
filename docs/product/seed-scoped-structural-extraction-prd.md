@@ -98,6 +98,15 @@ whole-repository pass.
   measured 0 of 27 baseline, and nomination recall is reported for every task.
 - A scoped graph for a task nominating N files contains structure for those N
   files at full per-file density, and for no others.
+- No nominated file is truncated by the worker's response ceiling at a density a
+  real module needs. **Measured, ten astropy tasks, thirty-nine nominated
+  files:** raising the requested response from 1 MiB to 4 MiB takes truncation
+  from 12 files to 4 and the structure recovered from 52,293 to 70,401 facts
+  (+34.6%), with no measurable change in build time and none in peak memory.
+  **Map recall does not move** — 19 of 27 files and 13 of 34 symbols at both
+  ceilings across all twenty-two astropy tasks — so the extra structure is
+  reported as extra structure and not as a better map
+  ([ADR-0139](../decisions/0139-raise-the-structural-worker-response-ceiling.md)).
 - No nominated file is truncated by the fact allowance while that allowance goes
   unspent. **Measured on ten astropy tasks, thirty-nine nominated files:** fact-
   quota truncation falls from one file to none, and with the response byte
