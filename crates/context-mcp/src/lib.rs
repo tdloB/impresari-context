@@ -9,6 +9,9 @@ use std::{
 };
 
 use context_core::{POLICY_PROFILE, PolicySubject, ResourceBudget, json_contract_identity};
+use context_engine::file_nomination::{
+    FILE_NOMINATION_SCHEMA_NAME, FILE_NOMINATION_SCHEMA_VERSION, FileNomination,
+};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine, ProfiledContextPacket,
@@ -757,7 +760,7 @@ impl McpServer {
                 None,
             ),
             (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
-                let profiled = if let Some(runtime) = &self.structural_runtime {
+                let (profiled, nomination) = if let Some(runtime) = &self.structural_runtime {
                     // Prefer a dense graph over the files this task nominated.
                     // Fall back to the thin whole-repository graph when nothing
                     // is nominated, so a task naming no code still works.
@@ -771,21 +774,28 @@ impl McpServer {
                             )
                             .ok()
                             .filter(|(_, nomination)| !nomination.files.is_empty())
-                            .map(|(graph, nomination)| {
-                                let order = nomination
-                                    .files
-                                    .iter()
-                                    .map(|file| file.display_path.clone())
-                                    .collect::<Vec<_>>();
-                                (graph, order, nomination.admitted_identifiers)
-                            })
                     });
                     // Carry the nomination order so a name shared by several
                     // files resolves to the file the task is about rather than
-                    // to whichever path sorts first.
-                    let (graph, nominated_order, admitted_identifiers) =
-                        scoped.unwrap_or_else(|| (runtime.graph.clone(), Vec::new(), Vec::new()));
-                    if self.delivery_mode == DeliveryMode::ProgressiveStructural {
+                    // to whichever path sorts first. The nomination itself is
+                    // carried too, because a consumer cannot read a scoped map
+                    // safely without knowing which files it was scoped to.
+                    let (graph, nomination) = scoped.map_or_else(
+                        || (runtime.graph.clone(), None),
+                        |(graph, nomination)| (graph, Some(nomination)),
+                    );
+                    let nominated_order = nomination.as_ref().map_or_else(Vec::new, |nomination| {
+                        nomination
+                            .files
+                            .iter()
+                            .map(|file| file.display_path.clone())
+                            .collect::<Vec<_>>()
+                    });
+                    let admitted_identifiers =
+                        nomination.as_ref().map_or_else(Vec::new, |nomination| {
+                            nomination.admitted_identifiers.clone()
+                        });
+                    let profiled = if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                         self.engine
                             .build_profiled_seeded_progressive_context(
                                 &context,
@@ -815,11 +825,15 @@ impl McpServer {
                                 args.budget,
                             )
                             .map_err(|_| "profiled structural context build failed")?
-                    }
+                    };
+                    (profiled, nomination)
                 } else {
-                    self.engine
-                        .build_profiled_context(&context, profile, &query, args.budget)
-                        .map_err(|_| "profiled context build failed")?
+                    (
+                        self.engine
+                            .build_profiled_context(&context, profile, &query, args.budget)
+                            .map_err(|_| "profiled context build failed")?,
+                        None,
+                    )
                 };
                 if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                     let session_id = progressive_session_id
@@ -828,6 +842,7 @@ impl McpServer {
                     return self.progressive_context_build(
                         session_id,
                         &profiled,
+                        nomination.as_ref(),
                         progressive_budget,
                         &reads_before,
                         progressive_started,
@@ -960,6 +975,7 @@ impl McpServer {
         &mut self,
         session_id: &str,
         profiled: &ProfiledContextPacket,
+        nomination: Option<&FileNomination>,
         budget: ResourceBudget,
         reads_before: &RepositoryReadTelemetry,
         started: Instant,
@@ -1115,6 +1131,7 @@ impl McpServer {
                 "workspace_snapshot":progressive.workspace_snapshot,
                 "graph_id":progressive.graph_id,
                 "state":state,
+                "scope":scope_disclosure(nomination),
                 "items":public_items,
                 "omissions":omissions
             },
@@ -1370,6 +1387,43 @@ impl McpServer {
             .ok_or("evidence expansion failed")?;
         finalize_progressive_output(session, "expand", "ready", &result_id, per_call, base, None)
     }
+}
+
+/// Disclose which files a scoped structural graph was built over.
+///
+/// A scoped graph is dense but partial, and PRD IC-SSSE-128 requires a consumer
+/// to be able to tell that coverage is limited to nominated files, how many
+/// were nominated, and why each was admitted. Without this the map reads as a
+/// whole-repository one, and nomination recall — the metric that bounds map
+/// recall from above — cannot be measured at all.
+///
+/// A whole-repository fallback graph nominates nothing and says so, rather than
+/// omitting the field and leaving the two cases indistinguishable.
+fn scope_disclosure(nomination: Option<&FileNomination>) -> Value {
+    nomination.map_or_else(
+        || {
+            json!({
+                "schema_name":FILE_NOMINATION_SCHEMA_NAME,
+                "schema_version":FILE_NOMINATION_SCHEMA_VERSION,
+                "scoped_to_nominated_files":false,
+                "nominated_files":0,
+                "considered_files":0,
+                "files":[],
+                "unknowns":["structural_scope_whole_repository"]
+            })
+        },
+        |nomination| {
+            json!({
+                "schema_name":nomination.schema_name,
+                "schema_version":nomination.schema_version,
+                "scoped_to_nominated_files":nomination.is_scoped(),
+                "nominated_files":nomination.files.len(),
+                "considered_files":nomination.considered_files,
+                "files":nomination.files,
+                "unknowns":nomination.unknowns
+            })
+        },
+    )
 }
 
 fn disclosure_item(
@@ -2593,6 +2647,70 @@ mod tests {
                 .context_build(profiled_arguments(Some("session_progressive01")))
                 .err(),
             Some("structural delivery runtime unavailable")
+        );
+    }
+
+    #[test]
+    fn a_whole_repository_map_says_so_rather_than_omitting_its_scope() {
+        let (mut progressive, _source, _cache) = progressive_server();
+        let (built, _) = open_progressive_map(&mut progressive, "session_progressive01");
+        let scope = &built["disclosure_map"]["scope"];
+
+        // Absence would make an unscoped graph and a build that discloses
+        // nothing identical to a consumer, which is the confusion this exists
+        // to remove.
+        assert!(scope.is_object(), "a map must always carry its scope");
+        assert_eq!(scope["scoped_to_nominated_files"], false);
+        assert_eq!(scope["nominated_files"], 0);
+        assert_eq!(scope["considered_files"], 0);
+        assert_eq!(scope["files"].as_array().map(Vec::len), Some(0));
+        assert_eq!(scope["unknowns"][0], "structural_scope_whole_repository");
+        assert_eq!(scope["schema_name"], FILE_NOMINATION_SCHEMA_NAME);
+        assert_eq!(scope["schema_version"], FILE_NOMINATION_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn a_scoped_map_discloses_every_file_and_the_ground_it_was_admitted_on() {
+        let nomination = FileNomination {
+            schema_name: FILE_NOMINATION_SCHEMA_NAME.into(),
+            schema_version: FILE_NOMINATION_SCHEMA_VERSION.into(),
+            files: vec![
+                context_engine::file_nomination::NominatedFile {
+                    display_path: "src/parser.rs".into(),
+                    reason_code: "exact_task_path".into(),
+                    matched_identifiers: 4,
+                },
+                context_engine::file_nomination::NominatedFile {
+                    display_path: "src/lexer.rs".into(),
+                    reason_code: "task_identifier_declared".into(),
+                    matched_identifiers: 2,
+                },
+            ],
+            considered_files: 91,
+            admitted_identifiers: vec!["parse_expression".into()],
+            unknowns: vec!["nomination_ceiling_reached".into()],
+        };
+
+        let scope = scope_disclosure(Some(&nomination));
+
+        assert_eq!(scope["scoped_to_nominated_files"], true);
+        assert_eq!(scope["nominated_files"], 2);
+        assert_eq!(scope["considered_files"], 91);
+        assert_eq!(scope["unknowns"][0], "nomination_ceiling_reached");
+        // Rank order is the disclosure: a consumer reads it best first.
+        assert_eq!(scope["files"][0]["display_path"], "src/parser.rs");
+        assert_eq!(scope["files"][0]["reason_code"], "exact_task_path");
+        assert_eq!(scope["files"][0]["matched_identifiers"], 4);
+        assert_eq!(scope["files"][1]["display_path"], "src/lexer.rs");
+        assert_eq!(scope["files"][1]["reason_code"], "task_identifier_declared");
+        assert_eq!(scope["files"][1]["matched_identifiers"], 2);
+
+        // The disclosure is emitted, never read back. Nothing here reaches
+        // nomination, seeding, or traversal on a later request.
+        assert_eq!(
+            scope.as_object().map(serde_json::Map::len),
+            Some(7),
+            "the disclosure carries exactly its documented fields"
         );
     }
 
