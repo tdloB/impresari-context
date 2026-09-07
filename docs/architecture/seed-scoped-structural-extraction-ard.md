@@ -113,6 +113,47 @@ The existing per-file structural cache is keyed by content hash and toolchain
 identity, so a file extracted for one task is free for every later task that
 nominates it. Repeat work across a session converges toward zero.
 
+### The response ceiling is the other half of density
+
+Scoping decides how many files share the allowance. The worker's response
+ceiling decides how much of any one file can come back at all, and it is a
+separate bound that a denser scope runs into sooner.
+
+`requested` bounds the response frame, and over it the worker returns a prefix
+of the fact list rather than failing. At the 1 MiB the server asked for — about
+2,764 facts at a measured 380 bytes each — the split across eight astropy modules
+falls exactly at that threshold: `table.py` (6,146 facts), `header.py` (3,734),
+`quantity.py` (3,489) and `ascii/core.py` (3,381) all lost declarations, while
+`card.py` (2,693), `sky_coordinate.py` (2,210), `sampled.py` (604) and
+`timeseries/core.py` (188) lost none.
+
+Measured over ten tasks and thirty-nine nominated files, it was the binding
+constraint on 11 of the 12 truncated files. Raising the request to 4 MiB takes
+truncation to 4 files and structure recovered from 52,293 to 70,401 facts.
+
+Nothing external requires 1 MiB. The store's 16 MiB graph cap is a
+`set_limit(SQLITE_LIMIT_LENGTH, …)` this project makes, against a SQLite default
+of 1 GB; 4 MiB is simply the largest a conservative budget admits without
+widening a validated range, and it was enough for every file measured.
+
+The cost is disk and nothing else: about 2.2 MB more cache per scoped build.
+Build time does not move — two runs per configuration put the within-run spread
+above the between-configuration difference — and peak resident memory is
+identical to within 0.1 MB, because the response buffer is transient and per file
+while the peak is set by the whole-repository startup graph.
+
+What the extra structure is *for* is worth stating, because the obvious answer is
+wrong. Measured across all twenty-two astropy tasks at their own base commits,
+map file recall is 19 of 27 and symbol recall 13 of 34 — **identical at both
+ceilings, with no task moving**. Recovering a third more structure produced no
+better map.
+
+Where it does land is read substitution. A host asking for one named declaration
+gets a false negative when the graph never reached it, and 116 of 494 symbols
+were unanswerable for exactly that reason. At 4 MiB all 494 answer. Density at
+the file level serves the hook that reads a single file, not the map that ranks
+across files — and that distinction is measured rather than assumed.
+
 ## The failure mode this introduces, stated plainly
 
 A whole-repository graph is thin but complete. A scoped graph is dense but

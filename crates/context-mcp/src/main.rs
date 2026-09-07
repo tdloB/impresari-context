@@ -267,9 +267,23 @@ fn prepare_structural_runtime(
     })
 }
 
+/// Budget for every structural build this server performs.
+///
+/// `requested` bounds the worker's response frame, and over it the worker
+/// returns a prefix of the fact list rather than failing. At 1 MiB — about
+/// 2,760 facts at a measured 380 bytes each — that prefix stops partway through
+/// any dense file: on `astropy/io/fits/header.py` every declaration after
+/// roughly line 1,920 was missing, including seven whole top-level classes.
+///
+/// The cost is a read substitution that cannot answer for a symbol its graph
+/// never reached: measured, 378 of 494 astropy declarations were answerable at
+/// 1 MiB and all 494 at 4 MiB. Map recall does not move either way.
+///
+/// 4 MiB is the largest a conservative budget admits without widening a
+/// validated range, and it was enough for every file measured.
 fn structural_budget() -> Result<ResourceBudget, &'static str> {
     ResourceBudget::conservative(
-        1_048_576,
+        4_194_304,
         10_000,
         100_000,
         65_536,
