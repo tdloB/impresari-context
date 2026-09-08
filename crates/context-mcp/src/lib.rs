@@ -2018,7 +2018,7 @@ mod tests {
         };
         let provenance = FactProvenance {
             method: "tree_sitter".into(),
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-rust-0.24.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),

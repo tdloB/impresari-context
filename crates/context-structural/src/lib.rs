@@ -27,6 +27,17 @@ pub const PROTOCOL_VERSION: &str = "1.1.0";
 pub const GRAPH_VERSION: &str = "1.0.0";
 /// Resolver version.
 pub const RESOLVER_VERSION: &str = "0.2.0";
+/// Parser identity recorded in every fact's provenance.
+///
+/// This must name the tree-sitter release actually linked. It is a constant
+/// rather than twelve literals because a provenance claim that disagrees with
+/// the parser producing the facts is a false attestation, and nothing in the
+/// type system prevents one: the writer and the validator both read this value,
+/// so they agree with each other whatever it says.
+///
+/// `parser_version_matches_the_linked_tree_sitter_pin` holds it to the exact
+/// pin in this crate's manifest.
+pub const PARSER_VERSION: &str = "tree-sitter-0.26.13";
 /// Maximum accepted request frame size.
 pub const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum emitted response frame size.
@@ -1325,7 +1336,7 @@ fn graph_edge(
 fn default_provenance() -> FactProvenance {
     FactProvenance {
         method: "tree_sitter_syntax".into(),
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: PARSER_VERSION.into(),
         grammar_version: "mixed-pinned-grammars".into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -1818,7 +1829,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         || request.schema_version != PROTOCOL_VERSION
         || request.graph_version != GRAPH_VERSION
         || request.resolver_version != RESOLVER_VERSION
-        || request.parser_version != "tree-sitter-0.26.13"
+        || request.parser_version != PARSER_VERSION
         || request.max_facts == 0
         || request.max_facts > 100_000
         || request.max_nesting_depth == 0
@@ -2812,7 +2823,7 @@ mod tests {
             max_facts: 100,
             max_nesting_depth: 128,
             max_response_bytes: 1_048_576,
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: PARSER_VERSION.into(),
             grammar_version: grammar.into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),

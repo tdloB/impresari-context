@@ -168,7 +168,7 @@ fn graph(fixture: &Fixture, snapshot_id: &str) -> StructuralGraph {
         max_facts: 100,
         max_nesting_depth: 16,
         max_response_bytes: 1_048_576,
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: context_structural::PARSER_VERSION.into(),
         grammar_version: grammar_version(fixture.language).into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
