@@ -2,8 +2,8 @@
   "spdxVersion": "SPDX-2.3",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "name": "impresari-context-cargo-lock-d04f92d689b5",
-  "documentNamespace": "https://impresari-context.invalid/sbom/d04f92d689b5d92fba1b49442258b9db82c0f141f07bc3b45dd04b6883278add",
+  "name": "impresari-context-cargo-lock-6f83289ac653",
+  "documentNamespace": "https://impresari-context.invalid/sbom/6f83289ac653b0412ff19926e059f8c644291eb3ff48950b14d4978496c2adbd",
   "creationInfo": {
     "created": "2026-08-21T00:00:00Z",
     "creators": [
@@ -2350,8 +2350,8 @@
     {
       "SPDXID": "SPDXRef-Package-127",
       "name": "toml",
-      "versionInfo": "1.1.4+spec-1.1.0",
-      "downloadLocation": "https://crates.io/crates/toml/1.1.4+spec-1.1.0",
+      "versionInfo": "1.1.5+spec-1.1.0",
+      "downloadLocation": "https://crates.io/crates/toml/1.1.5+spec-1.1.0",
       "filesAnalyzed": false,
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "MIT OR Apache-2.0",
@@ -2360,7 +2360,7 @@
         {
           "referenceCategory": "PACKAGE-MANAGER",
           "referenceType": "purl",
-          "referenceLocator": "pkg:cargo/toml@1.1.4+spec-1.1.0"
+          "referenceLocator": "pkg:cargo/toml@1.1.5+spec-1.1.0"
         }
       ]
     },
