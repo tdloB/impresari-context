@@ -1,0 +1,3473 @@
+{
+  "spdxVersion": "SPDX-2.3",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "impresari-context-cargo-lock-d04f92d689b5",
+  "documentNamespace": "https://impresari-context.invalid/sbom/d04f92d689b5d92fba1b49442258b9db82c0f141f07bc3b45dd04b6883278add",
+  "creationInfo": {
+    "created": "2026-08-21T00:00:00Z",
+    "creators": [
+      "Tool: impresari-context/scripts/generate-sbom.rb-1.0.0"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-Package-1",
+    "SPDXRef-Package-2",
+    "SPDXRef-Package-3",
+    "SPDXRef-Package-4",
+    "SPDXRef-Package-5",
+    "SPDXRef-Package-6",
+    "SPDXRef-Package-7",
+    "SPDXRef-Package-8",
+    "SPDXRef-Package-9",
+    "SPDXRef-Package-10",
+    "SPDXRef-Package-11",
+    "SPDXRef-Package-12",
+    "SPDXRef-Package-13",
+    "SPDXRef-Package-14",
+    "SPDXRef-Package-15",
+    "SPDXRef-Package-16",
+    "SPDXRef-Package-17",
+    "SPDXRef-Package-18",
+    "SPDXRef-Package-19",
+    "SPDXRef-Package-20",
+    "SPDXRef-Package-21",
+    "SPDXRef-Package-22",
+    "SPDXRef-Package-23",
+    "SPDXRef-Package-24",
+    "SPDXRef-Package-25",
+    "SPDXRef-Package-26",
+    "SPDXRef-Package-27",
+    "SPDXRef-Package-28",
+    "SPDXRef-Package-29",
+    "SPDXRef-Package-30",
+    "SPDXRef-Package-31",
+    "SPDXRef-Package-32",
+    "SPDXRef-Package-33",
+    "SPDXRef-Package-34",
+    "SPDXRef-Package-35",
+    "SPDXRef-Package-36",
+    "SPDXRef-Package-37",
+    "SPDXRef-Package-38",
+    "SPDXRef-Package-39",
+    "SPDXRef-Package-40",
+    "SPDXRef-Package-41",
+    "SPDXRef-Package-42",
+    "SPDXRef-Package-43",
+    "SPDXRef-Package-44",
+    "SPDXRef-Package-45",
+    "SPDXRef-Package-46",
+    "SPDXRef-Package-47",
+    "SPDXRef-Package-48",
+    "SPDXRef-Package-49",
+    "SPDXRef-Package-50",
+    "SPDXRef-Package-51",
+    "SPDXRef-Package-52",
+    "SPDXRef-Package-53",
+    "SPDXRef-Package-54",
+    "SPDXRef-Package-55",
+    "SPDXRef-Package-56",
+    "SPDXRef-Package-57",
+    "SPDXRef-Package-58",
+    "SPDXRef-Package-59",
+    "SPDXRef-Package-60",
+    "SPDXRef-Package-61",
+    "SPDXRef-Package-62",
+    "SPDXRef-Package-63",
+    "SPDXRef-Package-64",
+    "SPDXRef-Package-65",
+    "SPDXRef-Package-66",
+    "SPDXRef-Package-67",
+    "SPDXRef-Package-68",
+    "SPDXRef-Package-69",
+    "SPDXRef-Package-70",
+    "SPDXRef-Package-71",
+    "SPDXRef-Package-72",
+    "SPDXRef-Package-73",
+    "SPDXRef-Package-74",
+    "SPDXRef-Package-75",
+    "SPDXRef-Package-76",
+    "SPDXRef-Package-77",
+    "SPDXRef-Package-78",
+    "SPDXRef-Package-79",
+    "SPDXRef-Package-80",
+    "SPDXRef-Package-81",
+    "SPDXRef-Package-82",
+    "SPDXRef-Package-83",
+    "SPDXRef-Package-84",
+    "SPDXRef-Package-85",
+    "SPDXRef-Package-86",
+    "SPDXRef-Package-87",
+    "SPDXRef-Package-88",
+    "SPDXRef-Package-89",
+    "SPDXRef-Package-90",
+    "SPDXRef-Package-91",
+    "SPDXRef-Package-92",
+    "SPDXRef-Package-93",
+    "SPDXRef-Package-94",
+    "SPDXRef-Package-95",
+    "SPDXRef-Package-96",
+    "SPDXRef-Package-97",
+    "SPDXRef-Package-98",
+    "SPDXRef-Package-99",
+    "SPDXRef-Package-100",
+    "SPDXRef-Package-101",
+    "SPDXRef-Package-102",
+    "SPDXRef-Package-103",
+    "SPDXRef-Package-104",
+    "SPDXRef-Package-105",
+    "SPDXRef-Package-106",
+    "SPDXRef-Package-107",
+    "SPDXRef-Package-108",
+    "SPDXRef-Package-109",
+    "SPDXRef-Package-110",
+    "SPDXRef-Package-111",
+    "SPDXRef-Package-112",
+    "SPDXRef-Package-113",
+    "SPDXRef-Package-114",
+    "SPDXRef-Package-115",
+    "SPDXRef-Package-116",
+    "SPDXRef-Package-117",
+    "SPDXRef-Package-118",
+    "SPDXRef-Package-119",
+    "SPDXRef-Package-120",
+    "SPDXRef-Package-121",
+    "SPDXRef-Package-122",
+    "SPDXRef-Package-123",
+    "SPDXRef-Package-124",
+    "SPDXRef-Package-125",
+    "SPDXRef-Package-126",
+    "SPDXRef-Package-127",
+    "SPDXRef-Package-128",
+    "SPDXRef-Package-129",
+    "SPDXRef-Package-130",
+    "SPDXRef-Package-131",
+    "SPDXRef-Package-132",
+    "SPDXRef-Package-133",
+    "SPDXRef-Package-134",
+    "SPDXRef-Package-135",
+    "SPDXRef-Package-136",
+    "SPDXRef-Package-137",
+    "SPDXRef-Package-138",
+    "SPDXRef-Package-139",
+    "SPDXRef-Package-140",
+    "SPDXRef-Package-141",
+    "SPDXRef-Package-142",
+    "SPDXRef-Package-143",
+    "SPDXRef-Package-144",
+    "SPDXRef-Package-145",
+    "SPDXRef-Package-146",
+    "SPDXRef-Package-147",
+    "SPDXRef-Package-148",
+    "SPDXRef-Package-149",
+    "SPDXRef-Package-150",
+    "SPDXRef-Package-151",
+    "SPDXRef-Package-152",
+    "SPDXRef-Package-153",
+    "SPDXRef-Package-154",
+    "SPDXRef-Package-155",
+    "SPDXRef-Package-156",
+    "SPDXRef-Package-157",
+    "SPDXRef-Package-158",
+    "SPDXRef-Package-159",
+    "SPDXRef-Package-160",
+    "SPDXRef-Package-161",
+    "SPDXRef-Package-162",
+    "SPDXRef-Package-163",
+    "SPDXRef-Package-164",
+    "SPDXRef-Package-165",
+    "SPDXRef-Package-166",
+    "SPDXRef-Package-167",
+    "SPDXRef-Package-168",
+    "SPDXRef-Package-169",
+    "SPDXRef-Package-170",
+    "SPDXRef-Package-171",
+    "SPDXRef-Package-172",
+    "SPDXRef-Package-173",
+    "SPDXRef-Package-174",
+    "SPDXRef-Package-175",
+    "SPDXRef-Package-176",
+    "SPDXRef-Package-177",
+    "SPDXRef-Package-178",
+    "SPDXRef-Package-179",
+    "SPDXRef-Package-180",
+    "SPDXRef-Package-181",
+    "SPDXRef-Package-182",
+    "SPDXRef-Package-183",
+    "SPDXRef-Package-184",
+    "SPDXRef-Package-185",
+    "SPDXRef-Package-186",
+    "SPDXRef-Package-187",
+    "SPDXRef-Package-188",
+    "SPDXRef-Package-189",
+    "SPDXRef-Package-190",
+    "SPDXRef-Package-191",
+    "SPDXRef-Package-192"
+  ],
+  "packages": [
+    {
+      "SPDXID": "SPDXRef-Package-1",
+      "name": "ahash",
+      "versionInfo": "0.8.12",
+      "downloadLocation": "https://crates.io/crates/ahash/0.8.12",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ahash@0.8.12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-2",
+      "name": "aho-corasick",
+      "versionInfo": "1.1.5",
+      "downloadLocation": "https://crates.io/crates/aho-corasick/1.1.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Unlicense OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/aho-corasick@1.1.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-3",
+      "name": "allocator-api2",
+      "versionInfo": "0.2.21",
+      "downloadLocation": "https://crates.io/crates/allocator-api2/0.2.21",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/allocator-api2@0.2.21"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-4",
+      "name": "ambient-authority",
+      "versionInfo": "0.0.2",
+      "downloadLocation": "https://crates.io/crates/ambient-authority/0.0.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ambient-authority@0.0.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-5",
+      "name": "autocfg",
+      "versionInfo": "1.5.1",
+      "downloadLocation": "https://crates.io/crates/autocfg/1.5.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/autocfg@1.5.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-6",
+      "name": "base64",
+      "versionInfo": "0.23.1",
+      "downloadLocation": "https://crates.io/crates/base64/0.23.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/base64@0.23.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-7",
+      "name": "bit-set",
+      "versionInfo": "0.8.0",
+      "downloadLocation": "https://crates.io/crates/bit-set/0.8.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bit-set@0.8.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-8",
+      "name": "bit-vec",
+      "versionInfo": "0.8.0",
+      "downloadLocation": "https://crates.io/crates/bit-vec/0.8.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bit-vec@0.8.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-9",
+      "name": "bitflags",
+      "versionInfo": "2.13.1",
+      "downloadLocation": "https://crates.io/crates/bitflags/2.13.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bitflags@2.13.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-10",
+      "name": "block-buffer",
+      "versionInfo": "0.12.1",
+      "downloadLocation": "https://crates.io/crates/block-buffer/0.12.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/block-buffer@0.12.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-11",
+      "name": "borrow-or-share",
+      "versionInfo": "0.2.4",
+      "downloadLocation": "https://crates.io/crates/borrow-or-share/0.2.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT-0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/borrow-or-share@0.2.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-12",
+      "name": "bumpalo",
+      "versionInfo": "3.20.3",
+      "downloadLocation": "https://crates.io/crates/bumpalo/3.20.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bumpalo@3.20.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-13",
+      "name": "bytecount",
+      "versionInfo": "0.6.9",
+      "downloadLocation": "https://crates.io/crates/bytecount/0.6.9",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0/MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/bytecount@0.6.9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-14",
+      "name": "cap-primitives",
+      "versionInfo": "4.0.3",
+      "downloadLocation": "https://crates.io/crates/cap-primitives/4.0.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/cap-primitives@4.0.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-15",
+      "name": "cap-std",
+      "versionInfo": "4.0.3",
+      "downloadLocation": "https://crates.io/crates/cap-std/4.0.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/cap-std@4.0.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-16",
+      "name": "cc",
+      "versionInfo": "1.4.4",
+      "downloadLocation": "https://crates.io/crates/cc/1.4.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/cc@1.4.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-17",
+      "name": "cfg-if",
+      "versionInfo": "1.0.4",
+      "downloadLocation": "https://crates.io/crates/cfg-if/1.0.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/cfg-if@1.0.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-18",
+      "name": "context-adapters",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-adapters@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-19",
+      "name": "context-admission",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-admission@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-20",
+      "name": "context-admission-policy",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-admission-policy@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-21",
+      "name": "context-analyzer-protocol",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-analyzer-protocol@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-22",
+      "name": "context-analyzer-runner",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-analyzer-runner@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-23",
+      "name": "context-claude-code",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-claude-code@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-24",
+      "name": "context-cli",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-cli@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-25",
+      "name": "context-codex-app-server",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-codex-app-server@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-26",
+      "name": "context-conformance",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-conformance@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-27",
+      "name": "context-copilot-cli",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-copilot-cli@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-28",
+      "name": "context-core",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-core@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-29",
+      "name": "context-cursor-agent",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-cursor-agent@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-30",
+      "name": "context-dashboard",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-dashboard@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-31",
+      "name": "context-dashboard-server",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-dashboard-server@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-32",
+      "name": "context-engine",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-engine@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-33",
+      "name": "context-evaluation",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-evaluation@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-34",
+      "name": "context-extensions",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-extensions@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-35",
+      "name": "context-mcp",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-mcp@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-36",
+      "name": "context-reference-client",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-reference-client@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-37",
+      "name": "context-retrieval",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-retrieval@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-38",
+      "name": "context-session",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-session@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-39",
+      "name": "context-store",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-store@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-40",
+      "name": "context-structural",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-structural@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-41",
+      "name": "context-vscode-copilot",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-vscode-copilot@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-42",
+      "name": "context-workspace",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-workspace@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-43",
+      "name": "context-yara-x-adapter",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-yara-x-adapter@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-44",
+      "name": "context-yara-x-envelope",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "NOASSERTION",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/context-yara-x-envelope@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-45",
+      "name": "cpufeatures",
+      "versionInfo": "0.3.0",
+      "downloadLocation": "https://crates.io/crates/cpufeatures/0.3.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/cpufeatures@0.3.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-46",
+      "name": "crypto-common",
+      "versionInfo": "0.2.2",
+      "downloadLocation": "https://crates.io/crates/crypto-common/0.2.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/crypto-common@0.2.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-47",
+      "name": "data-encoding",
+      "versionInfo": "2.11.1",
+      "downloadLocation": "https://crates.io/crates/data-encoding/2.11.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/data-encoding@2.11.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-48",
+      "name": "digest",
+      "versionInfo": "0.11.3",
+      "downloadLocation": "https://crates.io/crates/digest/0.11.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/digest@0.11.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-49",
+      "name": "email_address",
+      "versionInfo": "0.2.9",
+      "downloadLocation": "https://crates.io/crates/email_address/0.2.9",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/email_address@0.2.9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-50",
+      "name": "equivalent",
+      "versionInfo": "1.0.2",
+      "downloadLocation": "https://crates.io/crates/equivalent/1.0.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/equivalent@1.0.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-51",
+      "name": "errno",
+      "versionInfo": "0.3.14",
+      "downloadLocation": "https://crates.io/crates/errno/0.3.14",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/errno@0.3.14"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-52",
+      "name": "fallible-iterator",
+      "versionInfo": "0.3.0",
+      "downloadLocation": "https://crates.io/crates/fallible-iterator/0.3.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT/Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fallible-iterator@0.3.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-53",
+      "name": "fallible-streaming-iterator",
+      "versionInfo": "0.1.9",
+      "downloadLocation": "https://crates.io/crates/fallible-streaming-iterator/0.1.9",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT/Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fallible-streaming-iterator@0.1.9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-54",
+      "name": "fancy-regex",
+      "versionInfo": "0.19.0",
+      "downloadLocation": "https://crates.io/crates/fancy-regex/0.19.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fancy-regex@0.19.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-55",
+      "name": "find-msvc-tools",
+      "versionInfo": "0.1.11",
+      "downloadLocation": "https://crates.io/crates/find-msvc-tools/0.1.11",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/find-msvc-tools@0.1.11"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-56",
+      "name": "fluent-uri",
+      "versionInfo": "0.4.1",
+      "downloadLocation": "https://crates.io/crates/fluent-uri/0.4.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fluent-uri@0.4.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-57",
+      "name": "foldhash",
+      "versionInfo": "0.2.0",
+      "downloadLocation": "https://crates.io/crates/foldhash/0.2.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Zlib",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/foldhash@0.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-58",
+      "name": "fraction",
+      "versionInfo": "0.17.0",
+      "downloadLocation": "https://crates.io/crates/fraction/0.17.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fraction@0.17.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-59",
+      "name": "fs-set-times",
+      "versionInfo": "0.20.3",
+      "downloadLocation": "https://crates.io/crates/fs-set-times/0.20.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/fs-set-times@0.20.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-60",
+      "name": "getrandom",
+      "versionInfo": "0.3.4",
+      "downloadLocation": "https://crates.io/crates/getrandom/0.3.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/getrandom@0.3.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-61",
+      "name": "getrandom",
+      "versionInfo": "0.4.3",
+      "downloadLocation": "https://crates.io/crates/getrandom/0.4.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/getrandom@0.4.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-62",
+      "name": "hashbrown",
+      "versionInfo": "0.17.1",
+      "downloadLocation": "https://crates.io/crates/hashbrown/0.17.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/hashbrown@0.17.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-63",
+      "name": "heck",
+      "versionInfo": "0.5.0",
+      "downloadLocation": "https://crates.io/crates/heck/0.5.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/heck@0.5.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-64",
+      "name": "hybrid-array",
+      "versionInfo": "0.4.14",
+      "downloadLocation": "https://crates.io/crates/hybrid-array/0.4.14",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/hybrid-array@0.4.14"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-65",
+      "name": "indexmap",
+      "versionInfo": "2.14.0",
+      "downloadLocation": "https://crates.io/crates/indexmap/2.14.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/indexmap@2.14.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-66",
+      "name": "io-extras",
+      "versionInfo": "0.19.0",
+      "downloadLocation": "https://crates.io/crates/io-extras/0.19.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/io-extras@0.19.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-67",
+      "name": "io-lifetimes",
+      "versionInfo": "2.0.4",
+      "downloadLocation": "https://crates.io/crates/io-lifetimes/2.0.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/io-lifetimes@2.0.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-68",
+      "name": "io-lifetimes",
+      "versionInfo": "3.0.1",
+      "downloadLocation": "https://crates.io/crates/io-lifetimes/3.0.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/io-lifetimes@3.0.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-69",
+      "name": "ipnet",
+      "versionInfo": "2.12.1",
+      "downloadLocation": "https://crates.io/crates/ipnet/2.12.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ipnet@2.12.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-70",
+      "name": "itoa",
+      "versionInfo": "1.0.18",
+      "downloadLocation": "https://crates.io/crates/itoa/1.0.18",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/itoa@1.0.18"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-71",
+      "name": "js-sys",
+      "versionInfo": "0.3.104",
+      "downloadLocation": "https://crates.io/crates/js-sys/0.3.104",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/js-sys@0.3.104"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-72",
+      "name": "jsonschema",
+      "versionInfo": "0.52.0",
+      "downloadLocation": "https://crates.io/crates/jsonschema/0.52.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/jsonschema@0.52.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-73",
+      "name": "jsonschema-regex",
+      "versionInfo": "0.52.1",
+      "downloadLocation": "https://crates.io/crates/jsonschema-regex/0.52.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/jsonschema-regex@0.52.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-74",
+      "name": "jsonschema-value",
+      "versionInfo": "0.52.1",
+      "downloadLocation": "https://crates.io/crates/jsonschema-value/0.52.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/jsonschema-value@0.52.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-75",
+      "name": "libc",
+      "versionInfo": "0.2.189",
+      "downloadLocation": "https://crates.io/crates/libc/0.2.189",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/libc@0.2.189"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-76",
+      "name": "libsqlite3-sys",
+      "versionInfo": "0.38.2",
+      "downloadLocation": "https://crates.io/crates/libsqlite3-sys/0.38.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/libsqlite3-sys@0.38.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-77",
+      "name": "linux-raw-sys",
+      "versionInfo": "0.12.1",
+      "downloadLocation": "https://crates.io/crates/linux-raw-sys/0.12.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/linux-raw-sys@0.12.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-78",
+      "name": "lock_api",
+      "versionInfo": "0.4.14",
+      "downloadLocation": "https://crates.io/crates/lock_api/0.4.14",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/lock_api@0.4.14"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-79",
+      "name": "maybe-owned",
+      "versionInfo": "0.3.4",
+      "downloadLocation": "https://crates.io/crates/maybe-owned/0.3.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/maybe-owned@0.3.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-80",
+      "name": "memchr",
+      "versionInfo": "2.8.3",
+      "downloadLocation": "https://crates.io/crates/memchr/2.8.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Unlicense OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/memchr@2.8.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-81",
+      "name": "micromap",
+      "versionInfo": "0.3.0",
+      "downloadLocation": "https://crates.io/crates/micromap/0.3.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/micromap@0.3.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-82",
+      "name": "num",
+      "versionInfo": "0.4.3",
+      "downloadLocation": "https://crates.io/crates/num/0.4.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num@0.4.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-83",
+      "name": "num-bigint",
+      "versionInfo": "0.4.8",
+      "downloadLocation": "https://crates.io/crates/num-bigint/0.4.8",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-bigint@0.4.8"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-84",
+      "name": "num-cmp",
+      "versionInfo": "0.1.0",
+      "downloadLocation": "https://crates.io/crates/num-cmp/0.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT/Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-cmp@0.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-85",
+      "name": "num-complex",
+      "versionInfo": "0.4.6",
+      "downloadLocation": "https://crates.io/crates/num-complex/0.4.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-complex@0.4.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-86",
+      "name": "num-integer",
+      "versionInfo": "0.1.47",
+      "downloadLocation": "https://crates.io/crates/num-integer/0.1.47",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-integer@0.1.47"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-87",
+      "name": "num-iter",
+      "versionInfo": "0.1.46",
+      "downloadLocation": "https://crates.io/crates/num-iter/0.1.46",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-iter@0.1.46"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-88",
+      "name": "num-rational",
+      "versionInfo": "0.4.2",
+      "downloadLocation": "https://crates.io/crates/num-rational/0.4.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-rational@0.4.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-89",
+      "name": "num-traits",
+      "versionInfo": "0.2.19",
+      "downloadLocation": "https://crates.io/crates/num-traits/0.2.19",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/num-traits@0.2.19"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-90",
+      "name": "once_cell",
+      "versionInfo": "1.21.4",
+      "downloadLocation": "https://crates.io/crates/once_cell/1.21.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/once_cell@1.21.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-91",
+      "name": "outref",
+      "versionInfo": "0.5.2",
+      "downloadLocation": "https://crates.io/crates/outref/0.5.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/outref@0.5.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-92",
+      "name": "parking_lot",
+      "versionInfo": "0.12.5",
+      "downloadLocation": "https://crates.io/crates/parking_lot/0.12.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/parking_lot@0.12.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-93",
+      "name": "parking_lot_core",
+      "versionInfo": "0.9.12",
+      "downloadLocation": "https://crates.io/crates/parking_lot_core/0.9.12",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/parking_lot_core@0.9.12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-94",
+      "name": "percent-encoding",
+      "versionInfo": "2.3.2",
+      "downloadLocation": "https://crates.io/crates/percent-encoding/2.3.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/percent-encoding@2.3.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-95",
+      "name": "pkg-config",
+      "versionInfo": "0.3.34",
+      "downloadLocation": "https://crates.io/crates/pkg-config/0.3.34",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/pkg-config@0.3.34"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-96",
+      "name": "proc-macro2",
+      "versionInfo": "1.0.107",
+      "downloadLocation": "https://crates.io/crates/proc-macro2/1.0.107",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/proc-macro2@1.0.107"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-97",
+      "name": "quote",
+      "versionInfo": "1.0.47",
+      "downloadLocation": "https://crates.io/crates/quote/1.0.47",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/quote@1.0.47"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-98",
+      "name": "r-efi",
+      "versionInfo": "5.3.0",
+      "downloadLocation": "https://crates.io/crates/r-efi/5.3.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/r-efi@5.3.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-99",
+      "name": "r-efi",
+      "versionInfo": "6.0.0",
+      "downloadLocation": "https://crates.io/crates/r-efi/6.0.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0 OR LGPL-2.1-or-later",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/r-efi@6.0.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-100",
+      "name": "redox_syscall",
+      "versionInfo": "0.5.18",
+      "downloadLocation": "https://crates.io/crates/redox_syscall/0.5.18",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/redox_syscall@0.5.18"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-101",
+      "name": "ref-cast",
+      "versionInfo": "1.0.27",
+      "downloadLocation": "https://crates.io/crates/ref-cast/1.0.27",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ref-cast@1.0.27"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-102",
+      "name": "ref-cast-impl",
+      "versionInfo": "1.0.27",
+      "downloadLocation": "https://crates.io/crates/ref-cast-impl/1.0.27",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ref-cast-impl@1.0.27"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-103",
+      "name": "referencing",
+      "versionInfo": "0.52.1",
+      "downloadLocation": "https://crates.io/crates/referencing/0.52.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/referencing@0.52.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-104",
+      "name": "regex",
+      "versionInfo": "1.13.1",
+      "downloadLocation": "https://crates.io/crates/regex/1.13.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/regex@1.13.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-105",
+      "name": "regex-automata",
+      "versionInfo": "0.4.18",
+      "downloadLocation": "https://crates.io/crates/regex-automata/0.4.18",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/regex-automata@0.4.18"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-106",
+      "name": "regex-syntax",
+      "versionInfo": "0.8.11",
+      "downloadLocation": "https://crates.io/crates/regex-syntax/0.8.11",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/regex-syntax@0.8.11"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-107",
+      "name": "rusqlite",
+      "versionInfo": "0.40.2",
+      "downloadLocation": "https://crates.io/crates/rusqlite/0.40.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rusqlite@0.40.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-108",
+      "name": "rustix",
+      "versionInfo": "1.1.4",
+      "downloadLocation": "https://crates.io/crates/rustix/1.1.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rustix@1.1.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-109",
+      "name": "rustix-linux-procfs",
+      "versionInfo": "0.1.1",
+      "downloadLocation": "https://crates.io/crates/rustix-linux-procfs/0.1.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rustix-linux-procfs@0.1.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-110",
+      "name": "rustversion",
+      "versionInfo": "1.0.23",
+      "downloadLocation": "https://crates.io/crates/rustversion/1.0.23",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/rustversion@1.0.23"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-111",
+      "name": "ryu-js",
+      "versionInfo": "1.0.3",
+      "downloadLocation": "https://crates.io/crates/ryu-js/1.0.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 OR BSL-1.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/ryu-js@1.0.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-112",
+      "name": "scopeguard",
+      "versionInfo": "1.2.0",
+      "downloadLocation": "https://crates.io/crates/scopeguard/1.2.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/scopeguard@1.2.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-113",
+      "name": "serde",
+      "versionInfo": "1.0.229",
+      "downloadLocation": "https://crates.io/crates/serde/1.0.229",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde@1.0.229"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-114",
+      "name": "serde_core",
+      "versionInfo": "1.0.229",
+      "downloadLocation": "https://crates.io/crates/serde_core/1.0.229",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde_core@1.0.229"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-115",
+      "name": "serde_derive",
+      "versionInfo": "1.0.229",
+      "downloadLocation": "https://crates.io/crates/serde_derive/1.0.229",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde_derive@1.0.229"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-116",
+      "name": "serde_json",
+      "versionInfo": "1.0.151",
+      "downloadLocation": "https://crates.io/crates/serde_json/1.0.151",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde_json@1.0.151"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-117",
+      "name": "serde_json_canonicalizer",
+      "versionInfo": "0.3.2",
+      "downloadLocation": "https://crates.io/crates/serde_json_canonicalizer/0.3.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde_json_canonicalizer@0.3.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-118",
+      "name": "serde_spanned",
+      "versionInfo": "1.1.1",
+      "downloadLocation": "https://crates.io/crates/serde_spanned/1.1.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/serde_spanned@1.1.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-119",
+      "name": "sha2",
+      "versionInfo": "0.11.0",
+      "downloadLocation": "https://crates.io/crates/sha2/0.11.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/sha2@0.11.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-120",
+      "name": "shlex",
+      "versionInfo": "2.0.1",
+      "downloadLocation": "https://crates.io/crates/shlex/2.0.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/shlex@2.0.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-121",
+      "name": "smallvec",
+      "versionInfo": "1.15.2",
+      "downloadLocation": "https://crates.io/crates/smallvec/1.15.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/smallvec@1.15.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-122",
+      "name": "streaming-iterator",
+      "versionInfo": "0.1.9",
+      "downloadLocation": "https://crates.io/crates/streaming-iterator/0.1.9",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/streaming-iterator@0.1.9"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-123",
+      "name": "strum",
+      "versionInfo": "0.28.0",
+      "downloadLocation": "https://crates.io/crates/strum/0.28.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/strum@0.28.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-124",
+      "name": "strum_macros",
+      "versionInfo": "0.28.0",
+      "downloadLocation": "https://crates.io/crates/strum_macros/0.28.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/strum_macros@0.28.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-125",
+      "name": "syn",
+      "versionInfo": "2.0.119",
+      "downloadLocation": "https://crates.io/crates/syn/2.0.119",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/syn@2.0.119"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-126",
+      "name": "syn",
+      "versionInfo": "3.0.3",
+      "downloadLocation": "https://crates.io/crates/syn/3.0.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/syn@3.0.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-127",
+      "name": "toml",
+      "versionInfo": "1.1.4+spec-1.1.0",
+      "downloadLocation": "https://crates.io/crates/toml/1.1.4+spec-1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/toml@1.1.4+spec-1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-128",
+      "name": "toml_datetime",
+      "versionInfo": "1.1.1+spec-1.1.0",
+      "downloadLocation": "https://crates.io/crates/toml_datetime/1.1.1+spec-1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/toml_datetime@1.1.1+spec-1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-129",
+      "name": "toml_parser",
+      "versionInfo": "1.1.3+spec-1.1.0",
+      "downloadLocation": "https://crates.io/crates/toml_parser/1.1.3+spec-1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/toml_parser@1.1.3+spec-1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-130",
+      "name": "toml_writer",
+      "versionInfo": "1.1.2+spec-1.1.0",
+      "downloadLocation": "https://crates.io/crates/toml_writer/1.1.2+spec-1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/toml_writer@1.1.2+spec-1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-131",
+      "name": "tree-sitter",
+      "versionInfo": "0.26.13",
+      "downloadLocation": "https://crates.io/crates/tree-sitter/0.26.13",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter@0.26.13"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-132",
+      "name": "tree-sitter-c",
+      "versionInfo": "0.24.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-c/0.24.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-c@0.24.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-133",
+      "name": "tree-sitter-c-sharp",
+      "versionInfo": "0.23.5",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-c-sharp/0.23.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-c-sharp@0.23.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-134",
+      "name": "tree-sitter-clojure-orchard",
+      "versionInfo": "0.2.8",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-clojure-orchard/0.2.8",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "CC0-1.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-clojure-orchard@0.2.8"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-135",
+      "name": "tree-sitter-cpp",
+      "versionInfo": "0.23.4",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-cpp/0.23.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-cpp@0.23.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-136",
+      "name": "tree-sitter-elixir",
+      "versionInfo": "0.3.5",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-elixir/0.3.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-elixir@0.3.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-137",
+      "name": "tree-sitter-go",
+      "versionInfo": "0.25.0",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-go/0.25.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-go@0.25.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-138",
+      "name": "tree-sitter-haskell",
+      "versionInfo": "0.23.1",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-haskell/0.23.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-haskell@0.23.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-139",
+      "name": "tree-sitter-java",
+      "versionInfo": "0.23.5",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-java/0.23.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-java@0.23.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-140",
+      "name": "tree-sitter-javascript",
+      "versionInfo": "0.25.0",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-javascript/0.25.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-javascript@0.25.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-141",
+      "name": "tree-sitter-json",
+      "versionInfo": "0.24.8",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-json/0.24.8",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-json@0.24.8"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-142",
+      "name": "tree-sitter-kotlin-ng",
+      "versionInfo": "1.1.0",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-kotlin-ng/1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-kotlin-ng@1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-143",
+      "name": "tree-sitter-language",
+      "versionInfo": "0.1.7",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-language/0.1.7",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-language@0.1.7"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-144",
+      "name": "tree-sitter-php",
+      "versionInfo": "0.24.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-php/0.24.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-php@0.24.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-145",
+      "name": "tree-sitter-python",
+      "versionInfo": "0.25.0",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-python/0.25.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-python@0.25.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-146",
+      "name": "tree-sitter-ruby",
+      "versionInfo": "0.23.1",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-ruby/0.23.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-ruby@0.23.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-147",
+      "name": "tree-sitter-rust",
+      "versionInfo": "0.24.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-rust/0.24.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-rust@0.24.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-148",
+      "name": "tree-sitter-scala",
+      "versionInfo": "0.26.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-scala/0.26.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-scala@0.26.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-149",
+      "name": "tree-sitter-swift",
+      "versionInfo": "0.7.3",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-swift/0.7.3",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-swift@0.7.3"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-150",
+      "name": "tree-sitter-toml-ng",
+      "versionInfo": "0.7.0",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-toml-ng/0.7.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-toml-ng@0.7.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-151",
+      "name": "tree-sitter-typescript",
+      "versionInfo": "0.23.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-typescript/0.23.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-typescript@0.23.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-152",
+      "name": "tree-sitter-yaml",
+      "versionInfo": "0.7.2",
+      "downloadLocation": "https://crates.io/crates/tree-sitter-yaml/0.7.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/tree-sitter-yaml@0.7.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-153",
+      "name": "typenum",
+      "versionInfo": "1.20.1",
+      "downloadLocation": "https://crates.io/crates/typenum/1.20.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/typenum@1.20.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-154",
+      "name": "unicode-general-category",
+      "versionInfo": "1.1.0",
+      "downloadLocation": "https://crates.io/crates/unicode-general-category/1.1.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/unicode-general-category@1.1.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-155",
+      "name": "unicode-ident",
+      "versionInfo": "1.0.24",
+      "downloadLocation": "https://crates.io/crates/unicode-ident/1.0.24",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "(MIT OR Apache-2.0) AND Unicode-3.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/unicode-ident@1.0.24"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-156",
+      "name": "uuid-simd",
+      "versionInfo": "0.8.0",
+      "downloadLocation": "https://crates.io/crates/uuid-simd/0.8.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/uuid-simd@0.8.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-157",
+      "name": "vcpkg",
+      "versionInfo": "0.2.15",
+      "downloadLocation": "https://crates.io/crates/vcpkg/0.2.15",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT/Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/vcpkg@0.2.15"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-158",
+      "name": "version_check",
+      "versionInfo": "0.9.5",
+      "downloadLocation": "https://crates.io/crates/version_check/0.9.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT/Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/version_check@0.9.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-159",
+      "name": "vsimd",
+      "versionInfo": "0.8.0",
+      "downloadLocation": "https://crates.io/crates/vsimd/0.8.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/vsimd@0.8.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-160",
+      "name": "wasip2",
+      "versionInfo": "1.0.4+wasi-0.2.12",
+      "downloadLocation": "https://crates.io/crates/wasip2/1.0.4+wasi-0.2.12",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wasip2@1.0.4+wasi-0.2.12"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-161",
+      "name": "wasm-bindgen",
+      "versionInfo": "0.2.127",
+      "downloadLocation": "https://crates.io/crates/wasm-bindgen/0.2.127",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wasm-bindgen@0.2.127"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-162",
+      "name": "wasm-bindgen-macro",
+      "versionInfo": "0.2.127",
+      "downloadLocation": "https://crates.io/crates/wasm-bindgen-macro/0.2.127",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wasm-bindgen-macro@0.2.127"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-163",
+      "name": "wasm-bindgen-macro-support",
+      "versionInfo": "0.2.127",
+      "downloadLocation": "https://crates.io/crates/wasm-bindgen-macro-support/0.2.127",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wasm-bindgen-macro-support@0.2.127"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-164",
+      "name": "wasm-bindgen-shared",
+      "versionInfo": "0.2.127",
+      "downloadLocation": "https://crates.io/crates/wasm-bindgen-shared/0.2.127",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wasm-bindgen-shared@0.2.127"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-165",
+      "name": "windows-link",
+      "versionInfo": "0.2.1",
+      "downloadLocation": "https://crates.io/crates/windows-link/0.2.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-link@0.2.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-166",
+      "name": "windows-sys",
+      "versionInfo": "0.59.0",
+      "downloadLocation": "https://crates.io/crates/windows-sys/0.59.0",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-sys@0.59.0"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-167",
+      "name": "windows-sys",
+      "versionInfo": "0.60.2",
+      "downloadLocation": "https://crates.io/crates/windows-sys/0.60.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-sys@0.60.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-168",
+      "name": "windows-sys",
+      "versionInfo": "0.61.2",
+      "downloadLocation": "https://crates.io/crates/windows-sys/0.61.2",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-sys@0.61.2"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-169",
+      "name": "windows-targets",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows-targets/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-targets@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-170",
+      "name": "windows-targets",
+      "versionInfo": "0.53.5",
+      "downloadLocation": "https://crates.io/crates/windows-targets/0.53.5",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows-targets@0.53.5"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-171",
+      "name": "windows_aarch64_gnullvm",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_aarch64_gnullvm/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_aarch64_gnullvm@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-172",
+      "name": "windows_aarch64_gnullvm",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_aarch64_gnullvm/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_aarch64_gnullvm@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-173",
+      "name": "windows_aarch64_msvc",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_aarch64_msvc/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_aarch64_msvc@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-174",
+      "name": "windows_aarch64_msvc",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_aarch64_msvc/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_aarch64_msvc@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-175",
+      "name": "windows_i686_gnu",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_i686_gnu/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_gnu@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-176",
+      "name": "windows_i686_gnu",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_i686_gnu/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_gnu@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-177",
+      "name": "windows_i686_gnullvm",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_i686_gnullvm/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_gnullvm@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-178",
+      "name": "windows_i686_gnullvm",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_i686_gnullvm/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_gnullvm@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-179",
+      "name": "windows_i686_msvc",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_i686_msvc/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_msvc@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-180",
+      "name": "windows_i686_msvc",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_i686_msvc/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_i686_msvc@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-181",
+      "name": "windows_x86_64_gnu",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_gnu/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnu@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-182",
+      "name": "windows_x86_64_gnu",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_gnu/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnu@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-183",
+      "name": "windows_x86_64_gnullvm",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_gnullvm/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnullvm@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-184",
+      "name": "windows_x86_64_gnullvm",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_gnullvm/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_gnullvm@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-185",
+      "name": "windows_x86_64_msvc",
+      "versionInfo": "0.52.6",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_msvc/0.52.6",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_msvc@0.52.6"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-186",
+      "name": "windows_x86_64_msvc",
+      "versionInfo": "0.53.1",
+      "downloadLocation": "https://crates.io/crates/windows_x86_64_msvc/0.53.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT OR Apache-2.0",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/windows_x86_64_msvc@0.53.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-187",
+      "name": "winnow",
+      "versionInfo": "1.0.4",
+      "downloadLocation": "https://crates.io/crates/winnow/1.0.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/winnow@1.0.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-188",
+      "name": "winx",
+      "versionInfo": "0.36.4",
+      "downloadLocation": "https://crates.io/crates/winx/0.36.4",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/winx@0.36.4"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-189",
+      "name": "wit-bindgen",
+      "versionInfo": "0.57.1",
+      "downloadLocation": "https://crates.io/crates/wit-bindgen/0.57.1",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/wit-bindgen@0.57.1"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-190",
+      "name": "zerocopy",
+      "versionInfo": "0.8.56",
+      "downloadLocation": "https://crates.io/crates/zerocopy/0.8.56",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/zerocopy@0.8.56"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-191",
+      "name": "zerocopy-derive",
+      "versionInfo": "0.8.56",
+      "downloadLocation": "https://crates.io/crates/zerocopy-derive/0.8.56",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "BSD-2-Clause OR Apache-2.0 OR MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/zerocopy-derive@0.8.56"
+        }
+      ]
+    },
+    {
+      "SPDXID": "SPDXRef-Package-192",
+      "name": "zmij",
+      "versionInfo": "1.0.23",
+      "downloadLocation": "https://crates.io/crates/zmij/1.0.23",
+      "filesAnalyzed": false,
+      "licenseConcluded": "NOASSERTION",
+      "licenseDeclared": "MIT",
+      "copyrightText": "NOASSERTION",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:cargo/zmij@1.0.23"
+        }
+      ]
+    }
+  ]
+}
