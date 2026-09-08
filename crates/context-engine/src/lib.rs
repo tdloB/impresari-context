@@ -6227,7 +6227,7 @@ fn structural_request(
         max_facts: limits.facts,
         max_nesting_depth: limits.depth,
         max_response_bytes: limits.response_bytes,
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: context_structural::PARSER_VERSION.into(),
         grammar_version: grammar_version(language).into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -7170,7 +7170,7 @@ mod tests {
             max_facts: 100,
             max_nesting_depth: 8,
             max_response_bytes: 65_536,
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-typescript-0.23.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -7548,7 +7548,7 @@ mod tests {
         let snapshot = engine.snapshot.as_ref().expect("snapshot");
         let provenance = context_structural::FactProvenance {
             method: "tree_sitter".into(),
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-typescript-0.23.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -8961,7 +8961,7 @@ mod tests {
             };
             let provenance = context_structural::FactProvenance {
                 method: "tree_sitter".into(),
-                parser_version: "tree-sitter-0.26.13".into(),
+                parser_version: context_structural::PARSER_VERSION.into(),
                 grammar_version: "tree-sitter-typescript-0.23.2".into(),
                 resolver_version: RESOLVER_VERSION.into(),
                 graph_version: GRAPH_VERSION.into(),

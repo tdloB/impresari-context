@@ -11,7 +11,7 @@ use std::{
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use context_structural::{
-    FactClass, GRAPH_VERSION, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
+    FactClass, GRAPH_VERSION, PARSER_VERSION, PROTOCOL_VERSION, RESOLVER_VERSION, StructuralError,
     StructuralLanguage, WorkerLauncher, WorkerPath, WorkerRequest,
 };
 use sha2::{Digest, Sha256};
@@ -60,7 +60,7 @@ fn request(source: &[u8]) -> WorkerRequest {
         max_facts: 100,
         max_nesting_depth: 128,
         max_response_bytes: 1_048_576,
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: context_structural::PARSER_VERSION.into(),
         grammar_version: "tree-sitter-typescript-0.23.2".into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -105,4 +105,39 @@ fn executable_identity_mismatch_is_rejected_before_launch() {
         Err(StructuralError::WorkerIdentity)
     );
     fs::remove_dir(empty).expect("remove empty directory");
+}
+
+/// The parser named in provenance must be the parser actually linked.
+///
+/// This is the check that was missing when a dependency bump moved the
+/// tree-sitter pin and left the recorded version behind. Every fact would have
+/// attested a release that was not producing it, and no other test could catch
+/// it: the writer and the validator read the same constant, so they agree with
+/// each other whatever it says. Only the manifest knows the truth.
+#[test]
+fn parser_version_matches_the_linked_tree_sitter_pin() {
+    let manifest = fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml"))
+        .expect("read this crate's manifest");
+
+    let line = manifest
+        .lines()
+        .find(|line| line.trim_start().starts_with("tree-sitter ="))
+        .expect("manifest declares tree-sitter");
+
+    // The pin is exact (`=x.y.z`) on purpose: a caret range would make the
+    // linked version unknowable from the manifest, and this attestation would
+    // become unverifiable rather than merely wrong.
+    let start = line.find("\"=").expect("tree-sitter is pinned exactly") + 2;
+    let pinned = line[start..]
+        .split('"')
+        .next()
+        .expect("terminated version string");
+
+    assert_eq!(
+        PARSER_VERSION,
+        format!("tree-sitter-{pinned}"),
+        "recorded parser version disagrees with the linked tree-sitter pin; \
+         update PARSER_VERSION with the dependency, and expect every structural \
+         cache key to change with it"
+    );
 }
