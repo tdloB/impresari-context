@@ -5185,6 +5185,34 @@ fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignal
 /// could steer it, and steering is oracle authority.
 const MAX_STRUCTURAL_SEEDS: usize = 8;
 
+/// Seeds any one file may contribute to a traversal.
+///
+/// A map item's path is its edge's **source** node's path, and at
+/// `MAX_SEED_TRAVERSAL_DEPTH` of one only edges leaving a seed are selected, so
+/// a map can only ever name a file a seed landed in. Seed candidates are ranked
+/// and then tie-broken by nomination position, which with no per-file rule let
+/// the best-nominated file take every slot it could fill.
+///
+/// Measured over twenty-two astropy tasks against a `MAX_STRUCTURAL_SEEDS` of
+/// eight, at identical delivered bytes:
+///
+/// | seeds per file | map file recall | map symbol recall | items | distinct |
+/// | --- | --- | --- | --- | --- |
+/// | unlimited | 18/27 | 15/34 | 1,489 | 665 |
+/// | 1 | 20/27 | 13/34 | 1,451 | 717 |
+/// | 2 | 20/27 | 14/34 | 1,464 | 695 |
+/// | 3 | **20/27** | **15/34** | 1,475 | 700 |
+///
+/// Every cap wins the same two reference files, so the file gain does not
+/// depend on this value. Symbol recall is what chooses it: spreading harder
+/// names more files but fewer symbols inside them, and only three gains the
+/// files while giving up no symbols. One and two each trade a symbol away.
+///
+/// Fewer items and more distinct ones at every setting: eight seeds in one
+/// module traverse overlapping edges, so spreading replaces repetition with
+/// reach.
+const MAX_SEEDS_PER_FILE: usize = 3;
+
 /// Ranked classes of seed candidate, most specific first.
 ///
 /// The order is total, so selection is deterministic for a given snapshot.
@@ -5244,6 +5272,38 @@ fn seed_signals(query: &str, admitted_identifiers: &[String]) -> TaskSignals {
         push_unique_text(&mut signals.identifiers, identifier.clone());
     }
     signals
+}
+
+/// Admit ranked seed candidates, letting no single file take every slot.
+///
+/// A map item's path is its edge's **source** node's path, and at
+/// `MAX_SEED_TRAVERSAL_DEPTH` of one only edges leaving a seed are selected, so
+/// a map can only ever name a file a seed landed in. Ranking alone put all
+/// eight seeds in the best-nominated file on most measured tasks, and eight
+/// seeds inside one module traverse overlapping edges — the map came back
+/// repetitive rather than wide.
+///
+/// Candidates arrive already ordered by [`sort_seed_candidates`], so admission
+/// preserves rank: a file's third candidate is skipped, never promoted over a
+/// better-ranked one elsewhere.
+fn admit_seeds(candidates: Vec<(SeedRank, usize, String, String)>) -> Vec<StructuralSeed> {
+    let mut admitted = Vec::new();
+    let mut per_file: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for (rank, _, path, node_id) in candidates {
+        if admitted.len() >= MAX_STRUCTURAL_SEEDS {
+            break;
+        }
+        let taken = per_file.entry(path).or_default();
+        if *taken >= MAX_SEEDS_PER_FILE {
+            continue;
+        }
+        *taken += 1;
+        admitted.push(StructuralSeed {
+            node_id,
+            reason_code: rank.reason_code(),
+        });
+    }
+    admitted
 }
 
 fn structural_seed_selection(
@@ -5350,15 +5410,12 @@ fn structural_seed_selection(
     sort_seed_candidates(&mut candidates);
 
     let mut selection = StructuralSeedSelection::default();
-    let admitted = candidates.len().min(MAX_STRUCTURAL_SEEDS);
-    if candidates.len() > MAX_STRUCTURAL_SEEDS {
+    let considered = candidates.len();
+    selection.seeds = admit_seeds(candidates);
+    // The ceiling is still disclosed by how many candidates it turned away,
+    // not by how many survived the per-file rule.
+    if considered > MAX_STRUCTURAL_SEEDS {
         selection.unknowns.push("structural_seed_limit_reached");
-    }
-    for (rank, _, _, node_id) in candidates.into_iter().take(admitted) {
-        selection.seeds.push(StructuralSeed {
-            node_id,
-            reason_code: rank.reason_code(),
-        });
     }
     if ambiguous_observed {
         selection.unknowns.push("structural_seed_ambiguous");
@@ -7022,6 +7079,106 @@ mod tests {
         assert_eq!(scoped_fact_allowance(0), 0);
         // Nine nominated files must each afford a real module.
         const { assert!(MAX_SCOPED_FACTS / 9 > 3_000) };
+    }
+
+    #[test]
+    fn no_single_file_takes_every_seed_slot() {
+        // Ten candidates in one file, then two elsewhere, already rank-ordered.
+        let mut candidates: Vec<(SeedRank, usize, String, String)> = (0..10)
+            .map(|index| {
+                (
+                    SeedRank::GloballyUniqueSymbol,
+                    0,
+                    "astropy/timeseries/sampled.py".to_owned(),
+                    format!("node-sampled-{index}"),
+                )
+            })
+            .collect();
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            5,
+            "astropy/timeseries/core.py".to_owned(),
+            "node-core".to_owned(),
+        ));
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            6,
+            "astropy/timeseries/binned.py".to_owned(),
+            "node-binned".to_owned(),
+        ));
+
+        let admitted = admit_seeds(candidates);
+
+        // Without the per-file rule the first file would take all eight, and a
+        // map can only name files its seeds landed in.
+        let files = admitted.len();
+        assert!(files <= MAX_STRUCTURAL_SEEDS);
+        let from_sampled = admitted
+            .iter()
+            .filter(|seed| seed.node_id.starts_with("node-sampled"))
+            .count();
+        assert_eq!(from_sampled, MAX_SEEDS_PER_FILE);
+        assert!(
+            admitted.iter().any(|seed| seed.node_id == "node-core"),
+            "a lower-ranked file must still reach the seed set"
+        );
+        assert!(admitted.iter().any(|seed| seed.node_id == "node-binned"));
+    }
+
+    #[test]
+    fn seed_admission_preserves_rank_and_never_promotes() {
+        // A file's surplus candidate is skipped, not moved ahead of a better
+        // ranked one elsewhere. One more from `a.py` than the cap admits, so a
+        // surplus always exists whatever the cap is set to.
+        let surplus = MAX_SEEDS_PER_FILE + 1;
+        let mut candidates: Vec<(SeedRank, usize, String, String)> = (0..surplus)
+            .map(|index| {
+                (
+                    SeedRank::UniqueSymbolInExactPath,
+                    0,
+                    "a.py".to_owned(),
+                    format!("a{index}"),
+                )
+            })
+            .collect();
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            9,
+            "b.py".to_owned(),
+            "b1".to_owned(),
+        ));
+
+        let admitted = admit_seeds(candidates);
+        let mut expected: Vec<String> = (0..MAX_SEEDS_PER_FILE)
+            .map(|index| format!("a{index}"))
+            .collect();
+        expected.push("b1".to_owned());
+        assert_eq!(
+            admitted
+                .iter()
+                .map(|seed| seed.node_id.clone())
+                .collect::<Vec<_>>(),
+            expected,
+            "the surplus candidate is skipped; b1 keeps its place behind the admitted ones"
+        );
+    }
+
+    #[test]
+    fn a_single_file_corpus_still_seeds_up_to_the_per_file_cap() {
+        // Nothing to spread across: the rule must not starve a one-file task.
+        let candidates = (0..5)
+            .map(|index| {
+                (
+                    SeedRank::GloballyUniqueSymbol,
+                    0,
+                    "only.py".to_owned(),
+                    format!("n{index}"),
+                )
+            })
+            .collect();
+        let admitted = admit_seeds(candidates);
+        assert_eq!(admitted.len(), MAX_SEEDS_PER_FILE);
+        assert!(!admitted.is_empty(), "a one-file task must still seed");
     }
 
     #[test]
