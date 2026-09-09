@@ -2074,7 +2074,11 @@ impl LocalEngine {
                     &snapshot.snapshot_id,
                 )
             })?;
-        let output_limit = budget.requested.parse::<usize>().map_err(|_| {
+        // A malformed budget is still rejected: the caller's `requested` must
+        // parse. It no longer *bounds* this result — it is the consumer's
+        // delivery ceiling, and this value is an intermediate one — but a
+        // request carrying nonsense should not be answered.
+        budget.requested.parse::<usize>().map_err(|_| {
             failure(
                 context,
                 Capability::StructureQuery,
@@ -2085,18 +2089,7 @@ impl LocalEngine {
                 None,
             )
         })?;
-        if serde_json::to_vec(&result).map_or(true, |bytes| bytes.len() > output_limit) {
-            return Err(failure(
-                context,
-                Capability::StructureQuery,
-                PublicErrorCode::BudgetExceeded,
-                "structural query output budget exceeded",
-                Some(self.workspace.identity()),
-                Some(&snapshot.snapshot_id),
-                Some(RecoveryAction::IncreaseBudget),
-            ));
-        }
-        Ok(result)
+        Ok(bound_structural_query_output(result))
     }
 
     /// Reports the current in-session snapshot through the gateway.
@@ -4738,6 +4731,24 @@ fn resource_budget_max_literal_bytes(
         .map_err(|_| context_core::CoreErrorCode::InvalidInput)
 }
 
+/// Bytes one structural query's serialized result may occupy.
+///
+/// This bounds an **intermediate** value: the traversal's nodes and edges as
+/// the engine holds them, before any rendering. It is not a delivery budget,
+/// and the packet the consumer receives is bounded separately and far lower.
+///
+/// It used to be the consumer's `budget.requested` — the packet ceiling, 16 KiB
+/// as the evaluator sends it. Measured over twenty-two astropy tasks, a single
+/// seed's traversal serializes to a median of 13,971 bytes and a maximum of
+/// 17,562, so that ceiling sat inside the natural distribution: the median
+/// successful task spent 85% of it, and the three failures missed by under
+/// 1.2 KiB apiece. A bound a normal traversal lands on is not a bound.
+///
+/// One mebibyte is roughly sixty times the observed maximum. The real limiter
+/// stays the traversal's own node and edge counts, which are closed constants
+/// above; this only stops a pathological result from being held whole.
+const MAX_STRUCTURAL_QUERY_OUTPUT_BYTES: usize = 1_048_576;
+
 /// Nodes and edges one seed's traversal may visit.
 ///
 /// Raising this is a product decision, not a tuning knob: measured, 64 delivers
@@ -5367,6 +5378,54 @@ fn structural_seed_selection(
 ///
 /// The primary seed supplies `start_node`; nodes and edges are the deduplicated
 /// union in identity order, so the merged identity is stable for a snapshot.
+/// Narrow a structural query result to the bytes it is allowed to occupy.
+///
+/// A result that exceeded its ceiling used to fail the whole build, after the
+/// reads that produced it were already spent. [ADR-0134] settled the opposite
+/// for disclosure — honour the bound and return what it allows — and this is
+/// the same treatment for the query beneath it.
+///
+/// Edges are dropped from the tail, never nodes. `query_structure`'s consumer
+/// resolves every edge's source against the node set and fails hard on a
+/// missing one, so dropping an edge can only shrink what must be present while
+/// dropping a node could break that closure. Edge order is by `edge_id`, so
+/// the prefix kept is deterministic for a snapshot.
+///
+/// [ADR-0134]: https://github.com/tdloB/impresari-context/blob/main/docs/decisions/0134-truncate-a-disclosure-at-its-ceiling-rather-than-discarding-it.md
+fn bound_structural_query_output(
+    mut result: context_structural::StructuralQueryResult,
+) -> context_structural::StructuralQueryResult {
+    let fits = |value: &context_structural::StructuralQueryResult| {
+        serde_json::to_vec(value)
+            .is_ok_and(|bytes| bytes.len() <= MAX_STRUCTURAL_QUERY_OUTPUT_BYTES)
+    };
+    if fits(&result) {
+        return result;
+    }
+    // Binary search the retained prefix rather than dropping one edge at a
+    // time. Every probe re-serializes the result, so removing edges singly is
+    // quadratic in the size of exactly the oversized input this exists for.
+    let all = std::mem::take(&mut result.edges);
+    let (mut low, mut high) = (0_usize, all.len());
+    while low < high {
+        let mid = low + (high - low).div_ceil(2);
+        result.edges = all[..mid].to_vec();
+        if fits(&result) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    result.edges = all[..low].to_vec();
+    result.truncated = true;
+    result
+        .unknowns
+        .push("structural_query_output_limit_reached".into());
+    result.unknowns.sort();
+    result.unknowns.dedup();
+    result
+}
+
 fn merge_structural_traversals(
     mut results: Vec<StructuralQueryResult>,
 ) -> Option<StructuralQueryResult> {
@@ -6784,6 +6843,122 @@ fn contract_sha256(bytes: &[u8]) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Build a query result whose serialized size exceeds any given ceiling.
+    fn oversized_query_result(edges: usize) -> StructuralQueryResult {
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter_syntax".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "mixed-pinned-grammars".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let path = WorkerPath {
+            display_path: "src/parser.rs".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "utf8".into(),
+            relative_units_base64url: "c3JjL3BhcnNlci5ycw".into(),
+        };
+        StructuralQueryResult {
+            schema_name: "structural-query-result".into(),
+            schema_version: GRAPH_VERSION.into(),
+            graph_id: format!("sha256:{}", "a".repeat(64)),
+            workspace_snapshot: format!("sha256:{}", "b".repeat(64)),
+            start_node: format!("sha256:{}", "c".repeat(64)),
+            nodes: vec![GraphNode {
+                node_id: format!("sha256:{}", "c".repeat(64)),
+                kind: "file".into(),
+                path,
+                name: None,
+                span: None,
+                confidence: "confirmed".into(),
+                provenance: provenance.clone(),
+            }],
+            edges: (0..edges)
+                .map(|index| context_structural::GraphEdge {
+                    edge_id: format!("sha256:{index:064}"),
+                    kind: "contains".into(),
+                    source_node: format!("sha256:{}", "c".repeat(64)),
+                    target_node: None,
+                    module: None,
+                    resolution: "confirmed".into(),
+                    span: context_structural::GraphSpan {
+                        start_byte: 0,
+                        end_byte: 1,
+                    },
+                    provenance: provenance.clone(),
+                })
+                .collect(),
+            truncated: false,
+            unknowns: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn a_query_result_within_its_ceiling_is_returned_untouched() {
+        let result = oversized_query_result(4);
+        let bounded = bound_structural_query_output(result.clone());
+        assert_eq!(bounded, result, "a result that fits must not be altered");
+        assert!(!bounded.truncated);
+        assert!(bounded.unknowns.is_empty());
+    }
+
+    #[test]
+    fn an_oversized_query_result_is_truncated_rather_than_refused() {
+        // Enough edges to exceed a mebibyte of serialized JSON.
+        let result = oversized_query_result(6_000);
+        let raw = serde_json::to_vec(&result).expect("serialize");
+        assert!(
+            raw.len() > MAX_STRUCTURAL_QUERY_OUTPUT_BYTES,
+            "fixture must actually exceed the ceiling, was {}",
+            raw.len()
+        );
+
+        let bounded = bound_structural_query_output(result.clone());
+
+        // It fits, and it still exists — the whole point. This used to fail the
+        // build after the reads that produced it were already spent.
+        let bytes = serde_json::to_vec(&bounded).expect("serialize");
+        assert!(bytes.len() <= MAX_STRUCTURAL_QUERY_OUTPUT_BYTES);
+        assert!(
+            !bounded.edges.is_empty(),
+            "truncation must not empty the result"
+        );
+        assert!(bounded.edges.len() < result.edges.len());
+
+        // Nodes are never dropped: the consumer resolves every edge's source
+        // against the node set and fails hard on a missing one, so shrinking
+        // nodes could break that closure while shrinking edges cannot.
+        assert_eq!(bounded.nodes, result.nodes);
+        let present: std::collections::BTreeSet<&str> = bounded
+            .nodes
+            .iter()
+            .map(|node| node.node_id.as_str())
+            .collect();
+        assert!(
+            bounded
+                .edges
+                .iter()
+                .all(|edge| present.contains(edge.source_node.as_str())),
+            "every retained edge must still have its source node"
+        );
+
+        // The limit that bit is disclosed, not silent.
+        assert!(bounded.truncated);
+        assert!(
+            bounded
+                .unknowns
+                .contains(&"structural_query_output_limit_reached".to_owned())
+        );
+
+        // Deterministic: edges are ordered by edge_id, so the kept prefix is
+        // the same prefix every time.
+        assert_eq!(
+            bound_structural_query_output(result).edges,
+            bounded.edges,
+            "truncation must be reproducible"
+        );
+    }
     use context_core::validate_packet;
     use context_dashboard::{
         BudgetCeilings, BudgetSelector, LocalBudgetPolicyDraft, LocalBudgetRule, compile_policy,
