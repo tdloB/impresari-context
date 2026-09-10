@@ -37,7 +37,7 @@ pub const RESOLVER_VERSION: &str = "0.2.0";
 ///
 /// `parser_version_matches_the_linked_tree_sitter_pin` holds it to the exact
 /// pin in this crate's manifest.
-pub const PARSER_VERSION: &str = "tree-sitter-0.26.13";
+pub const PARSER_VERSION: &str = "tree-sitter-0.27.0";
 /// Maximum accepted request frame size.
 pub const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum emitted response frame size.
