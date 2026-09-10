@@ -28,7 +28,7 @@ use context_dashboard::{
 use context_retrieval::{
     RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_for_span,
     evidence_record, expand_evidence_record, lookup_exact_path, search_filename, search_lexical,
-    search_literal,
+    search_lexical_in, search_literal, search_literal_in,
 };
 use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
@@ -2176,7 +2176,8 @@ impl LocalEngine {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::CodeSearch, Some(budget.clone()))?;
         let budget = admitted_budget(context, Capability::CodeSearch, &decision, self.ids())?;
-        let result = self.search_internal(context, Capability::CodeSearch, kind, query, &budget);
+        let result =
+            self.search_internal(context, Capability::CodeSearch, kind, query, &budget, &[]);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, audit_outcome);
         self.finalize(
             context,
@@ -2247,6 +2248,7 @@ impl LocalEngine {
             None,
             None,
             true,
+            &[],
         );
         let outcome = result
             .as_ref()
@@ -2310,6 +2312,7 @@ impl LocalEngine {
             None,
             None,
             true,
+            &[],
         );
         let outcome = result
             .as_ref()
@@ -2506,6 +2509,7 @@ impl LocalEngine {
             None,
             None,
             recover_structural_evidence,
+            &structural_request.nominated_order,
         );
         let outcome = result
             .as_ref()
@@ -2628,6 +2632,7 @@ impl LocalEngine {
             Some(&orientation),
             None,
             true,
+            &[],
         );
         let outcome = result
             .as_ref()
@@ -2680,6 +2685,7 @@ impl LocalEngine {
                 None,
                 None,
                 true,
+                &[],
             )
         })();
         let outcome = result
@@ -2729,6 +2735,7 @@ impl LocalEngine {
                 None,
                 None,
                 true,
+                &[],
             )
         })();
         let outcome = result
@@ -2777,6 +2784,7 @@ impl LocalEngine {
                 None,
                 Some(&conventions),
                 true,
+                &[],
             )
         })();
         let outcome = result
@@ -2808,6 +2816,7 @@ impl LocalEngine {
         repository_orientation: Option<&RepositoryOrientationMap>,
         declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
         recover_structural_evidence: bool,
+        preferred_scope: &[String],
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -2911,6 +2920,7 @@ impl LocalEngine {
             structural_evidence,
             structural_unknowns,
             Some(&snapshot),
+            preferred_scope,
         )?;
         let mut omitted_candidates = Vec::new();
         if packet.accounting.omitted_items != "0" {
@@ -2984,6 +2994,7 @@ impl LocalEngine {
             Vec::new(),
             Vec::new(),
             None,
+            &[],
         )
     }
 
@@ -3000,6 +3011,7 @@ impl LocalEngine {
         trailing_evidence: Vec<EvidenceRecord>,
         trailing_unknowns: Vec<String>,
         expected_snapshot: Option<&str>,
+        preferred_scope: &[String],
     ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
             Err(failure(
@@ -3027,6 +3039,25 @@ impl LocalEngine {
             }
             let mut unknowns = leading_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
+            // The files this task nominated, as snapshot path units in
+            // nomination order. A literal or lexical step searches them before
+            // the whole snapshot, whose path order and match limit otherwise
+            // decide which files lead the packet.
+            let preferred_units: Vec<String> =
+                self.snapshot.as_ref().map_or_else(Vec::new, |snapshot| {
+                    preferred_scope
+                        .iter()
+                        .filter_map(|display_path| {
+                            snapshot
+                                .artifacts
+                                .iter()
+                                .find(|artifact| artifact.path.display_path == *display_path)
+                                .map(|artifact| artifact.path.relative_units_base64url.clone())
+                        })
+                        .collect()
+                });
+            let mut preferred = Vec::new();
+            let mut remaining = Vec::new();
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })?;
@@ -3042,12 +3073,51 @@ impl LocalEngine {
                         Some(RecoveryAction::ReduceScope),
                     ));
                 }
+                if matches!(step.kind, QueryKind::Literal | QueryKind::Lexical) {
+                    // One search per nominated file. A search over them all
+                    // returns its matches in snapshot path order and is then
+                    // cut to the output budget, so the nominated file that
+                    // sorts first can fill it and hide the rest.
+                    let mut limited = false;
+                    for unit in &preferred_units {
+                        let scoped = self.search_internal(
+                            context,
+                            Capability::ContextBuild,
+                            step.kind,
+                            &step.query,
+                            &budget,
+                            std::slice::from_ref(unit),
+                        )?;
+                        if snapshot_id
+                            .as_ref()
+                            .is_some_and(|expected| expected != &scoped.snapshot_id)
+                        {
+                            return Err(failure(
+                                context,
+                                Capability::ContextBuild,
+                                PublicErrorCode::StaleState,
+                                "workspace changed during context planning",
+                                Some(self.workspace.identity()),
+                                Some(&scoped.snapshot_id),
+                                Some(RecoveryAction::RefreshSnapshot),
+                            ));
+                        }
+                        snapshot_id = Some(scoped.snapshot_id);
+                        limited |= scoped.truncated;
+                        unknowns.extend(scoped.unknowns);
+                        preferred.extend(scoped.matches);
+                    }
+                    if limited {
+                        unknowns.push(format!("plan_step_{index}_nominated_limited"));
+                    }
+                }
                 let search = self.search_internal(
                     context,
                     Capability::ContextBuild,
                     step.kind,
                     &step.query,
                     &budget,
+                    &[],
                 )?;
                 if snapshot_id
                     .as_ref()
@@ -3071,14 +3141,23 @@ impl LocalEngine {
                     unknowns.push(format!("plan_step_{index}_limited"));
                 }
                 unknowns.extend(search.unknowns);
-                for item in search.matches {
-                    Self::insert_ranked_evidence(
-                        &mut evidence,
-                        &mut evidence_order,
-                        &mut delivered,
-                        item,
-                    );
-                }
+                remaining.extend(search.matches);
+            }
+            for item in file_first_by_scope(preferred, preferred_scope) {
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
+            }
+            for item in remaining {
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             for item in trailing_evidence {
                 Self::insert_ranked_evidence(
@@ -4245,6 +4324,12 @@ impl LocalEngine {
         })
     }
 
+    /// Search the snapshot, or only the files `within` names.
+    ///
+    /// `within` holds snapshot path units and narrows a literal or lexical
+    /// search to those files. Empty searches the whole snapshot, and other
+    /// kinds ignore it.
+    #[allow(clippy::too_many_lines)] // One dispatch over every search kind keeps the snapshot, cache and budget checks together.
     fn search_internal(
         &mut self,
         context: &RequestContext,
@@ -4252,6 +4337,7 @@ impl LocalEngine {
         kind: QueryKind,
         query: &str,
         budget: &ResourceBudget,
+        within: &[String],
     ) -> Result<SearchResponse, EngineError> {
         let search_budget = search_budget(budget)
             .map_err(|code| core_error(context, capability, code, self.ids()))?;
@@ -4280,8 +4366,18 @@ impl LocalEngine {
                 lookup_exact_path(&self.workspace, snapshot, &path, search_budget)
             }
             QueryKind::Filename => search_filename(&self.workspace, snapshot, query, search_budget),
+            QueryKind::Literal if !within.is_empty() => search_literal_in(
+                &self.workspace,
+                snapshot,
+                within,
+                query.as_bytes(),
+                search_budget,
+            ),
             QueryKind::Literal => {
                 search_literal(&self.workspace, snapshot, query.as_bytes(), search_budget)
+            }
+            QueryKind::Lexical if !within.is_empty() => {
+                search_lexical_in(&self.workspace, snapshot, within, query, search_budget)
             }
             QueryKind::Lexical => {
                 if self.cache.is_none() {
@@ -5518,6 +5614,46 @@ fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::Co
     )
     .and_then(|path| path.to_portable_relative_path())
     .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)
+}
+
+/// Order evidence found in nominated files file-first, in nomination order.
+///
+/// A search returns matches in snapshot path order, so without this the file
+/// that sorts first leads however late it was nominated, and one file can take
+/// every slot the packet budget leaves. One record per file per pass, taking
+/// files in the order the task nominated them, spreads the leading evidence
+/// across the files the task is most likely about.
+fn file_first_by_scope(items: Vec<EvidenceRecord>, scope: &[String]) -> Vec<EvidenceRecord> {
+    let mut rank = std::collections::BTreeMap::new();
+    for (index, path) in scope.iter().enumerate() {
+        rank.entry(path.as_str()).or_insert(index);
+    }
+    let mut queues: Vec<std::collections::VecDeque<EvidenceRecord>> = scope
+        .iter()
+        .map(|_| std::collections::VecDeque::new())
+        .collect();
+    let mut unplaced = Vec::new();
+    for item in items {
+        match rank.get(item.artifact.path.display_path.as_str()) {
+            Some(&index) => queues[index].push_back(item),
+            None => unplaced.push(item),
+        }
+    }
+    let mut ordered = Vec::new();
+    loop {
+        let mut added = false;
+        for queue in &mut queues {
+            if let Some(item) = queue.pop_front() {
+                ordered.push(item);
+                added = true;
+            }
+        }
+        if !added {
+            break;
+        }
+    }
+    ordered.extend(unplaced);
+    ordered
 }
 
 fn lexical_task_terms(query: &str) -> Vec<String> {
@@ -8976,6 +9112,134 @@ mod tests {
         validate_packet(&packet).expect("valid planned packet");
         assert_eq!(packet.observed_evidence.len(), 1, "deduplicated evidence");
         assert!(packet.unknowns.contains(&"plan_step_2_no_evidence".into()));
+    }
+
+    #[test]
+    fn nominated_files_lead_the_packet_evidence() {
+        let source = TestRoot::new("nominated-evidence-source");
+        let cache = TestRoot::new("nominated-evidence-cache");
+        // `a_first.rs` precedes `z_last.rs` in snapshot order, so a search of
+        // the whole snapshot reaches it first.
+        fs::write(source.0.join("a_first.rs"), b"pub fn alpha() {}\n").expect("first");
+        fs::write(source.0.join("z_last.rs"), b"pub fn alpha_nominated() {}\n").expect("last");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        let mut build = |ordinal: u64, scope: &[String]| {
+            let context = request(ordinal, "nominated_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    scope,
+                )
+                .expect("packet")
+        };
+        let unscoped = build(3, &[]);
+        let scoped = build(4, &["z_last.rs".to_owned()]);
+        assert_eq!(
+            unscoped.observed_evidence[0].artifact.path.display_path,
+            "a_first.rs"
+        );
+        assert_eq!(
+            scoped.observed_evidence[0].artifact.path.display_path,
+            "z_last.rs"
+        );
+        assert_eq!(
+            scoped.observed_evidence.len(),
+            unscoped.observed_evidence.len(),
+            "the nominated file is searched first, not delivered twice"
+        );
+    }
+
+    #[test]
+    fn a_nominated_file_leads_even_when_one_sorting_earlier_fills_the_search_budget() {
+        let source = TestRoot::new("nominated-budget-source");
+        let cache = TestRoot::new("nominated-budget-cache");
+        // `a_many.rs` sorts first and holds more matches than one search
+        // response can carry, so a single search over both nominated files is
+        // cut before it reaches `z_nominated.rs`, which the task nominated first.
+        let mut many = String::new();
+        for index in 0..60 {
+            use std::fmt::Write as _;
+            writeln!(many, "pub fn alpha_{index:02}() {{}}").expect("string write");
+        }
+        fs::write(source.0.join("a_many.rs"), many).expect("many");
+        fs::write(
+            source.0.join("z_nominated.rs"),
+            b"pub fn alpha_nominated() {}\n",
+        )
+        .expect("nominated");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        let context = request(3, "nominated_budget_review");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        let packet = engine
+            .build_planned_context_with_supplemental_internal(
+                &context,
+                &plan,
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                None,
+                &["z_nominated.rs".to_owned(), "a_many.rs".to_owned()],
+            )
+            .expect("packet");
+        assert_eq!(
+            packet.observed_evidence[0].artifact.path.display_path,
+            "z_nominated.rs"
+        );
     }
 
     #[test]

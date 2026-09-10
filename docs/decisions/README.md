@@ -148,6 +148,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0145](0145-spread-structural-seeds-across-files.md) | Let no single file take every structural seed, so a map can name more of the places a task needs | Accepted |
 | [ADR-0146](0146-name-the-file-a-relationship-points-into.md) | Name the file a resolved relationship points into, so an entry does not name a symbol and the wrong file | Accepted |
 | [ADR-0147](0147-count-a-target-file-in-map-recall.md) | Count a file a relationship points into in map recall, attribute it separately, and govern the recall report schema | Accepted |
+| [ADR-0148](0148-search-nominated-files-first-for-packet-evidence.md) | Search the files a task nominated before the whole snapshot, so packet evidence is about the task | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
