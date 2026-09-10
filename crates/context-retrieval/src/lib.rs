@@ -456,6 +456,77 @@ pub fn search_literal(
     )
 }
 
+/// Searches literal bytes in the named files only.
+///
+/// `paths` are snapshot path units. A caller that knows which files a task is
+/// about searches them before the whole snapshot: the whole-snapshot search
+/// walks files in snapshot path order and stops at its match limit, so a
+/// common literal can exhaust it before it reaches them. Matches are verified
+/// against exact source and returned in the order a whole-snapshot search uses.
+///
+/// # Errors
+///
+/// Fails for an invalid query, a path the snapshot does not hold, stale
+/// source, unsafe reads, or timeout.
+pub fn search_literal_in(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    paths: &[String],
+    needle: &[u8],
+    budget: SearchBudget,
+) -> Result<SearchResult, RetrievalError> {
+    if needle.is_empty() || needle.len() > 8192 {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    search_candidates(
+        workspace,
+        snapshot,
+        paths,
+        &[needle.to_vec()],
+        false,
+        "literal_search",
+        budget,
+    )
+}
+
+/// Searches normalized lexical terms in the named files only.
+///
+/// The lexical cache narrows a whole-snapshot search to candidate files. A
+/// named scope is already narrow, so each file is verified against exact
+/// source directly, with the same terms and case folding.
+///
+/// # Errors
+///
+/// Fails for an invalid query, a path the snapshot does not hold, stale
+/// source, unsafe reads, or timeout.
+pub fn search_lexical_in(
+    workspace: &AuthorizedWorkspace,
+    snapshot: &WorkspaceSnapshot,
+    paths: &[String],
+    query: &str,
+    budget: SearchBudget,
+) -> Result<SearchResult, RetrievalError> {
+    let mut terms = lexical_terms(query.as_bytes());
+    terms.sort();
+    terms.dedup();
+    if terms.is_empty() || terms.len() > 16 {
+        return Err(RetrievalError::new(RetrievalErrorCode::InvalidInput));
+    }
+    let needles = terms
+        .iter()
+        .map(|term| term.as_bytes().to_vec())
+        .collect::<Vec<_>>();
+    search_candidates(
+        workspace,
+        snapshot,
+        paths,
+        &needles,
+        true,
+        "lexical_search",
+        budget,
+    )
+}
+
 /// Searches normalized lexical terms using FTS5 candidates and exact source verification.
 ///
 /// # Errors
@@ -970,6 +1041,33 @@ mod tests {
             (6, 11)
         );
         assert!(!result.truncated);
+    }
+
+    #[test]
+    fn scoped_search_reads_only_the_named_files() {
+        let source = TestRoot::new("scoped-source");
+        fs::write(source.0.join("a.txt"), b"needle in a").expect("first source");
+        fs::write(source.0.join("b.txt"), b"Needle in b").expect("second source");
+        let workspace = AuthorizedWorkspace::open(&source.0).expect("workspace");
+        let policy = DiscoveryPolicy::new(100, 1024 * 1024, 1024, 8).expect("policy");
+        let snapshot = workspace.snapshot(policy).expect("snapshot");
+        let only_b = [snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.path.display_path == "b.txt")
+            .map(|artifact| artifact.path.relative_units_base64url.clone())
+            .expect("b.txt artifact")];
+        let budget = SearchBudget::new(10, 10, 32, Duration::from_secs(1)).expect("budget");
+        let whole = search_literal(&workspace, &snapshot, b"eedle", budget).expect("whole");
+        assert_eq!(whole.matches.len(), 2, "both files hold the literal");
+        let literal =
+            search_literal_in(&workspace, &snapshot, &only_b, b"eedle", budget).expect("literal");
+        let lexical =
+            search_lexical_in(&workspace, &snapshot, &only_b, "needle", budget).expect("lexical");
+        for result in [&literal, &lexical] {
+            assert_eq!(result.matches.len(), 1);
+            assert_eq!(result.matches[0].path.display_path, "b.txt");
+        }
     }
 
     #[test]
