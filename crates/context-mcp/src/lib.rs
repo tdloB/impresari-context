@@ -157,6 +157,16 @@ const MAX_PROGRESSIVE_RESPONSE_BYTES: u64 = 4_194_304;
 struct DisclosureMapItem {
     item_handle: String,
     display_path: String,
+    /// File the resolved relationship points into, when that is a different
+    /// file from `display_path`.
+    ///
+    /// `symbol_label` is taken from the target node, so an entry could name a
+    /// symbol while leaving the file that declares it unnamed: a map read
+    /// "`sampled.py` — `BaseTimeSeries`" while `timeseries/core.py`, where that
+    /// symbol lives, went unmentioned. The node was already resolved and
+    /// already held; only its path was discarded.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_display_path: Option<String>,
     relationship_class: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     symbol_label: Option<String>,
@@ -1446,19 +1456,22 @@ fn disclosure_item(
     let path_identity = source_node
         .map(|node| node.path.relative_units_base64url.clone())
         .unwrap_or_default();
-    let symbol_label = edge
-        .target_node
-        .as_deref()
-        .and_then(|target| {
-            query
-                .result
-                .nodes
-                .iter()
-                .find(|node| node.node_id == target)
-        })
+    let target_node = edge.target_node.as_deref().and_then(|target| {
+        query
+            .result
+            .nodes
+            .iter()
+            .find(|node| node.node_id == target)
+    });
+    let symbol_label = target_node
         .and_then(|node| node.name.clone())
         .or_else(|| source_node.and_then(|node| node.name.clone()))
         .map(|label| label.chars().take(128).collect());
+    // Only a different file is worth naming. Most relationships stay inside one
+    // file, and repeating its path on every entry would be noise.
+    let target_display_path = target_node
+        .map(|node| node.path.display_path.clone())
+        .filter(|path| *path != display_path);
     let mut unknowns = Vec::new();
     if source_node.is_none() {
         unknowns.push("relationship_source_unavailable".into());
@@ -1503,6 +1516,7 @@ fn disclosure_item(
         public: DisclosureMapItem {
             item_handle,
             display_path,
+            target_display_path,
             relationship_class: edge.kind.clone(),
             symbol_label,
             confidence: edge.resolution.clone(),
@@ -2647,6 +2661,108 @@ mod tests {
                 .context_build(profiled_arguments(Some("session_progressive01")))
                 .err(),
             Some("structural delivery runtime unavailable")
+        );
+    }
+
+    /// A two-file traversal: `caller.rs` holds an edge into `defines.rs`.
+    fn cross_file_query(resolved: bool) -> StructuralPlannerQuery {
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter_syntax".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "mixed-pinned-grammars".into(),
+            resolver_version: context_structural::RESOLVER_VERSION.into(),
+            graph_version: context_structural::GRAPH_VERSION.into(),
+        };
+        let node = |id: &str, path: &str, name: &str| context_structural::GraphNode {
+            node_id: format!("sha256:{id:0>64}"),
+            kind: "symbol".into(),
+            path: context_structural::WorkerPath {
+                display_path: path.into(),
+                platform_family: "unix".into(),
+                unit_encoding: "utf8".into(),
+                relative_units_base64url: "cGF0aA".into(),
+            },
+            name: Some(name.into()),
+            span: None,
+            confidence: "confirmed".into(),
+            provenance: provenance.clone(),
+        };
+        let source = node("a", "src/caller.rs", "call_site");
+        let target = node("b", "src/defines.rs", "Defined");
+        StructuralPlannerQuery {
+            query_id: format!("sha256:{:0>64}", "c"),
+            edge_kinds: vec!["references".into()],
+            result: context_structural::StructuralQueryResult {
+                schema_name: "structural-query-result".into(),
+                schema_version: context_structural::GRAPH_VERSION.into(),
+                graph_id: format!("sha256:{:0>64}", "d"),
+                workspace_snapshot: format!("sha256:{:0>64}", "e"),
+                start_node: source.node_id.clone(),
+                edges: vec![context_structural::GraphEdge {
+                    edge_id: format!("sha256:{:0>64}", "f"),
+                    kind: "references".into(),
+                    source_node: source.node_id.clone(),
+                    target_node: resolved.then(|| target.node_id.clone()),
+                    module: None,
+                    resolution: if resolved { "heuristic" } else { "unresolved" }.into(),
+                    span: context_structural::GraphSpan {
+                        start_byte: 0,
+                        end_byte: 1,
+                    },
+                    provenance,
+                }],
+                nodes: vec![source, target],
+                truncated: false,
+                unknowns: Vec::new(),
+            },
+        }
+    }
+
+    fn item_for(query: &StructuralPlannerQuery) -> DisclosureMapItem {
+        let budget = ResourceBudget::conservative(4096, 20, 100, 256, 100, 8, 30_000, 1_048_576)
+            .expect("budget");
+        disclosure_item(
+            query,
+            &format!("sha256:{:0>64}", "1"),
+            &format!("sha256:{:0>64}", "2"),
+            &format!("sha256:{:0>64}", "3"),
+            "allow",
+            &budget,
+            &query.result.edges[0],
+        )
+        .expect("item")
+        .public
+    }
+
+    #[test]
+    fn a_relationship_into_another_file_names_that_file() {
+        let item = item_for(&cross_file_query(true));
+        // Without this the entry read "caller.rs — Defined" and the file that
+        // declares `Defined` was never mentioned, though the node was resolved
+        // and already held.
+        assert_eq!(item.display_path, "src/caller.rs");
+        assert_eq!(item.symbol_label.as_deref(), Some("Defined"));
+        assert_eq!(item.target_display_path.as_deref(), Some("src/defines.rs"));
+    }
+
+    #[test]
+    fn a_relationship_inside_one_file_names_no_target_file() {
+        let mut query = cross_file_query(true);
+        // Point the target at a node in the same file as the source.
+        query.result.nodes[1].path.display_path = "src/caller.rs".into();
+        let item = item_for(&query);
+        assert_eq!(
+            item.target_display_path, None,
+            "repeating the source path on every entry would be noise"
+        );
+    }
+
+    #[test]
+    fn an_unresolved_relationship_names_no_target_file() {
+        let item = item_for(&cross_file_query(false));
+        assert_eq!(
+            item.target_display_path, None,
+            "an unresolved edge knows no target file to name"
         );
     }
 

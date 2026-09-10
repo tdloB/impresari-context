@@ -146,6 +146,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0143](0143-retain-a-candidate-sbom-beside-its-record.md) | Verify a frozen candidate's SBOM against a retained copy, not the live dependency inventory | Accepted |
 | [ADR-0144](0144-bound-a-structural-query-by-its-own-ceiling.md) | Bound a structural query by its own closed ceiling and narrow an oversized result rather than refusing it | Accepted |
 | [ADR-0145](0145-spread-structural-seeds-across-files.md) | Let no single file take every structural seed, so a map can name more of the places a task needs | Accepted |
+| [ADR-0146](0146-name-the-file-a-relationship-points-into.md) | Name the file a resolved relationship points into, so an entry does not name a symbol and the wrong file | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |
