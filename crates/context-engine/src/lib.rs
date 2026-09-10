@@ -7157,12 +7157,15 @@ mod tests {
                     provenance: provenance.clone(),
                 })
                 .collect::<Vec<_>>();
+            // Seed selection resolves each node's path on the host, which
+            // refuses another platform's encoding, so build it the host's way.
+            let path = PathIdentity::from_portable_relative_path("src/a.py").expect("path");
             let input = GraphFileInput {
                 path: WorkerPath {
-                    display_path: "src/a.py".into(),
-                    platform_family: "unix".into(),
-                    unit_encoding: "unix_bytes".into(),
-                    relative_units_base64url: "c3JjL2EucHk".into(),
+                    display_path: path.display_path,
+                    platform_family: path.platform_family.into(),
+                    unit_encoding: path.unit_encoding.into(),
+                    relative_units_base64url: path.relative_units_base64url,
                 },
                 response: context_structural::WorkerSuccess {
                     schema_name: "structural-worker-success".into(),
