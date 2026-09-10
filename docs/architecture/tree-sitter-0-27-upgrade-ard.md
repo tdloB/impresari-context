@@ -90,6 +90,11 @@ limits are unchanged; which items fill them is not. Selecting edges by identity
 order is independent of this upgrade and makes the delivered map sensitive to any
 provenance change; it should be fixed before this merges.
 
+ADR-0151 has since fixed it. Rebuilt on top of it and run from the same directory
+as `main`, this branch's map is identical to `main`'s: all 1,371 items in the same
+order, map symbol recall of 15 of 34 and map file recall of 22 of 27.
+Only graph and item identities differ.
+
 ## Verification
 
 - `parser_version_matches_the_linked_tree_sitter_pin` passes.

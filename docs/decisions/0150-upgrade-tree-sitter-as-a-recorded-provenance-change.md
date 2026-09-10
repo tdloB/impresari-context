@@ -6,6 +6,7 @@
 - Architecture: [Tree-sitter 0.27 Upgrade](../architecture/tree-sitter-0-27-upgrade-ard.md)
 - Extends: [ADR-0004](0004-source-language-and-parser-strategy.md)
 - Follows: [ADR-0143](0143-retain-a-candidate-sbom-beside-its-record.md)
+- Depends on: [ADR-0151](0151-select-structural-context-by-what-it-is.md)
 
 ## Context
 
@@ -75,11 +76,13 @@ of 34: `astropy-13579` loses `pixel_to_world_values` and
 `world_to_pixel_values`, `astropy-14369` loses `_make_parser`, and
 `astropy-8872` gains `__new__`.
 
-That selection behaviour predates this decision and would move the delivered map
-on any change to fact provenance. It is a separate defect, to be recorded and
-fixed on its own. This upgrade should merge once edge selection no longer depends
-on identity order; merged before that, it changes which symbols reach an agent
-for a reason unrelated to the parse.
+That selection behaviour predated this decision and would have moved the
+delivered map on any change to fact provenance. ADR-0151 has since removed
+identity from selection. Measured again on top of it, from the same directory as
+`main`, this decision's build delivers maps identical to `main`'s on all
+twenty-two tasks: the same 1,371 items in the same order, map symbol recall of
+15 of 34 and map file recall of 22 of 27. Only identities differ, as they
+must.
 
 `grammar_version` is still the constant `mixed-pinned-grammars`, with no guard
 tying it to the grammar crates. A grammar-crate bump would change facts without
