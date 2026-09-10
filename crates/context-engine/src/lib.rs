@@ -5382,10 +5382,10 @@ fn seed_signals(query: &str, admitted_identifiers: &[String]) -> TaskSignals {
 /// Candidates arrive already ordered by [`sort_seed_candidates`], so admission
 /// preserves rank: a file's third candidate is skipped, never promoted over a
 /// better-ranked one elsewhere.
-fn admit_seeds(candidates: Vec<(SeedRank, usize, String, String)>) -> Vec<StructuralSeed> {
+fn admit_seeds(candidates: Vec<(SeedRank, usize, String, u64, String)>) -> Vec<StructuralSeed> {
     let mut admitted = Vec::new();
     let mut per_file: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
-    for (rank, _, path, node_id) in candidates {
+    for (rank, _, path, _, node_id) in candidates {
         if admitted.len() >= MAX_STRUCTURAL_SEEDS {
             break;
         }
@@ -5438,8 +5438,8 @@ fn structural_seed_selection(
             .position(|nominated| nominated == path)
             .unwrap_or(nominated_order.len())
     };
-    // (rank, nomination position, portable path, node id).
-    let mut candidates: Vec<(SeedRank, usize, String, String)> = Vec::new();
+    // (rank, nomination position, portable path, declaration offset, node id).
+    let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = Vec::new();
     let mut ambiguous_observed = false;
 
     let is_named_symbol = |node: &GraphNode, identifier: &str| {
@@ -5461,6 +5461,7 @@ fn structural_seed_selection(
                 SeedRank::UniqueExactFilePath,
                 nominated_position(file_path),
                 (*file_path).clone(),
+                declaration_offset(file),
                 file.node_id.clone(),
             ));
             for identifier in &signals.identifiers {
@@ -5472,6 +5473,7 @@ fn structural_seed_selection(
                         SeedRank::UniqueSymbolInExactPath,
                         nominated_position(symbol_path),
                         symbol_path.clone(),
+                        declaration_offset(symbol),
                         symbol.node_id.clone(),
                     ));
                 }
@@ -5498,6 +5500,7 @@ fn structural_seed_selection(
                 rank,
                 nominated_position(path),
                 path.clone(),
+                declaration_offset(symbol),
                 symbol.node_id.clone(),
             ));
         }
@@ -5527,10 +5530,6 @@ fn structural_seed_selection(
     Ok(selection)
 }
 
-/// Merge per-seed traversals into one deterministic result.
-///
-/// The primary seed supplies `start_node`; nodes and edges are the deduplicated
-/// union in identity order, so the merged identity is stable for a snapshot.
 /// Narrow a structural query result to the bytes it is allowed to occupy.
 ///
 /// A result that exceeded its ceiling used to fail the whole build, after the
@@ -5541,8 +5540,10 @@ fn structural_seed_selection(
 /// Edges are dropped from the tail, never nodes. `query_structure`'s consumer
 /// resolves every edge's source against the node set and fails hard on a
 /// missing one, so dropping an edge can only shrink what must be present while
-/// dropping a node could break that closure. Edge order is by `edge_id`, so
-/// the prefix kept is deterministic for a snapshot.
+/// dropping a node could break that closure. Edges arrive in traversal order,
+/// seeds in rank order and each seed's edges most confidently resolved first
+/// and then in source order, so the prefix kept is the part the traversal
+/// valued most, and it does not move when identities do.
 ///
 /// [ADR-0134]: https://github.com/tdloB/impresari-context/blob/main/docs/decisions/0134-truncate-a-disclosure-at-its-ceiling-rather-than-discarding-it.md
 fn bound_structural_query_output(
@@ -5579,6 +5580,11 @@ fn bound_structural_query_output(
     result
 }
 
+/// Merge per-seed traversals into one deterministic result.
+///
+/// The primary seed supplies `start_node`. Nodes are the deduplicated union in
+/// identity order; edges keep the order the traversals chose, first occurrence
+/// wins, so the output bound keeps what the traversals valued most.
 fn merge_structural_traversals(
     mut results: Vec<StructuralQueryResult>,
 ) -> Option<StructuralQueryResult> {
@@ -5595,8 +5601,11 @@ fn merge_structural_traversals(
     }
     nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
     nodes.dedup_by(|left, right| left.node_id == right.node_id);
-    edges.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
-    edges.dedup_by(|left, right| left.edge_id == right.edge_id);
+    // Keep the order the traversals chose: seeds in rank order, each seed's
+    // edges in traversal order. Sorting by identity here reordered them by
+    // hash, and the output bound keeps a prefix of this list.
+    let mut delivered = std::collections::BTreeSet::new();
+    edges.retain(|edge| delivered.insert(edge.edge_id.clone()));
     unknowns.sort();
     unknowns.dedup();
     merged.nodes = nodes;
@@ -6297,10 +6306,18 @@ fn supported_file_count(
 ///
 /// Rank first, then the nomination position, so a name shared by several files
 /// resolves to the file the task is about rather than to whichever path sorts
-/// first alphabetically.
-fn sort_seed_candidates(candidates: &mut Vec<(SeedRank, usize, String, String)>) {
+/// first alphabetically. Within one file the declaration that comes first wins.
+/// Node identity used to decide that, and it hashes the workspace snapshot,
+/// which includes where the repository is checked out, so the same commit in two
+/// directories chose different seeds.
+fn sort_seed_candidates(candidates: &mut Vec<(SeedRank, usize, String, u64, String)>) {
     candidates.sort();
-    candidates.dedup_by(|left, right| left.3 == right.3);
+    candidates.dedup_by(|left, right| left.4 == right.4);
+}
+
+/// Where a candidate is declared in its file; a file node sorts first.
+fn declaration_offset(node: &GraphNode) -> u64 {
+    node.span.as_ref().map_or(0, |span| span.start_byte)
 }
 
 /// Raise the fact allowance when a build is scoped to nominated files.
@@ -7088,6 +7105,111 @@ mod tests {
     }
 
     #[test]
+    fn merged_traversals_keep_seed_order_rather_than_identity_order() {
+        let with_ids = |ids: &[u8]| {
+            let mut result = oversized_query_result(ids.len());
+            for (edge, id) in result.edges.iter_mut().zip(ids) {
+                edge.edge_id = format!("sha256:{id:064}");
+            }
+            result
+        };
+        let merged = merge_structural_traversals(vec![with_ids(&[9, 3]), with_ids(&[5, 3])])
+            .expect("merged");
+        let order: Vec<String> = merged
+            .edges
+            .iter()
+            .map(|edge| edge.edge_id.clone())
+            .collect();
+        let expected: Vec<String> = [9_u8, 3, 5]
+            .iter()
+            .map(|id| format!("sha256:{id:064}"))
+            .collect();
+        assert_eq!(order, expected, "first seed's edges first, duplicates once");
+    }
+
+    #[test]
+    fn seed_ties_in_one_file_go_to_the_earliest_declarations_under_any_snapshot() {
+        // Five declarations share a name in one file, and the per-file rule
+        // admits three. Two snapshots give the same facts different node
+        // identities; both must admit the three declared first.
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "tree-sitter-python-0.25.0".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let offsets = [10_u64, 30, 50, 70, 90];
+        let graph_for = |seed: &[u8]| {
+            let facts = offsets
+                .iter()
+                .enumerate()
+                .map(|(index, start)| context_structural::StructuralFact {
+                    class: FactClass::Declaration,
+                    local_key: format!("target_{index}"),
+                    syntax_kind: "class_definition".into(),
+                    name: Some("Target".into()),
+                    module: None,
+                    start_byte: *start,
+                    end_byte: start + 10,
+                    parent_key: None,
+                    confidence: "confirmed".into(),
+                    provenance: provenance.clone(),
+                })
+                .collect::<Vec<_>>();
+            let input = GraphFileInput {
+                path: WorkerPath {
+                    display_path: "src/a.py".into(),
+                    platform_family: "unix".into(),
+                    unit_encoding: "unix_bytes".into(),
+                    relative_units_base64url: "c3JjL2EucHk".into(),
+                },
+                response: context_structural::WorkerSuccess {
+                    schema_name: "structural-worker-success".into(),
+                    schema_version: PROTOCOL_VERSION.into(),
+                    request_id: "req_seed_ties".into(),
+                    content_hash: format!("sha256:{}", "a".repeat(64)),
+                    syntax_errors: false,
+                    total_facts_available: facts.len() as u64,
+                    facts,
+                    warnings: Vec::new(),
+                },
+            };
+            context_structural::build_graph(&contract_sha256(seed), vec![input]).expect("graph")
+        };
+        let admitted = |graph: &StructuralGraph| {
+            let selection = structural_seed_selection(
+                graph,
+                "Target raises when called",
+                &[],
+                &["Target".to_owned()],
+            )
+            .expect("seeds");
+            selection
+                .seeds
+                .iter()
+                .map(|seed| {
+                    graph
+                        .nodes
+                        .iter()
+                        .find(|node| node.node_id == seed.node_id)
+                        .and_then(|node| node.span.as_ref())
+                        .map(|span| span.start_byte)
+                        .expect("seed span")
+                })
+                .collect::<Vec<_>>()
+        };
+        let first = graph_for(b"checkout-one");
+        let second = graph_for(b"checkout-two");
+        assert_ne!(
+            first.nodes, second.nodes,
+            "snapshots must change node identities"
+        );
+        assert_eq!(admitted(&first), vec![10, 30, 50]);
+        assert_eq!(admitted(&second), vec![10, 30, 50]);
+    }
+
+    #[test]
     fn a_query_result_within_its_ceiling_is_returned_untouched() {
         let result = oversized_query_result(4);
         let bounded = bound_structural_query_output(result.clone());
@@ -7220,12 +7342,13 @@ mod tests {
     #[test]
     fn no_single_file_takes_every_seed_slot() {
         // Ten candidates in one file, then two elsewhere, already rank-ordered.
-        let mut candidates: Vec<(SeedRank, usize, String, String)> = (0..10)
+        let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = (0..10)
             .map(|index| {
                 (
                     SeedRank::GloballyUniqueSymbol,
                     0,
                     "astropy/timeseries/sampled.py".to_owned(),
+                    0,
                     format!("node-sampled-{index}"),
                 )
             })
@@ -7234,12 +7357,14 @@ mod tests {
             SeedRank::GloballyAmbiguousSymbol,
             5,
             "astropy/timeseries/core.py".to_owned(),
+            0,
             "node-core".to_owned(),
         ));
         candidates.push((
             SeedRank::GloballyAmbiguousSymbol,
             6,
             "astropy/timeseries/binned.py".to_owned(),
+            0,
             "node-binned".to_owned(),
         ));
 
@@ -7267,12 +7392,13 @@ mod tests {
         // ranked one elsewhere. One more from `a.py` than the cap admits, so a
         // surplus always exists whatever the cap is set to.
         let surplus = MAX_SEEDS_PER_FILE + 1;
-        let mut candidates: Vec<(SeedRank, usize, String, String)> = (0..surplus)
+        let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = (0..surplus)
             .map(|index| {
                 (
                     SeedRank::UniqueSymbolInExactPath,
                     0,
                     "a.py".to_owned(),
+                    0,
                     format!("a{index}"),
                 )
             })
@@ -7281,6 +7407,7 @@ mod tests {
             SeedRank::GloballyAmbiguousSymbol,
             9,
             "b.py".to_owned(),
+            0,
             "b1".to_owned(),
         ));
 
@@ -7308,6 +7435,7 @@ mod tests {
                     SeedRank::GloballyUniqueSymbol,
                     0,
                     "only.py".to_owned(),
+                    0,
                     format!("n{index}"),
                 )
             })
@@ -7324,19 +7452,21 @@ mod tests {
                 SeedRank::GloballyAmbiguousSymbol,
                 5,
                 "astropy/coordinates/angles.py".to_owned(),
+                0,
                 "node-angles".to_owned(),
             ),
             (
                 SeedRank::GloballyAmbiguousSymbol,
                 3,
                 "astropy/units/quantity.py".to_owned(),
+                0,
                 "node-quantity".to_owned(),
             ),
         ];
         sort_seed_candidates(&mut candidates);
         // Alphabetically `coordinates` wins; by nomination `units` does, and
         // nomination is the signal that knows what the task is about.
-        assert_eq!(candidates[0].3, "node-quantity");
+        assert_eq!(candidates[0].4, "node-quantity");
 
         // Without a nomination the order stays deterministic by path.
         let mut unranked = vec![
@@ -7344,17 +7474,19 @@ mod tests {
                 SeedRank::GloballyAmbiguousSymbol,
                 0,
                 "b.py".to_owned(),
+                0,
                 "node-b".to_owned(),
             ),
             (
                 SeedRank::GloballyAmbiguousSymbol,
                 0,
                 "a.py".to_owned(),
+                0,
                 "node-a".to_owned(),
             ),
         ];
         sort_seed_candidates(&mut unranked);
-        assert_eq!(unranked[0].3, "node-a");
+        assert_eq!(unranked[0].4, "node-a");
     }
 
     #[test]

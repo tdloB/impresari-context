@@ -567,7 +567,7 @@ pub fn query_graph(
         }
     }
     for edges in outgoing.values_mut() {
-        edges.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
+        edges.sort_by(|left, right| traversal_order(left, right, &nodes_by_id));
     }
 
     let mut queue = VecDeque::from([(start_node.to_owned(), 0_u32)]);
@@ -631,6 +631,58 @@ pub fn query_graph(
         truncated,
         unknowns,
     })
+}
+
+/// How confidently a relationship resolved, most confident first.
+fn resolution_rank(resolution: &str) -> u8 {
+    match resolution {
+        "confirmed" | "confirmed_manifest" => 0,
+        "heuristic" => 1,
+        "unresolved" => 2,
+        _ => 3,
+    }
+}
+
+/// The order a traversal takes one node's edges in, and so which it keeps when
+/// it reaches its edge limit.
+///
+/// It was identity order. An edge's identity hashes the workspace snapshot and
+/// the fact provenance, parser version included, so which edges survived the
+/// limit changed with every commit and every relabel of the parser while no
+/// fact did: moving the recorded parser version alone replaced 280 of 1,440 map
+/// items on the twenty-two-task astropy corpus and cost two reference symbols.
+/// Order by what an edge is instead: most confidently resolved first, then by
+/// where it occurs in the source, with its kind, its target's path, name and
+/// span, and its module breaking ties. Two declarations can share a file and a
+/// name, as a property's getter and setter do, so the target's span is part of
+/// the key. Identity breaks only an exact tie in content.
+fn traversal_order(
+    left: &GraphEdge,
+    right: &GraphEdge,
+    nodes: &BTreeMap<&str, &GraphNode>,
+) -> std::cmp::Ordering {
+    let target = |edge: &GraphEdge| {
+        edge.target_node
+            .as_deref()
+            .and_then(|id| nodes.get(id))
+            .map(|node| {
+                (
+                    node.path.display_path.as_str(),
+                    node.name.as_deref(),
+                    node.span
+                        .as_ref()
+                        .map(|span| (span.start_byte, span.end_byte)),
+                )
+            })
+    };
+    resolution_rank(&left.resolution)
+        .cmp(&resolution_rank(&right.resolution))
+        .then(left.span.start_byte.cmp(&right.span.start_byte))
+        .then(left.span.end_byte.cmp(&right.span.end_byte))
+        .then_with(|| left.kind.cmp(&right.kind))
+        .then_with(|| target(left).cmp(&target(right)))
+        .then_with(|| left.module.cmp(&right.module))
+        .then_with(|| left.edge_id.cmp(&right.edge_id))
 }
 
 fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralError> {
@@ -4146,6 +4198,189 @@ public class Worker {
                 .iter()
                 .any(|edge| edge.target_node.as_deref() == Some(local_target.as_str())),
             "the within-file target must be unchanged by a competing declaration"
+        );
+    }
+
+    /// One TypeScript source in which `outer` has more outgoing edges than a
+    /// small traversal limit keeps, recorded under `parser_version`.
+    fn many_edged_graph(parser_version: &str) -> StructuralGraph {
+        let source = br"function a() { return 1; }
+function b() { return 2; }
+function c() { return 3; }
+function d() { return 4; }
+export function outer() { a(); b(); c(); d(); const x = a; const y = b; missing(); }
+";
+        let request = request(source, StructuralLanguage::TypeScript);
+        let mut response = process_request(&request).expect("parse");
+        for fact in &mut response.facts {
+            fact.provenance.parser_version = parser_version.into();
+        }
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    fn outer_node(graph: &StructuralGraph) -> String {
+        graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some("outer"))
+            .expect("outer node")
+            .node_id
+            .clone()
+    }
+
+    #[test]
+    fn a_traversal_keeps_the_same_edges_whatever_their_identities() {
+        // Relabelling the parser changes every edge identity and no fact.
+        let original = many_edged_graph(PARSER_VERSION);
+        let relabelled = many_edged_graph("tree-sitter-relabelled");
+        assert_ne!(
+            original
+                .edges
+                .iter()
+                .map(|edge| &edge.edge_id)
+                .collect::<Vec<_>>(),
+            relabelled
+                .edges
+                .iter()
+                .map(|edge| &edge.edge_id)
+                .collect::<Vec<_>>(),
+            "relabelling must change edge identities"
+        );
+        let kept = |graph: &StructuralGraph| {
+            query_graph(graph, &outer_node(graph), &[], 1, 100, 3)
+                .expect("traversal")
+                .edges
+                .iter()
+                .map(|edge| {
+                    (
+                        edge.kind.clone(),
+                        edge.resolution.clone(),
+                        edge.span.start_byte,
+                        edge.span.end_byte,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(kept(&original), kept(&relabelled));
+    }
+
+    #[test]
+    fn a_traversal_keeps_resolved_relationships_before_unresolved_ones() {
+        let graph = many_edged_graph(PARSER_VERSION);
+        let outer = outer_node(&graph);
+        let all = query_graph(&graph, &outer, &[], 1, 100, 100).expect("traversal");
+        let confirmed = all
+            .edges
+            .iter()
+            .filter(|edge| edge.resolution == "confirmed")
+            .count();
+        assert!(confirmed > 0, "fixture needs a confirmed relationship");
+        assert!(
+            all.edges.iter().any(|edge| edge.resolution == "unresolved"),
+            "fixture needs an unresolved relationship"
+        );
+        let limit = u32::try_from(confirmed).expect("small count");
+        let limited = query_graph(&graph, &outer, &[], 1, 100, limit).expect("limited");
+        assert!(
+            limited
+                .edges
+                .iter()
+                .all(|edge| edge.resolution == "confirmed")
+        );
+        assert!(
+            limited
+                .edges
+                .windows(2)
+                .all(|pair| pair[0].span.start_byte <= pair[1].span.start_byte),
+            "within one resolution, edges are kept in source order"
+        );
+    }
+
+    #[test]
+    fn a_traversal_orders_same_named_targets_by_where_they_are_declared() {
+        // A property's getter and setter share a file and a name. With one edge
+        // admitted, the traversal keeps the edge to the declaration that comes
+        // first, whatever order the identities fall in.
+        let snapshot = sha256(b"snapshot");
+        let provenance = FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: PARSER_VERSION.into(),
+            grammar_version: "tree-sitter-test".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let path = WorkerPath {
+            display_path: "src/a.py".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "utf8".into(),
+            relative_units_base64url: "c3JjL2EucHk".into(),
+        };
+        let node = |key: &str, name: &str, start_byte: u64| GraphNode {
+            node_id: sha256(key.as_bytes()),
+            kind: "symbol".into(),
+            path: path.clone(),
+            name: Some(name.into()),
+            span: Some(GraphSpan {
+                start_byte,
+                end_byte: start_byte + 10,
+            }),
+            confidence: "confirmed".into(),
+            provenance: provenance.clone(),
+        };
+        let caller = node("caller", "caller", 0);
+        let getter = node("getter", "value", 20);
+        let setter = node("setter", "value", 40);
+        let edge = |edge_id: String, target: &GraphNode| GraphEdge {
+            edge_id,
+            kind: "calls".into(),
+            source_node: caller.node_id.clone(),
+            target_node: Some(target.node_id.clone()),
+            module: None,
+            resolution: "heuristic".into(),
+            span: GraphSpan {
+                start_byte: 5,
+                end_byte: 10,
+            },
+            provenance: provenance.clone(),
+        };
+        // Identities ordered against declaration order: the edge to the later
+        // declaration has the smaller identity.
+        let edges = vec![
+            edge(format!("sha256:{}", "1".repeat(64)), &setter),
+            edge(format!("sha256:{}", "2".repeat(64)), &getter),
+        ];
+        let nodes = vec![caller.clone(), getter.clone(), setter];
+        let unknowns: Vec<String> = Vec::new();
+        let graph_id = graph_identity(
+            "structural-graph",
+            &serde_json::json!({
+                "workspace_snapshot": &snapshot,
+                "completeness": "complete",
+                "nodes": &nodes,
+                "edges": &edges,
+                "unknowns": &unknowns,
+            }),
+        )
+        .expect("graph identity");
+        let graph = StructuralGraph {
+            schema_name: "structural-graph".into(),
+            schema_version: GRAPH_VERSION.into(),
+            graph_id,
+            workspace_snapshot: snapshot,
+            completeness: "complete".into(),
+            nodes,
+            edges,
+            unknowns,
+        };
+        let kept = query_graph(&graph, &caller.node_id, &[], 1, 100, 1).expect("traversal");
+        assert_eq!(kept.edges.len(), 1);
+        assert_eq!(
+            kept.edges[0].target_node.as_deref(),
+            Some(getter.node_id.as_str())
         );
     }
 
