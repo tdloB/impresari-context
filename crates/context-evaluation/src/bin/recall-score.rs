@@ -14,7 +14,11 @@ const USAGE: &str = "usage: impresari-context-recall-score <corpus.json>";
 const CORPUS_SCHEMA_NAME: &str = "impresari_context_recall_corpus";
 const CORPUS_SCHEMA_VERSION: &str = "1.0";
 const REPORT_SCHEMA_NAME: &str = "impresari_context_recall_report";
-const REPORT_SCHEMA_VERSION: &str = "1.0";
+/// 1.1 counts a file the map names as the target of a relationship, not only
+/// as an entry's own path, and reports that contribution separately. A 1.0
+/// report and a 1.1 report over the same corpus are different measurements:
+/// the same build scores 20/27 under 1.0 and 21/27 under 1.1.
+const REPORT_SCHEMA_VERSION: &str = "1.1";
 const MAX_CORPUS_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Deserialize)]
@@ -45,7 +49,11 @@ struct Reference {
 /// What the product actually delivered.
 #[derive(Debug, Default, Eq, PartialEq)]
 struct Delivered {
+    /// Files the map names, as an entry's own path or as the file a
+    /// relationship points into.
     map_files: BTreeSet<String>,
+    /// Files the map names as an entry's own path only.
+    entry_files: BTreeSet<String>,
     map_symbols: BTreeSet<String>,
     evidence_files: BTreeSet<String>,
     bytes: u64,
@@ -59,6 +67,10 @@ struct CaseScore {
     /// Reference files named by the disclosure map. This is the number that
     /// decides whether an agent is pointed at the right place.
     map_file_recall_numerator: usize,
+    /// Of those, reference files the map named only as the file a relationship
+    /// points into. Reported separately so the gain from naming target files is
+    /// visible rather than folded silently into the total.
+    map_file_recall_via_target: usize,
     map_symbol_recall_numerator: usize,
     /// Reference files present anywhere in the packet, including evidence the
     /// map never pointed at. A high evidence recall with a low map recall means
@@ -77,6 +89,7 @@ struct Report {
     total_reference_files: usize,
     total_reference_symbols: usize,
     total_map_files_recalled: usize,
+    total_map_files_recalled_via_target: usize,
     total_map_symbols_recalled: usize,
     total_evidence_files_recalled: usize,
     total_delivered_bytes: u64,
@@ -146,6 +159,7 @@ fn score_case(case: &Case) -> Result<CaseScore, String> {
     let delivered = load_delivered(Path::new(&case.delivered_context))?;
 
     let map_files = reference.files.intersection(&delivered.map_files).count();
+    let via_entry = reference.files.intersection(&delivered.entry_files).count();
     let map_symbols = reference
         .symbols
         .intersection(&delivered.map_symbols)
@@ -160,6 +174,7 @@ fn score_case(case: &Case) -> Result<CaseScore, String> {
         reference_files: reference.files.len(),
         reference_symbols: reference.symbols.len(),
         map_file_recall_numerator: map_files,
+        map_file_recall_via_target: map_files.saturating_sub(via_entry),
         map_symbol_recall_numerator: map_symbols,
         evidence_file_recall_numerator: evidence_files,
         delivered_bytes: delivered.bytes,
@@ -246,6 +261,17 @@ fn load_delivered(path: &Path) -> Result<Delivered, String> {
         for item in items {
             if let Some(path) = item.get("display_path").and_then(serde_json::Value::as_str) {
                 delivered.map_files.insert(path.to_owned());
+                delivered.entry_files.insert(path.to_owned());
+            }
+            // A relationship resolving into another file names that file. An
+            // entry reading "sampled.py — BaseTimeSeries" points a reader at
+            // `timeseries/core.py` as surely as an entry whose own path it is,
+            // so it counts toward whether the map names the reference file.
+            if let Some(path) = item
+                .get("target_display_path")
+                .and_then(serde_json::Value::as_str)
+            {
+                delivered.map_files.insert(path.to_owned());
             }
             if let Some(symbol) = item.get("symbol_label").and_then(serde_json::Value::as_str) {
                 delivered.map_symbols.insert(symbol.to_owned());
@@ -287,6 +313,10 @@ fn summarize(cases: Vec<CaseScore>) -> Report {
         .iter()
         .map(|case| case.map_file_recall_numerator)
         .sum();
+    let total_map_files_recalled_via_target = cases
+        .iter()
+        .map(|case| case.map_file_recall_via_target)
+        .sum();
     let total_map_symbols_recalled = cases
         .iter()
         .map(|case| case.map_symbol_recall_numerator)
@@ -309,6 +339,7 @@ fn summarize(cases: Vec<CaseScore>) -> Report {
         total_reference_files,
         total_reference_symbols,
         total_map_files_recalled,
+        total_map_files_recalled_via_target,
         total_map_symbols_recalled,
         total_evidence_files_recalled,
         total_delivered_bytes,
@@ -404,6 +435,43 @@ mod tests {
             .collect();
         assert_eq!(reference.files.intersection(&map_files).count(), 0);
         assert_eq!(reference.files.intersection(&evidence_files).count(), 1);
+    }
+
+    #[test]
+    fn a_reference_file_named_only_as_a_target_counts_and_is_attributed() {
+        // The measured shape: an entry in the sibling file whose relationship
+        // resolves into the file the change actually touched.
+        let dir = std::env::temp_dir().join(format!("recall-target-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temporary directory");
+        let path = dir.join("delivered.json");
+        let delivered = serde_json::json!({
+            "structuredContent": {"disclosure_map": {"items": [
+                {"display_path": "astropy/timeseries/sampled.py",
+                 "target_display_path": "astropy/timeseries/core.py",
+                 "symbol_label": "BaseTimeSeries"}
+            ]}}
+        });
+        fs::write(&path, serde_json::to_vec(&delivered).expect("json")).expect("write");
+        let score = score_case(&Case {
+            instance_id: "astropy__astropy-13033".into(),
+            reference_patch: ASTROPY_PATCH.into(),
+            delivered_context: path.to_string_lossy().into_owned(),
+        })
+        .expect("score");
+        fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(
+            score.map_file_recall_numerator, 1,
+            "a target names the file"
+        );
+        assert_eq!(
+            score.map_file_recall_via_target, 1,
+            "and the gain is attributed to the target, not folded in"
+        );
+        assert!(
+            score.missing_files.is_empty(),
+            "a file named as a target is not missing"
+        );
     }
 
     #[test]
