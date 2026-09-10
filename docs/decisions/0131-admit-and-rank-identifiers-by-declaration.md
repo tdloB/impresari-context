@@ -1,6 +1,6 @@
 # ADR-0131: Admit and Rank Identifiers by Declaration
 
-- Status: Accepted; admission rule corrected by [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md)
+- Status: Accepted; admission rule corrected by [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md); ranking weighted by identifier rarity in [ADR-0149](0149-weight-nomination-by-identifier-rarity.md)
 - Date: 2026-09-04
 - Related PRD: [Declaration-Aware Nomination](../product/declaration-aware-nomination-prd.md)
 - Architecture: [Declaration-Aware Nomination](../architecture/declaration-aware-nomination-ard.md)

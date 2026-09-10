@@ -17,7 +17,10 @@ use serde::{Deserialize, Serialize};
 /// Schema discriminator for a nomination disclosure.
 pub const FILE_NOMINATION_SCHEMA_NAME: &str = "impresari_context_file_nomination";
 /// Schema version for a nomination disclosure.
-pub const FILE_NOMINATION_SCHEMA_VERSION: &str = "1.0";
+///
+/// 1.1 adds the `task_module_path` reason and ranks inferred matches by how
+/// rare each task identifier is in the repository.
+pub const FILE_NOMINATION_SCHEMA_VERSION: &str = "1.1";
 
 /// Files nominated for dense structural extraction.
 ///
@@ -35,6 +38,12 @@ pub const MAX_NOMINATED_FILES: usize = 16;
 pub enum NominationRank {
     /// The task named this exact path and the snapshot contains it.
     ExactTaskPath,
+    /// The task named a dotted module that denotes exactly one tracked file.
+    ///
+    /// Task text names modules the way code imports them, so `ascii.rst` is
+    /// `astropy/io/ascii/rst.py`. The name is the author's rather than inferred
+    /// from a mention, so it ranks with the paths the task writes out.
+    TaskModulePath,
     /// The file declares an identifier the task named.
     ///
     /// A declaration identifies a file; a mention does not. `Header` occurs in
@@ -50,6 +59,7 @@ impl NominationRank {
     pub const fn reason_code(self) -> &'static str {
         match self {
             Self::ExactTaskPath => "exact_task_path",
+            Self::TaskModulePath => "task_module_path",
             Self::DeclarationMatch => "task_identifier_declared",
             Self::IdentifierMatch => "task_identifier_match",
         }
@@ -138,16 +148,44 @@ pub fn nominate_files(
         }
     }
 
+    // A dotted name the snapshot holds no path for is usually a module, written
+    // the way code imports it. `astropy-14182` writes `format="ascii.rst"`, and
+    // the file it denotes was never nominated: no identifier the task named
+    // pointed at it.
+    for path in task_paths {
+        if files.len() >= MAX_NOMINATED_FILES {
+            break;
+        }
+        if let Some(module) = resolve_module_path(path, tracked_paths)
+            && seen.insert(module)
+        {
+            files.push(NominatedFile {
+                display_path: module.to_owned(),
+                reason_code: NominationRank::TaskModulePath.reason_code().to_owned(),
+                matched_identifiers: identifier_matches
+                    .get(module)
+                    .map_or(0, |matched| count_admitted(matched, &admitted_identifiers)),
+            });
+        }
+    }
+
     // Then files by how strongly they answer the task, counting a declaration
     // as worth several mentions rather than as an overriding tier. A file that
     // declares one task identifier is not automatically a better answer than
     // one that mentions four: ranked as a tier, a task about `Table` anchored
     // on `io/fits/column.py`, which declares `Column`, over `table/table.py`,
     // which declares `Table` and mentions most of the rest.
+    let weights = rarity_weights(
+        &admitted_identifiers,
+        declaration_matches,
+        identifier_matches,
+        tracked_paths.len(),
+    );
     let ranked = rank_by_evidence(
         declaration_matches,
         identifier_matches,
         &admitted_identifiers,
+        &weights,
         &seen,
     );
 
@@ -204,6 +242,81 @@ struct RankedCandidate<'a> {
     rank: NominationRank,
     declared: u64,
     mentioned: u64,
+    score: u64,
+}
+
+/// How much one task identifier tells nomination about a file.
+///
+/// The weight is the number of times the repository halves before it reaches
+/// the files holding the name, plus one. Every name used to count the same, so
+/// a file mentioning four common names outranked the one file declaring the
+/// rare name a task is about: on `astropy-13398` the file declaring `ITRS`,
+/// held by one file, ranked eighteenth behind files mentioning
+/// `frame_transform_graph` and `matrix_utilities`, held by thirty and twenty.
+/// A declaration still counts three mentions of the same name. The logarithm
+/// is an integer, so the ranking is identical on every platform.
+fn rarity_weights<'a>(
+    admitted: &BTreeSet<&'a str>,
+    declaration_matches: &BTreeMap<String, BTreeSet<String>>,
+    identifier_matches: &BTreeMap<String, BTreeSet<String>>,
+    repository_files: usize,
+) -> BTreeMap<&'a str, u64> {
+    let holders = |matches: &BTreeMap<String, BTreeSet<String>>, name: &str| {
+        matches.values().filter(|held| held.contains(name)).count()
+    };
+    let files = u64::try_from(repository_files).unwrap_or(u64::MAX).max(1);
+    admitted
+        .iter()
+        .map(|&name| {
+            let holding = holders(identifier_matches, name).max(holders(declaration_matches, name));
+            let holding = u64::try_from(holding).unwrap_or(u64::MAX).max(1);
+            (name, u64::from((files / holding).max(1).ilog2()) + 1)
+        })
+        .collect()
+}
+
+/// The summed weight of the task identifiers one file holds.
+fn weigh(matched: Option<&BTreeSet<String>>, weights: &BTreeMap<&str, u64>) -> u64 {
+    matched.map_or(0, |matched| {
+        matched
+            .iter()
+            .filter_map(|name| weights.get(name.as_str()))
+            .fold(0, |total, weight| total.saturating_add(*weight))
+    })
+}
+
+/// The one tracked file a dotted module name denotes, if exactly one does.
+///
+/// The name is read as a path suffix with the file extension removed, so
+/// `ascii.rst` denotes `astropy/io/ascii/rst.py`. A name that is also a
+/// directory denotes a package, whose files are many, and a name several paths
+/// end in denotes none of them. The directory rule is what keeps `io.registry`
+/// from resolving to `docs/io/registry.rst` while `astropy/io/registry` exists.
+fn resolve_module_path<'a>(token: &str, tracked_paths: &'a BTreeSet<String>) -> Option<&'a str> {
+    if !token.contains('.') || token.contains('/') || tracked_paths.contains(token) {
+        return None;
+    }
+    let suffix = token.replace('.', "/");
+    let directory = format!("{suffix}/");
+    let nested_directory = format!("/{suffix}/");
+    let nested_file = format!("/{suffix}");
+    let mut found = None;
+    for path in tracked_paths {
+        if path.starts_with(&directory) || path.contains(&nested_directory) {
+            return None;
+        }
+        let stem = match path.rsplit_once('.') {
+            Some((stem, extension)) if !extension.contains('/') => stem,
+            _ => path.as_str(),
+        };
+        if stem == suffix || stem.ends_with(&nested_file) {
+            if found.is_some() {
+                return None;
+            }
+            found = Some(path.as_str());
+        }
+    }
+    found
 }
 
 /// Files carrying at least one admitted identifier, best first.
@@ -213,6 +326,7 @@ fn rank_by_evidence<'a>(
     declaration_matches: &'a BTreeMap<String, BTreeSet<String>>,
     identifier_matches: &'a BTreeMap<String, BTreeSet<String>>,
     admitted: &BTreeSet<&str>,
+    weights: &BTreeMap<&str, u64>,
     seen: &BTreeSet<&str>,
 ) -> Vec<RankedCandidate<'a>> {
     let mut ranked: Vec<RankedCandidate<'a>> = declaration_matches
@@ -240,22 +354,19 @@ fn rank_by_evidence<'a>(
                 },
                 declared,
                 mentioned,
+                score: weigh(declaration_matches.get(path), weights)
+                    .saturating_mul(DECLARATION_WEIGHT)
+                    .saturating_add(weigh(identifier_matches.get(path), weights)),
             })
         })
         .collect();
     ranked.sort_by(|left, right| {
-        evidence_score(right)
-            .cmp(&evidence_score(left))
+        right
+            .score
+            .cmp(&left.score)
             .then_with(|| left.path.cmp(right.path))
     });
     ranked
-}
-
-fn evidence_score(candidate: &RankedCandidate<'_>) -> u64 {
-    candidate
-        .declared
-        .saturating_mul(DECLARATION_WEIGHT)
-        .saturating_add(candidate.mentioned)
 }
 
 fn count_admitted(matched: &BTreeSet<String>, admitted: &BTreeSet<&str>) -> u64 {
@@ -514,6 +625,78 @@ mod tests {
         assert_eq!(nomination.files[0].reason_code, "task_identifier_declared");
         // One file is one candidate, however many grounds it answers on.
         assert_eq!(nomination.considered_files, 1);
+    }
+
+    #[test]
+    fn a_rare_declared_name_outranks_files_mentioning_common_ones() {
+        // `astropy-13398`: the file declaring `ITRS`, held by one file, ranked
+        // eighteenth behind files mentioning names held by twenty or thirty.
+        let common = [
+            "frame_transform_graph",
+            "matrix_utilities",
+            "rotation_matrix",
+            "matrix_transpose",
+        ];
+        let mut identifiers = vec!["ITRS".to_owned()];
+        identifiers.extend(common.iter().map(|name| (*name).to_owned()));
+        let mentioning: Vec<String> = (0..30)
+            .map(|index| format!("frames/f{index:02}.py"))
+            .collect();
+        let mut tracked: BTreeSet<String> = mentioning.iter().cloned().collect();
+        tracked.extend((30..40).map(|index| format!("frames/f{index:02}.py")));
+        tracked.insert("frames/itrs.py".to_owned());
+        let mentions: BTreeMap<String, BTreeSet<String>> = mentioning
+            .iter()
+            .map(|path| (path.clone(), set(&common)))
+            .collect();
+        let nomination = nominate_files(
+            &[],
+            &identifiers,
+            &tracked,
+            &matches(&[("frames/itrs.py", &["ITRS"])]),
+            &mentions,
+        );
+        assert_eq!(nomination.files[0].display_path, "frames/itrs.py");
+        assert_eq!(nomination.files[0].reason_code, "task_identifier_declared");
+    }
+
+    #[test]
+    fn a_dotted_module_name_nominates_the_file_it_denotes() {
+        // `astropy-14182` writes `format="ascii.rst"`: a module, not a path.
+        let nomination = nominate_files(
+            &["ascii.rst".to_owned()],
+            &[],
+            &set(&["astropy/io/ascii/rst.py", "astropy/io/ascii/core.py"]),
+            &none(),
+            &none(),
+        );
+        assert_eq!(nomination.files.len(), 1);
+        assert_eq!(nomination.files[0].display_path, "astropy/io/ascii/rst.py");
+        assert_eq!(nomination.files[0].reason_code, "task_module_path");
+    }
+
+    #[test]
+    fn a_dotted_name_for_a_package_or_several_files_nominates_none() {
+        // `io.registry` is the package `astropy/io/registry`, not the page
+        // `docs/io/registry.rst`, and `x.util` ends two paths and names neither.
+        let nomination = nominate_files(
+            &["io.registry".to_owned(), "x.util".to_owned()],
+            &[],
+            &set(&[
+                "astropy/io/registry/core.py",
+                "docs/io/registry.rst",
+                "a/x/util.py",
+                "b/x/util.py",
+            ]),
+            &none(),
+            &none(),
+        );
+        assert!(nomination.files.is_empty());
+        assert!(
+            nomination
+                .unknowns
+                .contains(&"no_candidate_file_nominated".to_owned())
+        );
     }
 
     #[test]
