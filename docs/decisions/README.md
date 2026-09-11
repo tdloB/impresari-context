@@ -150,6 +150,7 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0147](0147-count-a-target-file-in-map-recall.md) | Count a file a relationship points into in map recall, attribute it separately, and govern the recall report schema | Accepted |
 | [ADR-0148](0148-search-nominated-files-first-for-packet-evidence.md) | Search the files a task nominated before the whole snapshot, so packet evidence is about the task | Accepted |
 | [ADR-0149](0149-weight-nomination-by-identifier-rarity.md) | Weight nomination by how rare each task identifier is, and nominate the file a dotted module name denotes | Accepted |
+| [ADR-0150](0150-upgrade-tree-sitter-as-a-recorded-provenance-change.md) | Upgrade Tree-sitter to 0.27.0 as a recorded provenance change, and close automated pin bumps in favour of such upgrades | Accepted |
 | [ADR-0151](0151-select-structural-context-by-what-it-is.md) | Select structural context by what a relationship is, not by identity, so the map does not move with the checkout directory or the parser label | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
