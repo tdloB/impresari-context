@@ -1035,6 +1035,14 @@ impl McpServer {
                     .collect()
             },
         )?;
+        // An agent reads a map item as its path, target, relationship, label and
+        // confidence, and several edges often read identically: every
+        // unresolved reference from one seed carries that seed's own name, and
+        // a name called five times yields five calls to one target. On the
+        // twenty-two-task astropy corpus 44% of items repeated another item's
+        // visible content. The first occurrence is kept, where traversal order
+        // placed it, and the map says the rest were collapsed.
+        let repeats_collapsed = collapse_repeated_items(&mut items);
         let ceiling = progressive_ceiling(&budget)?;
         // A map larger than the session's item ceiling used to be discarded
         // whole: the traversal ran, the items were built, and the consumer got
@@ -1116,6 +1124,11 @@ impl McpServer {
         let mut omissions = omissions;
         if item_ceiling_reached {
             omissions.push("progressive_item_ceiling_reached".to_owned());
+            omissions.sort();
+            omissions.dedup();
+        }
+        if repeats_collapsed {
+            omissions.push("repeated_relationships_collapsed".to_owned());
             omissions.sort();
             omissions.dedup();
         }
@@ -1540,6 +1553,28 @@ fn truncate_to_item_ceiling<T>(items: &mut Vec<T>, ceiling: u64) -> bool {
         items.truncate(ceiling);
     }
     reached
+}
+
+/// Drop map items whose visible content repeats an earlier item's.
+///
+/// Returns whether any were dropped. The first occurrence is kept with its
+/// handles, so every relationship a consumer can see remains resolvable.
+fn collapse_repeated_items(items: &mut Vec<StoredDisclosureItem>) -> bool {
+    let before = items.len();
+    let mut seen = std::collections::BTreeSet::new();
+    items.retain(|item| {
+        let public = &item.public;
+        seen.insert((
+            public.display_path.clone(),
+            public.target_display_path.clone(),
+            public.relationship_class.clone(),
+            public.symbol_label.clone(),
+            public.confidence.clone(),
+            public.freshness.clone(),
+            public.unknowns.clone(),
+        ))
+    });
+    items.len() != before
 }
 
 fn progressive_ceiling(budget: &ResourceBudget) -> Result<DisclosureConsumption, &'static str> {
@@ -2732,6 +2767,63 @@ mod tests {
         )
         .expect("item")
         .public
+    }
+
+    #[test]
+    fn a_relationship_that_reads_the_same_is_delivered_once() {
+        // Three edges read "caller.rs - Defined (references, heuristic)" and
+        // differ only in where they occur; a fourth is unresolved and reads
+        // differently. The first of the three, and the fourth, are delivered.
+        let mut query = cross_file_query(true);
+        let template = query.result.edges[0].clone();
+        let at = |index: u8, start_byte: u64, resolved: bool| {
+            let mut edge = template.clone();
+            edge.edge_id = format!("sha256:{index:0>64}");
+            edge.span = context_structural::GraphSpan {
+                start_byte,
+                end_byte: start_byte + 1,
+            };
+            if !resolved {
+                edge.target_node = None;
+                edge.resolution = "unresolved".into();
+            }
+            edge
+        };
+        query.result.edges = vec![
+            at(1, 0, true),
+            at(2, 10, true),
+            at(3, 20, false),
+            at(4, 30, true),
+        ];
+        let budget = ResourceBudget::conservative(4096, 20, 100, 256, 100, 8, 30_000, 1_048_576)
+            .expect("budget");
+        let mut items = query
+            .result
+            .edges
+            .iter()
+            .map(|edge| {
+                disclosure_item(
+                    &query,
+                    &format!("sha256:{:0>64}", "1"),
+                    &format!("sha256:{:0>64}", "2"),
+                    &format!("sha256:{:0>64}", "3"),
+                    "allow",
+                    &budget,
+                    edge,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .expect("items");
+        assert!(collapse_repeated_items(&mut items));
+        let kept: Vec<String> = items.iter().map(|item| item.edge_id.clone()).collect();
+        assert_eq!(
+            kept,
+            vec![format!("sha256:{:0>64}", 1), format!("sha256:{:0>64}", 3)]
+        );
+        assert!(
+            !collapse_repeated_items(&mut items),
+            "a map with no repeats is left alone"
+        );
     }
 
     #[test]
