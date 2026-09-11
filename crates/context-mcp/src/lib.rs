@@ -2719,6 +2719,7 @@ mod tests {
             },
             name: Some(name.into()),
             span: None,
+            declaration_kind: Some("function".into()),
             confidence: "confirmed".into(),
             provenance: provenance.clone(),
         };

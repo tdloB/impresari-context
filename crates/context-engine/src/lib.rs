@@ -37,7 +37,8 @@ use context_structural::{
     FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
     RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
     WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
-    query_graph, repository_map, validate_graph, validate_worker_success, worker_cache_identity,
+    query_graph, repository_map, seed_family, validate_graph, validate_worker_success,
+    worker_cache_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -2386,13 +2387,15 @@ impl LocalEngine {
     ///
     /// One anchor cannot describe a task whose answer spans a subclass and the
     /// parent it inherits from, so each seed contributes a traversal and the
-    /// results are merged deterministically.
+    /// results are merged deterministically. With `deliver_family`, each seed's
+    /// family follows every seed's traversal.
     fn seeded_structural_query(
         &mut self,
         context: &RequestContext,
         structural_request: &StructuralSeedRequest,
         query: &str,
         budget: &ResourceBudget,
+        deliver_family: bool,
     ) -> Result<
         (
             Option<StructuralPlannerQuery>,
@@ -2428,6 +2431,28 @@ impl LocalEngine {
                 &structural_request.edge_kinds,
                 &seed_budget,
             )?);
+        }
+        // Families come after every seed's own traversal, so they only add to
+        // what the map delivered before, and a ceiling that cuts the map cuts
+        // family first.
+        if deliver_family {
+            for seed in &selection.seeds {
+                let family = seed_family(
+                    &structural_request.graph,
+                    &seed.node_id,
+                    &structural_request.edge_kinds,
+                    MAX_SEED_FAMILY_EDGES,
+                )
+                .map_err(|error| {
+                    structural_query_failure(
+                        context,
+                        error,
+                        self.workspace.identity(),
+                        &structural_request.graph.workspace_snapshot,
+                    )
+                })?;
+                traversals.push(bound_structural_query_output(family));
+            }
         }
         let mut traversal = merge_structural_traversals(traversals).ok_or_else(|| {
             core_error(
@@ -2491,7 +2516,16 @@ impl LocalEngine {
         validate_graph(&structural_request.graph).map_err(|error| {
             structural_query_failure(context, error, self.workspace.identity(), &snapshot_id)
         })?;
-        let selected = self.seeded_structural_query(context, structural_request, query, &budget)?;
+        // A family is delivered where relationships are listed by name. A packet
+        // recovers every edge's exact source, and sixty-four members would be
+        // sixty-four excerpts.
+        let selected = self.seeded_structural_query(
+            context,
+            structural_request,
+            query,
+            &budget,
+            !recover_structural_evidence,
+        )?;
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
         let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
@@ -4853,6 +4887,13 @@ const MAX_STRUCTURAL_QUERY_OUTPUT_BYTES: usize = 1_048_576;
 /// objective.
 const MAX_SEED_TRAVERSAL_MATCHES: u64 = 16;
 
+/// Edges one seed's family may add to a map; see
+/// [`context_structural::seed_family`].
+///
+/// Sized to list a large class whole: on the astropy corpus `Card` has 39
+/// function and type members and `Table` 44.
+const MAX_SEED_FAMILY_EDGES: u32 = 64;
+
 /// Depth one seed's traversal may reach.
 ///
 /// Measured at 2, this changed no task's recall at all — the cross-file edges a
@@ -7081,6 +7122,7 @@ mod tests {
                 path,
                 name: None,
                 span: None,
+                declaration_kind: None,
                 confidence: "confirmed".into(),
                 provenance: provenance.clone(),
             }],
@@ -7995,6 +8037,7 @@ mod tests {
         // changing either must show up in this test's diff.
         assert_eq!(MAX_SEED_TRAVERSAL_MATCHES, 16);
         assert_eq!(MAX_SEED_TRAVERSAL_DEPTH, "1");
+        assert_eq!(MAX_SEED_FAMILY_EDGES, 64);
 
         let budget = ResourceBudget {
             max_traversal_depth: "64".into(),
@@ -8004,6 +8047,111 @@ mod tests {
         let narrowed = narrow_structural_seed_budget(&budget).expect("narrowed");
         assert_eq!(narrowed.max_traversal_depth, "1");
         assert_eq!(narrowed.max_matches, "16");
+    }
+
+    /// An engine over one `reader.py` whose `TableReader` class declares
+    /// `load_table` and `close_reader`, with the graph the parser makes of it.
+    /// The roots are returned so that they outlive the engine.
+    fn table_reader_engine() -> (TestRoot, TestRoot, LocalEngine, StructuralGraph) {
+        let text = b"class TableReader:\n    def load_table(self):\n        return 1\n\n    def close_reader(self):\n        return 2\n";
+        let source = TestRoot::new("seed-family-source");
+        let cache = TestRoot::new("seed-family-cache");
+        fs::write(source.0.join("reader.py"), text).expect("reader source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 2_048, 2_048, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let snapshot = engine.snapshot.as_ref().expect("snapshot");
+        let artifact = &snapshot.artifacts[0];
+        let path = WorkerPath {
+            display_path: artifact.path.display_path.clone(),
+            platform_family: artifact.path.platform_family.into(),
+            unit_encoding: artifact.path.unit_encoding.into(),
+            relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+        };
+        let worker_request = WorkerRequest {
+            schema_name: "structural-worker-request".into(),
+            schema_version: PROTOCOL_VERSION.into(),
+            request_id: "req_seed_family".into(),
+            language: StructuralLanguage::Python,
+            path: path.clone(),
+            content_hash: contract_sha256(text),
+            source_base64url: URL_SAFE_NO_PAD.encode(text),
+            fact_classes: vec![
+                FactClass::Declaration,
+                FactClass::Contains,
+                FactClass::Call,
+                FactClass::Reference,
+            ],
+            max_facts: 1_000,
+            max_nesting_depth: 16,
+            max_response_bytes: 1_048_576,
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: grammar_version(StructuralLanguage::Python).into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let response = context_structural::process_request(&worker_request).expect("parse");
+        let input = GraphFileInput { path, response };
+        let graph =
+            context_structural::build_graph(&snapshot.snapshot_id, vec![input]).expect("graph");
+        engine.cache = Some(
+            WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
+        );
+        (source, cache, engine, graph)
+    }
+
+    #[test]
+    fn a_map_names_a_seeded_methods_class_and_a_packet_does_not() {
+        // A packet recovers every edge's exact source; a map lists
+        // relationships by name, so only a map carries a seed's family. The
+        // task names no file, so the file is not a seed that declares the class
+        // anyway.
+        let (_source, _cache, mut engine, graph) = table_reader_engine();
+        let seed_request = StructuralSeedRequest {
+            nominated_order: Vec::new(),
+            admitted_identifiers: Vec::new(),
+            graph,
+            edge_kinds: Vec::new(),
+        };
+        let query = "Fix load_table";
+        let names_class = |built: &ProfiledContextPacket| {
+            let result = &built.plan.structural_query.as_ref().expect("query").result;
+            result.edges.iter().any(|edge| {
+                edge.kind == "declares"
+                    && result.nodes.iter().any(|node| {
+                        edge.target_node.as_ref() == Some(&node.node_id)
+                            && node.name.as_deref() == Some("TableReader")
+                    })
+            })
+        };
+        let packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(3, "seed_family_packet"),
+                TaskProfile::BugInvestigation,
+                query,
+                &seed_request,
+                budget(),
+            )
+            .expect("packet");
+        assert!(!names_class(&packet), "a packet carries no family");
+        let map = engine
+            .build_profiled_seeded_progressive_context(
+                &request(4, "seed_family_map"),
+                TaskProfile::BugInvestigation,
+                query,
+                &seed_request,
+                budget(),
+            )
+            .expect("map");
+        assert!(names_class(&map), "a map names the seeded method's class");
     }
 
     #[test]

@@ -199,6 +199,7 @@
     {"fixture": "invalid/extension-decision-authority.json", "schema": "extension-contract.schema.json#/$defs/decision", "valid": false},
     {"fixture": "invalid/repository-map-guessed-package.json", "schema": "repository-map.schema.json", "valid": false},
     {"fixture": "invalid/structural-query-unknown-field.json", "schema": "structural-query.schema.json", "valid": false},
+    {"fixture": "invalid/structural-graph-unknown-declaration-kind.json", "schema": "structural-graph.schema.json", "valid": false},
     {"fixture": "invalid/guided-delivery-intent-unknown-field.json", "schema": "guided-delivery.schema.json", "valid": false},
     {"fixture": "invalid/guided-delivery-result-authority.json", "schema": "guided-delivery.schema.json#/$defs/result", "valid": false},
     {"fixture": "invalid/codex-app-server-delivery-network.json", "schema": "codex-app-server-delivery.schema.json", "valid": false},

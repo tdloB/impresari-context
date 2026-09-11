@@ -24,7 +24,11 @@ use tree_sitter::{Language, Node, Parser};
 /// would have yielded, and only the parser knows that.
 pub const PROTOCOL_VERSION: &str = "1.1.0";
 /// Graph contract version.
-pub const GRAPH_VERSION: &str = "1.0.0";
+///
+/// `1.1.0` adds `declaration_kind` to symbol nodes. Following a class to its
+/// members means telling a method from a local variable, and only the parser
+/// knew which was which.
+pub const GRAPH_VERSION: &str = "1.1.0";
 /// Resolver version.
 pub const RESOLVER_VERSION: &str = "0.2.0";
 /// Parser identity recorded in every fact's provenance.
@@ -278,6 +282,10 @@ pub struct GraphNode {
     /// Optional source span for symbol nodes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span: Option<GraphSpan>,
+    /// What a symbol declares: `function`, `type`, `variable`, or `other`.
+    /// Absent on file nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declaration_kind: Option<String>,
     /// Extraction confidence.
     pub confidence: String,
     /// Resolver provenance.
@@ -633,6 +641,240 @@ pub fn query_graph(
     })
 }
 
+/// The declarations around a seed that a reader needs to see it whole.
+///
+/// A seed's traversal follows what the seed refers to, one hop out, within a
+/// small edge limit. That misses what surrounds the seed: the class a seeded
+/// method belongs to, the rest of a seeded class's methods, the functions
+/// nested in them, and the methods a seeded class inherits. On the astropy
+/// corpus, eight of the nineteen reference symbols the map missed sat exactly
+/// there. The family is, in order:
+///
+/// 1. the declaration enclosing the seed, by the edge that declares it, so the
+///    enclosing name is shown;
+/// 2. for a type, its function and type members, in source order;
+/// 3. the functions and types nested one level inside the seed, if it is a
+///    function, or inside those members;
+/// 4. for a type, the types its header refers to, which is where a base class
+///    is written, each followed by its function and type members.
+///
+/// Variables are never family: a method's locals are no part of a class's
+/// shape. Only relationships the graph already holds are returned, each once,
+/// in that order, until `max_edges`.
+///
+/// # Errors
+///
+/// As [`query_graph`].
+pub fn seed_family(
+    graph: &StructuralGraph,
+    seed: &str,
+    edge_kinds: &[String],
+    max_edges: u32,
+) -> Result<StructuralQueryResult, StructuralError> {
+    validate_graph_for_query(graph)?;
+    let allowed = edge_kinds
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if !valid_sha256(seed) || max_edges == 0 || allowed.iter().any(|kind| !valid_edge_kind(kind)) {
+        return Err(StructuralError::InvalidRequest);
+    }
+    let permits = |kind: &str| allowed.is_empty() || allowed.contains(kind);
+    let nodes_by_id = graph
+        .nodes
+        .iter()
+        .map(|node| (node.node_id.as_str(), node))
+        .collect::<BTreeMap<_, _>>();
+    let Some(seed_node) = nodes_by_id.get(seed) else {
+        return Err(StructuralError::InvalidRequest);
+    };
+    let family = family_edges(graph, seed_node, &nodes_by_id, permits("references"));
+    let limit = usize::try_from(max_edges).map_err(|_| StructuralError::ResourceLimit)?;
+    let mut delivered = BTreeSet::new();
+    let mut edges = Vec::new();
+    let mut truncated = false;
+    for edge in family {
+        if !permits(&edge.kind) || !delivered.insert(edge.edge_id.as_str()) {
+            continue;
+        }
+        if edges.len() >= limit {
+            truncated = true;
+            break;
+        }
+        edges.push(edge.clone());
+    }
+    let mut ids = BTreeSet::from([seed.to_owned()]);
+    for edge in &edges {
+        ids.insert(edge.source_node.clone());
+        ids.extend(edge.target_node.clone());
+    }
+    let nodes = ids
+        .iter()
+        .filter_map(|id| nodes_by_id.get(id.as_str()).map(|node| (*node).clone()))
+        .collect();
+    Ok(StructuralQueryResult {
+        schema_name: "structural-query-result".into(),
+        schema_version: GRAPH_VERSION.into(),
+        graph_id: graph.graph_id.clone(),
+        workspace_snapshot: graph.workspace_snapshot.clone(),
+        start_node: seed.into(),
+        nodes,
+        edges,
+        truncated,
+        unknowns: if truncated {
+            vec!["seed_family_limit_reached".into()]
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+/// Where a relationship's target starts and ends; an unresolved one sorts last.
+fn target_span(edge: &GraphEdge, nodes: &BTreeMap<&str, &GraphNode>) -> (u64, u64) {
+    edge.target_node
+        .as_deref()
+        .and_then(|id| nodes.get(id))
+        .and_then(|node| node.span.as_ref())
+        .map_or((u64::MAX, u64::MAX), |span| {
+            (span.start_byte, span.end_byte)
+        })
+}
+
+/// How declarations nest: what each node contains, in source order, what
+/// contains it, and the edge by which its file declares it.
+struct Containment<'g> {
+    children: BTreeMap<&'g str, Vec<&'g GraphEdge>>,
+    parent: BTreeMap<&'g str, &'g str>,
+    declaring: BTreeMap<&'g str, &'g GraphEdge>,
+}
+
+fn containment<'g>(
+    graph: &'g StructuralGraph,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+) -> Containment<'g> {
+    let mut index = Containment {
+        children: BTreeMap::new(),
+        parent: BTreeMap::new(),
+        declaring: BTreeMap::new(),
+    };
+    for edge in &graph.edges {
+        let Some(target) = edge.target_node.as_deref() else {
+            continue;
+        };
+        match edge.kind.as_str() {
+            "contains" => {
+                index
+                    .children
+                    .entry(edge.source_node.as_str())
+                    .or_default()
+                    .push(edge);
+                index.parent.insert(target, edge.source_node.as_str());
+            }
+            "declares" => {
+                index.declaring.insert(target, edge);
+            }
+            _ => {}
+        }
+    }
+    // Source order; identity breaks only an exact tie in span.
+    for edges in index.children.values_mut() {
+        edges.sort_by(|left, right| {
+            target_span(left, nodes)
+                .cmp(&target_span(right, nodes))
+                .then_with(|| left.edge_id.cmp(&right.edge_id))
+        });
+    }
+    index
+}
+
+/// A seed's family in delivery order, before edge kinds and the limit apply.
+fn family_edges<'g>(
+    graph: &'g StructuralGraph,
+    seed: &GraphNode,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+    follow_bases: bool,
+) -> Vec<&'g GraphEdge> {
+    let kind_of = |id: Option<&str>| {
+        id.and_then(|id| nodes.get(id))
+            .and_then(|node| node.declaration_kind.as_deref())
+    };
+    let Containment {
+        children,
+        parent,
+        declaring,
+    } = containment(graph, nodes);
+    let members = |id: &str| {
+        children
+            .get(id)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|edge| {
+                matches!(
+                    kind_of(edge.target_node.as_deref()),
+                    Some("function" | "type")
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let id = seed.node_id.as_str();
+    let kind = seed.declaration_kind.as_deref();
+    let mut family = Vec::new();
+    family.extend(
+        parent
+            .get(id)
+            .and_then(|enclosing| declaring.get(enclosing))
+            .copied(),
+    );
+    let own = if kind == Some("type") {
+        members(id)
+    } else {
+        Vec::new()
+    };
+    family.extend(own.iter().copied());
+    if kind == Some("function") {
+        family.extend(members(id));
+    }
+    for member in &own {
+        family.extend(
+            member
+                .target_node
+                .as_deref()
+                .map(&members)
+                .unwrap_or_default(),
+        );
+    }
+    if kind == Some("type") && follow_bases {
+        // A header precedes the body, so a reference that starts before the
+        // first thing the type contains is written in its header.
+        let body = children
+            .get(id)
+            .and_then(|edges| edges.first())
+            .map_or(u64::MAX, |edge| target_span(edge, nodes).0);
+        let mut bases = graph
+            .edges
+            .iter()
+            .filter(|edge| {
+                edge.source_node == id
+                    && edge.kind == "references"
+                    && edge.span.start_byte < body
+                    && kind_of(edge.target_node.as_deref()) == Some("type")
+            })
+            .collect::<Vec<_>>();
+        bases.sort_by_key(|edge| (edge.span.start_byte, edge.span.end_byte));
+        for base in bases {
+            family.push(base);
+            family.extend(
+                base.target_node
+                    .as_deref()
+                    .map(&members)
+                    .unwrap_or_default(),
+            );
+        }
+    }
+    family
+}
+
 /// How confidently a relationship resolved, most confident first.
 fn resolution_rank(resolution: &str) -> u8 {
     match resolution {
@@ -690,7 +932,13 @@ fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralErr
         || graph.schema_version != GRAPH_VERSION
         || !valid_sha256(&graph.graph_id)
         || !valid_sha256(&graph.workspace_snapshot)
-        || graph.nodes.iter().any(|node| !valid_sha256(&node.node_id))
+        || graph.nodes.iter().any(|node| {
+            !valid_sha256(&node.node_id)
+                || node
+                    .declaration_kind
+                    .as_deref()
+                    .is_some_and(|kind| !valid_declaration_kind(kind))
+        })
         || graph.edges.iter().any(|edge| {
             !valid_sha256(&edge.edge_id)
                 || !valid_sha256(&edge.source_node)
@@ -732,6 +980,68 @@ fn valid_edge_kind(kind: &str) -> bool {
         kind,
         "declares" | "contains" | "imports" | "exports" | "calls" | "references"
     )
+}
+
+/// What a declaration of this syntax kind declares, in terms that hold across
+/// languages: a `function` (methods and constructors included), a `type`
+/// (classes, structs, interfaces, traits, enums and the like), a `variable`
+/// (any name bound to a value, from a module constant to a function local), or
+/// `other` (namespaces, modules, and anything unlisted).
+fn declaration_kind(syntax_kind: &str) -> &'static str {
+    match syntax_kind {
+        "function_declaration"
+        | "function_definition"
+        | "function_item"
+        | "method_definition"
+        | "method_declaration"
+        | "constructor_declaration"
+        | "abstract_method_signature"
+        | "method"
+        | "singleton_method"
+        | "protocol_function_declaration"
+        | "function" => "function",
+        "class_declaration"
+        | "class_definition"
+        | "class_specifier"
+        | "class"
+        | "interface_declaration"
+        | "annotation_type_declaration"
+        | "enum_declaration"
+        | "enum_definition"
+        | "enum_item"
+        | "enum_specifier"
+        | "record_declaration"
+        | "struct_declaration"
+        | "struct_item"
+        | "struct_specifier"
+        | "union_item"
+        | "union_specifier"
+        | "trait_definition"
+        | "trait_item"
+        | "trait_declaration"
+        | "object_definition"
+        | "object_declaration"
+        | "protocol_declaration"
+        | "type_spec"
+        | "type_alias"
+        | "type_alias_declaration"
+        | "typealias_declaration"
+        | "type_definition"
+        | "alias_declaration"
+        | "delegate_declaration" => "type",
+        "assignment"
+        | "lexical_declaration"
+        | "variable_declaration"
+        | "pair"
+        | "block_mapping_pair"
+        | "flow_pair"
+        | "bind" => "variable",
+        _ => "other",
+    }
+}
+
+fn valid_declaration_kind(kind: &str) -> bool {
+    matches!(kind, "function" | "type" | "variable" | "other")
 }
 
 /// Builds one deterministic graph from fully validated worker results.
@@ -919,6 +1229,7 @@ fn add_file_node(
         path: file.path.clone(),
         name: None,
         span: None,
+        declaration_kind: None,
         confidence: "confirmed".into(),
         provenance,
     });
@@ -962,6 +1273,7 @@ fn add_declarations(
                 start_byte: fact.start_byte,
                 end_byte: fact.end_byte,
             }),
+            declaration_kind: Some(declaration_kind(&fact.syntax_kind).into()),
             confidence: fact.confidence.clone(),
             provenance: fact.provenance.clone(),
         });
@@ -4328,6 +4640,7 @@ export function outer() { a(); b(); c(); d(); const x = a; const y = b; missing(
                 start_byte,
                 end_byte: start_byte + 10,
             }),
+            declaration_kind: Some("function".into()),
             confidence: "confirmed".into(),
             provenance: provenance.clone(),
         };
@@ -4381,6 +4694,103 @@ export function outer() { a(); b(); c(); d(); const x = a; const y = b; missing(
         assert_eq!(
             kept.edges[0].target_node.as_deref(),
             Some(getter.node_id.as_str())
+        );
+    }
+
+    /// `Widget`, in one Python file, inherits `Base` and holds a class
+    /// attribute, a method with a local and a nested helper, and a second
+    /// method.
+    fn family_graph() -> StructuralGraph {
+        let source = b"class Base:\n    def inherited(self):\n        pass\n\n\nclass Widget(Base):\n    limit = 3\n\n    def first(self):\n        value = 1\n\n        def helper():\n            return value\n\n        return helper\n\n    def second(self):\n        pass\n";
+        let request = request(source, StructuralLanguage::Python);
+        let response = process_request(&request).expect("parse");
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    fn node_named(graph: &StructuralGraph, name: &str) -> String {
+        graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some(name))
+            .expect("named node")
+            .node_id
+            .clone()
+    }
+
+    fn target_names(graph: &StructuralGraph, result: &StructuralQueryResult) -> Vec<String> {
+        result
+            .edges
+            .iter()
+            .map(|edge| {
+                let target = edge.target_node.as_deref().expect("family edges resolve");
+                graph
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id == target)
+                    .and_then(|node| node.name.clone())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn declarations_record_what_they_declare() {
+        let graph = family_graph();
+        let kind = |name: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.name.as_deref() == Some(name))
+                .and_then(|node| node.declaration_kind.clone())
+        };
+        for (name, expected) in [
+            ("Widget", "type"),
+            ("first", "function"),
+            ("helper", "function"),
+            ("limit", "variable"),
+            ("value", "variable"),
+        ] {
+            assert_eq!(kind(name).as_deref(), Some(expected), "{name}");
+        }
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "file")
+                .all(|node| node.declaration_kind.is_none())
+        );
+    }
+
+    #[test]
+    fn a_seed_family_is_its_enclosing_class_members_nested_functions_and_bases() {
+        let graph = family_graph();
+        let family = |seed: &str, kinds: &[String], limit: u32| {
+            seed_family(&graph, &node_named(&graph, seed), kinds, limit).expect("family")
+        };
+        // A class: its methods in source order, what they nest, then its base
+        // and the base's methods. Never a variable.
+        assert_eq!(
+            target_names(&graph, &family("Widget", &[], 64)),
+            ["first", "second", "helper", "Base", "inherited"]
+        );
+        // A method: the class it belongs to, then what it nests.
+        assert_eq!(
+            target_names(&graph, &family("first", &[], 64)),
+            ["Widget", "helper"]
+        );
+        // The limit keeps a prefix and says so.
+        let capped = family("Widget", &[], 2);
+        assert_eq!(target_names(&graph, &capped), ["first", "second"]);
+        assert!(capped.truncated);
+        assert_eq!(capped.unknowns, ["seed_family_limit_reached"]);
+        // Requested kinds are honoured: without references there is no base.
+        assert_eq!(
+            target_names(&graph, &family("Widget", &["contains".to_owned()], 64)),
+            ["first", "second", "helper"]
         );
     }
 
