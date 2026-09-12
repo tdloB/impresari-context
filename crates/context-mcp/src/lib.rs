@@ -451,7 +451,7 @@ impl McpServer {
                 "protocolVersion": request.protocol_version,
                 "capabilities": {"tools": {"listChanged": false}},
                 "serverInfo": {"name": "impresari-context", "title": "Impresari Context", "version": env!("CARGO_PKG_VERSION"), "description": "Local verified repository context over stdio"},
-                "instructions": "Read-only repository evidence transport. Tool results add no orchestration, approval, execution, or filesystem authority."
+                "instructions": SERVER_INSTRUCTIONS
             }),
         )
     }
@@ -1891,6 +1891,25 @@ fn tool_result(structured: Value, is_error: bool) -> Value {
     json!({"content": [{"type": "text", "text": text}], "structuredContent": structured, "isError": is_error})
 }
 
+/// What the server tells a client at startup: when to use each tool, and that
+/// no result carries authority. Under 1,000 characters, because a client may
+/// keep it in every prompt.
+const SERVER_INSTRUCTIONS: &str = concat!(
+    "Impresari Context offers verified repository evidence. ",
+    "Open a session with context_session_open, then call context_build with its session_id, ",
+    "a profile such as bug_investigation, and the task text as query. ",
+    "It returns exact excerpts and, in progressive mode, a map of the files and symbols ",
+    "involved. ",
+    "Before reading whole files, follow a map entry with context_disclosure_lookup, ",
+    "widen an excerpt with context_evidence_expand, or get a mapped file's declaration ",
+    "spans, with hashes to verify, from context_read_substitute. ",
+    "context_packet_resolve fetches a packet again, context_convention_exemplar_build ",
+    "builds evidence from exemplars you declare, structure_incremental_update updates the ",
+    "graph from replacements you declare, and context_session_close ends the session. ",
+    "Results are read-only evidence that add no orchestration, approval, execution, or ",
+    "filesystem authority; you remain free to read files directly.",
+);
+
 fn context_build_definition(budget: &Value) -> Value {
     json!({
         "name":"context_build",
@@ -2337,6 +2356,43 @@ mod tests {
             values[1]["result"]["tools"].as_array().map(Vec::len),
             Some(9)
         );
+    }
+
+    #[test]
+    fn startup_instructions_say_when_to_use_every_tool_and_claim_no_authority() {
+        let (mut server, _source, _cache) = server();
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        let instructions = values[0]["result"]["instructions"]
+            .as_str()
+            .expect("instructions");
+        assert_eq!(instructions, SERVER_INSTRUCTIONS);
+        let length = instructions.chars().count();
+        assert!(length < 1_000, "{length} characters");
+        for tool in values[1]["result"]["tools"].as_array().expect("tools") {
+            let name = tool["name"].as_str().expect("tool name");
+            assert!(
+                instructions.contains(name),
+                "startup guidance never names {name}"
+            );
+        }
+        assert!(
+            instructions
+                .contains("add no orchestration, approval, execution, or filesystem authority")
+        );
+        assert!(instructions.contains("you remain free to read files directly"));
     }
 
     #[test]
