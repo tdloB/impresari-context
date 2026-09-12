@@ -59,6 +59,11 @@ pub const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
 /// consumers that must honour it cannot drift apart silently.
 pub const STRUCTURAL_RESOURCE_LIMIT_UNKNOWN: &str = "structural_resource_limit_reached";
 
+/// Recorded when a traversal looked through a function's local variables and
+/// so did not list a relationship to a local itself, or an unresolved one made
+/// in it. A traversal that visits locals returns them.
+pub const LOCAL_VARIABLES_LOOKED_THROUGH: &str = "local_variables_looked_through";
+
 /// Response warning meaning the byte ceiling truncated the fact list.
 ///
 /// A response already at that ceiling cannot carry more facts however large a
@@ -529,10 +534,115 @@ fn is_package_manifest(path: &str) -> bool {
     )
 }
 
+/// How a traversal treats a function's local variables.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalVariables {
+    /// As declarations in their own right: a function contains and refers to
+    /// its locals, and a call made in an assignment belongs to the local.
+    Visit,
+    /// As part of the function they belong to. A function's locals are not
+    /// delivered, and a resolved call or reference made in one of its
+    /// assignments is the function's own. An unresolved one is dropped, since
+    /// all it could show is the local's name.
+    LookThrough,
+}
+
+impl LocalVariables {
+    /// The function locals this treatment looks through: every one of them,
+    /// or none when locals are visited.
+    #[must_use]
+    pub fn looked_through(self, graph: &StructuralGraph) -> BTreeMap<&str, &str> {
+        match self {
+            Self::Visit => BTreeMap::new(),
+            Self::LookThrough => function_locals(graph),
+        }
+    }
+}
+
+/// Each function-local variable in the graph, with the function it belongs to.
+///
+/// A variable is function-local when the nearest declaration enclosing it that
+/// is not itself a variable is a function. Class attributes and module-level
+/// names are not: they are part of a type's or a module's shape.
+#[must_use]
+pub fn function_locals(graph: &StructuralGraph) -> BTreeMap<&str, &str> {
+    let kinds = graph
+        .nodes
+        .iter()
+        .map(|node| (node.node_id.as_str(), node.declaration_kind.as_deref()))
+        .collect::<BTreeMap<_, _>>();
+    let mut parent = BTreeMap::new();
+    for edge in &graph.edges {
+        if edge.kind == "contains"
+            && let Some(target) = edge.target_node.as_deref()
+        {
+            parent.insert(target, edge.source_node.as_str());
+        }
+    }
+    let kind = |id: &str| kinds.get(id).copied().flatten();
+    let mut locals = BTreeMap::new();
+    for &id in kinds.keys() {
+        if kind(id) != Some("variable") {
+            continue;
+        }
+        // Climb past enclosing variables. Containment nests, so the climb
+        // ends; the bound only guards a malformed graph.
+        let mut owner = parent.get(id).copied();
+        for _ in 0..kinds.len() {
+            match owner {
+                Some(candidate) if kind(candidate) == Some("variable") => {
+                    owner = parent.get(candidate).copied();
+                }
+                _ => break,
+            }
+        }
+        if let Some(owner) = owner.filter(|owner| kind(owner) == Some("function")) {
+            locals.insert(id, owner);
+        }
+    }
+    locals
+}
+
+/// Each node's outgoing edges in traversal order, reading `locals` as part of
+/// the functions they belong to, and the nodes for which that withheld
+/// something: a relationship to one of their locals, or an unresolved one made
+/// in it.
+fn traversal_outgoing<'g>(
+    graph: &'g StructuralGraph,
+    allowed: &BTreeSet<&str>,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+    locals: &BTreeMap<&'g str, &'g str>,
+) -> (BTreeMap<&'g str, Vec<&'g GraphEdge>>, BTreeSet<&'g str>) {
+    let mut outgoing: BTreeMap<&'g str, Vec<&'g GraphEdge>> = BTreeMap::new();
+    let mut withheld = BTreeSet::new();
+    for edge in &graph.edges {
+        if !(allowed.is_empty() || allowed.contains(edge.kind.as_str())) {
+            continue;
+        }
+        let owner = locals.get(edge.source_node.as_str()).copied();
+        let source = owner.unwrap_or(edge.source_node.as_str());
+        let target = edge.target_node.as_deref();
+        // A resolved relationship a local makes is its function's own. One to a
+        // local itself, or an unresolved one a local makes, is left out.
+        let into_local = target.is_some_and(|target| locals.contains_key(target));
+        let unresolved_in_local = owner.is_some() && target.is_none();
+        if into_local || unresolved_in_local {
+            withheld.insert(source);
+            continue;
+        }
+        outgoing.entry(source).or_default().push(edge);
+    }
+    for edges in outgoing.values_mut() {
+        edges.sort_by(|left, right| traversal_order(left, right, nodes));
+    }
+    (outgoing, withheld)
+}
+
 /// Traverses resolved outbound graph relationships within hard node, edge, and depth limits.
 ///
 /// Empty `edge_kinds` permits every relationship kind. Unresolved relationships are
-/// reported as unknowns but never invented as graph targets.
+/// reported as unknowns but never invented as graph targets. Local variables are
+/// visited; see [`query_graph_with`].
 ///
 /// # Errors
 ///
@@ -545,6 +655,31 @@ pub fn query_graph(
     max_depth: u32,
     max_nodes: u32,
     max_edges: u32,
+) -> Result<StructuralQueryResult, StructuralError> {
+    query_graph_with(
+        graph,
+        start_node,
+        edge_kinds,
+        max_depth,
+        max_nodes,
+        max_edges,
+        LocalVariables::Visit,
+    )
+}
+
+/// Traverses like [`query_graph`], treating local variables as `locals` says.
+///
+/// # Errors
+///
+/// As [`query_graph`].
+pub fn query_graph_with(
+    graph: &StructuralGraph,
+    start_node: &str,
+    edge_kinds: &[String],
+    max_depth: u32,
+    max_nodes: u32,
+    max_edges: u32,
+    locals: LocalVariables,
 ) -> Result<StructuralQueryResult, StructuralError> {
     validate_graph_for_query(graph)?;
     if !valid_sha256(start_node) || max_nodes == 0 || max_edges == 0 {
@@ -565,18 +700,8 @@ pub fn query_graph(
     if !nodes_by_id.contains_key(start_node) {
         return Err(StructuralError::InvalidRequest);
     }
-    let mut outgoing: BTreeMap<&str, Vec<&GraphEdge>> = BTreeMap::new();
-    for edge in &graph.edges {
-        if allowed.is_empty() || allowed.contains(edge.kind.as_str()) {
-            outgoing
-                .entry(edge.source_node.as_str())
-                .or_default()
-                .push(edge);
-        }
-    }
-    for edges in outgoing.values_mut() {
-        edges.sort_by(|left, right| traversal_order(left, right, &nodes_by_id));
-    }
+    let locals = locals.looked_through(graph);
+    let (outgoing, withheld) = traversal_outgoing(graph, &allowed, &nodes_by_id, &locals);
 
     let mut queue = VecDeque::from([(start_node.to_owned(), 0_u32)]);
     let mut visited = BTreeSet::from([start_node.to_owned()]);
@@ -585,6 +710,9 @@ pub fn query_graph(
     let mut unknowns = Vec::new();
     let mut truncated = false;
     while let Some((node_id, depth)) = queue.pop_front() {
+        if depth < max_depth && withheld.contains(node_id.as_str()) {
+            unknowns.push(LOCAL_VARIABLES_LOOKED_THROUGH.into());
+        }
         let Some(edges) = outgoing.get(node_id.as_str()) else {
             continue;
         };
@@ -624,6 +752,15 @@ pub fn query_graph(
                 queue.push_back((target.to_owned(), depth.saturating_add(1)));
             }
             selected_edges.push((*edge).clone());
+        }
+    }
+    // A looked-through edge leaves one of the function's locals, which the
+    // traversal never visited. The result still holds it, so the edge resolves.
+    for edge in &selected_edges {
+        if visited.insert(edge.source_node.clone())
+            && let Some(node) = nodes_by_id.get(edge.source_node.as_str())
+        {
+            selected_nodes.push((*node).clone());
         }
     }
     unknowns.sort();
@@ -4694,6 +4831,104 @@ export function outer() { a(); b(); c(); d(); const x = a; const y = b; missing(
         assert_eq!(
             kept.edges[0].target_node.as_deref(),
             Some(getter.node_id.as_str())
+        );
+    }
+
+    /// `compute` assigns calls to `helper` and to an undeclared `missing` to a
+    /// local and returns it; `Holder` assigns a call to `helper` to a class
+    /// attribute.
+    fn locals_graph() -> StructuralGraph {
+        let source = b"def helper():\n    return 1\n\n\ndef compute():\n    total = helper() + missing()\n    return total\n\n\nclass Holder:\n    size = helper()\n";
+        let request = request(source, StructuralLanguage::Python);
+        let response = process_request(&request).expect("parse");
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    #[test]
+    fn a_traversal_can_look_through_a_functions_locals() {
+        let graph = locals_graph();
+        let name = |id: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.node_id == id)
+                .and_then(|node| node.name.clone())
+                .unwrap_or_default()
+        };
+        // `total` belongs to `compute`; the class attribute `size` to no function.
+        let locals = function_locals(&graph)
+            .into_iter()
+            .map(|(local, owner)| (name(local), name(owner)))
+            .collect::<Vec<_>>();
+        assert_eq!(locals, [("total".to_owned(), "compute".to_owned())]);
+        let traverse = |locals: LocalVariables| {
+            let compute = node_named(&graph, "compute");
+            query_graph_with(&graph, &compute, &[], 1, 100, 100, locals).expect("traversal")
+        };
+        let read = |result: &StructuralQueryResult| {
+            result
+                .edges
+                .iter()
+                .map(|edge| (edge.kind.clone(), edge.target_node.as_deref().map(name)))
+                .collect::<Vec<_>>()
+        };
+        // Visited, the calls belong to the local, and the function only
+        // contains and returns it.
+        let visiting = traverse(LocalVariables::Visit);
+        let visited = read(&visiting);
+        assert!(visited.contains(&("contains".to_owned(), Some("total".to_owned()))));
+        assert!(
+            !visiting
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
+        );
+        assert!(
+            !visited
+                .iter()
+                .any(|(_, target)| target.as_deref() == Some("helper"))
+        );
+        // Looked through, what the local resolved to is the function's own, the
+        // local is not delivered, and the unresolved call it made is dropped.
+        let through = traverse(LocalVariables::LookThrough);
+        let looked = read(&through);
+        assert!(looked.contains(&("calls".to_owned(), Some("helper".to_owned()))));
+        assert!(
+            looked
+                .iter()
+                .all(|(_, target)| target.as_deref() == Some("helper"))
+        );
+        assert!(through.edges.iter().all(|edge| {
+            through
+                .nodes
+                .iter()
+                .any(|node| node.node_id == edge.source_node)
+        }));
+        // What looking through left out is recorded, and only where it left
+        // something out: `helper` has no locals.
+        assert!(
+            through
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
+        );
+        let helper = node_named(&graph, "helper");
+        let plain = query_graph_with(
+            &graph,
+            &helper,
+            &[],
+            1,
+            100,
+            100,
+            LocalVariables::LookThrough,
+        )
+        .expect("traversal");
+        assert!(
+            !plain
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
         );
     }
 

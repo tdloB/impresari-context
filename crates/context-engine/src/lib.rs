@@ -34,11 +34,11 @@ use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
 };
 use context_structural::{
-    FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
-    RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
-    WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
-    query_graph, repository_map, seed_family, validate_graph, validate_worker_success,
-    worker_cache_identity,
+    FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, LocalVariables, PROTOCOL_VERSION,
+    RESOLVER_VERSION, RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage,
+    StructuralQueryResult, WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess,
+    build_graph_with_unknowns, query_graph_with, repository_map, seed_family, validate_graph,
+    validate_worker_success, worker_cache_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -1985,10 +1985,30 @@ impl LocalEngine {
         edge_kinds: &[String],
         budget: &ResourceBudget,
     ) -> Result<StructuralQueryResult, EngineError> {
+        self.query_structure_with(
+            context,
+            graph,
+            start_node,
+            edge_kinds,
+            budget,
+            LocalVariables::Visit,
+        )
+    }
+
+    fn query_structure_with(
+        &mut self,
+        context: &RequestContext,
+        graph: &StructuralGraph,
+        start_node: &str,
+        edge_kinds: &[String],
+        budget: &ResourceBudget,
+        locals: LocalVariables,
+    ) -> Result<StructuralQueryResult, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureQuery, Some(budget.clone()))?;
         let budget = admitted_budget(context, Capability::StructureQuery, &decision, self.ids())?;
-        let result = self.query_structure_internal(context, graph, start_node, edge_kinds, &budget);
+        let result =
+            self.query_structure_internal(context, graph, start_node, edge_kinds, &budget, locals);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, |value| {
             if value.truncated {
                 AuditOutcome::Limited
@@ -2013,6 +2033,7 @@ impl LocalEngine {
         start_node: &str,
         edge_kinds: &[String],
         budget: &ResourceBudget,
+        locals: LocalVariables,
     ) -> Result<StructuralQueryResult, EngineError> {
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
@@ -2066,15 +2087,17 @@ impl LocalEngine {
                 None,
             )
         })?;
-        let result = query_graph(graph, start_node, edge_kinds, max_depth, maximum, maximum)
-            .map_err(|error| {
-                structural_query_failure(
-                    context,
-                    error,
-                    self.workspace.identity(),
-                    &snapshot.snapshot_id,
-                )
-            })?;
+        let result = query_graph_with(
+            graph, start_node, edge_kinds, max_depth, maximum, maximum, locals,
+        )
+        .map_err(|error| {
+            structural_query_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &snapshot.snapshot_id,
+            )
+        })?;
         // A malformed budget is still rejected: the caller's `requested` must
         // parse. It no longer *bounds* this result — it is the consumer's
         // delivery ceiling, and this value is an intermediate one — but a
@@ -2387,15 +2410,16 @@ impl LocalEngine {
     ///
     /// One anchor cannot describe a task whose answer spans a subclass and the
     /// parent it inherits from, so each seed contributes a traversal and the
-    /// results are merged deterministically. With `deliver_family`, each seed's
-    /// family follows every seed's traversal.
+    /// results are merged deterministically. For a map, seeds and traversals
+    /// look through local variables, and each seed's family follows every
+    /// seed's traversal.
     fn seeded_structural_query(
         &mut self,
         context: &RequestContext,
         structural_request: &StructuralSeedRequest,
         query: &str,
         budget: &ResourceBudget,
-        deliver_family: bool,
+        delivery: StructuralDelivery,
     ) -> Result<
         (
             Option<StructuralPlannerQuery>,
@@ -2403,11 +2427,16 @@ impl LocalEngine {
         ),
         EngineError,
     > {
+        let locals = match delivery {
+            StructuralDelivery::Packet => LocalVariables::Visit,
+            StructuralDelivery::Map => LocalVariables::LookThrough,
+        };
         let selection = structural_seed_selection(
             &structural_request.graph,
             query,
             &structural_request.nominated_order,
             &structural_request.admitted_identifiers,
+            locals,
         )
         .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         let Some(primary) = selection.seeds.first() else {
@@ -2424,18 +2453,19 @@ impl LocalEngine {
         let mut traversals = Vec::with_capacity(selection.seeds.len());
         for (ordinal, seed) in selection.seeds.iter().enumerate() {
             let structure_context = derived_structure_query_context(context, ordinal);
-            traversals.push(self.query_structure(
+            traversals.push(self.query_structure_with(
                 &structure_context,
                 &structural_request.graph,
                 &seed.node_id,
                 &structural_request.edge_kinds,
                 &seed_budget,
+                locals,
             )?);
         }
         // Families come after every seed's own traversal, so they only add to
         // what the map delivered before, and a ceiling that cuts the map cuts
         // family first.
-        if deliver_family {
+        if delivery == StructuralDelivery::Map {
             for seed in &selection.seeds {
                 let family = seed_family(
                     &structural_request.graph,
@@ -2516,16 +2546,17 @@ impl LocalEngine {
         validate_graph(&structural_request.graph).map_err(|error| {
             structural_query_failure(context, error, self.workspace.identity(), &snapshot_id)
         })?;
-        // A family is delivered where relationships are listed by name. A packet
-        // recovers every edge's exact source, and sixty-four members would be
-        // sixty-four excerpts.
-        let selected = self.seeded_structural_query(
-            context,
-            structural_request,
-            query,
-            &budget,
-            !recover_structural_evidence,
-        )?;
+        // A map lists relationships by name, so it carries each seed's family
+        // and looks through local variables. A packet recovers every edge's
+        // exact source: sixty-four members would be sixty-four excerpts, and an
+        // assignment is exact source like any other.
+        let delivery = if recover_structural_evidence {
+            StructuralDelivery::Packet
+        } else {
+            StructuralDelivery::Map
+        };
+        let selected =
+            self.seeded_structural_query(context, structural_request, query, &budget, delivery)?;
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
         let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
@@ -5372,6 +5403,15 @@ impl SeedRank {
     }
 }
 
+/// How a seeded build delivers structure, which decides what it may select.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StructuralDelivery {
+    /// Every edge's exact source is recovered into the packet.
+    Packet,
+    /// Relationships are listed by name in a disclosure map.
+    Map,
+}
+
 /// One admitted seed and why it was admitted.
 #[derive(Clone, Debug, Eq, PartialEq)]
 struct StructuralSeed {
@@ -5443,11 +5483,15 @@ fn admit_seeds(candidates: Vec<(SeedRank, usize, String, u64, String)>) -> Vec<S
     admitted
 }
 
+/// Looking through local variables, a function's local is never a seed: a task
+/// word that happens to name one (`table`, `value`, `array`) anchors nothing a
+/// reader navigates.
 fn structural_seed_selection(
     graph: &StructuralGraph,
     query: &str,
     nominated_order: &[String],
     admitted_identifiers: &[String],
+    locals: LocalVariables,
 ) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
@@ -5483,10 +5527,12 @@ fn structural_seed_selection(
     let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = Vec::new();
     let mut ambiguous_observed = false;
 
+    let function_locals = locals.looked_through(graph);
     let is_named_symbol = |node: &GraphNode, identifier: &str| {
         node.kind == "symbol"
             && node.confidence == "confirmed"
             && node.name.as_deref() == Some(identifier)
+            && !function_locals.contains_key(node.node_id.as_str())
     };
 
     for task_path in &signals.paths {
@@ -7093,6 +7139,23 @@ fn contract_sha256(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    /// Seed selection as every build made it before local variables were looked
+    /// through.
+    fn select_seeds(
+        graph: &StructuralGraph,
+        query: &str,
+        nominated_order: &[String],
+        admitted_identifiers: &[String],
+    ) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
+        structural_seed_selection(
+            graph,
+            query,
+            nominated_order,
+            admitted_identifiers,
+            LocalVariables::Visit,
+        )
+    }
+
     use super::*;
 
     /// Build a query result whose serialized size exceeds any given ceiling.
@@ -7223,7 +7286,7 @@ mod tests {
             context_structural::build_graph(&contract_sha256(seed), vec![input]).expect("graph")
         };
         let admitted = |graph: &StructuralGraph| {
-            let selection = structural_seed_selection(
+            let selection = select_seeds(
                 graph,
                 "Target raises when called",
                 &[],
@@ -8050,13 +8113,126 @@ mod tests {
     }
 
     /// An engine over one `reader.py` whose `TableReader` class declares
-    /// `load_table` and `close_reader`, with the graph the parser makes of it.
-    /// The roots are returned so that they outlive the engine.
+    /// `load_table` and `close_reader`.
     fn table_reader_engine() -> (TestRoot, TestRoot, LocalEngine, StructuralGraph) {
-        let text = b"class TableReader:\n    def load_table(self):\n        return 1\n\n    def close_reader(self):\n        return 2\n";
-        let source = TestRoot::new("seed-family-source");
-        let cache = TestRoot::new("seed-family-cache");
-        fs::write(source.0.join("reader.py"), text).expect("reader source");
+        python_engine(
+            "seed-family",
+            "reader.py",
+            b"class TableReader:\n    def load_table(self):\n        return 1\n\n    def close_reader(self):\n        return 2\n",
+        )
+    }
+
+    /// `compute_rows` assigns a call to `helper_value` to its local `row_total`.
+    const ROWS: &[u8] = b"def helper_value():\n    return 1\n\n\ndef compute_rows():\n    row_total = helper_value()\n    return row_total\n";
+
+    #[test]
+    fn a_map_looks_through_a_seeds_locals_and_a_packet_does_not() {
+        let (_source, _cache, mut engine, graph) = python_engine("look-through", "rows.py", ROWS);
+        let seed_request = StructuralSeedRequest {
+            nominated_order: Vec::new(),
+            admitted_identifiers: Vec::new(),
+            graph,
+            edge_kinds: Vec::new(),
+        };
+        let targets = |built: &ProfiledContextPacket| {
+            let result = &built.plan.structural_query.as_ref().expect("query").result;
+            result
+                .edges
+                .iter()
+                .filter_map(|edge| {
+                    let target = edge.target_node.as_ref()?;
+                    result
+                        .nodes
+                        .iter()
+                        .find(|node| &node.node_id == target)?
+                        .name
+                        .clone()
+                })
+                .collect::<Vec<_>>()
+        };
+        let looked_through = |built: &ProfiledContextPacket| {
+            built
+                .plan
+                .structural_query
+                .as_ref()
+                .expect("query")
+                .result
+                .unknowns
+                .iter()
+                .any(|unknown| unknown == context_structural::LOCAL_VARIABLES_LOOKED_THROUGH)
+        };
+        let packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(3, "look_through_packet"),
+                TaskProfile::BugInvestigation,
+                "Fix compute_rows",
+                &seed_request,
+                budget(),
+            )
+            .expect("packet");
+        assert!(!looked_through(&packet), "a packet looks through nothing");
+        let packet = targets(&packet);
+        assert!(
+            packet.contains(&"row_total".to_owned()),
+            "a packet visits the local"
+        );
+        assert!(
+            !packet.contains(&"helper_value".to_owned()),
+            "whose call is its own"
+        );
+        let map = engine
+            .build_profiled_seeded_progressive_context(
+                &request(4, "look_through_map"),
+                TaskProfile::BugInvestigation,
+                "Fix compute_rows",
+                &seed_request,
+                budget(),
+            )
+            .expect("map");
+        assert!(looked_through(&map), "a map says what it looked through");
+        let map = targets(&map);
+        assert!(
+            map.contains(&"helper_value".to_owned()),
+            "a map credits the call to the function"
+        );
+        assert!(
+            !map.contains(&"row_total".to_owned()),
+            "and does not deliver the local"
+        );
+    }
+
+    #[test]
+    fn a_map_never_seeds_on_a_functions_local_variable() {
+        let (_source, _cache, _engine, graph) = python_engine("local-seed", "rows.py", ROWS);
+        let seeded = |locals| {
+            structural_seed_selection(&graph, "Fix row_total", &[], &[], locals)
+                .expect("selection")
+                .seeds
+                .into_iter()
+                .filter_map(|seed| {
+                    graph
+                        .nodes
+                        .iter()
+                        .find(|node| node.node_id == seed.node_id)?
+                        .name
+                        .clone()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(seeded(LocalVariables::Visit), ["row_total"]);
+        assert!(seeded(LocalVariables::LookThrough).is_empty());
+    }
+
+    /// An engine over one Python file, with the graph the parser makes of it.
+    /// The roots are returned so that they outlive the engine.
+    fn python_engine(
+        label: &str,
+        file: &str,
+        text: &[u8],
+    ) -> (TestRoot, TestRoot, LocalEngine, StructuralGraph) {
+        let source = TestRoot::new(&format!("{label}-source"));
+        let cache = TestRoot::new(&format!("{label}-cache"));
+        fs::write(source.0.join(file), text).expect("python source");
         let config = EngineConfig {
             cache_root: cache.0.clone(),
             discovery: DiscoveryPolicy::new(10, 2_048, 2_048, 8).expect("discovery"),
@@ -8079,7 +8255,7 @@ mod tests {
         let worker_request = WorkerRequest {
             schema_name: "structural-worker-request".into(),
             schema_version: PROTOCOL_VERSION.into(),
-            request_id: "req_seed_family".into(),
+            request_id: "req_python_fixture".into(),
             language: StructuralLanguage::Python,
             path: path.clone(),
             content_hash: contract_sha256(text),
@@ -8372,7 +8548,7 @@ mod tests {
             WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
         );
 
-        let exact = structural_seed_selection(
+        let exact = select_seeds(
             &graph,
             "Inspect reviewed_change in review.ts and explain its helper call",
             &[],
@@ -8383,7 +8559,7 @@ mod tests {
             exact.seeds.first().map(|seed| seed.reason_code),
             Some("unique_symbol_in_exact_path")
         );
-        let reordered_non_signal = structural_seed_selection(
+        let reordered_non_signal = select_seeds(
             &graph,
             "Could you carefully explain reviewed_change in review.ts",
             &[],
@@ -8392,15 +8568,14 @@ mod tests {
         .expect("reordered non-signal seed");
         assert_eq!(exact, reordered_non_signal);
 
-        let file =
-            structural_seed_selection(&graph, "Inspect review.ts", &[], &[]).expect("file seed");
+        let file = select_seeds(&graph, "Inspect review.ts", &[], &[]).expect("file seed");
         assert_eq!(
             file.seeds.first().map(|seed| seed.reason_code),
             Some("unique_exact_file_path")
         );
 
-        let global = structural_seed_selection(&graph, "Inspect reviewed_change", &[], &[])
-            .expect("global seed");
+        let global =
+            select_seeds(&graph, "Inspect reviewed_change", &[], &[]).expect("global seed");
         assert_eq!(
             global.seeds.first().map(|seed| seed.reason_code),
             Some("globally_unique_symbol")
@@ -8409,8 +8584,8 @@ mod tests {
         // An ambiguous name is now retained and disclosed rather than
         // abandoned. Returning nothing was strictly worse than returning a
         // ranked list with the ambiguity recorded.
-        let ambiguous = structural_seed_selection(&graph, "Investigate duplicate_name", &[], &[])
-            .expect("ambiguous seed");
+        let ambiguous =
+            select_seeds(&graph, "Investigate duplicate_name", &[], &[]).expect("ambiguous seed");
         assert!(ambiguous.seeds.len() > 1);
         assert!(
             ambiguous
@@ -8421,7 +8596,7 @@ mod tests {
         assert!(ambiguous.unknowns.contains(&"structural_seed_ambiguous"));
 
         // Selection yields nothing only when no signal matches any node.
-        let unavailable = structural_seed_selection(
+        let unavailable = select_seeds(
             &graph,
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
             &[],
@@ -8438,7 +8613,7 @@ mod tests {
         // Every seed set stays bounded and deterministically ordered.
         assert!(exact.seeds.len() <= MAX_STRUCTURAL_SEEDS);
         assert!(ambiguous.seeds.len() <= MAX_STRUCTURAL_SEEDS);
-        let repeated = structural_seed_selection(&graph, "Investigate duplicate_name", &[], &[])
+        let repeated = select_seeds(&graph, "Investigate duplicate_name", &[], &[])
             .expect("repeat ambiguous seed");
         assert_eq!(ambiguous, repeated);
 
