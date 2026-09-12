@@ -6,8 +6,14 @@
 //! call, opens no network socket, and never hands reference data to the
 //! product: it reads the product's already-written output as opaque JSON.
 
-use std::{collections::BTreeSet, fs, path::Path, process};
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    process,
+};
 
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 
 const USAGE: &str = "usage: impresari-context-recall-score <corpus.json>";
@@ -18,7 +24,11 @@ const REPORT_SCHEMA_NAME: &str = "impresari_context_recall_report";
 /// as an entry's own path, and reports that contribution separately. A 1.0
 /// report and a 1.1 report over the same corpus are different measurements:
 /// the same build scores 20/27 under 1.0 and 21/27 under 1.1.
-const REPORT_SCHEMA_VERSION: &str = "1.1";
+///
+/// 1.2 adds changed-line coverage: how many of the lines an accepted change
+/// touches sit inside the opening packet's evidence from the same file. Every
+/// 1.1 count is computed exactly as before.
+const REPORT_SCHEMA_VERSION: &str = "1.2";
 const MAX_CORPUS_BYTES: u64 = 64 * 1024 * 1024;
 
 #[derive(Deserialize)]
@@ -44,6 +54,8 @@ struct Case {
 struct Reference {
     files: BTreeSet<String>,
     symbols: BTreeSet<String>,
+    /// Per file, the old file's lines the change touches, stripped.
+    changed_lines: BTreeMap<String, BTreeSet<String>>,
 }
 
 /// What the product actually delivered.
@@ -56,6 +68,8 @@ struct Delivered {
     entry_files: BTreeSet<String>,
     map_symbols: BTreeSet<String>,
     evidence_files: BTreeSet<String>,
+    /// Per file, the text of each evidence excerpt delivered from it.
+    evidence_text: BTreeMap<String, Vec<String>>,
     bytes: u64,
 }
 
@@ -76,6 +90,13 @@ struct CaseScore {
     /// map never pointed at. A high evidence recall with a low map recall means
     /// retrieval worked and selection did not.
     evidence_file_recall_numerator: usize,
+    /// Lines the accepted change touches: removed lines, and for an insertion
+    /// the line just before it.
+    changed_lines: usize,
+    /// Of those, lines inside an evidence excerpt from the same file. Evidence
+    /// file recall credits an excerpt that is only a license header; this
+    /// credits only the code a fix has to see.
+    changed_lines_in_evidence: usize,
     delivered_bytes: u64,
     missing_files: Vec<String>,
     missing_symbols: Vec<String>,
@@ -92,11 +113,14 @@ struct Report {
     total_map_files_recalled_via_target: usize,
     total_map_symbols_recalled: usize,
     total_evidence_files_recalled: usize,
+    total_changed_lines: usize,
+    total_changed_lines_in_evidence: usize,
     total_delivered_bytes: u64,
     /// Percentages are integer basis points of one hundred, floored.
     map_file_recall_percent: u64,
     map_symbol_recall_percent: u64,
     evidence_file_recall_percent: u64,
+    changed_line_coverage_percent: u64,
     model_calls: u64,
     network_requests: u64,
 }
@@ -168,6 +192,27 @@ fn score_case(case: &Case) -> Result<CaseScore, String> {
         .files
         .intersection(&delivered.evidence_files)
         .count();
+    // A changed line is in the evidence when its text is inside an excerpt
+    // delivered from the same file.
+    let changed_lines = reference.changed_lines.values().map(BTreeSet::len).sum();
+    let changed_lines_in_evidence = reference
+        .changed_lines
+        .iter()
+        .map(|(file, lines)| {
+            let excerpts = delivered
+                .evidence_text
+                .get(file)
+                .map_or(&[][..], Vec::as_slice);
+            lines
+                .iter()
+                .filter(|line| {
+                    excerpts
+                        .iter()
+                        .any(|excerpt| excerpt.contains(line.as_str()))
+                })
+                .count()
+        })
+        .sum();
 
     Ok(CaseScore {
         instance_id: case.instance_id.clone(),
@@ -177,6 +222,8 @@ fn score_case(case: &Case) -> Result<CaseScore, String> {
         map_file_recall_via_target: map_files.saturating_sub(via_entry),
         map_symbol_recall_numerator: map_symbols,
         evidence_file_recall_numerator: evidence_files,
+        changed_lines,
+        changed_lines_in_evidence,
         delivered_bytes: delivered.bytes,
         missing_files: reference
             .files
@@ -191,28 +238,59 @@ fn score_case(case: &Case) -> Result<CaseScore, String> {
     })
 }
 
-/// Extract the files and enclosing symbols an accepted change touched.
+/// Extract the files, enclosing symbols and changed lines an accepted change
+/// touched.
 ///
 /// File names come from the `+++ b/<path>` header. Symbols come from the hunk
 /// section heading, which the diff format already reserves for the enclosing
-/// declaration.
+/// declaration. Changed lines are the old file's removed lines and, for an
+/// insertion, the context line just before it: what a reader must see to
+/// place the change. Each is kept stripped of surrounding whitespace.
 fn parse_reference_patch(patch: &str) -> Reference {
     let mut reference = Reference::default();
+    let mut file: Option<String> = None;
+    let mut last_context: Option<&str> = None;
     for line in patch.lines() {
         if let Some(rest) = line.strip_prefix("+++ ") {
             let touched = rest.split('\t').next().unwrap_or(rest).trim();
-            if touched == "/dev/null" {
-                continue;
-            }
             let touched = touched.strip_prefix("b/").unwrap_or(touched);
-            if !touched.is_empty() {
-                reference.files.insert(touched.to_owned());
+            file = (touched != "/dev/null" && !touched.is_empty()).then(|| touched.to_owned());
+            if let Some(touched) = &file {
+                reference.files.insert(touched.clone());
             }
-        } else if let Some(rest) = line.strip_prefix("@@ ")
-            && let Some((_, heading)) = rest.split_once("@@")
-            && let Some(symbol) = declaration_name(heading.trim())
+            last_context = None;
+        } else if let Some(rest) = line.strip_prefix("@@") {
+            last_context = None;
+            if let Some(rest) = rest.strip_prefix(' ')
+                && let Some((_, heading)) = rest.split_once("@@")
+                && let Some(symbol) = declaration_name(heading.trim())
+            {
+                reference.symbols.insert(symbol);
+            }
+        } else if let Some(touched) = &file
+            && !line.starts_with("---")
         {
-            reference.symbols.insert(symbol);
+            if let Some(removed) = line.strip_prefix('-').map(str::trim)
+                && !removed.is_empty()
+            {
+                reference
+                    .changed_lines
+                    .entry(touched.clone())
+                    .or_default()
+                    .insert(removed.to_owned());
+            } else if line.starts_with('+')
+                && let Some(anchor) = last_context
+            {
+                reference
+                    .changed_lines
+                    .entry(touched.clone())
+                    .or_default()
+                    .insert(anchor.to_owned());
+            } else if let Some(context) = line.strip_prefix(' ').map(str::trim)
+                && !context.is_empty()
+            {
+                last_context = Some(context);
+            }
         }
     }
     reference
@@ -291,10 +369,27 @@ fn load_delivered(path: &Path) -> Result<Delivered, String> {
                 .and_then(serde_json::Value::as_str)
             {
                 delivered.evidence_files.insert(path.to_owned());
+                if let Some(excerpt) = item
+                    .get("excerpt")
+                    .and_then(|excerpt| excerpt.get("bytes_base64url"))
+                    .and_then(serde_json::Value::as_str)
+                    .and_then(decode_excerpt)
+                {
+                    delivered
+                        .evidence_text
+                        .entry(path.to_owned())
+                        .or_default()
+                        .push(String::from_utf8_lossy(&excerpt).into_owned());
+                }
             }
         }
     }
     Ok(delivered)
+}
+
+/// An evidence excerpt's bytes, or nothing when its encoding is malformed.
+fn decode_excerpt(encoded: &str) -> Option<Vec<u8>> {
+    URL_SAFE_NO_PAD.decode(encoded).ok()
 }
 
 /// Accept either a bare build result or one wrapped in an MCP tool response.
@@ -325,6 +420,11 @@ fn summarize(cases: Vec<CaseScore>) -> Report {
         .iter()
         .map(|case| case.evidence_file_recall_numerator)
         .sum();
+    let total_changed_lines = cases.iter().map(|case| case.changed_lines).sum();
+    let total_changed_lines_in_evidence = cases
+        .iter()
+        .map(|case| case.changed_lines_in_evidence)
+        .sum();
     let total_delivered_bytes = cases
         .iter()
         .map(|case| case.delivered_bytes)
@@ -335,6 +435,10 @@ fn summarize(cases: Vec<CaseScore>) -> Report {
         map_file_recall_percent: percent(total_map_files_recalled, total_reference_files),
         map_symbol_recall_percent: percent(total_map_symbols_recalled, total_reference_symbols),
         evidence_file_recall_percent: percent(total_evidence_files_recalled, total_reference_files),
+        changed_line_coverage_percent: percent(
+            total_changed_lines_in_evidence,
+            total_changed_lines,
+        ),
         cases,
         total_reference_files,
         total_reference_symbols,
@@ -342,6 +446,8 @@ fn summarize(cases: Vec<CaseScore>) -> Report {
         total_map_files_recalled_via_target,
         total_map_symbols_recalled,
         total_evidence_files_recalled,
+        total_changed_lines,
+        total_changed_lines_in_evidence,
         total_delivered_bytes,
         // Stated, not inferred: this tool calls no model and opens no socket.
         model_calls: 0,
@@ -471,6 +577,66 @@ mod tests {
         assert!(
             score.missing_files.is_empty(),
             "a file named as a target is not missing"
+        );
+    }
+
+    /// Context lines keep their leading space: no line continuations here.
+    const CHANGED_PATCH: &str = "--- a/pkg/core.py
++++ b/pkg/core.py
+@@ -1,4 +1,5 @@ def check(self):
+     columns = self.columns
++    columns.sort()
+-    return columns[0]
++    return columns
+";
+
+    #[test]
+    fn reference_patch_yields_removed_lines_and_insertion_anchors() {
+        let reference = parse_reference_patch(CHANGED_PATCH);
+        let lines = &reference.changed_lines["pkg/core.py"];
+        assert!(
+            lines.contains("columns = self.columns"),
+            "an insertion is placed by the line before it"
+        );
+        assert!(lines.contains("return columns[0]"));
+        assert_eq!(lines.len(), 2);
+        assert!(reference.symbols.contains("check"));
+    }
+
+    #[test]
+    fn changed_lines_count_only_in_evidence_from_the_same_file() {
+        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+        let dir = std::env::temp_dir().join(format!("recall-lines-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temporary directory");
+        let path = dir.join("delivered.json");
+        let excerpt =
+            |text: &str| serde_json::json!({"bytes_base64url": URL_SAFE_NO_PAD.encode(text)});
+        // The removed line is delivered, but from another file.
+        let delivered = serde_json::json!({"structuredContent": {"initial_packet": {"observed_evidence": [
+            {"artifact": {"path": {"display_path": "pkg/core.py"}},
+             "excerpt": excerpt("def check(self):\n    columns = self.columns\n")},
+            {"artifact": {"path": {"display_path": "pkg/other.py"}},
+             "excerpt": excerpt("    return columns[0]\n")}
+        ]}}});
+        fs::write(&path, serde_json::to_vec(&delivered).expect("json")).expect("write");
+        let score = score_case(&Case {
+            instance_id: "pkg-1".into(),
+            reference_patch: CHANGED_PATCH.into(),
+            delivered_context: path.to_string_lossy().into_owned(),
+        })
+        .expect("score");
+        fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(score.changed_lines, 2);
+        assert_eq!(score.changed_lines_in_evidence, 1);
+        let report = summarize(vec![score]);
+        assert_eq!(
+            (
+                report.total_changed_lines,
+                report.total_changed_lines_in_evidence,
+                report.changed_line_coverage_percent
+            ),
+            (2, 1, 50)
         );
     }
 
