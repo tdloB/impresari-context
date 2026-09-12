@@ -60,7 +60,9 @@ quarters. `main`, before ADR-0153, stood at 39%.
 
 The map did not shrink. The freed seed slots (the seed limit was reached in 14
 of 22 maps, down from 18) went to other candidates, and some of those are weak.
-On one task a declaration in vendored `extern/configobj` code added 63 items.
+On one task an ambiguous `Table` class seed took a freed slot, and its traversal
+and family added 73 items. (Corrected 2026-09-12: this sentence first blamed a
+declaration in vendored `extern/configobj` code, which added one item.)
 Sixteen maps shrank or stayed the same size, and six grew. The omission
 `local_variables_looked_through` appears on 19 of the 22 maps.
 
