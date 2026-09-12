@@ -5,6 +5,7 @@
 - Decider: Aaron Boldt through the accepted evaluation-integrity roadmap
 - Related PRD: [Progressive Structural Disclosure PRD](../product/progressive-structural-disclosure-prd.md)
 - Architecture: [Progressive Structural Disclosure ARD](../architecture/progressive-structural-disclosure-ard.md)
+- Amended by: [ADR-0155](0155-rank-opening-evidence-and-send-whole-declarations.md) — an ordinary anchor is preserved by identity, span and order; its excerpt may be cut to the declaration holding its match
 
 ## Context
 

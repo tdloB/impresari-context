@@ -706,18 +706,7 @@ impl WorkspaceCache {
         terms: &[String],
         max_candidates: u64,
     ) -> Result<Vec<String>, CacheError> {
-        if terms.is_empty()
-            || terms.len() > 16
-            || max_candidates == 0
-            || max_candidates > 10_000
-            || terms.iter().any(|term| {
-                term.is_empty()
-                    || term.len() > 64
-                    || !term.bytes().all(|byte| {
-                        byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_'
-                    })
-            })
-        {
+        if !valid_lexical_terms(terms) || max_candidates == 0 || max_candidates > 10_000 {
             return Err(CacheError::new(CacheErrorCode::ResourceLimit));
         }
         let query = terms.join(" AND ");
@@ -738,6 +727,56 @@ impl WorkspaceCache {
             .map_err(CacheError::storage)?
             .collect::<Result<Vec<String>, _>>()
             .map_err(CacheError::storage)
+    }
+
+    /// Counts current-generation files holding every validated term: in the
+    /// whole snapshot, and among the `within` path units.
+    ///
+    /// How many files a word occurs in is how little a search for it narrows
+    /// the snapshot. Whether it occurs in the files a task nominated is
+    /// whether a search for it can reach them.
+    ///
+    /// # Errors
+    ///
+    /// Fails for invalid terms, more than 64 `within` paths, or database
+    /// errors. Raw FTS syntax is never accepted, and paths are bound as values.
+    pub fn lexical_document_counts(
+        &self,
+        terms: &[String],
+        within: &[String],
+    ) -> Result<(u64, u64), CacheError> {
+        if !valid_lexical_terms(terms) || within.len() > 64 {
+            return Err(CacheError::new(CacheErrorCode::ResourceLimit));
+        }
+        let scoped = if within.is_empty() {
+            "0".to_owned()
+        } else {
+            let slots = (2..within.len() + 2)
+                .map(|slot| format!("?{slot}"))
+                .collect::<Vec<_>>()
+                .join(", ");
+            format!("keys.path_units IN ({slots})")
+        };
+        let statement = format!(
+            "SELECT count(*), coalesce(sum({scoped}), 0) FROM artifact_terms
+             JOIN artifact_search_keys AS keys ON keys.search_id=artifact_terms.rowid
+             JOIN generations AS generation ON generation.generation_id=keys.generation_id
+             WHERE artifact_terms MATCH ?1 AND generation.state='current'"
+        );
+        let mut values = vec![terms.join(" AND ")];
+        values.extend(within.iter().cloned());
+        let (files, scoped): (i64, i64) = self
+            .connection
+            .query_row(
+                &statement,
+                rusqlite::params_from_iter(values.iter()),
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .map_err(CacheError::storage)?;
+        let count = |value: i64| {
+            u64::try_from(value).map_err(|_| CacheError::new(CacheErrorCode::ResourceLimit))
+        };
+        Ok((count(files)?, count(scoped)?))
     }
 
     /// Atomically replaces the current opaque structural graph payload.
@@ -1129,6 +1168,19 @@ fn validate_structural_key(
     validate_identity(toolchain_identity)
 }
 
+/// Lexical terms are lowercase ASCII words, so they can never carry FTS syntax.
+fn valid_lexical_terms(terms: &[String]) -> bool {
+    !terms.is_empty()
+        && terms.len() <= 16
+        && terms.iter().all(|term| {
+            !term.is_empty()
+                && term.len() <= 64
+                && term
+                    .bytes()
+                    .all(|byte| byte.is_ascii_lowercase() || byte.is_ascii_digit() || byte == b'_')
+        })
+}
+
 fn workspace_namespace_name(identity: &str) -> String {
     format!("sha256-{}", &identity[7..])
 }
@@ -1438,6 +1490,41 @@ mod tests {
                 .lexical_candidates(&["alpha OR beta".to_owned()], 10)
                 .expect_err("raw syntax must fail")
                 .code(),
+            CacheErrorCode::ResourceLimit
+        );
+    }
+
+    #[test]
+    fn lexical_document_counts_are_current_scoped_and_compiled() {
+        let root = TestRoot::new();
+        let mut cache = WorkspaceCache::open(&root.0, A).expect("open");
+        cache
+            .promote(B, C, &[artifact("alpha", A), artifact("beta", B)])
+            .expect("promote");
+        let owned = |values: &[&str]| {
+            values
+                .iter()
+                .map(|value| (*value).to_owned())
+                .collect::<Vec<_>>()
+        };
+        let count = |terms: &[&str], within: &[&str]| {
+            cache.lexical_document_counts(&owned(terms), &owned(within))
+        };
+        assert_eq!(count(&["alpha"], &[]).expect("one file"), (1, 0));
+        assert_eq!(count(&["alpha"], &["alpha"]).expect("within"), (1, 1));
+        assert_eq!(count(&["alpha"], &["beta"]).expect("elsewhere"), (1, 0));
+        assert_eq!(
+            count(&["alpha", "beta"], &["alpha", "beta"]).expect("no file holds both"),
+            (0, 0)
+        );
+        assert_eq!(
+            count(&["alpha OR beta"], &[])
+                .expect_err("raw syntax must fail")
+                .code(),
+            CacheErrorCode::ResourceLimit
+        );
+        assert_eq!(
+            count(&[], &[]).expect_err("no terms").code(),
             CacheErrorCode::ResourceLimit
         );
     }
