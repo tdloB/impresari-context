@@ -45,6 +45,15 @@
         "path": {"$ref": "#/$defs/path"},
         "name": {"type": "string", "maxLength": 4096},
         "span": {"$ref": "#/$defs/span"},
+        "declaration_kind": {
+          "type": "string",
+          "enum": [
+            "function",
+            "type",
+            "variable",
+            "other"
+          ]
+        },
         "confidence": {"type": "string", "enum": ["confirmed", "heuristic"]},
         "provenance": {"$ref": "#/$defs/provenance"}
       }
@@ -70,7 +79,7 @@
   "required": ["schema_name", "schema_version", "graph_id", "workspace_snapshot", "completeness", "nodes", "edges", "unknowns"],
   "properties": {
     "schema_name": {"const": "structural-graph"},
-    "schema_version": {"const": "1.0.0"},
+    "schema_version": {"const": "1.1.0"},
     "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
     "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
     "completeness": {"$ref": "common.schema.json#/$defs/completeness"},
