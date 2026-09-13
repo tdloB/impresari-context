@@ -18,15 +18,59 @@ use sha2::{Digest, Sha256};
 use tree_sitter::{Language, Node, Parser};
 
 /// Worker protocol version.
-pub const PROTOCOL_VERSION: &str = "1.0.0";
+///
+/// `1.1.0` adds `total_facts_available` to a successful response. A caller
+/// dividing one fact allowance across several files has to know what each file
+/// would have yielded, and only the parser knows that.
+pub const PROTOCOL_VERSION: &str = "1.1.0";
 /// Graph contract version.
-pub const GRAPH_VERSION: &str = "1.0.0";
+///
+/// `1.1.0` adds `declaration_kind` to symbol nodes. Following a class to its
+/// members means telling a method from a local variable, and only the parser
+/// knew which was which.
+pub const GRAPH_VERSION: &str = "1.1.0";
 /// Resolver version.
 pub const RESOLVER_VERSION: &str = "0.2.0";
+/// Parser identity recorded in every fact's provenance.
+///
+/// This must name the tree-sitter release actually linked. It is a constant
+/// rather than twelve literals because a provenance claim that disagrees with
+/// the parser producing the facts is a false attestation, and nothing in the
+/// type system prevents one: the writer and the validator both read this value,
+/// so they agree with each other whatever it says.
+///
+/// `parser_version_matches_the_linked_tree_sitter_pin` holds it to the exact
+/// pin in this crate's manifest.
+pub const PARSER_VERSION: &str = "tree-sitter-0.27.0";
 /// Maximum accepted request frame size.
 pub const MAX_REQUEST_BYTES: usize = 8 * 1024 * 1024;
 /// Maximum emitted response frame size.
 pub const MAX_RESPONSE_BYTES: usize = 16 * 1024 * 1024;
+
+/// Graph unknown meaning the graph holds a prefix of a file's declarations.
+///
+/// Emitted when a bounded worker response returned fewer facts than the file
+/// yields. A consumer reading this must not treat what the graph lacks as
+/// absent from the source: a read substitution answering a named symbol claims
+/// absence, and off a prefix that claim is false
+/// ([ADR-0137](../../../docs/decisions/0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md)).
+///
+/// It is named here rather than written at each site so the emitter and the
+/// consumers that must honour it cannot drift apart silently.
+pub const STRUCTURAL_RESOURCE_LIMIT_UNKNOWN: &str = "structural_resource_limit_reached";
+
+/// Recorded when a traversal looked through a function's local variables and
+/// so did not list a relationship to a local itself, or an unresolved one made
+/// in it. A traversal that visits locals returns them.
+pub const LOCAL_VARIABLES_LOOKED_THROUGH: &str = "local_variables_looked_through";
+
+/// Response warning meaning the byte ceiling truncated the fact list.
+///
+/// A response already at that ceiling cannot carry more facts however large a
+/// fact allowance it is given, so a caller redistributing an allowance must not
+/// spend a re-parse on it. Named here so the emitter and its consumers cannot
+/// drift apart.
+pub const RESPONSE_BYTE_LIMIT_WARNING: &str = "structural_fact_response_limit_reached";
 
 /// Supported structural language.
 #[derive(Clone, Copy, Debug, Deserialize, Eq, PartialEq, Serialize)]
@@ -209,6 +253,20 @@ pub struct WorkerSuccess {
     pub syntax_errors: bool,
     /// Complete deterministically ordered fact collection.
     pub facts: Vec<StructuralFact>,
+    /// Facts this file would yield with no ceiling.
+    ///
+    /// The parse happens in full whichever ceiling applies, so the count is
+    /// already known by the time facts are emitted; reporting it costs the rest
+    /// of a tree walk over a tree that is already built.
+    ///
+    /// A caller sharing one allowance across several files needs this. Without
+    /// it, the only way to divide an allowance is to guess each file's need —
+    /// and a guess from file size is a model of this parser living outside it.
+    ///
+    /// It is a floor, not a promise: a walk stopped by the nesting-depth bound
+    /// stops counting too, and says so with
+    /// `structural_resource_limit_reached`.
+    pub total_facts_available: u64,
     /// Explicit bounded warnings.
     pub warnings: Vec<String>,
 }
@@ -229,6 +287,10 @@ pub struct GraphNode {
     /// Optional source span for symbol nodes.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub span: Option<GraphSpan>,
+    /// What a symbol declares: `function`, `type`, `variable`, or `other`.
+    /// Absent on file nodes.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub declaration_kind: Option<String>,
     /// Extraction confidence.
     pub confidence: String,
     /// Resolver provenance.
@@ -472,10 +534,115 @@ fn is_package_manifest(path: &str) -> bool {
     )
 }
 
+/// How a traversal treats a function's local variables.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum LocalVariables {
+    /// As declarations in their own right: a function contains and refers to
+    /// its locals, and a call made in an assignment belongs to the local.
+    Visit,
+    /// As part of the function they belong to. A function's locals are not
+    /// delivered, and a resolved call or reference made in one of its
+    /// assignments is the function's own. An unresolved one is dropped, since
+    /// all it could show is the local's name.
+    LookThrough,
+}
+
+impl LocalVariables {
+    /// The function locals this treatment looks through: every one of them,
+    /// or none when locals are visited.
+    #[must_use]
+    pub fn looked_through(self, graph: &StructuralGraph) -> BTreeMap<&str, &str> {
+        match self {
+            Self::Visit => BTreeMap::new(),
+            Self::LookThrough => function_locals(graph),
+        }
+    }
+}
+
+/// Each function-local variable in the graph, with the function it belongs to.
+///
+/// A variable is function-local when the nearest declaration enclosing it that
+/// is not itself a variable is a function. Class attributes and module-level
+/// names are not: they are part of a type's or a module's shape.
+#[must_use]
+pub fn function_locals(graph: &StructuralGraph) -> BTreeMap<&str, &str> {
+    let kinds = graph
+        .nodes
+        .iter()
+        .map(|node| (node.node_id.as_str(), node.declaration_kind.as_deref()))
+        .collect::<BTreeMap<_, _>>();
+    let mut parent = BTreeMap::new();
+    for edge in &graph.edges {
+        if edge.kind == "contains"
+            && let Some(target) = edge.target_node.as_deref()
+        {
+            parent.insert(target, edge.source_node.as_str());
+        }
+    }
+    let kind = |id: &str| kinds.get(id).copied().flatten();
+    let mut locals = BTreeMap::new();
+    for &id in kinds.keys() {
+        if kind(id) != Some("variable") {
+            continue;
+        }
+        // Climb past enclosing variables. Containment nests, so the climb
+        // ends; the bound only guards a malformed graph.
+        let mut owner = parent.get(id).copied();
+        for _ in 0..kinds.len() {
+            match owner {
+                Some(candidate) if kind(candidate) == Some("variable") => {
+                    owner = parent.get(candidate).copied();
+                }
+                _ => break,
+            }
+        }
+        if let Some(owner) = owner.filter(|owner| kind(owner) == Some("function")) {
+            locals.insert(id, owner);
+        }
+    }
+    locals
+}
+
+/// Each node's outgoing edges in traversal order, reading `locals` as part of
+/// the functions they belong to, and the nodes for which that withheld
+/// something: a relationship to one of their locals, or an unresolved one made
+/// in it.
+fn traversal_outgoing<'g>(
+    graph: &'g StructuralGraph,
+    allowed: &BTreeSet<&str>,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+    locals: &BTreeMap<&'g str, &'g str>,
+) -> (BTreeMap<&'g str, Vec<&'g GraphEdge>>, BTreeSet<&'g str>) {
+    let mut outgoing: BTreeMap<&'g str, Vec<&'g GraphEdge>> = BTreeMap::new();
+    let mut withheld = BTreeSet::new();
+    for edge in &graph.edges {
+        if !(allowed.is_empty() || allowed.contains(edge.kind.as_str())) {
+            continue;
+        }
+        let owner = locals.get(edge.source_node.as_str()).copied();
+        let source = owner.unwrap_or(edge.source_node.as_str());
+        let target = edge.target_node.as_deref();
+        // A resolved relationship a local makes is its function's own. One to a
+        // local itself, or an unresolved one a local makes, is left out.
+        let into_local = target.is_some_and(|target| locals.contains_key(target));
+        let unresolved_in_local = owner.is_some() && target.is_none();
+        if into_local || unresolved_in_local {
+            withheld.insert(source);
+            continue;
+        }
+        outgoing.entry(source).or_default().push(edge);
+    }
+    for edges in outgoing.values_mut() {
+        edges.sort_by(|left, right| traversal_order(left, right, nodes));
+    }
+    (outgoing, withheld)
+}
+
 /// Traverses resolved outbound graph relationships within hard node, edge, and depth limits.
 ///
 /// Empty `edge_kinds` permits every relationship kind. Unresolved relationships are
-/// reported as unknowns but never invented as graph targets.
+/// reported as unknowns but never invented as graph targets. Local variables are
+/// visited; see [`query_graph_with`].
 ///
 /// # Errors
 ///
@@ -488,6 +655,31 @@ pub fn query_graph(
     max_depth: u32,
     max_nodes: u32,
     max_edges: u32,
+) -> Result<StructuralQueryResult, StructuralError> {
+    query_graph_with(
+        graph,
+        start_node,
+        edge_kinds,
+        max_depth,
+        max_nodes,
+        max_edges,
+        LocalVariables::Visit,
+    )
+}
+
+/// Traverses like [`query_graph`], treating local variables as `locals` says.
+///
+/// # Errors
+///
+/// As [`query_graph`].
+pub fn query_graph_with(
+    graph: &StructuralGraph,
+    start_node: &str,
+    edge_kinds: &[String],
+    max_depth: u32,
+    max_nodes: u32,
+    max_edges: u32,
+    locals: LocalVariables,
 ) -> Result<StructuralQueryResult, StructuralError> {
     validate_graph_for_query(graph)?;
     if !valid_sha256(start_node) || max_nodes == 0 || max_edges == 0 {
@@ -508,18 +700,8 @@ pub fn query_graph(
     if !nodes_by_id.contains_key(start_node) {
         return Err(StructuralError::InvalidRequest);
     }
-    let mut outgoing: BTreeMap<&str, Vec<&GraphEdge>> = BTreeMap::new();
-    for edge in &graph.edges {
-        if allowed.is_empty() || allowed.contains(edge.kind.as_str()) {
-            outgoing
-                .entry(edge.source_node.as_str())
-                .or_default()
-                .push(edge);
-        }
-    }
-    for edges in outgoing.values_mut() {
-        edges.sort_by(|left, right| left.edge_id.cmp(&right.edge_id));
-    }
+    let locals = locals.looked_through(graph);
+    let (outgoing, withheld) = traversal_outgoing(graph, &allowed, &nodes_by_id, &locals);
 
     let mut queue = VecDeque::from([(start_node.to_owned(), 0_u32)]);
     let mut visited = BTreeSet::from([start_node.to_owned()]);
@@ -528,6 +710,9 @@ pub fn query_graph(
     let mut unknowns = Vec::new();
     let mut truncated = false;
     while let Some((node_id, depth)) = queue.pop_front() {
+        if depth < max_depth && withheld.contains(node_id.as_str()) {
+            unknowns.push(LOCAL_VARIABLES_LOOKED_THROUGH.into());
+        }
         let Some(edges) = outgoing.get(node_id.as_str()) else {
             continue;
         };
@@ -569,6 +754,15 @@ pub fn query_graph(
             selected_edges.push((*edge).clone());
         }
     }
+    // A looked-through edge leaves one of the function's locals, which the
+    // traversal never visited. The result still holds it, so the edge resolves.
+    for edge in &selected_edges {
+        if visited.insert(edge.source_node.clone())
+            && let Some(node) = nodes_by_id.get(edge.source_node.as_str())
+        {
+            selected_nodes.push((*node).clone());
+        }
+    }
     unknowns.sort();
     unknowns.dedup();
     Ok(StructuralQueryResult {
@@ -584,12 +778,304 @@ pub fn query_graph(
     })
 }
 
+/// The declarations around a seed that a reader needs to see it whole.
+///
+/// A seed's traversal follows what the seed refers to, one hop out, within a
+/// small edge limit. That misses what surrounds the seed: the class a seeded
+/// method belongs to, the rest of a seeded class's methods, the functions
+/// nested in them, and the methods a seeded class inherits. On the astropy
+/// corpus, eight of the nineteen reference symbols the map missed sat exactly
+/// there. The family is, in order:
+///
+/// 1. the declaration enclosing the seed, by the edge that declares it, so the
+///    enclosing name is shown;
+/// 2. for a type, its function and type members, in source order;
+/// 3. the functions and types nested one level inside the seed, if it is a
+///    function, or inside those members;
+/// 4. for a type, the types its header refers to, which is where a base class
+///    is written, each followed by its function and type members.
+///
+/// Variables are never family: a method's locals are no part of a class's
+/// shape. Only relationships the graph already holds are returned, each once,
+/// in that order, until `max_edges`.
+///
+/// # Errors
+///
+/// As [`query_graph`].
+pub fn seed_family(
+    graph: &StructuralGraph,
+    seed: &str,
+    edge_kinds: &[String],
+    max_edges: u32,
+) -> Result<StructuralQueryResult, StructuralError> {
+    validate_graph_for_query(graph)?;
+    let allowed = edge_kinds
+        .iter()
+        .map(String::as_str)
+        .collect::<BTreeSet<_>>();
+    if !valid_sha256(seed) || max_edges == 0 || allowed.iter().any(|kind| !valid_edge_kind(kind)) {
+        return Err(StructuralError::InvalidRequest);
+    }
+    let permits = |kind: &str| allowed.is_empty() || allowed.contains(kind);
+    let nodes_by_id = graph
+        .nodes
+        .iter()
+        .map(|node| (node.node_id.as_str(), node))
+        .collect::<BTreeMap<_, _>>();
+    let Some(seed_node) = nodes_by_id.get(seed) else {
+        return Err(StructuralError::InvalidRequest);
+    };
+    let family = family_edges(graph, seed_node, &nodes_by_id, permits("references"));
+    let limit = usize::try_from(max_edges).map_err(|_| StructuralError::ResourceLimit)?;
+    let mut delivered = BTreeSet::new();
+    let mut edges = Vec::new();
+    let mut truncated = false;
+    for edge in family {
+        if !permits(&edge.kind) || !delivered.insert(edge.edge_id.as_str()) {
+            continue;
+        }
+        if edges.len() >= limit {
+            truncated = true;
+            break;
+        }
+        edges.push(edge.clone());
+    }
+    let mut ids = BTreeSet::from([seed.to_owned()]);
+    for edge in &edges {
+        ids.insert(edge.source_node.clone());
+        ids.extend(edge.target_node.clone());
+    }
+    let nodes = ids
+        .iter()
+        .filter_map(|id| nodes_by_id.get(id.as_str()).map(|node| (*node).clone()))
+        .collect();
+    Ok(StructuralQueryResult {
+        schema_name: "structural-query-result".into(),
+        schema_version: GRAPH_VERSION.into(),
+        graph_id: graph.graph_id.clone(),
+        workspace_snapshot: graph.workspace_snapshot.clone(),
+        start_node: seed.into(),
+        nodes,
+        edges,
+        truncated,
+        unknowns: if truncated {
+            vec!["seed_family_limit_reached".into()]
+        } else {
+            Vec::new()
+        },
+    })
+}
+
+/// Where a relationship's target starts and ends; an unresolved one sorts last.
+fn target_span(edge: &GraphEdge, nodes: &BTreeMap<&str, &GraphNode>) -> (u64, u64) {
+    edge.target_node
+        .as_deref()
+        .and_then(|id| nodes.get(id))
+        .and_then(|node| node.span.as_ref())
+        .map_or((u64::MAX, u64::MAX), |span| {
+            (span.start_byte, span.end_byte)
+        })
+}
+
+/// How declarations nest: what each node contains, in source order, what
+/// contains it, and the edge by which its file declares it.
+struct Containment<'g> {
+    children: BTreeMap<&'g str, Vec<&'g GraphEdge>>,
+    parent: BTreeMap<&'g str, &'g str>,
+    declaring: BTreeMap<&'g str, &'g GraphEdge>,
+}
+
+fn containment<'g>(
+    graph: &'g StructuralGraph,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+) -> Containment<'g> {
+    let mut index = Containment {
+        children: BTreeMap::new(),
+        parent: BTreeMap::new(),
+        declaring: BTreeMap::new(),
+    };
+    for edge in &graph.edges {
+        let Some(target) = edge.target_node.as_deref() else {
+            continue;
+        };
+        match edge.kind.as_str() {
+            "contains" => {
+                index
+                    .children
+                    .entry(edge.source_node.as_str())
+                    .or_default()
+                    .push(edge);
+                index.parent.insert(target, edge.source_node.as_str());
+            }
+            "declares" => {
+                index.declaring.insert(target, edge);
+            }
+            _ => {}
+        }
+    }
+    // Source order; identity breaks only an exact tie in span.
+    for edges in index.children.values_mut() {
+        edges.sort_by(|left, right| {
+            target_span(left, nodes)
+                .cmp(&target_span(right, nodes))
+                .then_with(|| left.edge_id.cmp(&right.edge_id))
+        });
+    }
+    index
+}
+
+/// A seed's family in delivery order, before edge kinds and the limit apply.
+fn family_edges<'g>(
+    graph: &'g StructuralGraph,
+    seed: &GraphNode,
+    nodes: &BTreeMap<&str, &'g GraphNode>,
+    follow_bases: bool,
+) -> Vec<&'g GraphEdge> {
+    let kind_of = |id: Option<&str>| {
+        id.and_then(|id| nodes.get(id))
+            .and_then(|node| node.declaration_kind.as_deref())
+    };
+    let Containment {
+        children,
+        parent,
+        declaring,
+    } = containment(graph, nodes);
+    let members = |id: &str| {
+        children
+            .get(id)
+            .into_iter()
+            .flatten()
+            .copied()
+            .filter(|edge| {
+                matches!(
+                    kind_of(edge.target_node.as_deref()),
+                    Some("function" | "type")
+                )
+            })
+            .collect::<Vec<_>>()
+    };
+    let id = seed.node_id.as_str();
+    let kind = seed.declaration_kind.as_deref();
+    let mut family = Vec::new();
+    family.extend(
+        parent
+            .get(id)
+            .and_then(|enclosing| declaring.get(enclosing))
+            .copied(),
+    );
+    let own = if kind == Some("type") {
+        members(id)
+    } else {
+        Vec::new()
+    };
+    family.extend(own.iter().copied());
+    if kind == Some("function") {
+        family.extend(members(id));
+    }
+    for member in &own {
+        family.extend(
+            member
+                .target_node
+                .as_deref()
+                .map(&members)
+                .unwrap_or_default(),
+        );
+    }
+    if kind == Some("type") && follow_bases {
+        // A header precedes the body, so a reference that starts before the
+        // first thing the type contains is written in its header.
+        let body = children
+            .get(id)
+            .and_then(|edges| edges.first())
+            .map_or(u64::MAX, |edge| target_span(edge, nodes).0);
+        let mut bases = graph
+            .edges
+            .iter()
+            .filter(|edge| {
+                edge.source_node == id
+                    && edge.kind == "references"
+                    && edge.span.start_byte < body
+                    && kind_of(edge.target_node.as_deref()) == Some("type")
+            })
+            .collect::<Vec<_>>();
+        bases.sort_by_key(|edge| (edge.span.start_byte, edge.span.end_byte));
+        for base in bases {
+            family.push(base);
+            family.extend(
+                base.target_node
+                    .as_deref()
+                    .map(&members)
+                    .unwrap_or_default(),
+            );
+        }
+    }
+    family
+}
+
+/// How confidently a relationship resolved, most confident first.
+fn resolution_rank(resolution: &str) -> u8 {
+    match resolution {
+        "confirmed" | "confirmed_manifest" => 0,
+        "heuristic" => 1,
+        "unresolved" => 2,
+        _ => 3,
+    }
+}
+
+/// The order a traversal takes one node's edges in, and so which it keeps when
+/// it reaches its edge limit.
+///
+/// It was identity order. An edge's identity hashes the workspace snapshot and
+/// the fact provenance, parser version included, so which edges survived the
+/// limit changed with every commit and every relabel of the parser while no
+/// fact did: moving the recorded parser version alone replaced 280 of 1,440 map
+/// items on the twenty-two-task astropy corpus and cost two reference symbols.
+/// Order by what an edge is instead: most confidently resolved first, then by
+/// where it occurs in the source, with its kind, its target's path, name and
+/// span, and its module breaking ties. Two declarations can share a file and a
+/// name, as a property's getter and setter do, so the target's span is part of
+/// the key. Identity breaks only an exact tie in content.
+fn traversal_order(
+    left: &GraphEdge,
+    right: &GraphEdge,
+    nodes: &BTreeMap<&str, &GraphNode>,
+) -> std::cmp::Ordering {
+    let target = |edge: &GraphEdge| {
+        edge.target_node
+            .as_deref()
+            .and_then(|id| nodes.get(id))
+            .map(|node| {
+                (
+                    node.path.display_path.as_str(),
+                    node.name.as_deref(),
+                    node.span
+                        .as_ref()
+                        .map(|span| (span.start_byte, span.end_byte)),
+                )
+            })
+    };
+    resolution_rank(&left.resolution)
+        .cmp(&resolution_rank(&right.resolution))
+        .then(left.span.start_byte.cmp(&right.span.start_byte))
+        .then(left.span.end_byte.cmp(&right.span.end_byte))
+        .then_with(|| left.kind.cmp(&right.kind))
+        .then_with(|| target(left).cmp(&target(right)))
+        .then_with(|| left.module.cmp(&right.module))
+        .then_with(|| left.edge_id.cmp(&right.edge_id))
+}
+
 fn validate_graph_for_query(graph: &StructuralGraph) -> Result<(), StructuralError> {
     if graph.schema_name != "structural-graph"
         || graph.schema_version != GRAPH_VERSION
         || !valid_sha256(&graph.graph_id)
         || !valid_sha256(&graph.workspace_snapshot)
-        || graph.nodes.iter().any(|node| !valid_sha256(&node.node_id))
+        || graph.nodes.iter().any(|node| {
+            !valid_sha256(&node.node_id)
+                || node
+                    .declaration_kind
+                    .as_deref()
+                    .is_some_and(|kind| !valid_declaration_kind(kind))
+        })
         || graph.edges.iter().any(|edge| {
             !valid_sha256(&edge.edge_id)
                 || !valid_sha256(&edge.source_node)
@@ -631,6 +1117,68 @@ fn valid_edge_kind(kind: &str) -> bool {
         kind,
         "declares" | "contains" | "imports" | "exports" | "calls" | "references"
     )
+}
+
+/// What a declaration of this syntax kind declares, in terms that hold across
+/// languages: a `function` (methods and constructors included), a `type`
+/// (classes, structs, interfaces, traits, enums and the like), a `variable`
+/// (any name bound to a value, from a module constant to a function local), or
+/// `other` (namespaces, modules, and anything unlisted).
+fn declaration_kind(syntax_kind: &str) -> &'static str {
+    match syntax_kind {
+        "function_declaration"
+        | "function_definition"
+        | "function_item"
+        | "method_definition"
+        | "method_declaration"
+        | "constructor_declaration"
+        | "abstract_method_signature"
+        | "method"
+        | "singleton_method"
+        | "protocol_function_declaration"
+        | "function" => "function",
+        "class_declaration"
+        | "class_definition"
+        | "class_specifier"
+        | "class"
+        | "interface_declaration"
+        | "annotation_type_declaration"
+        | "enum_declaration"
+        | "enum_definition"
+        | "enum_item"
+        | "enum_specifier"
+        | "record_declaration"
+        | "struct_declaration"
+        | "struct_item"
+        | "struct_specifier"
+        | "union_item"
+        | "union_specifier"
+        | "trait_definition"
+        | "trait_item"
+        | "trait_declaration"
+        | "object_definition"
+        | "object_declaration"
+        | "protocol_declaration"
+        | "type_spec"
+        | "type_alias"
+        | "type_alias_declaration"
+        | "typealias_declaration"
+        | "type_definition"
+        | "alias_declaration"
+        | "delegate_declaration" => "type",
+        "assignment"
+        | "lexical_declaration"
+        | "variable_declaration"
+        | "pair"
+        | "block_mapping_pair"
+        | "flow_pair"
+        | "bind" => "variable",
+        _ => "other",
+    }
+}
+
+fn valid_declaration_kind(kind: &str) -> bool {
+    matches!(kind, "function" | "type" | "variable" | "other")
 }
 
 /// Builds one deterministic graph from fully validated worker results.
@@ -682,12 +1230,45 @@ pub fn build_graph_with_unknowns(
             return Err(StructuralError::ContractMismatch);
         }
     }
-    for file in files {
+    // Declarations for every file must exist before any relationship resolves,
+    // or a reference could only ever find a target in its own file — which is
+    // exactly the island the graph used to be (ADR-0132).
+    let mut local_by_file = Vec::with_capacity(files.len());
+    let mut scope_declarations: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for file in &files {
+        let file_id = file_nodes
+            .get(&file.path.display_path)
+            .ok_or(StructuralError::ContractMismatch)?;
+        let local_nodes =
+            add_declarations(workspace_snapshot, file, file_id, &mut nodes, &mut edges)?;
+        for fact in &file.response.facts {
+            if fact.class != FactClass::Declaration {
+                continue;
+            }
+            let (Some(name), Some(node_id)) =
+                (fact.name.as_ref(), local_nodes.get(&fact.local_key))
+            else {
+                continue;
+            };
+            scope_declarations
+                .entry(name.clone())
+                .or_default()
+                .push(node_id.clone());
+        }
+        local_by_file.push(local_nodes);
+    }
+    for declaring in scope_declarations.values_mut() {
+        declaring.sort();
+        declaring.dedup();
+    }
+
+    for (file, local_nodes) in files.iter().zip(&local_by_file) {
         promote_file(
             workspace_snapshot,
-            &file,
+            file,
             &file_nodes,
-            &mut nodes,
+            local_nodes,
+            &scope_declarations,
             &mut edges,
             &mut unknowns,
         )?;
@@ -727,20 +1308,23 @@ fn promote_file(
     workspace_snapshot: &str,
     file: &GraphFileInput,
     file_nodes: &BTreeMap<String, String>,
-    nodes: &mut Vec<GraphNode>,
+    local_nodes: &BTreeMap<String, String>,
+    scope_declarations: &BTreeMap<String, Vec<String>>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
     let file_id = file_nodes
         .get(&file.path.display_path)
         .ok_or(StructuralError::ContractMismatch)?;
-    let local_nodes = add_declarations(workspace_snapshot, file, file_id, nodes, edges)?;
     add_relationships(
         workspace_snapshot,
         file,
         file_id,
-        file_nodes,
-        &local_nodes,
+        &GraphScope {
+            files: file_nodes,
+            local: local_nodes,
+            declarations: scope_declarations,
+        },
         edges,
         unknowns,
     )?;
@@ -753,7 +1337,7 @@ fn promote_file(
             "structural_resource_limit_reached" | "structural_fact_response_limit_reached"
         )
     }) {
-        unknowns.push("structural_resource_limit_reached".into());
+        unknowns.push(STRUCTURAL_RESOURCE_LIMIT_UNKNOWN.into());
     }
     Ok(())
 }
@@ -782,6 +1366,7 @@ fn add_file_node(
         path: file.path.clone(),
         name: None,
         span: None,
+        declaration_kind: None,
         confidence: "confirmed".into(),
         provenance,
     });
@@ -825,6 +1410,7 @@ fn add_declarations(
                 start_byte: fact.start_byte,
                 end_byte: fact.end_byte,
             }),
+            declaration_kind: Some(declaration_kind(&fact.syntax_kind).into()),
             confidence: fact.confidence.clone(),
             provenance: fact.provenance.clone(),
         });
@@ -842,15 +1428,25 @@ fn add_declarations(
 }
 
 #[allow(clippy::too_many_lines)]
+/// The name maps one file's relationships resolve against.
+struct GraphScope<'a> {
+    /// Every file node in the scope, for module imports.
+    files: &'a BTreeMap<String, String>,
+    /// This file's own declarations, which win (ADR-0132).
+    local: &'a BTreeMap<String, String>,
+    /// Every declaration in the scope, by name.
+    declarations: &'a BTreeMap<String, Vec<String>>,
+}
+
 fn add_relationships(
     workspace_snapshot: &str,
     file: &GraphFileInput,
     file_id: &str,
-    file_nodes: &BTreeMap<String, String>,
-    local_nodes: &std::collections::BTreeMap<String, String>,
+    scope: &GraphScope<'_>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
+    let (file_nodes, local_nodes) = (scope.files, scope.local);
     for fact in &file.response.facts {
         match fact.class {
             FactClass::Contains => {
@@ -906,37 +1502,15 @@ fn add_relationships(
                 }
             }
             FactClass::Call => {
-                let source = fact
-                    .parent_key
-                    .as_ref()
-                    .and_then(|key| local_nodes.get(key))
-                    .map_or(file_id, String::as_str);
-                let target = fact.name.as_ref().and_then(|name| {
-                    file.response
-                        .facts
-                        .iter()
-                        .find(|candidate| {
-                            candidate.class == FactClass::Declaration
-                                && candidate.name.as_ref() == Some(name)
-                        })
-                        .and_then(|candidate| local_nodes.get(&candidate.local_key))
-                });
-                edges.push(graph_edge(
+                add_call(
                     workspace_snapshot,
-                    "calls",
-                    source,
-                    target,
-                    None,
-                    if target.is_some() {
-                        "heuristic"
-                    } else {
-                        "unresolved"
-                    },
                     fact,
-                )?);
-                if target.is_none() {
-                    unknowns.push("unresolved_call_target".into());
-                }
+                    file,
+                    file_id,
+                    scope,
+                    edges,
+                    unknowns,
+                )?;
             }
             FactClass::Reference => {
                 add_reference(
@@ -944,7 +1518,7 @@ fn add_relationships(
                     fact,
                     file,
                     file_id,
-                    local_nodes,
+                    scope,
                     edges,
                     unknowns,
                 )?;
@@ -955,15 +1529,127 @@ fn add_relationships(
     Ok(())
 }
 
+/// Outcome of resolving one named target against the admitted scope.
+struct ScopeResolution<'a> {
+    target: Option<&'a String>,
+    ambiguous: bool,
+}
+
+impl ScopeResolution<'_> {
+    /// The disclosure this outcome owes a consumer, if any.
+    ///
+    /// An ambiguous name and an absent one stop a map in different places for
+    /// different reasons, so they are reported separately.
+    fn unknown(&self, relationship: &str) -> Option<String> {
+        if self.target.is_some() {
+            return None;
+        }
+        Some(if self.ambiguous {
+            format!("ambiguous_{relationship}_target")
+        } else {
+            format!("unresolved_{relationship}_target")
+        })
+    }
+}
+
+/// Resolve a named target, preferring the originating file (ADR-0132).
+///
+/// A declaration in the edge's own file wins, so every edge that resolved
+/// before this rule existed resolves to the same node now: the change turns
+/// dead ends into edges and never redirects a live one.
+///
+/// Across the scope, a name resolves only when exactly one file declares it.
+/// `__init__`, `get` and `read` are declared in dozens of scope files, and
+/// picking one would be inventing a target with extra steps — the thing
+/// traversal must never do.
+fn resolve_in_scope<'a>(
+    local_target: Option<&'a String>,
+    name: Option<&str>,
+    scope_declarations: &'a BTreeMap<String, Vec<String>>,
+) -> ScopeResolution<'a> {
+    if local_target.is_some() {
+        return ScopeResolution {
+            target: local_target,
+            ambiguous: false,
+        };
+    }
+    let Some(declaring) = name.and_then(|name| scope_declarations.get(name)) else {
+        return ScopeResolution {
+            target: None,
+            ambiguous: false,
+        };
+    };
+    match declaring.as_slice() {
+        [only] => ScopeResolution {
+            target: Some(only),
+            ambiguous: false,
+        },
+        [] => ScopeResolution {
+            target: None,
+            ambiguous: false,
+        },
+        _ => ScopeResolution {
+            target: None,
+            ambiguous: true,
+        },
+    }
+}
+
+/// A call edge, resolved against the file first and then the scope.
+fn add_call(
+    workspace_snapshot: &str,
+    fact: &StructuralFact,
+    file: &GraphFileInput,
+    file_id: &str,
+    scope: &GraphScope<'_>,
+    edges: &mut Vec<GraphEdge>,
+    unknowns: &mut Vec<String>,
+) -> Result<(), StructuralError> {
+    let (local_nodes, scope_declarations) = (scope.local, scope.declarations);
+    let source = fact
+        .parent_key
+        .as_ref()
+        .and_then(|key| local_nodes.get(key))
+        .map_or(file_id, String::as_str);
+    let local_target = fact.name.as_ref().and_then(|name| {
+        file.response
+            .facts
+            .iter()
+            .find(|candidate| {
+                candidate.class == FactClass::Declaration && candidate.name.as_ref() == Some(name)
+            })
+            .and_then(|candidate| local_nodes.get(&candidate.local_key))
+    });
+    let resolved = resolve_in_scope(local_target, fact.name.as_deref(), scope_declarations);
+    edges.push(graph_edge(
+        workspace_snapshot,
+        "calls",
+        source,
+        resolved.target,
+        None,
+        if resolved.target.is_some() {
+            "heuristic"
+        } else {
+            "unresolved"
+        },
+        fact,
+    )?);
+    if let Some(unknown) = resolved.unknown("call") {
+        unknowns.push(unknown);
+    }
+    Ok(())
+}
+
 fn add_reference(
     workspace_snapshot: &str,
     fact: &StructuralFact,
     file: &GraphFileInput,
     file_id: &str,
-    local_nodes: &BTreeMap<String, String>,
+    scope: &GraphScope<'_>,
     edges: &mut Vec<GraphEdge>,
     unknowns: &mut Vec<String>,
 ) -> Result<(), StructuralError> {
+    let (local_nodes, scope_declarations) = (scope.local, scope.declarations);
     let source = fact
         .parent_key
         .as_ref()
@@ -979,22 +1665,23 @@ fn add_reference(
             .filter_map(|candidate| local_nodes.get(&candidate.local_key))
             .collect::<Vec<_>>()
     });
-    let target = (candidates.len() == 1).then(|| candidates[0]);
+    let local_target = (candidates.len() == 1).then(|| candidates[0]);
+    let resolved = resolve_in_scope(local_target, fact.name.as_deref(), scope_declarations);
     edges.push(graph_edge(
         workspace_snapshot,
         "references",
         source,
-        target,
+        resolved.target,
         None,
-        if target.is_some() {
+        if resolved.target.is_some() {
             "heuristic"
         } else {
             "unresolved"
         },
         fact,
     )?);
-    if target.is_none() {
-        unknowns.push("unresolved_reference_target".into());
+    if let Some(unknown) = resolved.unknown("reference") {
+        unknowns.push(unknown);
     }
     Ok(())
 }
@@ -1150,7 +1837,7 @@ fn graph_edge(
 fn default_provenance() -> FactProvenance {
     FactProvenance {
         method: "tree_sitter_syntax".into(),
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: PARSER_VERSION.into(),
         grammar_version: "mixed-pinned-grammars".into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -1400,6 +2087,10 @@ fn validate_success(
         || success.content_hash != request.content_hash
         || success.facts.len()
             > usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?
+        // A response cannot carry more facts than the file it parsed yields.
+        // The control process divides an allowance using this number, so a
+        // worker that overstates it would starve every other file.
+        || success.total_facts_available < success.facts.len() as u64
         || success.warnings.iter().any(|warning| {
             !matches!(
                 warning.as_str(),
@@ -1580,24 +2271,36 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
     let yaml_syntax_valid =
         request.language != StructuralLanguage::Yaml || !tree.root_node().has_error();
     let provenance = provenance(request);
-    let mut facts = Vec::new();
-    let mut ancestors = Vec::new();
-    let mut resource_limit_reached = false;
+    let mut walk = Walk {
+        ancestors: Vec::new(),
+        facts: Vec::new(),
+        demand: 0,
+    };
+    let mut depth_bound_stopped_the_walk = false;
     if strict_json_valid && toml_syntax_valid && yaml_syntax_valid {
-        resource_limit_reached = match visit(
+        depth_bound_stopped_the_walk = match visit(
             tree.root_node(),
             &source,
             request,
             &provenance,
             0,
-            &mut ancestors,
-            &mut facts,
+            &mut walk,
         ) {
             Ok(()) => false,
             Err(StructuralError::ResourceLimit) => true,
             Err(error) => return Err(error),
         };
     }
+    // The fact ceiling no longer stops the walk, so it no longer announces
+    // itself by failing. What was withheld is the difference between what the
+    // file yields and what this response carries.
+    let Walk {
+        mut facts,
+        demand: total_facts_available,
+        ..
+    } = walk;
+    let resource_limit_reached =
+        depth_bound_stopped_the_walk || total_facts_available > facts.len() as u64;
     facts.sort_by(|left, right| {
         (left.start_byte, left.end_byte, left.class, &left.local_key).cmp(&(
             right.start_byte,
@@ -1613,6 +2316,7 @@ pub fn process_request(request: &WorkerRequest) -> Result<WorkerSuccess, Structu
         content_hash: request.content_hash.clone(),
         syntax_errors: tree.root_node().has_error() || !strict_json_valid,
         facts,
+        total_facts_available,
         warnings: warnings(
             tree.root_node().has_error(),
             strict_json_valid,
@@ -1626,7 +2330,7 @@ fn validate_request(request: &WorkerRequest) -> Result<(), StructuralError> {
         || request.schema_version != PROTOCOL_VERSION
         || request.graph_version != GRAPH_VERSION
         || request.resolver_version != RESOLVER_VERSION
-        || request.parser_version != "tree-sitter-0.26.13"
+        || request.parser_version != PARSER_VERSION
         || request.max_facts == 0
         || request.max_facts > 100_000
         || request.max_nesting_depth == 0
@@ -1709,19 +2413,32 @@ fn provenance(request: &WorkerRequest) -> FactProvenance {
     }
 }
 
+/// What one walk accumulates.
+///
+/// `facts` is bounded by the request's ceiling; `demand` is not, because a
+/// caller dividing an allowance across files needs what each file would have
+/// yielded rather than what it was allowed.
+struct Walk {
+    ancestors: Vec<String>,
+    facts: Vec<StructuralFact>,
+    demand: u64,
+}
+
 fn visit(
     node: Node<'_>,
     source: &[u8],
     request: &WorkerRequest,
     provenance: &FactProvenance,
     depth: u32,
-    ancestors: &mut Vec<String>,
-    facts: &mut Vec<StructuralFact>,
+    walk: &mut Walk,
 ) -> Result<(), StructuralError> {
     if depth > request.max_nesting_depth {
+        // A genuine bound rather than a ceiling: an unbounded recursion is a
+        // safety question, so this still stops the walk, and `demand` is
+        // therefore a floor from here on.
         return Err(StructuralError::ResourceLimit);
     }
-    let parent = ancestors.last().cloned();
+    let parent = walk.ancestors.last().cloned();
     let produced = fact_for_node(node, source, request, provenance, parent.as_deref());
     let mut pushed = false;
     if let Some(fact) = produced {
@@ -1731,15 +2448,17 @@ fn visit(
         let required = 1_usize + usize::from(adds_containment);
         let maximum =
             usize::try_from(request.max_facts).map_err(|_| StructuralError::ResourceLimit)?;
-        if facts
+        // Counted whether or not it is emitted. The tree is already parsed, so
+        // walking the rest of it is what makes the caller's allowance division
+        // exact instead of estimated.
+        walk.demand = walk.demand.saturating_add(required as u64);
+        let fits = walk
+            .facts
             .len()
             .checked_add(required)
-            .is_none_or(|count| count > maximum)
-        {
-            return Err(StructuralError::ResourceLimit);
-        }
+            .is_some_and(|count| count <= maximum);
         let key = fact.local_key.clone();
-        if adds_containment {
+        if fits && adds_containment {
             let contains = StructuralFact {
                 class: FactClass::Contains,
                 local_key: format!("contains:{}:{key}", parent.as_deref().unwrap_or_default()),
@@ -1752,28 +2471,26 @@ fn visit(
                 confidence: "confirmed".into(),
                 provenance: provenance.clone(),
             };
-            facts.push(contains);
+            walk.facts.push(contains);
         }
+        // Ancestor bookkeeping is unconditional. It decides whether a descendant
+        // adds a containment fact, so skipping it past the ceiling would make
+        // the count diverge from what an unbounded parse would produce — and an
+        // inexact count is the thing this field exists to avoid.
         if fact.class == FactClass::Declaration {
-            ancestors.push(key);
+            walk.ancestors.push(key);
             pushed = true;
         }
-        facts.push(fact);
+        if fits {
+            walk.facts.push(fact);
+        }
     }
     let mut cursor = node.walk();
     for child in node.named_children(&mut cursor) {
-        visit(
-            child,
-            source,
-            request,
-            provenance,
-            depth + 1,
-            ancestors,
-            facts,
-        )?;
+        visit(child, source, request, provenance, depth + 1, walk)?;
     }
     if pushed {
-        ancestors.pop();
+        walk.ancestors.pop();
     }
     Ok(())
 }
@@ -2508,9 +3225,7 @@ fn bounded_worker_response(
         return Ok(bytes);
     }
 
-    success
-        .warnings
-        .push("structural_fact_response_limit_reached".into());
+    success.warnings.push(RESPONSE_BYTE_LIMIT_WARNING.into());
     let facts = std::mem::take(&mut success.facts);
     let mut lower = 0_usize;
     let mut upper = facts.len();
@@ -2609,7 +3324,7 @@ mod tests {
             max_facts: 100,
             max_nesting_depth: 128,
             max_response_bytes: 1_048_576,
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: PARSER_VERSION.into(),
             grammar_version: grammar.into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -3584,6 +4299,59 @@ public class Worker {
         }));
     }
 
+    // A file with enough declarations that a small ceiling bites well before
+    // the end of it.
+    const CROWDED: &[u8] = b"class A:\n    def one(self):\n        pass\n    def two(self):\n        pass\n\nclass B:\n    def three(self):\n        pass\n    def four(self):\n        pass\n";
+
+    #[test]
+    fn a_ceiling_withholds_facts_without_changing_what_the_file_yields() {
+        // The point of the field. A caller dividing one allowance across files
+        // needs each file's real need, and a capped response must report the
+        // same need as an uncapped one — otherwise the division is built on a
+        // number the ceiling itself distorted.
+        let full = process_request(&request(CROWDED, StructuralLanguage::Python))
+            .expect("unbounded response");
+        assert_eq!(
+            full.total_facts_available,
+            full.facts.len() as u64,
+            "an unbounded parse withholds nothing"
+        );
+        assert!(
+            full.facts.len() > 4,
+            "fixture must exceed the ceiling below"
+        );
+
+        let mut capped = request(CROWDED, StructuralLanguage::Python);
+        capped.max_facts = 3;
+        let capped = process_request(&capped).expect("bounded response");
+        assert!(capped.facts.len() <= 3);
+        assert_eq!(
+            capped.total_facts_available, full.total_facts_available,
+            "the count must not depend on the ceiling applied to it"
+        );
+        assert!(
+            capped
+                .warnings
+                .contains(&"structural_resource_limit_reached".to_owned()),
+            "withholding facts must still be disclosed"
+        );
+    }
+
+    #[test]
+    fn a_response_that_understates_what_it_holds_is_rejected() {
+        // The control process divides an allowance using this number. A worker
+        // understating it would starve every other file in the build, so the
+        // claim is checked against the response rather than trusted.
+        let asked = request(CROWDED, StructuralLanguage::Python);
+        let mut lying = process_request(&asked).expect("response");
+        assert!(lying.facts.len() > 1);
+        lying.total_facts_available = lying.facts.len() as u64 - 1;
+        assert_eq!(
+            validate_success(&lying, &asked),
+            Err(StructuralError::ContractMismatch)
+        );
+    }
+
     #[test]
     fn rejects_hash_mismatch_and_fact_limit() {
         let mut invalid = request(b"const value = 1;", StructuralLanguage::TypeScript);
@@ -3726,6 +4494,539 @@ public class Worker {
         let json = serde_json::to_string(&request).expect("json");
         let duplicate = json.replacen('{', "{\"request_id\":\"req_duplicate\",", 1);
         assert!(serde_json::from_str::<WorkerRequest>(&duplicate).is_err());
+    }
+
+    /// A worker request for one named file, so a test can build a scope of
+    /// several.
+    fn request_at(source: &[u8], language: StructuralLanguage, path: &str) -> WorkerRequest {
+        let mut built = request(source, language);
+        built.path.display_path = path.into();
+        built.path.relative_units_base64url = URL_SAFE_NO_PAD.encode(path.as_bytes());
+        built
+    }
+
+    fn file_input(source: &[u8], language: StructuralLanguage, path: &str) -> GraphFileInput {
+        let request = request_at(source, language, path);
+        let response = process_request(&request).expect("parse");
+        GraphFileInput {
+            path: request.path,
+            response,
+        }
+    }
+
+    #[test]
+    fn a_reference_resolves_to_a_declaration_in_another_scope_file() {
+        // The defect this fixes: a reference could only ever find a target in
+        // its own file, so the graph was a set of per-file islands and
+        // traversal could not cross one (ADR-0132).
+        let graph = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"class Card:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "fits/card.py",
+                ),
+                file_input(
+                    b"class Header:\n    def build(self):\n        return Card()\n",
+                    StructuralLanguage::Python,
+                    "fits/header.py",
+                ),
+            ],
+        )
+        .expect("graph");
+
+        let card = graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some("Card") && node.kind == "symbol")
+            .expect("Card declaration");
+        assert!(
+            graph.edges.iter().any(|edge| {
+                edge.target_node.as_deref() == Some(card.node_id.as_str())
+                    && matches!(edge.kind.as_str(), "calls" | "references")
+                    && edge.resolution == "heuristic"
+            }),
+            "a cross-file edge should reach the Card declaration"
+        );
+    }
+
+    #[test]
+    fn a_name_several_scope_files_declare_stays_unresolved_and_says_so() {
+        // Choosing among several declarations would be inventing a target with
+        // extra steps. Ambiguity is disclosed separately from absence, because
+        // they stop a map for different reasons.
+        let graph = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"class Shared:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "a/one.py",
+                ),
+                file_input(
+                    b"class Shared:\n    pass\n",
+                    StructuralLanguage::Python,
+                    "b/two.py",
+                ),
+                file_input(
+                    b"class User:\n    def build(self):\n        return Shared()\n",
+                    StructuralLanguage::Python,
+                    "c/user.py",
+                ),
+            ],
+        )
+        .expect("graph");
+
+        let shared: Vec<&str> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.name.as_deref() == Some("Shared") && node.kind == "symbol")
+            .map(|node| node.node_id.as_str())
+            .collect();
+        assert_eq!(shared.len(), 2, "both declarations are in the graph");
+        assert!(
+            !graph.edges.iter().any(|edge| {
+                edge.target_node
+                    .as_deref()
+                    .is_some_and(|target| shared.contains(&target))
+                    && matches!(edge.kind.as_str(), "calls" | "references")
+            }),
+            "an ambiguous name must not be resolved to either declaration"
+        );
+        assert!(
+            graph
+                .unknowns
+                .iter()
+                .any(|unknown| unknown.starts_with("ambiguous_")),
+            "ambiguity must be disclosed: {:?}",
+            graph.unknowns
+        );
+    }
+
+    #[test]
+    fn a_declaration_in_the_edges_own_file_still_wins() {
+        // Every edge that resolved before this rule existed must resolve to the
+        // same node now, or a recall measurement cannot be attributed.
+        let local_only = build_graph(
+            &sha256(b"snapshot"),
+            vec![file_input(
+                b"def helper():\n    return 1\n\ndef outer():\n    return helper()\n",
+                StructuralLanguage::Python,
+                "solo.py",
+            )],
+        )
+        .expect("graph");
+        let local_target = local_only
+            .edges
+            .iter()
+            .find(|edge| edge.kind == "calls" && edge.target_node.is_some())
+            .and_then(|edge| edge.target_node.clone())
+            .expect("a within-file call resolves");
+
+        // The same file, now beside another file that also declares `helper`.
+        let with_scope = build_graph(
+            &sha256(b"snapshot"),
+            vec![
+                file_input(
+                    b"def helper():\n    return 1\n\ndef outer():\n    return helper()\n",
+                    StructuralLanguage::Python,
+                    "solo.py",
+                ),
+                file_input(
+                    b"def helper():\n    return 2\n",
+                    StructuralLanguage::Python,
+                    "other.py",
+                ),
+            ],
+        )
+        .expect("graph");
+        assert!(
+            with_scope
+                .edges
+                .iter()
+                .any(|edge| edge.target_node.as_deref() == Some(local_target.as_str())),
+            "the within-file target must be unchanged by a competing declaration"
+        );
+    }
+
+    /// One TypeScript source in which `outer` has more outgoing edges than a
+    /// small traversal limit keeps, recorded under `parser_version`.
+    fn many_edged_graph(parser_version: &str) -> StructuralGraph {
+        let source = br"function a() { return 1; }
+function b() { return 2; }
+function c() { return 3; }
+function d() { return 4; }
+export function outer() { a(); b(); c(); d(); const x = a; const y = b; missing(); }
+";
+        let request = request(source, StructuralLanguage::TypeScript);
+        let mut response = process_request(&request).expect("parse");
+        for fact in &mut response.facts {
+            fact.provenance.parser_version = parser_version.into();
+        }
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    fn outer_node(graph: &StructuralGraph) -> String {
+        graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some("outer"))
+            .expect("outer node")
+            .node_id
+            .clone()
+    }
+
+    #[test]
+    fn a_traversal_keeps_the_same_edges_whatever_their_identities() {
+        // Relabelling the parser changes every edge identity and no fact.
+        let original = many_edged_graph(PARSER_VERSION);
+        let relabelled = many_edged_graph("tree-sitter-relabelled");
+        assert_ne!(
+            original
+                .edges
+                .iter()
+                .map(|edge| &edge.edge_id)
+                .collect::<Vec<_>>(),
+            relabelled
+                .edges
+                .iter()
+                .map(|edge| &edge.edge_id)
+                .collect::<Vec<_>>(),
+            "relabelling must change edge identities"
+        );
+        let kept = |graph: &StructuralGraph| {
+            query_graph(graph, &outer_node(graph), &[], 1, 100, 3)
+                .expect("traversal")
+                .edges
+                .iter()
+                .map(|edge| {
+                    (
+                        edge.kind.clone(),
+                        edge.resolution.clone(),
+                        edge.span.start_byte,
+                        edge.span.end_byte,
+                    )
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(kept(&original), kept(&relabelled));
+    }
+
+    #[test]
+    fn a_traversal_keeps_resolved_relationships_before_unresolved_ones() {
+        let graph = many_edged_graph(PARSER_VERSION);
+        let outer = outer_node(&graph);
+        let all = query_graph(&graph, &outer, &[], 1, 100, 100).expect("traversal");
+        let confirmed = all
+            .edges
+            .iter()
+            .filter(|edge| edge.resolution == "confirmed")
+            .count();
+        assert!(confirmed > 0, "fixture needs a confirmed relationship");
+        assert!(
+            all.edges.iter().any(|edge| edge.resolution == "unresolved"),
+            "fixture needs an unresolved relationship"
+        );
+        let limit = u32::try_from(confirmed).expect("small count");
+        let limited = query_graph(&graph, &outer, &[], 1, 100, limit).expect("limited");
+        assert!(
+            limited
+                .edges
+                .iter()
+                .all(|edge| edge.resolution == "confirmed")
+        );
+        assert!(
+            limited
+                .edges
+                .windows(2)
+                .all(|pair| pair[0].span.start_byte <= pair[1].span.start_byte),
+            "within one resolution, edges are kept in source order"
+        );
+    }
+
+    #[test]
+    fn a_traversal_orders_same_named_targets_by_where_they_are_declared() {
+        // A property's getter and setter share a file and a name. With one edge
+        // admitted, the traversal keeps the edge to the declaration that comes
+        // first, whatever order the identities fall in.
+        let snapshot = sha256(b"snapshot");
+        let provenance = FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: PARSER_VERSION.into(),
+            grammar_version: "tree-sitter-test".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let path = WorkerPath {
+            display_path: "src/a.py".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "utf8".into(),
+            relative_units_base64url: "c3JjL2EucHk".into(),
+        };
+        let node = |key: &str, name: &str, start_byte: u64| GraphNode {
+            node_id: sha256(key.as_bytes()),
+            kind: "symbol".into(),
+            path: path.clone(),
+            name: Some(name.into()),
+            span: Some(GraphSpan {
+                start_byte,
+                end_byte: start_byte + 10,
+            }),
+            declaration_kind: Some("function".into()),
+            confidence: "confirmed".into(),
+            provenance: provenance.clone(),
+        };
+        let caller = node("caller", "caller", 0);
+        let getter = node("getter", "value", 20);
+        let setter = node("setter", "value", 40);
+        let edge = |edge_id: String, target: &GraphNode| GraphEdge {
+            edge_id,
+            kind: "calls".into(),
+            source_node: caller.node_id.clone(),
+            target_node: Some(target.node_id.clone()),
+            module: None,
+            resolution: "heuristic".into(),
+            span: GraphSpan {
+                start_byte: 5,
+                end_byte: 10,
+            },
+            provenance: provenance.clone(),
+        };
+        // Identities ordered against declaration order: the edge to the later
+        // declaration has the smaller identity.
+        let edges = vec![
+            edge(format!("sha256:{}", "1".repeat(64)), &setter),
+            edge(format!("sha256:{}", "2".repeat(64)), &getter),
+        ];
+        let nodes = vec![caller.clone(), getter.clone(), setter];
+        let unknowns: Vec<String> = Vec::new();
+        let graph_id = graph_identity(
+            "structural-graph",
+            &serde_json::json!({
+                "workspace_snapshot": &snapshot,
+                "completeness": "complete",
+                "nodes": &nodes,
+                "edges": &edges,
+                "unknowns": &unknowns,
+            }),
+        )
+        .expect("graph identity");
+        let graph = StructuralGraph {
+            schema_name: "structural-graph".into(),
+            schema_version: GRAPH_VERSION.into(),
+            graph_id,
+            workspace_snapshot: snapshot,
+            completeness: "complete".into(),
+            nodes,
+            edges,
+            unknowns,
+        };
+        let kept = query_graph(&graph, &caller.node_id, &[], 1, 100, 1).expect("traversal");
+        assert_eq!(kept.edges.len(), 1);
+        assert_eq!(
+            kept.edges[0].target_node.as_deref(),
+            Some(getter.node_id.as_str())
+        );
+    }
+
+    /// `compute` assigns calls to `helper` and to an undeclared `missing` to a
+    /// local and returns it; `Holder` assigns a call to `helper` to a class
+    /// attribute.
+    fn locals_graph() -> StructuralGraph {
+        let source = b"def helper():\n    return 1\n\n\ndef compute():\n    total = helper() + missing()\n    return total\n\n\nclass Holder:\n    size = helper()\n";
+        let request = request(source, StructuralLanguage::Python);
+        let response = process_request(&request).expect("parse");
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    #[test]
+    fn a_traversal_can_look_through_a_functions_locals() {
+        let graph = locals_graph();
+        let name = |id: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.node_id == id)
+                .and_then(|node| node.name.clone())
+                .unwrap_or_default()
+        };
+        // `total` belongs to `compute`; the class attribute `size` to no function.
+        let locals = function_locals(&graph)
+            .into_iter()
+            .map(|(local, owner)| (name(local), name(owner)))
+            .collect::<Vec<_>>();
+        assert_eq!(locals, [("total".to_owned(), "compute".to_owned())]);
+        let traverse = |locals: LocalVariables| {
+            let compute = node_named(&graph, "compute");
+            query_graph_with(&graph, &compute, &[], 1, 100, 100, locals).expect("traversal")
+        };
+        let read = |result: &StructuralQueryResult| {
+            result
+                .edges
+                .iter()
+                .map(|edge| (edge.kind.clone(), edge.target_node.as_deref().map(name)))
+                .collect::<Vec<_>>()
+        };
+        // Visited, the calls belong to the local, and the function only
+        // contains and returns it.
+        let visiting = traverse(LocalVariables::Visit);
+        let visited = read(&visiting);
+        assert!(visited.contains(&("contains".to_owned(), Some("total".to_owned()))));
+        assert!(
+            !visiting
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
+        );
+        assert!(
+            !visited
+                .iter()
+                .any(|(_, target)| target.as_deref() == Some("helper"))
+        );
+        // Looked through, what the local resolved to is the function's own, the
+        // local is not delivered, and the unresolved call it made is dropped.
+        let through = traverse(LocalVariables::LookThrough);
+        let looked = read(&through);
+        assert!(looked.contains(&("calls".to_owned(), Some("helper".to_owned()))));
+        assert!(
+            looked
+                .iter()
+                .all(|(_, target)| target.as_deref() == Some("helper"))
+        );
+        assert!(through.edges.iter().all(|edge| {
+            through
+                .nodes
+                .iter()
+                .any(|node| node.node_id == edge.source_node)
+        }));
+        // What looking through left out is recorded, and only where it left
+        // something out: `helper` has no locals.
+        assert!(
+            through
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
+        );
+        let helper = node_named(&graph, "helper");
+        let plain = query_graph_with(
+            &graph,
+            &helper,
+            &[],
+            1,
+            100,
+            100,
+            LocalVariables::LookThrough,
+        )
+        .expect("traversal");
+        assert!(
+            !plain
+                .unknowns
+                .contains(&LOCAL_VARIABLES_LOOKED_THROUGH.to_owned())
+        );
+    }
+
+    /// `Widget`, in one Python file, inherits `Base` and holds a class
+    /// attribute, a method with a local and a nested helper, and a second
+    /// method.
+    fn family_graph() -> StructuralGraph {
+        let source = b"class Base:\n    def inherited(self):\n        pass\n\n\nclass Widget(Base):\n    limit = 3\n\n    def first(self):\n        value = 1\n\n        def helper():\n            return value\n\n        return helper\n\n    def second(self):\n        pass\n";
+        let request = request(source, StructuralLanguage::Python);
+        let response = process_request(&request).expect("parse");
+        let input = GraphFileInput {
+            path: request.path,
+            response,
+        };
+        build_graph(&sha256(b"snapshot"), vec![input]).expect("graph")
+    }
+
+    fn node_named(graph: &StructuralGraph, name: &str) -> String {
+        graph
+            .nodes
+            .iter()
+            .find(|node| node.name.as_deref() == Some(name))
+            .expect("named node")
+            .node_id
+            .clone()
+    }
+
+    fn target_names(graph: &StructuralGraph, result: &StructuralQueryResult) -> Vec<String> {
+        result
+            .edges
+            .iter()
+            .map(|edge| {
+                let target = edge.target_node.as_deref().expect("family edges resolve");
+                graph
+                    .nodes
+                    .iter()
+                    .find(|node| node.node_id == target)
+                    .and_then(|node| node.name.clone())
+                    .unwrap_or_default()
+            })
+            .collect()
+    }
+
+    #[test]
+    fn declarations_record_what_they_declare() {
+        let graph = family_graph();
+        let kind = |name: &str| {
+            graph
+                .nodes
+                .iter()
+                .find(|node| node.name.as_deref() == Some(name))
+                .and_then(|node| node.declaration_kind.clone())
+        };
+        for (name, expected) in [
+            ("Widget", "type"),
+            ("first", "function"),
+            ("helper", "function"),
+            ("limit", "variable"),
+            ("value", "variable"),
+        ] {
+            assert_eq!(kind(name).as_deref(), Some(expected), "{name}");
+        }
+        assert!(
+            graph
+                .nodes
+                .iter()
+                .filter(|node| node.kind == "file")
+                .all(|node| node.declaration_kind.is_none())
+        );
+    }
+
+    #[test]
+    fn a_seed_family_is_its_enclosing_class_members_nested_functions_and_bases() {
+        let graph = family_graph();
+        let family = |seed: &str, kinds: &[String], limit: u32| {
+            seed_family(&graph, &node_named(&graph, seed), kinds, limit).expect("family")
+        };
+        // A class: its methods in source order, what they nest, then its base
+        // and the base's methods. Never a variable.
+        assert_eq!(
+            target_names(&graph, &family("Widget", &[], 64)),
+            ["first", "second", "helper", "Base", "inherited"]
+        );
+        // A method: the class it belongs to, then what it nests.
+        assert_eq!(
+            target_names(&graph, &family("first", &[], 64)),
+            ["Widget", "helper"]
+        );
+        // The limit keeps a prefix and says so.
+        let capped = family("Widget", &[], 2);
+        assert_eq!(target_names(&graph, &capped), ["first", "second"]);
+        assert!(capped.truncated);
+        assert_eq!(capped.unknowns, ["seed_family_limit_reached"]);
+        // Requested kinds are honoured: without references there is no base.
+        assert_eq!(
+            target_names(&graph, &family("Widget", &["contains".to_owned()], 64)),
+            ["first", "second", "helper"]
+        );
     }
 
     #[test]

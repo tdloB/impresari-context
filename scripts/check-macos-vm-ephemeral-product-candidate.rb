@@ -18,8 +18,20 @@ SOURCE_REVISION = "aca656771f9286b13fbcc046b133ade62b58da2a"
 SOURCE_ARCHIVE_DIGEST = "f26fcf7ccdc6cb499e3eacc1f479a93083c58d397c8730b72a56d43d8c0adb8b"
 PRODUCT_IDENTITY = "7bd280339e2a8cf30c26fc2ad96225f52cad5593c63ea621e7e44ba62b9bd5ca"
 
+# The candidate's own SBOM, retained beside its other frozen evidence.
+#
+# The record states what `artifacts/sbom.spdx.json` held at `aca6567`, and that
+# remains true of that revision. It is not true of the working tree: that file
+# is the *current* dependency inventory and `check-sbom.rb` requires it to track
+# `Cargo.lock`, so it moves whenever a dependency does. Verifying a historical
+# claim against present-day bytes made the two checks mutually exclusive and
+# blocked every dependency update. This copy is byte-identical to what the
+# record attests, so the claim stays verifiable without freezing the inventory.
+RETAINED_SBOM_RELATIVE = "platform/macos-vm-feasibility/product-sbom-v1.spdx.json"
+RETAINED_SBOM_DIGEST = "bb249501b6d693edaff188edc2344d1d1a62a94bd13ace8488f4a03e5273a3bb"
+
 EVIDENCE_DIGESTS = {
-  "artifacts/sbom.spdx.json" => "bb249501b6d693edaff188edc2344d1d1a62a94bd13ace8488f4a03e5273a3bb",
+  RETAINED_SBOM_RELATIVE => RETAINED_SBOM_DIGEST,
   "platform/macos-vm-feasibility/product-license-disposition-v1.json" => "6f7183c6b0c46d7121c371df536f810677ed843a9f282d454859c3ab04a4c219",
   "platform/macos-vm-feasibility/product-vulnerability-disposition-v1.json" => "73a56792d4a09d3cf12329e3d46f289ace496eaab42c391c57689726197daea1",
   "platform/macos-vm-feasibility/product-reproducibility-disposition-v1.json" => "b74119c2acebfdc919c7852cee904016483f93113471bae3a23fd5f56135b59b"
@@ -108,7 +120,7 @@ abort "candidate evidence bindings changed" unless
   evidence.fetch("cargo_lock_sha256") == "sha256:d04f92d689b5d92fba1b49442258b9db82c0f141f07bc3b45dd04b6883278add" &&
     evidence.fetch("cargo_metadata_stdout_sha256") == "sha256:5a63c27b8e0eba2cbcfc842adca388118e725a0aea8883d11881e6c2f08ba44c" &&
     evidence.fetch("spdx_2_3_sbom_path") == "artifacts/sbom.spdx.json" &&
-    evidence.fetch("spdx_2_3_sbom_sha256") == "sha256:#{EVIDENCE_DIGESTS.fetch('artifacts/sbom.spdx.json')}" &&
+    evidence.fetch("spdx_2_3_sbom_sha256") == "sha256:#{RETAINED_SBOM_DIGEST}" &&
     evidence.fetch("license_disposition_sha256") == "sha256:#{EVIDENCE_DIGESTS.fetch('platform/macos-vm-feasibility/product-license-disposition-v1.json')}" &&
     evidence.fetch("vulnerability_disposition_sha256") == "sha256:#{EVIDENCE_DIGESTS.fetch('platform/macos-vm-feasibility/product-vulnerability-disposition-v1.json')}" &&
     evidence.fetch("reproducibility_disposition_sha256") == "sha256:#{EVIDENCE_DIGESTS.fetch('platform/macos-vm-feasibility/product-reproducibility-disposition-v1.json')}"

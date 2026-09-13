@@ -11,7 +11,10 @@ use std::{
 };
 
 pub mod cache_prefix;
+pub mod file_nomination;
 pub mod host_hooks;
+pub mod identifier_index;
+pub mod read_substitution;
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use context_core::{
@@ -26,16 +29,17 @@ use context_dashboard::{
 use context_retrieval::{
     RetrievalErrorCode, SearchBudget, build_lexical_generation_bounded, evidence_for_span,
     evidence_record, expand_evidence_record, lookup_exact_path, search_filename, search_lexical,
-    search_literal,
+    search_lexical_in, search_literal, search_literal_in,
 };
 use context_store::{
     AuditRetention, AuditStore, CacheErrorCode, CachedGraph, CachedStructuralFile, WorkspaceCache,
 };
 use context_structural::{
-    FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, PROTOCOL_VERSION, RESOLVER_VERSION,
-    RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage, StructuralQueryResult,
-    WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess, build_graph_with_unknowns,
-    query_graph, repository_map, validate_graph, validate_worker_success, worker_cache_identity,
+    FactClass, GRAPH_VERSION, GraphFileInput, GraphNode, LocalVariables, PROTOCOL_VERSION,
+    RESOLVER_VERSION, RepositoryMap, StructuralError, StructuralGraph, StructuralLanguage,
+    StructuralQueryResult, WorkerLauncher, WorkerPath, WorkerRequest, WorkerSuccess,
+    build_graph_with_unknowns, query_graph_with, repository_map, seed_family, validate_graph,
+    validate_worker_success, worker_cache_identity,
 };
 use context_workspace::{
     AuthorizedWorkspace, DiscoveryPolicy, PathIdentity, SkipReason, WorkspaceErrorCode,
@@ -336,6 +340,18 @@ pub struct StructuralSeedRequest {
     pub graph: StructuralGraph,
     /// Relationship kinds requested by the caller; empty permits every kind.
     pub edge_kinds: Vec<String>,
+    /// Nominated files in rank order, best first; empty expresses no preference.
+    ///
+    /// Without it, a name shared by several files is broken alphabetically,
+    /// which is unrelated to relevance: `coordinates/angles.py` wins over
+    /// `units/quantity.py` for no better reason than the letter `c`.
+    pub nominated_order: Vec<String>,
+    /// Identifiers nomination admitted, including any the shape rule alone
+    /// would have rejected because the repository declares them (IC-DAN-131).
+    ///
+    /// Carried rather than re-derived so the two stages cannot disagree about
+    /// what the task named.
+    pub admitted_identifiers: Vec<String>,
 }
 
 /// Narrowing-only exact-source bounds for one deferred structural expansion.
@@ -353,15 +369,6 @@ pub struct StructuralEvidenceExpansion {
 enum StructuralPlanAnnotation<'a> {
     Available(&'a str),
     Omitted(&'a str),
-}
-
-#[derive(Clone, Debug, Eq, PartialEq)]
-enum StructuralSeedDecision {
-    Selected {
-        node_id: String,
-        reason_code: &'static str,
-    },
-    Omitted(&'static str),
 }
 
 /// Explicit bounded repository-map input for the orientation adapter.
@@ -639,6 +646,12 @@ pub struct LocalEngine {
     audit: AuditStore,
     handle: String,
     budget_policy_root: Option<PathBuf>,
+    /// Snapshot-bound identifier index used to nominate candidate files.
+    ///
+    /// Present only after preparation builds it. Absent means nomination is
+    /// unavailable, not that it silently falls back to scanning: searching per
+    /// identifier costs thousands of repository reads and exhausts the request.
+    identifier_index: Option<crate::identifier_index::TaskIdentifierIndex>,
 }
 
 impl LocalEngine {
@@ -653,6 +666,14 @@ impl LocalEngine {
         root: &Path,
     ) -> Result<(Self, WorkspaceHandle), EngineError> {
         Self::open_internal(config, context, root, None)
+    }
+
+    /// Forget content retained to answer repeated reads.
+    ///
+    /// Retention is request-scoped (ADR-0135): a later request re-verifies,
+    /// because a workspace may change between requests.
+    pub fn end_request_read_reuse(&self) {
+        self.workspace.clear_reused_reads();
     }
 
     /// Projects cumulative product read telemetry without adding authority.
@@ -760,6 +781,7 @@ impl LocalEngine {
         let identity = workspace.identity().to_owned();
         let handle = format!("wsp_{}", &identity[7..23]);
         let mut engine = Self {
+            identifier_index: None,
             config,
             workspace,
             snapshot: None,
@@ -833,11 +855,333 @@ impl LocalEngine {
     ///
     /// Returns a structured policy, stale-state, workspace, worker, resource, or
     /// graph-validation failure. Partial worker output is never returned.
+    /// Build the snapshot-bound identifier index used to nominate files.
+    ///
+    /// Reads each admitted file once, during preparation. Nomination is a
+    /// planning step, so its cost belongs here rather than in a request's
+    /// context read budget — searching per identifier instead cost roughly
+    /// 3,900 repository reads each and exhausted every request.
+    ///
+    /// # Errors
+    /// Returns a closed engine failure when no snapshot is prepared.
+    pub fn build_identifier_index(&mut self, context: &RequestContext) -> Result<(), EngineError> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        let mut builder =
+            crate::identifier_index::TaskIdentifierIndexBuilder::new(&snapshot.snapshot_id);
+        for artifact in snapshot
+            .artifacts
+            .iter()
+            // A changelog, a CI manifest and a README declare nothing. Indexing
+            // them let a prose line opening with a keyword declare a name,
+            // which put `CHANGES.rst` at the top of a nomination.
+            .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
+            .take(crate::identifier_index::MAX_INDEXED_FILES)
+        {
+            // An unreadable file contributes nothing and must not fail
+            // preparation for every other file.
+            if let Ok(exact) = self
+                .workspace
+                .read_exact(&artifact.path, artifact.size_bytes)
+            {
+                builder.admit(&artifact.path.display_path, &exact.bytes);
+            }
+        }
+        self.identifier_index = Some(builder.finish());
+        Ok(())
+    }
+
+    /// Whether a usable identifier index is prepared for the current snapshot.
+    #[must_use]
+    pub fn has_identifier_index(&self) -> bool {
+        self.snapshot.as_ref().is_some_and(|snapshot| {
+            self.identifier_index
+                .as_ref()
+                .is_some_and(|index| index.workspace_snapshot == snapshot.snapshot_id)
+        })
+    }
+
+    /// Nominate candidate files from the task, then build a dense structural
+    /// graph over only those files.
+    ///
+    /// The whole seed-scoped pipeline in one call: admitted task signals, an
+    /// index lookup that reads nothing, ranked nomination, and a scoped build.
+    /// It exists as one method so `task_signals` stays private and no caller can
+    /// supply its own nomination — a caller able to choose the files could steer
+    /// selection, and steering is oracle authority.
+    ///
+    /// The returned graph is **partial by construction**. The nomination beside
+    /// it carries the scope disclosure a consumer needs to read it safely.
+    ///
+    /// # Errors
+    /// Returns a closed engine failure for an invalid task, or for
+    /// authorization, snapshot, worker, resource, or store failures.
+    pub fn build_task_scoped_structure(
+        &mut self,
+        context: &RequestContext,
+        query: &str,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+    ) -> Result<(StructuralGraph, crate::file_nomination::FileNomination), EngineError> {
+        use std::collections::BTreeSet;
+
+        if !valid_task_query(query) {
+            return Err(core_error(
+                context,
+                Capability::StructureBuild,
+                context_core::CoreErrorCode::InvalidInput,
+                self.ids(),
+            ));
+        }
+        let (query, _) = bounded_task_query(query);
+        let snapshot_id = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| snapshot.snapshot_id.clone())
+            .unwrap_or_default();
+        // The repository decides what looks like code. A single-word class name
+        // fails the shape rule, and the index knows whether the snapshot
+        // declares it distinctly enough to identify a file.
+        let index = self.identifier_index.as_ref();
+        let signals = task_signals_with(query, &|name| {
+            index.is_some_and(|index| index.declares(&snapshot_id, name).unwrap_or(false))
+        });
+        let tracked: BTreeSet<String> = self
+            .snapshot
+            .as_ref()
+            .map(|snapshot| {
+                snapshot
+                    .artifacts
+                    .iter()
+                    .map(|artifact| artifact.path.display_path.clone())
+                    .collect()
+            })
+            .unwrap_or_default();
+
+        // Nomination reads nothing. The index answers from memory.
+        let identifier_matches = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| {
+                index
+                    .identifier_matches(&snapshot_id, &signals.identifiers)
+                    .ok()
+            })
+            .unwrap_or_default();
+
+        let declaration_matches = self
+            .identifier_index
+            .as_ref()
+            .and_then(|index| {
+                index
+                    .declaration_matches(&snapshot_id, &signals.identifiers)
+                    .ok()
+            })
+            .unwrap_or_default();
+
+        let nomination = crate::file_nomination::nominate_files(
+            &signals.paths,
+            &signals.identifiers,
+            &tracked,
+            &declaration_matches,
+            &identifier_matches,
+        );
+        let scope: BTreeSet<String> = nomination
+            .files
+            .iter()
+            .map(|file| file.display_path.clone())
+            .collect();
+        // A distinct audit identity: the caller's own context is still to be
+        // used for the context build that follows, and the store rejects a
+        // duplicate event identity.
+        let build_context = derived_task_scope_context(context);
+        let graph = self.build_structure_for_paths(&build_context, budget, launcher, &scope)?;
+        Ok((graph, nomination))
+    }
+
+    /// Answer a host's read offer with declaration spans (IC-HRS-136).
+    ///
+    /// The host is about to read this file. Instead of the whole file it may
+    /// take declarations, each attested with a content hash and byte range it
+    /// can verify against its own copy.
+    ///
+    /// `symbol` narrows the answer to one declaration. Measured, returning a
+    /// path's declarations is 93% of a Python file and 91% of a TypeScript one,
+    /// because such a file is almost entirely declarations; naming the symbol a
+    /// map already points at is what makes the answer small, in any language.
+    ///
+    /// Structure for the path is built on demand. That costs a parse, which is
+    /// local compute, and saves the file's bytes, which are model tokens — the
+    /// trade this exists to make.
+    ///
+    /// # Errors
+    ///
+    /// Returns a closed failure when the snapshot is unavailable, the path is
+    /// not an admitted artifact, or the source changed under the snapshot.
+    pub fn substitute_host_read(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        display_path: &str,
+        symbol: Option<&str>,
+        maximum_returned_bytes: u64,
+    ) -> Result<crate::read_substitution::ReadSubstitution, EngineError> {
+        let snapshot = self
+            .snapshot
+            .as_ref()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::StaleState,
+                    "workspace snapshot is unavailable",
+                    Some(self.workspace.identity()),
+                    None,
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?
+            .clone();
+        let artifact = snapshot
+            .artifacts
+            .iter()
+            .find(|artifact| artifact.path.display_path == display_path)
+            .cloned()
+            .ok_or_else(|| {
+                failure(
+                    context,
+                    Capability::StructureBuild,
+                    PublicErrorCode::InvalidInput,
+                    "path is not an admitted snapshot artifact",
+                    Some(self.workspace.identity()),
+                    Some(&snapshot.snapshot_id),
+                    Some(RecoveryAction::RefreshSnapshot),
+                )
+            })?;
+
+        let exact = self
+            .workspace
+            .read_exact(&artifact.path, artifact.size_bytes)
+            .map_err(|error| {
+                self.workspace_failure(context, Capability::StructureBuild, error.code())
+            })?;
+        if exact.content_hash != artifact.content_hash {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "workspace changed during read substitution",
+                Some(self.workspace.identity()),
+                Some(&snapshot.snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+
+        let scope: std::collections::BTreeSet<String> =
+            [display_path.to_owned()].into_iter().collect();
+        let build_context = derived_task_scope_context(context);
+        let graph = self.build_structure_for_paths(&build_context, budget, launcher, &scope)?;
+        let declarations: Vec<crate::read_substitution::DeclarationSpan<'_>> = graph
+            .nodes
+            .iter()
+            .filter(|node| node.kind == "symbol" && node.path.display_path == display_path)
+            .filter_map(|node| {
+                node.span
+                    .as_ref()
+                    .map(|span| crate::read_substitution::DeclarationSpan {
+                        name: node.name.as_deref(),
+                        start_byte: span.start_byte,
+                        end_byte: span.end_byte,
+                    })
+            })
+            .collect();
+
+        // The worker bounds its response and returns a prefix of the fact list
+        // over the ceiling, which the graph records rather than failing on. A
+        // prefix cannot support "this path does not declare that symbol", so the
+        // shortfall is carried into the answer instead of being swallowed here.
+        let completeness = if graph
+            .unknowns
+            .iter()
+            .any(|unknown| unknown == context_structural::STRUCTURAL_RESOURCE_LIMIT_UNKNOWN)
+        {
+            crate::read_substitution::GraphCompleteness::Truncated
+        } else {
+            crate::read_substitution::GraphCompleteness::Complete
+        };
+
+        Ok(crate::read_substitution::substitute_read(
+            display_path,
+            &exact.bytes,
+            &declarations,
+            symbol,
+            completeness,
+            maximum_returned_bytes,
+        ))
+    }
+
+    /// Build a structural graph over an explicit, bounded set of files.
+    ///
+    /// A whole-repository graph divides one fact allowance across every file,
+    /// which on a large repository leaves roughly one fact each — too thin to
+    /// hold a module's declarations. Scoping to the files a task actually
+    /// nominated gives each of them a large share of the same allowance, so the
+    /// graph is dense where it matters and small enough to store.
+    ///
+    /// The resulting graph is **partial by construction**. A caller must treat
+    /// it as covering only `paths`.
+    ///
+    /// # Errors
+    /// Returns the same failures as a whole-repository build.
+    pub fn build_structure_for_paths(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        paths: &std::collections::BTreeSet<String>,
+    ) -> Result<StructuralGraph, EngineError> {
+        self.build_structure_scoped(context, budget, launcher, Some(paths))
+    }
+
+    /// Build a structural graph over every eligible file in the snapshot.
+    ///
+    /// The result is thin but complete. Prefer
+    /// [`Self::build_structure_for_paths`] when a task has nominated files, and
+    /// see [ADR-0128] for why density beats coverage on a large repository.
+    ///
+    /// [ADR-0128]: https://github.com/tdloB/impresari-context/blob/main/docs/decisions/0128-extract-structure-for-nominated-files-not-whole-repositories.md
+    ///
+    /// # Errors
+    /// Returns a closed engine failure for authorization, snapshot, worker,
+    /// resource, or store failures.
     pub fn build_structure(
         &mut self,
         context: &RequestContext,
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
+    ) -> Result<StructuralGraph, EngineError> {
+        self.build_structure_scoped(context, budget, launcher, None)
+    }
+
+    fn build_structure_scoped(
+        &mut self,
+        context: &RequestContext,
+        budget: &ResourceBudget,
+        launcher: &WorkerLauncher,
+        scope: Option<&std::collections::BTreeSet<String>>,
     ) -> Result<StructuralGraph, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureBuild, Some(budget.clone()))?;
@@ -857,7 +1201,7 @@ impl LocalEngine {
             );
         }
         let result = self
-            .build_structure_internal(context, &budget, launcher, started)
+            .build_structure_internal(context, &budget, launcher, started, scope)
             .and_then(|graph| {
                 let payload = serde_json::to_vec(&graph).map_err(|_| {
                     failure(
@@ -1356,6 +1700,7 @@ impl LocalEngine {
         budget: &ResourceBudget,
         launcher: &WorkerLauncher,
         started: Instant,
+        scope: Option<&std::collections::BTreeSet<String>>,
     ) -> Result<StructuralGraph, EngineError> {
         let snapshot = self
             .snapshot
@@ -1373,22 +1718,28 @@ impl LocalEngine {
             })?
             .clone();
         let limits = structural_limits(context, budget, self.ids())?;
-        let mut files = Vec::new();
+        let mut parsed: Vec<(WorkerRequest, context_structural::WorkerSuccess)> = Vec::new();
         let mut unknowns = Vec::new();
+        let limits = scoped_limits(limits, &snapshot.artifacts, scope);
         let mut remaining_facts = limits.facts;
-        let mut remaining_supported_files = u32::try_from(
-            snapshot
-                .artifacts
-                .iter()
-                .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
-                .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
-                .count(),
-        )
-        .unwrap_or(u32::MAX);
+        // Scoping decides density. The same allowance divided across sixteen
+        // nominated files gives each of them hundreds of facts; divided across
+        // a whole repository it gives each of them about one.
+        let in_scope = |artifact: &&context_workspace::ArtifactRecord| {
+            artifact_in_scope(&artifact.path.display_path, scope)
+        };
+        let mut remaining_supported_files =
+            supported_file_count(&snapshot.artifacts, limits.files, scope);
+        if scope.is_some() {
+            // A scoped graph is dense but partial and must never read as a
+            // whole-repository one.
+            unknowns.push("structural_scope_limited_to_nominated_files".into());
+        }
         for artifact in snapshot
             .artifacts
             .iter()
             .take(usize::try_from(limits.files).unwrap_or(usize::MAX))
+            .filter(in_scope)
         {
             if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
             {
@@ -1412,23 +1763,7 @@ impl LocalEngine {
                 unknowns.push("structural_fact_limit_reached".into());
                 break;
             };
-            let exact = self
-                .workspace
-                .read_exact(&artifact.path, artifact.size_bytes)
-                .map_err(|error| {
-                    self.workspace_failure(context, Capability::StructureBuild, error.code())
-                })?;
-            if exact.content_hash != artifact.content_hash {
-                return Err(failure(
-                    context,
-                    Capability::StructureBuild,
-                    PublicErrorCode::StaleState,
-                    "workspace changed during structural analysis",
-                    Some(self.workspace.identity()),
-                    Some(&snapshot.snapshot_id),
-                    Some(RecoveryAction::RefreshSnapshot),
-                ));
-            }
+            let exact = self.read_verified_artifact(context, artifact, &snapshot.snapshot_id)?;
             let mut file_limits = limits;
             file_limits.facts = file_fact_quota;
             let request = structural_request(context, language, exact, file_limits);
@@ -1437,11 +1772,33 @@ impl LocalEngine {
             remaining_facts = remaining_facts
                 .saturating_sub(u32::try_from(response.facts.len()).unwrap_or(u32::MAX));
             remaining_supported_files = remaining_supported_files.saturating_sub(1);
-            files.push(GraphFileInput {
+            parsed.push((request, response));
+        }
+
+        // The pass above hands every file an equal share, so a file needing
+        // more than its share is cut while smaller files leave theirs unspent.
+        // Measured on astropy, one build used 12,040 of 28,000 facts and still
+        // truncated a file — the capacity was sitting unclaimed in the same
+        // build. Each response now reports what its file would have yielded, so
+        // the remainder can be placed where it was actually wanted.
+        if self.widen_short_files(
+            context,
+            &snapshot.snapshot_id,
+            launcher,
+            limits,
+            started,
+            &mut parsed,
+        )? {
+            unknowns.push("structural_fact_redistribution_incomplete".into());
+        }
+
+        let files: Vec<GraphFileInput> = parsed
+            .into_iter()
+            .map(|(request, response)| GraphFileInput {
                 path: request.path,
                 response,
-            });
-        }
+            })
+            .collect();
         if u64::try_from(snapshot.artifacts.len()).unwrap_or(u64::MAX) > limits.files {
             unknowns.push("structural_file_limit_reached".into());
         }
@@ -1453,6 +1810,98 @@ impl LocalEngine {
                 &snapshot.snapshot_id,
             )
         })
+    }
+
+    /// Read one admitted artifact and prove the bytes are the ones admitted.
+    ///
+    /// A snapshot records a hash; the workspace can change under it. Comparing
+    /// the two is what makes every downstream span attributable to source the
+    /// caller authorized rather than to whatever is on disk now.
+    ///
+    /// # Errors
+    ///
+    /// Returns a closed failure when the read fails or the file changed.
+    fn read_verified_artifact(
+        &mut self,
+        context: &RequestContext,
+        artifact: &context_workspace::ArtifactRecord,
+        snapshot_id: &str,
+    ) -> Result<context_workspace::ExactRead, EngineError> {
+        let exact = self
+            .workspace
+            .read_exact(&artifact.path, artifact.size_bytes)
+            .map_err(|error| {
+                self.workspace_failure(context, Capability::StructureBuild, error.code())
+            })?;
+        if exact.content_hash != artifact.content_hash {
+            return Err(failure(
+                context,
+                Capability::StructureBuild,
+                PublicErrorCode::StaleState,
+                "workspace changed during structural analysis",
+                Some(self.workspace.identity()),
+                Some(snapshot_id),
+                Some(RecoveryAction::RefreshSnapshot),
+            ));
+        }
+        Ok(exact)
+    }
+
+    /// Re-parse the files an equal-share pass cut, using what it left unspent.
+    ///
+    /// Returns whether the elapsed-time bound stopped it early, which the caller
+    /// discloses. Only files granted more than they hold are parsed again, so a
+    /// build whose first pass satisfied every file does no extra work.
+    fn widen_short_files(
+        &mut self,
+        context: &RequestContext,
+        snapshot_id: &str,
+        launcher: &WorkerLauncher,
+        limits: StructuralLimits,
+        started: std::time::Instant,
+        parsed: &mut [(WorkerRequest, context_structural::WorkerSuccess)],
+    ) -> Result<bool, EngineError> {
+        let held: Vec<u64> = parsed
+            .iter()
+            .map(|(_, response)| response.facts.len() as u64)
+            .collect();
+        let demand: Vec<u64> = parsed
+            .iter()
+            .map(|(_, response)| {
+                // A response the byte ceiling already truncated cannot carry
+                // more facts however large an allowance it is given, so its
+                // effective demand is what it holds. Measured, treating these as
+                // short re-parsed 12 of 39 files to recover nothing.
+                if response
+                    .warnings
+                    .iter()
+                    .any(|warning| warning == context_structural::RESPONSE_BYTE_LIMIT_WARNING)
+                {
+                    response.facts.len() as u64
+                } else {
+                    response.total_facts_available
+                }
+            })
+            .collect();
+        for (index, grant) in redistribute_unspent_facts(&held, &demand, limits.facts)
+            .into_iter()
+            .enumerate()
+        {
+            if u64::from(grant) <= held[index] {
+                continue;
+            }
+            if u64::try_from(started.elapsed().as_millis()).unwrap_or(u64::MAX) >= limits.elapsed_ms
+            {
+                return Ok(true);
+            }
+            let (request, response) = &mut parsed[index];
+            let mut wider = request.clone();
+            wider.max_facts = grant;
+            let improved = self.load_or_parse_structural(context, snapshot_id, &wider, launcher)?;
+            *request = wider;
+            *response = improved;
+        }
+        Ok(false)
     }
 
     fn load_or_parse_structural(
@@ -1537,10 +1986,30 @@ impl LocalEngine {
         edge_kinds: &[String],
         budget: &ResourceBudget,
     ) -> Result<StructuralQueryResult, EngineError> {
+        self.query_structure_with(
+            context,
+            graph,
+            start_node,
+            edge_kinds,
+            budget,
+            LocalVariables::Visit,
+        )
+    }
+
+    fn query_structure_with(
+        &mut self,
+        context: &RequestContext,
+        graph: &StructuralGraph,
+        start_node: &str,
+        edge_kinds: &[String],
+        budget: &ResourceBudget,
+        locals: LocalVariables,
+    ) -> Result<StructuralQueryResult, EngineError> {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::StructureQuery, Some(budget.clone()))?;
         let budget = admitted_budget(context, Capability::StructureQuery, &decision, self.ids())?;
-        let result = self.query_structure_internal(context, graph, start_node, edge_kinds, &budget);
+        let result =
+            self.query_structure_internal(context, graph, start_node, edge_kinds, &budget, locals);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, |value| {
             if value.truncated {
                 AuditOutcome::Limited
@@ -1565,6 +2034,7 @@ impl LocalEngine {
         start_node: &str,
         edge_kinds: &[String],
         budget: &ResourceBudget,
+        locals: LocalVariables,
     ) -> Result<StructuralQueryResult, EngineError> {
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
@@ -1618,16 +2088,22 @@ impl LocalEngine {
                 None,
             )
         })?;
-        let result = query_graph(graph, start_node, edge_kinds, max_depth, maximum, maximum)
-            .map_err(|error| {
-                structural_query_failure(
-                    context,
-                    error,
-                    self.workspace.identity(),
-                    &snapshot.snapshot_id,
-                )
-            })?;
-        let output_limit = budget.requested.parse::<usize>().map_err(|_| {
+        let result = query_graph_with(
+            graph, start_node, edge_kinds, max_depth, maximum, maximum, locals,
+        )
+        .map_err(|error| {
+            structural_query_failure(
+                context,
+                error,
+                self.workspace.identity(),
+                &snapshot.snapshot_id,
+            )
+        })?;
+        // A malformed budget is still rejected: the caller's `requested` must
+        // parse. It no longer *bounds* this result — it is the consumer's
+        // delivery ceiling, and this value is an intermediate one — but a
+        // request carrying nonsense should not be answered.
+        budget.requested.parse::<usize>().map_err(|_| {
             failure(
                 context,
                 Capability::StructureQuery,
@@ -1638,18 +2114,7 @@ impl LocalEngine {
                 None,
             )
         })?;
-        if serde_json::to_vec(&result).map_or(true, |bytes| bytes.len() > output_limit) {
-            return Err(failure(
-                context,
-                Capability::StructureQuery,
-                PublicErrorCode::BudgetExceeded,
-                "structural query output budget exceeded",
-                Some(self.workspace.identity()),
-                Some(&snapshot.snapshot_id),
-                Some(RecoveryAction::IncreaseBudget),
-            ));
-        }
-        Ok(result)
+        Ok(bound_structural_query_output(result))
     }
 
     /// Reports the current in-session snapshot through the gateway.
@@ -1736,7 +2201,8 @@ impl LocalEngine {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::CodeSearch, Some(budget.clone()))?;
         let budget = admitted_budget(context, Capability::CodeSearch, &decision, self.ids())?;
-        let result = self.search_internal(context, Capability::CodeSearch, kind, query, &budget);
+        let result =
+            self.search_internal(context, Capability::CodeSearch, kind, query, &budget, &[]);
         let outcome = result.as_ref().map_or(AuditOutcome::Failed, audit_outcome);
         self.finalize(
             context,
@@ -1807,6 +2273,8 @@ impl LocalEngine {
             None,
             None,
             true,
+            &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1841,7 +2309,7 @@ impl LocalEngine {
         structural_request: &StructuralImpactRequest,
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let structure_context = derived_structure_query_context(context);
+        let structure_context = derived_structure_query_context(context, 0);
         let traversal = self.query_structure(
             &structure_context,
             &structural_request.graph,
@@ -1870,6 +2338,8 @@ impl LocalEngine {
             None,
             None,
             true,
+            &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -1939,6 +2409,108 @@ impl LocalEngine {
         )
     }
 
+    /// Resolve a ranked seed set and traverse from every admitted seed.
+    ///
+    /// One anchor cannot describe a task whose answer spans a subclass and the
+    /// parent it inherits from, so each seed contributes a traversal and the
+    /// results are merged deterministically. For a map, seeds and traversals
+    /// look through local variables, and each seed's family follows every
+    /// seed's traversal.
+    fn seeded_structural_query(
+        &mut self,
+        context: &RequestContext,
+        structural_request: &StructuralSeedRequest,
+        query: &str,
+        budget: &ResourceBudget,
+        delivery: StructuralDelivery,
+    ) -> Result<
+        (
+            Option<StructuralPlannerQuery>,
+            StructuralPlanAnnotation<'static>,
+        ),
+        EngineError,
+    > {
+        let locals = match delivery {
+            StructuralDelivery::Packet => LocalVariables::Visit,
+            StructuralDelivery::Map => LocalVariables::LookThrough,
+        };
+        let selection = structural_seed_selection(
+            &structural_request.graph,
+            query,
+            &structural_request.nominated_order,
+            &structural_request.admitted_identifiers,
+            locals,
+        )
+        .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        let Some(primary) = selection.seeds.first() else {
+            let reason_code = selection
+                .unknowns
+                .first()
+                .copied()
+                .unwrap_or("structural_seed_unavailable");
+            return Ok((None, StructuralPlanAnnotation::Omitted(reason_code)));
+        };
+        let reason_code = primary.reason_code;
+        let seed_budget = narrow_structural_seed_budget(budget)
+            .map_err(|code| core_error(context, Capability::StructureQuery, code, self.ids()))?;
+        let mut traversals = Vec::with_capacity(selection.seeds.len());
+        for (ordinal, seed) in selection.seeds.iter().enumerate() {
+            let structure_context = derived_structure_query_context(context, ordinal);
+            traversals.push(self.query_structure_with(
+                &structure_context,
+                &structural_request.graph,
+                &seed.node_id,
+                &structural_request.edge_kinds,
+                &seed_budget,
+                locals,
+            )?);
+        }
+        // Families come after every seed's own traversal, so they only add to
+        // what the map delivered before, and a ceiling that cuts the map cuts
+        // family first.
+        if delivery == StructuralDelivery::Map {
+            for seed in &selection.seeds {
+                let family = seed_family(
+                    &structural_request.graph,
+                    &seed.node_id,
+                    &structural_request.edge_kinds,
+                    MAX_SEED_FAMILY_EDGES,
+                )
+                .map_err(|error| {
+                    structural_query_failure(
+                        context,
+                        error,
+                        self.workspace.identity(),
+                        &structural_request.graph.workspace_snapshot,
+                    )
+                })?;
+                traversals.push(bound_structural_query_output(family));
+            }
+        }
+        let mut traversal = merge_structural_traversals(traversals).ok_or_else(|| {
+            core_error(
+                context,
+                Capability::ContextBuild,
+                context_core::CoreErrorCode::IntegrityFailure,
+                self.ids(),
+            )
+        })?;
+        traversal.unknowns.extend(
+            selection
+                .unknowns
+                .iter()
+                .map(|unknown| (*unknown).to_owned()),
+        );
+        traversal.unknowns.sort();
+        traversal.unknowns.dedup();
+        let planner_query = structural_planner_query(&structural_request.edge_kinds, traversal)
+            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
+        Ok((
+            Some(planner_query),
+            StructuralPlanAnnotation::Available(reason_code),
+        ))
+    }
+
     fn build_profiled_seeded_structural_context_internal(
         &mut self,
         context: &RequestContext,
@@ -1977,39 +2549,22 @@ impl LocalEngine {
         validate_graph(&structural_request.graph).map_err(|error| {
             structural_query_failure(context, error, self.workspace.identity(), &snapshot_id)
         })?;
-        let seed = structural_seed_decision(&structural_request.graph, query)
-            .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let selected = match seed {
-            StructuralSeedDecision::Selected {
-                node_id,
-                reason_code,
-            } => {
-                let structure_context = derived_structure_query_context(context);
-                let traversal = self.query_structure(
-                    &structure_context,
-                    &structural_request.graph,
-                    &node_id,
-                    &structural_request.edge_kinds,
-                    &narrow_structural_seed_budget(&budget).map_err(|code| {
-                        core_error(context, Capability::StructureQuery, code, self.ids())
-                    })?,
-                )?;
-                let query = structural_planner_query(&structural_request.edge_kinds, traversal)
-                    .map_err(|code| {
-                        core_error(context, Capability::ContextBuild, code, self.ids())
-                    })?;
-                (
-                    Some(query),
-                    StructuralPlanAnnotation::Available(reason_code),
-                )
-            }
-            StructuralSeedDecision::Omitted(reason_code) => {
-                (None, StructuralPlanAnnotation::Omitted(reason_code))
-            }
+        // A map lists relationships by name, so it carries each seed's family
+        // and looks through local variables. A packet recovers every edge's
+        // exact source: sixty-four members would be sixty-four excerpts, and an
+        // assignment is exact source like any other.
+        let delivery = if recover_structural_evidence {
+            StructuralDelivery::Packet
+        } else {
+            StructuralDelivery::Map
         };
+        let selected =
+            self.seeded_structural_query(context, structural_request, query, &budget, delivery)?;
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
         let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
+        // A search match in a task's file is sent as the declaration holding it.
+        let declarations = DeclarationIndex::from_graph(&structural_request.graph);
         let result = self.build_profiled_context_internal(
             context,
             profile,
@@ -2024,6 +2579,8 @@ impl LocalEngine {
             None,
             None,
             recover_structural_evidence,
+            &structural_request.nominated_order,
+            Some(&declarations),
         );
         let outcome = result
             .as_ref()
@@ -2052,7 +2609,7 @@ impl LocalEngine {
         request: &RepositoryOrientationRequest,
         budget: ResourceBudget,
     ) -> Result<ProfiledContextPacket, EngineError> {
-        let structure_context = derived_structure_query_context(context);
+        let structure_context = derived_structure_query_context(context, 0);
         let started = Instant::now();
         let structure_decision = self.authorize(
             &structure_context,
@@ -2146,6 +2703,8 @@ impl LocalEngine {
             Some(&orientation),
             None,
             true,
+            &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -2198,6 +2757,8 @@ impl LocalEngine {
                 None,
                 None,
                 true,
+                &[],
+                None,
             )
         })();
         let outcome = result
@@ -2247,6 +2808,8 @@ impl LocalEngine {
                 None,
                 None,
                 true,
+                &[],
+                None,
             )
         })();
         let outcome = result
@@ -2295,6 +2858,8 @@ impl LocalEngine {
                 None,
                 Some(&conventions),
                 true,
+                &[],
+                None,
             )
         })();
         let outcome = result
@@ -2326,6 +2891,8 @@ impl LocalEngine {
         repository_orientation: Option<&RepositoryOrientationMap>,
         declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
         recover_structural_evidence: bool,
+        preferred_scope: &[String],
+        declarations: Option<&DeclarationIndex>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -2345,12 +2912,22 @@ impl LocalEngine {
             .clone();
         let max_literal_bytes = resource_budget_max_literal_bytes(&budget)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let mut plan = deterministic_plan(
+        // A lexical step searches this index anyway, so rating the task's
+        // words in it costs the build nothing new. Without it, or without a
+        // nominated file, the plan keeps the order the task states its
+        // signals in.
+        let lexical_ready = self
+            .prepare_lexical_index(context, Capability::ContextBuild, &budget)
+            .is_ok();
+        let lexical = self.cache.as_ref().filter(|_| lexical_ready);
+        let nominated = self.nominated_units(preferred_scope);
+        let mut plan = deterministic_plan_with(
             profile,
             query,
             &snapshot,
             policy_decision,
             max_literal_bytes,
+            &|needle| lexical.and_then(|cache| needle_rarity(cache, needle, &nominated)),
         )
         .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         apply_structural_annotation_to_plan(&mut plan, structural_query, structural_annotation)
@@ -2429,6 +3006,11 @@ impl LocalEngine {
             structural_evidence,
             structural_unknowns,
             Some(&snapshot),
+            preferred_scope,
+            EvidenceRanking {
+                demote_supporting_files: !task_is_about_tests(query),
+                declarations,
+            },
         )?;
         let mut omitted_candidates = Vec::new();
         if packet.accounting.omitted_items != "0" {
@@ -2502,6 +3084,8 @@ impl LocalEngine {
             Vec::new(),
             Vec::new(),
             None,
+            &[],
+            EvidenceRanking::default(),
         )
     }
 
@@ -2518,6 +3102,8 @@ impl LocalEngine {
         trailing_evidence: Vec<EvidenceRecord>,
         trailing_unknowns: Vec<String>,
         expected_snapshot: Option<&str>,
+        preferred_scope: &[String],
+        ranking: EvidenceRanking<'_>,
     ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
             Err(failure(
@@ -2534,11 +3120,24 @@ impl LocalEngine {
         } else {
             let mut evidence = std::collections::BTreeMap::new();
             let mut evidence_order = Vec::new();
+            let mut delivered = std::collections::BTreeSet::new();
             for item in leading_evidence {
-                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             let mut unknowns = leading_unknowns;
             let mut snapshot_id = expected_snapshot.map(str::to_owned);
+            // The files this task nominated, as snapshot path units in
+            // nomination order. A literal or lexical step searches them before
+            // the whole snapshot, whose path order and match limit otherwise
+            // decide which files lead the packet.
+            let preferred_units = self.nominated_units(preferred_scope);
+            let mut preferred = Vec::new();
+            let mut remaining = Vec::new();
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
                 core_error(context, Capability::ContextBuild, error.code(), self.ids())
             })?;
@@ -2554,12 +3153,51 @@ impl LocalEngine {
                         Some(RecoveryAction::ReduceScope),
                     ));
                 }
+                if matches!(step.kind, QueryKind::Literal | QueryKind::Lexical) {
+                    // One search per nominated file. A search over them all
+                    // returns its matches in snapshot path order and is then
+                    // cut to the output budget, so the nominated file that
+                    // sorts first can fill it and hide the rest.
+                    let mut limited = false;
+                    for unit in &preferred_units {
+                        let scoped = self.search_internal(
+                            context,
+                            Capability::ContextBuild,
+                            step.kind,
+                            &step.query,
+                            &budget,
+                            std::slice::from_ref(unit),
+                        )?;
+                        if snapshot_id
+                            .as_ref()
+                            .is_some_and(|expected| expected != &scoped.snapshot_id)
+                        {
+                            return Err(failure(
+                                context,
+                                Capability::ContextBuild,
+                                PublicErrorCode::StaleState,
+                                "workspace changed during context planning",
+                                Some(self.workspace.identity()),
+                                Some(&scoped.snapshot_id),
+                                Some(RecoveryAction::RefreshSnapshot),
+                            ));
+                        }
+                        snapshot_id = Some(scoped.snapshot_id);
+                        limited |= scoped.truncated;
+                        unknowns.extend(scoped.unknowns);
+                        preferred.extend(scoped.matches);
+                    }
+                    if limited {
+                        unknowns.push(format!("plan_step_{index}_nominated_limited"));
+                    }
+                }
                 let search = self.search_internal(
                     context,
                     Capability::ContextBuild,
                     step.kind,
                     &step.query,
                     &budget,
+                    &[],
                 )?;
                 if snapshot_id
                     .as_ref()
@@ -2583,12 +3221,61 @@ impl LocalEngine {
                     unknowns.push(format!("plan_step_{index}_limited"));
                 }
                 unknowns.extend(search.unknowns);
-                for item in search.matches {
-                    Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
-                }
+                remaining.extend(search.matches);
+            }
+            // Test and vendored files follow the rest. A test names the
+            // functions its subject defines, so it matches the same words and
+            // can take the slot of the file a fix changes.
+            let (scope, remaining) = if ranking.demote_supporting_files {
+                (
+                    supporting_last(preferred_scope.to_vec(), |path| path.as_str()),
+                    supporting_last(remaining, |item| item.artifact.path.display_path.as_str()),
+                )
+            } else {
+                (preferred_scope.to_vec(), remaining)
+            };
+            // The packet keeps this order and drops from the end, so only the
+            // leading records can reach it: cutting stops at the item limit.
+            let mut cuts = budget.max_evidence_items.parse::<usize>().unwrap_or(0);
+            let ceiling = budget
+                .max_excerpt_bytes_per_item
+                .parse::<u64>()
+                .unwrap_or(0);
+            // Within each nominated file, matches sent as a whole declaration
+            // lead the file's matches outside any. The rarest word's first
+            // match is often an import, `__all__` or the module docstring, and
+            // a window there is mostly license header.
+            let (inside, outside): (Vec<_>, Vec<_>) = self
+                .cut_records(preferred, ranking.declarations, ceiling, &mut cuts)
+                .into_iter()
+                .partition(|(_, cut)| *cut);
+            let preferred = inside
+                .into_iter()
+                .chain(outside)
+                .map(|(record, _)| record)
+                .collect();
+            let remaining = self
+                .cut_records(remaining, ranking.declarations, ceiling, &mut cuts)
+                .into_iter()
+                .map(|(record, _)| record);
+            for item in file_first_by_scope(preferred, &scope)
+                .into_iter()
+                .chain(remaining)
+            {
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             for item in trailing_evidence {
-                Self::insert_ranked_evidence(&mut evidence, &mut evidence_order, item);
+                Self::insert_ranked_evidence(
+                    &mut evidence,
+                    &mut evidence_order,
+                    &mut delivered,
+                    item,
+                );
             }
             unknowns.extend(trailing_unknowns);
             let snapshot_id = snapshot_id.ok_or_else(|| {
@@ -2627,15 +3314,118 @@ impl LocalEngine {
         }
     }
 
+    /// Admit one evidence record unless the packet already delivers its bytes.
+    ///
+    /// A record is identified by its span, so two matches a few bytes apart in
+    /// one file are distinct records whose expanded excerpts can be
+    /// byte-identical. Delivering both sends the window twice. Measured on
+    /// `astropy/timeseries/binned.py`, twenty delivered records carried only
+    /// twelve distinct excerpts: 32,198 of 80,780 excerpt bytes — 40% — were
+    /// repeats, and the packet budget paid for every copy.
+    ///
+    /// Provenance is part of the key, not decoration. Structural-graph evidence
+    /// and a literal match can expand to the same window and remain two
+    /// different things the product knows, so only records agreeing on path,
+    /// method and kind are treated as the same delivery.
+    ///
+    /// The withheld record's match positions are not carried forward. Carrying
+    /// them grows a record that survives, and under a tight byte budget the
+    /// packet drops whichever record no longer fits — trading a repeat for a
+    /// loss. The reader still receives the window those matches fall inside.
     fn insert_ranked_evidence(
         evidence: &mut std::collections::BTreeMap<String, EvidenceRecord>,
         evidence_order: &mut Vec<String>,
+        delivered: &mut std::collections::BTreeSet<String>,
         item: EvidenceRecord,
     ) {
+        // A path cannot contain NUL and base64url never emits one, so the
+        // fields stay unambiguous when joined.
+        let mut key = String::new();
+        for field in [
+            item.artifact.path.display_path.as_str(),
+            item.extraction.method.as_str(),
+            item.kind.as_str(),
+            item.excerpt.bytes_base64url.as_str(),
+        ] {
+            key.push_str(field);
+            key.push('\0');
+        }
+        if !delivered.insert(crate::contract_sha256(key.as_bytes())) {
+            return;
+        }
         if !evidence.contains_key(&item.evidence_id) {
             evidence_order.push(item.evidence_id.clone());
             evidence.insert(item.evidence_id.clone(), item);
         }
+    }
+
+    /// Send a search match as the smallest function or type holding it, when
+    /// that declaration fits the excerpt ceiling. Any other match keeps the
+    /// window centred on it.
+    ///
+    /// A centred window is blind to structure: it starts and ends mid-line,
+    /// and a match near a file's top is mostly license header and imports.
+    /// A whole declaration is the unit a reader edits, and a small one costs
+    /// the packet a fraction of the window.
+    fn cut_to_declaration(
+        &self,
+        snapshot: &WorkspaceSnapshot,
+        declarations: &DeclarationIndex,
+        record: EvidenceRecord,
+        ceiling: u64,
+    ) -> (EvidenceRecord, bool) {
+        if !matches!(
+            record.extraction.method.as_str(),
+            "literal_search" | "lexical_search"
+        ) {
+            return (record, false);
+        }
+        let (Ok(start), Ok(end)) = (
+            record.span.start_byte.parse::<u64>(),
+            record.span.end_byte.parse::<u64>(),
+        ) else {
+            return (record, false);
+        };
+        let Some((from, to)) = declarations.enclosing(
+            &record.artifact.path.relative_units_base64url,
+            start,
+            end,
+            ceiling,
+        ) else {
+            return (record, false);
+        };
+        match expand_evidence_record(
+            &self.workspace,
+            snapshot,
+            &record,
+            start - from,
+            to - end,
+            to - from,
+        ) {
+            Ok(cut) => (cut, true),
+            Err(_) => (record, false),
+        }
+    }
+
+    /// Cut records to their declarations while `left` lasts, saying which
+    /// were cut. A build without a graph cuts nothing.
+    fn cut_records(
+        &self,
+        records: Vec<EvidenceRecord>,
+        declarations: Option<&DeclarationIndex>,
+        ceiling: u64,
+        left: &mut usize,
+    ) -> Vec<(EvidenceRecord, bool)> {
+        records
+            .into_iter()
+            .map(|record| match (declarations, self.snapshot.as_ref()) {
+                (Some(declarations), Some(snapshot)) if *left > 0 => {
+                    *left -= 1;
+                    self.cut_to_declaration(snapshot, declarations, record, ceiling)
+                }
+                _ => (record, false),
+            })
+            .collect()
     }
 
     fn structural_evidence(
@@ -3713,6 +4503,78 @@ impl LocalEngine {
         })
     }
 
+    /// The snapshot path units of the nominated files, in nomination order.
+    fn nominated_units(&self, preferred_scope: &[String]) -> Vec<String> {
+        self.snapshot.as_ref().map_or_else(Vec::new, |snapshot| {
+            preferred_scope
+                .iter()
+                .filter_map(|display_path| {
+                    snapshot
+                        .artifacts
+                        .iter()
+                        .find(|artifact| artifact.path.display_path == *display_path)
+                        .map(|artifact| artifact.path.relative_units_base64url.clone())
+                })
+                .collect()
+        })
+    }
+
+    /// Make the lexical index describe the current snapshot, building it when
+    /// it is missing or was built for another.
+    fn prepare_lexical_index(
+        &mut self,
+        context: &RequestContext,
+        capability: Capability,
+        budget: &ResourceBudget,
+    ) -> Result<(), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                capability,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| cache_error(context, capability, error.code(), Some(self.ids())),
+                )?,
+            );
+        }
+        let current_generation = self
+            .cache
+            .as_ref()
+            .expect("cache initialized")
+            .current()
+            .map_err(|error| cache_error(context, capability, error.code(), Some(self.ids())))?;
+        let generation_is_current = current_generation
+            .as_ref()
+            .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
+        if !generation_is_current {
+            let max_memory = budget
+                .max_memory_bytes_u64()
+                .map_err(|error| core_error(context, capability, error.code(), self.ids()))?;
+            build_lexical_generation_bounded(
+                &self.workspace,
+                snapshot,
+                self.cache.as_mut().expect("cache initialized"),
+                max_memory,
+            )
+            .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
+        }
+        Ok(())
+    }
+
+    /// Search the snapshot, or only the files `within` names.
+    ///
+    /// `within` holds snapshot path units and narrows a literal or lexical
+    /// search to those files. Empty searches the whole snapshot, and other
+    /// kinds ignore it.
+    #[allow(clippy::too_many_lines)] // One dispatch over every search kind keeps the snapshot, cache and budget checks together.
     fn search_internal(
         &mut self,
         context: &RequestContext,
@@ -3720,9 +4582,13 @@ impl LocalEngine {
         kind: QueryKind,
         query: &str,
         budget: &ResourceBudget,
+        within: &[String],
     ) -> Result<SearchResponse, EngineError> {
         let search_budget = search_budget(budget)
             .map_err(|code| core_error(context, capability, code, self.ids()))?;
+        if kind == QueryKind::Lexical && within.is_empty() {
+            self.prepare_lexical_index(context, capability, budget)?;
+        }
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
                 context,
@@ -3748,51 +4614,26 @@ impl LocalEngine {
                 lookup_exact_path(&self.workspace, snapshot, &path, search_budget)
             }
             QueryKind::Filename => search_filename(&self.workspace, snapshot, query, search_budget),
+            QueryKind::Literal if !within.is_empty() => search_literal_in(
+                &self.workspace,
+                snapshot,
+                within,
+                query.as_bytes(),
+                search_budget,
+            ),
             QueryKind::Literal => {
                 search_literal(&self.workspace, snapshot, query.as_bytes(), search_budget)
             }
-            QueryKind::Lexical => {
-                if self.cache.is_none() {
-                    self.cache = Some(
-                        WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
-                            .map_err(|error| {
-                                cache_error(context, capability, error.code(), Some(self.ids()))
-                            })?,
-                    );
-                }
-                let current_generation = self
-                    .cache
-                    .as_ref()
-                    .expect("cache initialized")
-                    .current()
-                    .map_err(|error| {
-                        cache_error(context, capability, error.code(), Some(self.ids()))
-                    })?;
-                let generation_is_current = current_generation
-                    .as_ref()
-                    .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
-                if !generation_is_current {
-                    let max_memory = budget.max_memory_bytes_u64().map_err(|error| {
-                        core_error(context, capability, error.code(), self.ids())
-                    })?;
-                    build_lexical_generation_bounded(
-                        &self.workspace,
-                        snapshot,
-                        self.cache.as_mut().expect("cache initialized"),
-                        max_memory,
-                    )
-                    .map_err(|error| {
-                        retrieval_error(context, capability, error.code(), self.ids())
-                    })?;
-                }
-                search_lexical(
-                    &self.workspace,
-                    snapshot,
-                    self.cache.as_ref().expect("cache initialized"),
-                    query,
-                    search_budget,
-                )
+            QueryKind::Lexical if !within.is_empty() => {
+                search_lexical_in(&self.workspace, snapshot, within, query, search_budget)
             }
+            QueryKind::Lexical => search_lexical(
+                &self.workspace,
+                snapshot,
+                self.cache.as_ref().expect("lexical index prepared"),
+                query,
+                search_budget,
+            ),
         }
         .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
         let response = SearchResponse {
@@ -4199,6 +5040,46 @@ fn resource_budget_max_literal_bytes(
         .map_err(|_| context_core::CoreErrorCode::InvalidInput)
 }
 
+/// Bytes one structural query's serialized result may occupy.
+///
+/// This bounds an **intermediate** value: the traversal's nodes and edges as
+/// the engine holds them, before any rendering. It is not a delivery budget,
+/// and the packet the consumer receives is bounded separately and far lower.
+///
+/// It used to be the consumer's `budget.requested` — the packet ceiling, 16 KiB
+/// as the evaluator sends it. Measured over twenty-two astropy tasks, a single
+/// seed's traversal serializes to a median of 13,971 bytes and a maximum of
+/// 17,562, so that ceiling sat inside the natural distribution: the median
+/// successful task spent 85% of it, and the three failures missed by under
+/// 1.2 KiB apiece. A bound a normal traversal lands on is not a bound.
+///
+/// One mebibyte is roughly sixty times the observed maximum. The real limiter
+/// stays the traversal's own node and edge counts, which are closed constants
+/// above; this only stops a pathological result from being held whole.
+const MAX_STRUCTURAL_QUERY_OUTPUT_BYTES: usize = 1_048_576;
+
+/// Nodes and edges one seed's traversal may visit.
+///
+/// Raising this is a product decision, not a tuning knob: measured, 64 delivers
+/// three more reference symbols for 6.5% more delivered bytes and no additional
+/// reference files, which trades against the compression half of the governing
+/// objective.
+const MAX_SEED_TRAVERSAL_MATCHES: u64 = 16;
+
+/// Edges one seed's family may add to a map; see
+/// [`context_structural::seed_family`].
+///
+/// Sized to list a large class whole: on the astropy corpus `Card` has 39
+/// function and type members and `Table` 44.
+const MAX_SEED_FAMILY_EDGES: u32 = 64;
+
+/// Depth one seed's traversal may reach.
+///
+/// Measured at 2, this changed no task's recall at all — the cross-file edges a
+/// deeper hop would follow resolve only within the admitted scope — while
+/// costing 1.1% more delivered bytes.
+const MAX_SEED_TRAVERSAL_DEPTH: &str = "1";
+
 fn narrow_structural_seed_budget(
     budget: &ResourceBudget,
 ) -> Result<ResourceBudget, context_core::CoreErrorCode> {
@@ -4214,11 +5095,12 @@ fn narrow_structural_seed_budget(
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let mut narrowed = budget.clone();
-    narrowed.max_traversal_depth = "1".into();
-    narrowed.max_matches = matches.min(16).to_string();
+    narrowed.max_traversal_depth = MAX_SEED_TRAVERSAL_DEPTH.into();
+    narrowed.max_matches = matches.min(MAX_SEED_TRAVERSAL_MATCHES).to_string();
     Ok(narrowed)
 }
 
+#[cfg(test)]
 fn deterministic_plan(
     profile: TaskProfile,
     query: &str,
@@ -4226,17 +5108,49 @@ fn deterministic_plan(
     policy_decision: &str,
     max_literal_bytes: u64,
 ) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
+    deterministic_plan_with(
+        profile,
+        query,
+        snapshot_id,
+        policy_decision,
+        max_literal_bytes,
+        &|_| None,
+    )
+}
+
+/// A deterministic plan whose steps search nominated files' rarest words first.
+///
+/// `rarity` answers how many snapshot files hold every word of a needle and
+/// whether a nominated file is among them, or `None` when it cannot say. The
+/// plan identity covers the steps, so it records the order the snapshot's
+/// index chose.
+fn deterministic_plan_with(
+    profile: TaskProfile,
+    query: &str,
+    snapshot_id: &str,
+    policy_decision: &str,
+    max_literal_bytes: u64,
+    rarity: &dyn Fn(&str) -> Option<NeedleRarity>,
+) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
+    let (query, _) = bounded_task_query(query);
     let (base_steps, mut omitted_candidates) = profile_base_plan(profile, query);
-    let (steps, original_query_omitted) =
-        expand_profile_steps(query, base_steps, max_literal_bytes);
-    if original_query_omitted {
+    let expanded = expand_profile_steps(query, base_steps, max_literal_bytes, rarity);
+    let steps = expanded.steps;
+    if expanded.original_query_omitted {
         omitted_candidates.push(planner_omission(
             "original_query",
             "original_query_exceeds_retrieval_contract",
         ));
+    }
+    if expanded.wordless_literals > 0 {
+        omitted_candidates.push(PlannerOmission {
+            candidate: "task_signal_literal".into(),
+            reason_code: "literal_without_word".into(),
+            count: expanded.wordless_literals.to_string(),
+        });
     }
     if steps.is_empty() {
         return Err(context_core::CoreErrorCode::InvalidInput);
@@ -4370,22 +5284,88 @@ struct TaskSignals {
     lexical: Vec<String>,
 }
 
+/// Task text admitted for signal extraction and planning.
+///
+/// A longer task is bounded, not rejected. Real bug reports routinely exceed
+/// this: four of twenty-two accepted astropy changes carry problem statements
+/// between 4.8 and 7.9 KB, and every one of them failed the whole request
+/// outright when length was a validity condition.
+const MAX_TASK_QUERY_BYTES: usize = 4_096;
+
+/// Whether a task query is usable at all.
+///
+/// Emptiness and embedded control characters are malformed. Length is not:
+/// see [`bounded_task_query`].
 fn valid_task_query(query: &str) -> bool {
     !query.is_empty()
-        && query.len() <= 4_096
         && !query
             .chars()
             .any(|character| character.is_control() && !matches!(character, '\n' | '\r' | '\t'))
 }
 
+/// The admitted prefix of a task query, and whether it was shortened.
+///
+/// Truncation is at a character boundary, so the prefix is always valid UTF-8.
+/// A caller that shortens must disclose it: a limit that bites has to be
+/// visible, and an omission a consumer can detect beats a deletion it cannot.
+fn bounded_task_query(query: &str) -> (&str, bool) {
+    if query.len() <= MAX_TASK_QUERY_BYTES {
+        return (query, false);
+    }
+    let mut end = MAX_TASK_QUERY_BYTES;
+    while end > 0 && !query.is_char_boundary(end) {
+        end -= 1;
+    }
+    (&query[..end], true)
+}
+
+/// Task signals of each kind a plan rates by rarity. A long report quotes,
+/// names and says far more than a plan can search, and each rating is one
+/// index query, so the candidates are bounded before any is rated.
+const MAX_RATED_QUOTED_SIGNALS: usize = 16;
+const MAX_RATED_LEXICAL_SIGNALS: usize = 32;
+
+/// Steps a task's signals expand to, and what the expansion left out.
+struct ExpandedSteps {
+    steps: Vec<PlannedContextStep>,
+    original_query_omitted: bool,
+    wordless_literals: usize,
+}
+
+/// How rare a task signal is, and whether it reaches a nominated file.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NeedleRarity {
+    /// Snapshot files holding every word of the needle.
+    files: u64,
+    /// Whether a file the task nominated is among them.
+    in_nominated: bool,
+}
+
+/// Expand a profile's base plan with the task's signals.
+///
+/// Quoted text, code identifiers and plain words that a nominated file holds
+/// take the steps after the whole query, rarest first. A nominated file's
+/// leading excerpt is its match for the earliest step that reaches it, so the
+/// rarest word it holds chooses that excerpt; in signal order it was whatever
+/// the report quoted first, often a license header's `", "` or `'a'`.
+///
+/// Every other signal follows in the order the task states it. Ranked across
+/// the whole snapshot, the rarest words were prose — `suddenly`,
+/// `experimenting` — found in changelogs and issue templates, and they took
+/// the steps that reached the nominated files.
 fn expand_profile_steps(
     query: &str,
     base_steps: Vec<PlannedContextStep>,
     max_literal_bytes: u64,
-) -> (Vec<PlannedContextStep>, bool) {
+    rarity: &dyn Fn(&str) -> Option<NeedleRarity>,
+) -> ExpandedSteps {
     let mut base = base_steps.into_iter();
     let Some(first) = base.next() else {
-        return (Vec::new(), false);
+        return ExpandedSteps {
+            steps: Vec::new(),
+            original_query_omitted: false,
+            wordless_literals: 0,
+        };
     };
     let fallback = base.next();
     let signals = task_signals(query);
@@ -4396,41 +5376,49 @@ fn expand_profile_steps(
         vec![first]
     };
 
-    for quoted in &signals.quoted {
-        push_unique_planned_step(
-            &mut steps,
-            QueryKind::Literal,
-            quoted,
-            "task_signal_quoted_literal",
-            max_literal_bytes,
-        );
-    }
-    for path in &signals.paths {
-        push_unique_planned_step(
-            &mut steps,
+    let quoted = &signals.quoted[..signals.quoted.len().min(MAX_RATED_QUOTED_SIGNALS)];
+    let lexical = &signals.lexical[..signals.lexical.len().min(MAX_RATED_LEXICAL_SIGNALS)];
+    let mut wordless_literals = 0;
+    let mut reaching = Vec::new();
+    let mut rest = Vec::new();
+    for (kind, needles, reason_code) in [
+        (QueryKind::Literal, quoted, "task_signal_quoted_literal"),
+        (
             QueryKind::Filename,
-            path,
+            &signals.paths[..],
             "task_signal_portable_path",
-            max_literal_bytes,
-        );
-    }
-    for identifier in &signals.identifiers {
-        push_unique_planned_step(
-            &mut steps,
+        ),
+        (
             QueryKind::Literal,
-            identifier,
+            &signals.identifiers[..],
             "task_signal_code_identifier",
-            max_literal_bytes,
-        );
+        ),
+        (QueryKind::Lexical, lexical, "task_signal_lexical_fallback"),
+    ] {
+        for needle in needles {
+            if kind == QueryKind::Literal && !literal_has_word(needle) {
+                wordless_literals += 1;
+                continue;
+            }
+            // A path names a file rather than words in one, so it is not rated.
+            match (kind != QueryKind::Filename)
+                .then(|| rarity(needle))
+                .flatten()
+            {
+                Some(rated) if rated.in_nominated => {
+                    reaching.push((rated.files, kind, needle, reason_code));
+                }
+                _ => rest.push((kind, needle, reason_code)),
+            }
+        }
     }
-    for lexical in &signals.lexical {
-        push_unique_planned_step(
-            &mut steps,
-            QueryKind::Lexical,
-            lexical,
-            "task_signal_lexical_fallback",
-            max_literal_bytes,
-        );
+    // Stable, so signals held by as many files keep the task's order.
+    reaching.sort_by_key(|(files, ..)| *files);
+    let reaching = reaching
+        .into_iter()
+        .map(|(_, kind, needle, reason_code)| (kind, needle, reason_code));
+    for (kind, needle, reason_code) in reaching.chain(rest) {
+        push_unique_planned_step(&mut steps, kind, needle, reason_code, max_literal_bytes);
     }
     if (steps.is_empty() || (steps.len() == 1 && !original_query_omitted))
         && let Some(fallback) = fallback
@@ -4444,7 +5432,11 @@ fn expand_profile_steps(
             max_literal_bytes,
         );
     }
-    (steps, original_query_omitted)
+    ExpandedSteps {
+        steps,
+        original_query_omitted,
+        wordless_literals,
+    }
 }
 
 fn full_query_compatible(step: &ContextPlanStep, max_literal_bytes: u64) -> bool {
@@ -4485,8 +5477,46 @@ fn push_unique_planned_step(
 }
 
 fn task_signals(query: &str) -> TaskSignals {
+    task_signals_with(query, &|_| false)
+}
+
+/// Task signals, with an oracle that can admit a name the shape rule rejects.
+///
+/// `declares` answers whether the repository declares a name distinctly enough
+/// to identify a file (IC-DAN-131). Shape alone rejects every single-word class
+/// name — `Header`, `Card`, `Quantity` — which is the commonest shape a class
+/// takes, so a caller holding an index passes one here. A caller without an
+/// index passes a closure that admits nothing and gets exactly the previous
+/// behaviour.
+fn task_signals_with(query: &str, declares: &dyn Fn(&str) -> bool) -> TaskSignals {
+    // A bare word must be a *type* name to enter on the repository's say-so.
+    //
+    // Measured, the declaring-file count cannot tell a name from a word:
+    // `Header` is declared in one file and so are `a`, `but`, `can`, `work`,
+    // `string` and `type`, while `fromstring` is declared in four and so are
+    // `does` and `that`. Twelve of sixteen identifier slots on `astropy-8707`
+    // were ordinary prose admitted this way.
+    //
+    // Case does separate them. A capitalised bare word the repository declares
+    // is the single-word class name this rule exists for — `Header`, `Card`,
+    // `Quantity`, `WCS` — and a lowercase one is almost always prose. A
+    // lowercase method name still enters through a dotted access, where the
+    // position carries the evidence the word itself lacks.
     let mut signals = TaskSignals::default();
     extract_quoted_signals(query, &mut signals.quoted);
+    // A word the author wrapped in backticks or quotes is marked as code by
+    // the person writing the report. That is explicit authored markup, not the
+    // token's position in a sentence, so it carries evidence a bare lowercase
+    // word does not: `astropy-7671` is about `minversion`, a lowercase
+    // function named bare seven times and backticked twice.
+    let quoted: std::collections::BTreeSet<&str> =
+        signals.quoted.iter().map(String::as_str).collect();
+    let admitted = |token: &str| {
+        is_code_identifier_signal(token)
+            || (declares(token)
+                && (token.starts_with(|character: char| character.is_ascii_uppercase())
+                    || quoted.contains(token)))
+    };
 
     let tokens = query
         .split(|character: char| {
@@ -4501,13 +5531,32 @@ fn task_signals(query: &str) -> TaskSignals {
         {
             break;
         }
+        // A dotted token is usually an attribute or module access, so its final
+        // component is the name a graph node actually carries. `ts.remove_column`
+        // and `numpy.__version__` never match a symbol; `remove_column` and
+        // `__version__` do.
+        if let Some((receiver, member)) = token.rsplit_once('.') {
+            // A dotted member carries its own evidence: `Header.fromstring`
+            // names a method whatever its case, unlike a bare `fromstring`.
+            if (is_code_identifier_signal(member) || declares(member))
+                && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
+            {
+                push_unique_text(&mut signals.identifiers, member.to_owned());
+            }
+            // The receiver is usually a variable — `ts` in `ts.remove_column` —
+            // and naming it would be noise. When the repository *declares* it,
+            // it is a type instead, and often the only place the task names the
+            // class at all: `astropy-8707` writes `Header.fromstring` five
+            // times and bare `Header` never.
+            if declares(receiver) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
+                push_unique_text(&mut signals.identifiers, receiver.to_owned());
+            }
+        }
         if is_portable_path_signal(&token) {
             if signals.paths.len() < MAX_TASK_SIGNAL_TOKENS {
                 push_unique_text(&mut signals.paths, token);
             }
-        } else if is_code_identifier_signal(&token)
-            && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS
-        {
+        } else if admitted(&token) && signals.identifiers.len() < MAX_TASK_SIGNAL_TOKENS {
             push_unique_text(&mut signals.identifiers, token);
         }
     }
@@ -4529,14 +5578,163 @@ fn task_signals(query: &str) -> TaskSignals {
     signals
 }
 
-fn structural_seed_decision(
+/// Maximum structural seeds admitted for one task.
+///
+/// A closed constant, never caller-supplied: a caller able to widen selection
+/// could steer it, and steering is oracle authority.
+const MAX_STRUCTURAL_SEEDS: usize = 8;
+
+/// Seeds any one file may contribute to a traversal.
+///
+/// A map item's path is its edge's **source** node's path, and at
+/// `MAX_SEED_TRAVERSAL_DEPTH` of one only edges leaving a seed are selected, so
+/// a map can only ever name a file a seed landed in. Seed candidates are ranked
+/// and then tie-broken by nomination position, which with no per-file rule let
+/// the best-nominated file take every slot it could fill.
+///
+/// Measured over twenty-two astropy tasks against a `MAX_STRUCTURAL_SEEDS` of
+/// eight, at identical delivered bytes:
+///
+/// | seeds per file | map file recall | map symbol recall | items | distinct |
+/// | --- | --- | --- | --- | --- |
+/// | unlimited | 18/27 | 15/34 | 1,489 | 665 |
+/// | 1 | 20/27 | 13/34 | 1,451 | 717 |
+/// | 2 | 20/27 | 14/34 | 1,464 | 695 |
+/// | 3 | **20/27** | **15/34** | 1,475 | 700 |
+///
+/// Every cap wins the same two reference files, so the file gain does not
+/// depend on this value. Symbol recall is what chooses it: spreading harder
+/// names more files but fewer symbols inside them, and only three gains the
+/// files while giving up no symbols. One and two each trade a symbol away.
+///
+/// Fewer items and more distinct ones at every setting: eight seeds in one
+/// module traverse overlapping edges, so spreading replaces repetition with
+/// reach.
+const MAX_SEEDS_PER_FILE: usize = 3;
+
+/// Ranked classes of seed candidate, most specific first.
+///
+/// The order is total, so selection is deterministic for a given snapshot.
+#[derive(Clone, Copy, Debug, Eq, Ord, PartialEq, PartialOrd)]
+enum SeedRank {
+    UniqueSymbolInExactPath,
+    UniqueExactFilePath,
+    GloballyUniqueSymbol,
+    GloballyAmbiguousSymbol,
+}
+
+impl SeedRank {
+    const fn reason_code(self) -> &'static str {
+        match self {
+            Self::UniqueSymbolInExactPath => "unique_symbol_in_exact_path",
+            Self::UniqueExactFilePath => "unique_exact_file_path",
+            Self::GloballyUniqueSymbol => "globally_unique_symbol",
+            Self::GloballyAmbiguousSymbol => "globally_ambiguous_symbol",
+        }
+    }
+}
+
+/// How a seeded build delivers structure, which decides what it may select.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum StructuralDelivery {
+    /// Every edge's exact source is recovered into the packet.
+    Packet,
+    /// Relationships are listed by name in a disclosure map.
+    Map,
+}
+
+/// One admitted seed and why it was admitted.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct StructuralSeed {
+    node_id: String,
+    reason_code: &'static str,
+}
+
+/// Bounded ranked seed set plus anything the caller must disclose.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+struct StructuralSeedSelection {
+    seeds: Vec<StructuralSeed>,
+    unknowns: Vec<&'static str>,
+}
+
+/// Select a bounded, ranked set of structural seeds from admitted task signals.
+///
+/// Ambiguity is ranked, not abandoned: several nodes sharing a name is the most
+/// common useful signal about where to look, and returning nothing is strictly
+/// worse than returning a ranked list with the ambiguity disclosed. Selection
+/// yields nothing only when no signal matches any node.
+/// Task signals for seeding, carrying nomination's admission decision.
+///
+/// Admission was decided once, during nomination, by an index that knows
+/// whether a name is declared distinctly enough to identify a file. Reusing
+/// that answer keeps the two stages from disagreeing about what the task named,
+/// and keeps prose from steering selection: deriving an oracle from the graph
+/// instead would make any English word matching a symbol here a signal, so
+/// "explain its helper call" would seed on `helper`.
+fn seed_signals(query: &str, admitted_identifiers: &[String]) -> TaskSignals {
+    let mut signals = task_signals(query);
+    for identifier in admitted_identifiers {
+        if signals.identifiers.len() >= MAX_TASK_SIGNAL_TOKENS {
+            break;
+        }
+        push_unique_text(&mut signals.identifiers, identifier.clone());
+    }
+    signals
+}
+
+/// Admit ranked seed candidates, letting no single file take every slot.
+///
+/// A map item's path is its edge's **source** node's path, and at
+/// `MAX_SEED_TRAVERSAL_DEPTH` of one only edges leaving a seed are selected, so
+/// a map can only ever name a file a seed landed in. Ranking alone put all
+/// eight seeds in the best-nominated file on most measured tasks, and eight
+/// seeds inside one module traverse overlapping edges — the map came back
+/// repetitive rather than wide.
+///
+/// Candidates arrive already ordered by [`sort_seed_candidates`], so admission
+/// preserves rank: a file's third candidate is skipped, never promoted over a
+/// better-ranked one elsewhere.
+fn admit_seeds(candidates: Vec<(SeedRank, usize, String, u64, String)>) -> Vec<StructuralSeed> {
+    let mut admitted = Vec::new();
+    let mut per_file: std::collections::BTreeMap<String, usize> = std::collections::BTreeMap::new();
+    for (rank, _, path, _, node_id) in candidates {
+        if admitted.len() >= MAX_STRUCTURAL_SEEDS {
+            break;
+        }
+        let taken = per_file.entry(path).or_default();
+        if *taken >= MAX_SEEDS_PER_FILE {
+            continue;
+        }
+        *taken += 1;
+        admitted.push(StructuralSeed {
+            node_id,
+            reason_code: rank.reason_code(),
+        });
+    }
+    admitted
+}
+
+/// Looking through local variables, a function's local is never a seed: a task
+/// word that happens to name one (`table`, `value`, `array`) anchors nothing a
+/// reader navigates.
+fn structural_seed_selection(
     graph: &StructuralGraph,
     query: &str,
-) -> Result<StructuralSeedDecision, context_core::CoreErrorCode> {
+    nominated_order: &[String],
+    admitted_identifiers: &[String],
+    locals: LocalVariables,
+) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
-    let signals = task_signals(query);
+    let (query, query_truncated) = bounded_task_query(query);
+    // Admission was decided once, during nomination, by an index that knows
+    // whether a name is declared distinctly enough to identify a file. Reusing
+    // that answer keeps the two stages from disagreeing about what the task
+    // named, and keeps prose from steering selection: deriving the oracle from
+    // this graph instead would make any English word matching a symbol here a
+    // signal, so "explain its helper call" would seed on `helper`.
+    let signals = seed_signals(query, admitted_identifiers);
     let nodes = graph
         .nodes
         .iter()
@@ -4546,65 +5744,193 @@ fn structural_seed_decision(
         })
         .collect::<Result<Vec<_>, context_core::CoreErrorCode>>()?;
 
+    // A file's position in the nomination, or one past the end when it was not
+    // nominated. Nomination ranked relevance using how many distinct task
+    // identifiers each file carries; seed rank only knows whether one name
+    // happened to be unique.
+    let nominated_position = |path: &str| -> usize {
+        nominated_order
+            .iter()
+            .position(|nominated| nominated == path)
+            .unwrap_or(nominated_order.len())
+    };
+    // (rank, nomination position, portable path, declaration offset, node id).
+    let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = Vec::new();
+    let mut ambiguous_observed = false;
+
+    let function_locals = locals.looked_through(graph);
+    let is_named_symbol = |node: &GraphNode, identifier: &str| {
+        node.kind == "symbol"
+            && node.confidence == "confirmed"
+            && node.name.as_deref() == Some(identifier)
+            && !function_locals.contains_key(node.node_id.as_str())
+    };
+
     for task_path in &signals.paths {
         let files = nodes
             .iter()
             .filter(|(node, path)| node.kind == "file" && path == task_path)
             .collect::<Vec<_>>();
         if files.len() > 1 {
-            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
+            ambiguous_observed = true;
         }
-        let Some((file, file_path)) = files.first() else {
-            continue;
-        };
-        for identifier in &signals.identifiers {
-            let symbols = nodes
-                .iter()
-                .filter(|(node, path)| {
-                    node.kind == "symbol"
-                        && node.confidence == "confirmed"
-                        && path == file_path
-                        && node.name.as_deref() == Some(identifier.as_str())
-                })
-                .collect::<Vec<_>>();
-            if symbols.len() > 1 {
-                return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
-            }
-            if let Some((symbol, _)) = symbols.first() {
-                return Ok(StructuralSeedDecision::Selected {
-                    node_id: symbol.node_id.clone(),
-                    reason_code: "unique_symbol_in_exact_path",
-                });
+        for (file, file_path) in &files {
+            candidates.push((
+                SeedRank::UniqueExactFilePath,
+                nominated_position(file_path),
+                (*file_path).clone(),
+                declaration_offset(file),
+                file.node_id.clone(),
+            ));
+            for identifier in &signals.identifiers {
+                for (symbol, symbol_path) in nodes
+                    .iter()
+                    .filter(|(node, path)| path == file_path && is_named_symbol(node, identifier))
+                {
+                    candidates.push((
+                        SeedRank::UniqueSymbolInExactPath,
+                        nominated_position(symbol_path),
+                        symbol_path.clone(),
+                        declaration_offset(symbol),
+                        symbol.node_id.clone(),
+                    ));
+                }
             }
         }
-        return Ok(StructuralSeedDecision::Selected {
-            node_id: file.node_id.clone(),
-            reason_code: "unique_exact_file_path",
-        });
     }
 
     for identifier in &signals.identifiers {
         let symbols = nodes
             .iter()
-            .filter(|(node, _)| {
-                node.kind == "symbol"
-                    && node.confidence == "confirmed"
-                    && node.name.as_deref() == Some(identifier.as_str())
-            })
+            .filter(|(node, _)| is_named_symbol(node, identifier))
             .collect::<Vec<_>>();
-        if symbols.len() > 1 {
-            return Ok(StructuralSeedDecision::Omitted("structural_seed_ambiguous"));
-        }
-        if let Some((symbol, _)) = symbols.first() {
-            return Ok(StructuralSeedDecision::Selected {
-                node_id: symbol.node_id.clone(),
-                reason_code: "globally_unique_symbol",
-            });
+        // An ambiguous identifier no longer aborts the scan. It is retained at
+        // its own rank so a name shared by a subclass and the parent that
+        // actually carries the defect can still reach the map.
+        let rank = if symbols.len() > 1 {
+            ambiguous_observed = true;
+            SeedRank::GloballyAmbiguousSymbol
+        } else {
+            SeedRank::GloballyUniqueSymbol
+        };
+        for (symbol, path) in symbols {
+            candidates.push((
+                rank,
+                nominated_position(path),
+                path.clone(),
+                declaration_offset(symbol),
+                symbol.node_id.clone(),
+            ));
         }
     }
-    Ok(StructuralSeedDecision::Omitted(
-        "structural_seed_unavailable",
-    ))
+
+    sort_seed_candidates(&mut candidates);
+
+    let mut selection = StructuralSeedSelection::default();
+    let considered = candidates.len();
+    selection.seeds = admit_seeds(candidates);
+    // The ceiling is still disclosed by how many candidates it turned away,
+    // not by how many survived the per-file rule.
+    if considered > MAX_STRUCTURAL_SEEDS {
+        selection.unknowns.push("structural_seed_limit_reached");
+    }
+    if ambiguous_observed {
+        selection.unknowns.push("structural_seed_ambiguous");
+    }
+    if query_truncated {
+        selection.unknowns.push("task_query_truncated");
+    }
+    if selection.seeds.is_empty() {
+        selection.unknowns.push("structural_seed_unavailable");
+    }
+    selection.unknowns.sort_unstable();
+    selection.unknowns.dedup();
+    Ok(selection)
+}
+
+/// Narrow a structural query result to the bytes it is allowed to occupy.
+///
+/// A result that exceeded its ceiling used to fail the whole build, after the
+/// reads that produced it were already spent. [ADR-0134] settled the opposite
+/// for disclosure — honour the bound and return what it allows — and this is
+/// the same treatment for the query beneath it.
+///
+/// Edges are dropped from the tail, never nodes. `query_structure`'s consumer
+/// resolves every edge's source against the node set and fails hard on a
+/// missing one, so dropping an edge can only shrink what must be present while
+/// dropping a node could break that closure. Edges arrive in traversal order,
+/// seeds in rank order and each seed's edges most confidently resolved first
+/// and then in source order, so the prefix kept is the part the traversal
+/// valued most, and it does not move when identities do.
+///
+/// [ADR-0134]: https://github.com/tdloB/impresari-context/blob/main/docs/decisions/0134-truncate-a-disclosure-at-its-ceiling-rather-than-discarding-it.md
+fn bound_structural_query_output(
+    mut result: context_structural::StructuralQueryResult,
+) -> context_structural::StructuralQueryResult {
+    let fits = |value: &context_structural::StructuralQueryResult| {
+        serde_json::to_vec(value)
+            .is_ok_and(|bytes| bytes.len() <= MAX_STRUCTURAL_QUERY_OUTPUT_BYTES)
+    };
+    if fits(&result) {
+        return result;
+    }
+    // Binary search the retained prefix rather than dropping one edge at a
+    // time. Every probe re-serializes the result, so removing edges singly is
+    // quadratic in the size of exactly the oversized input this exists for.
+    let all = std::mem::take(&mut result.edges);
+    let (mut low, mut high) = (0_usize, all.len());
+    while low < high {
+        let mid = low + (high - low).div_ceil(2);
+        result.edges = all[..mid].to_vec();
+        if fits(&result) {
+            low = mid;
+        } else {
+            high = mid - 1;
+        }
+    }
+    result.edges = all[..low].to_vec();
+    result.truncated = true;
+    result
+        .unknowns
+        .push("structural_query_output_limit_reached".into());
+    result.unknowns.sort();
+    result.unknowns.dedup();
+    result
+}
+
+/// Merge per-seed traversals into one deterministic result.
+///
+/// The primary seed supplies `start_node`. Nodes are the deduplicated union in
+/// identity order; edges keep the order the traversals chose, first occurrence
+/// wins, so the output bound keeps what the traversals valued most.
+fn merge_structural_traversals(
+    mut results: Vec<StructuralQueryResult>,
+) -> Option<StructuralQueryResult> {
+    let mut merged = results.first().cloned()?;
+    let mut nodes = Vec::new();
+    let mut edges = Vec::new();
+    let mut unknowns = Vec::new();
+    let mut truncated = false;
+    for result in results.drain(..) {
+        truncated |= result.truncated;
+        nodes.extend(result.nodes);
+        edges.extend(result.edges);
+        unknowns.extend(result.unknowns);
+    }
+    nodes.sort_by(|left, right| left.node_id.cmp(&right.node_id));
+    nodes.dedup_by(|left, right| left.node_id == right.node_id);
+    // Keep the order the traversals chose: seeds in rank order, each seed's
+    // edges in traversal order. Sorting by identity here reordered them by
+    // hash, and the output bound keeps a prefix of this list.
+    let mut delivered = std::collections::BTreeSet::new();
+    edges.retain(|edge| delivered.insert(edge.edge_id.clone()));
+    unknowns.sort();
+    unknowns.dedup();
+    merged.nodes = nodes;
+    merged.edges = edges;
+    merged.unknowns = unknowns;
+    merged.truncated = truncated;
+    Some(merged)
 }
 
 fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::CoreErrorCode> {
@@ -4615,6 +5941,183 @@ fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::Co
     )
     .and_then(|path| path.to_portable_relative_path())
     .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)
+}
+
+/// How a profiled build orders and cuts the evidence its plan found.
+#[derive(Clone, Copy, Debug, Default)]
+struct EvidenceRanking<'a> {
+    /// Test and vendored files follow every other file's evidence. False when
+    /// the task is about tests, or when no task text was planned from.
+    demote_supporting_files: bool,
+    /// Functions and types the task's graph declares. A match inside one is
+    /// sent as that whole declaration when it fits the excerpt ceiling.
+    declarations: Option<&'a DeclarationIndex>,
+}
+
+/// Spans of the functions and types a structural graph declares, by file.
+#[derive(Debug, Default)]
+struct DeclarationIndex {
+    /// Path units to `[start, end)` byte spans.
+    spans: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
+}
+
+impl DeclarationIndex {
+    fn from_graph(graph: &StructuralGraph) -> Self {
+        let mut spans: std::collections::BTreeMap<String, Vec<(u64, u64)>> =
+            std::collections::BTreeMap::new();
+        for node in &graph.nodes {
+            if let Some(span) = &node.span
+                && matches!(node.declaration_kind.as_deref(), Some("function" | "type"))
+                && span.start_byte < span.end_byte
+            {
+                spans
+                    .entry(node.path.relative_units_base64url.clone())
+                    .or_default()
+                    .push((span.start_byte, span.end_byte));
+            }
+        }
+        Self { spans }
+    }
+
+    /// The smallest declaration holding `[start, end)` in at most `max` bytes.
+    fn enclosing(&self, path_units: &str, start: u64, end: u64, max: u64) -> Option<(u64, u64)> {
+        self.spans
+            .get(path_units)?
+            .iter()
+            .copied()
+            .filter(|&(from, to)| from <= start && end <= to && to - from <= max)
+            .min_by_key(|&(from, to)| (to - from, from))
+    }
+}
+
+/// Directories whose files a task seldom changes: tests, and code vendored
+/// from another project.
+const SUPPORTING_DIRECTORIES: [&str; 11] = [
+    "__tests__",
+    "cextern",
+    "extern",
+    "node_modules",
+    "spec",
+    "test",
+    "testing",
+    "tests",
+    "third_party",
+    "vendor",
+    "vendored",
+];
+
+/// Whether a file is a test or a vendored copy.
+///
+/// A display path renders the native path, so on Windows its components are
+/// separated by `\`. Both separators split components; on other platforms a
+/// file name holding a backslash only risks ranking one file later.
+fn is_supporting_file(display_path: &str) -> bool {
+    let mut components = display_path.split(['/', '\\']);
+    let file = components.next_back().unwrap_or_default();
+    let stem = file.split('.').next().unwrap_or_default();
+    components.any(|directory| SUPPORTING_DIRECTORIES.contains(&directory))
+        || stem.starts_with("test_")
+        || stem.ends_with("_test")
+        || stem.ends_with("_tests")
+        || stem == "conftest"
+        || file.contains(".test.")
+        || file.contains(".spec.")
+}
+
+/// Whether the task text asks about tests, so test files keep the place their
+/// evidence earned.
+fn task_is_about_tests(query: &str) -> bool {
+    lexical_task_terms(query).iter().any(|term| {
+        matches!(
+            term.as_str(),
+            "test" | "tests" | "testing" | "pytest" | "unittest"
+        )
+    })
+}
+
+/// Every item outside a test or vendored file, then the rest, each group in
+/// its original order.
+fn supporting_last<T>(items: Vec<T>, path: impl Fn(&T) -> &str) -> Vec<T> {
+    let (mut leading, trailing): (Vec<T>, Vec<T>) = items
+        .into_iter()
+        .partition(|item| !is_supporting_file(path(item)));
+    leading.extend(trailing);
+    leading
+}
+
+/// Order evidence found in nominated files file-first, in nomination order.
+///
+/// A search returns matches in snapshot path order, so without this the file
+/// that sorts first leads however late it was nominated, and one file can take
+/// every slot the packet budget leaves. One record per file per pass, taking
+/// files in the order the task nominated them, spreads the leading evidence
+/// across the files the task is most likely about.
+fn file_first_by_scope(items: Vec<EvidenceRecord>, scope: &[String]) -> Vec<EvidenceRecord> {
+    let mut rank = std::collections::BTreeMap::new();
+    for (index, path) in scope.iter().enumerate() {
+        rank.entry(path.as_str()).or_insert(index);
+    }
+    let mut queues: Vec<std::collections::VecDeque<EvidenceRecord>> = scope
+        .iter()
+        .map(|_| std::collections::VecDeque::new())
+        .collect();
+    let mut unplaced = Vec::new();
+    for item in items {
+        match rank.get(item.artifact.path.display_path.as_str()) {
+            Some(&index) => queues[index].push_back(item),
+            None => unplaced.push(item),
+        }
+    }
+    let mut ordered = Vec::new();
+    loop {
+        let mut added = false;
+        for queue in &mut queues {
+            if let Some(item) = queue.pop_front() {
+                ordered.push(item);
+                added = true;
+            }
+        }
+        if !added {
+            break;
+        }
+    }
+    ordered.extend(unplaced);
+    ordered
+}
+
+/// How many files in the current lexical index hold every word of `needle`,
+/// and whether a nominated file is among them.
+///
+/// Words are counted whole, so a literal's substring matches can only add
+/// files; the count ranks needles, it does not promise a search's result.
+fn needle_rarity(
+    cache: &WorkspaceCache,
+    needle: &str,
+    nominated: &[String],
+) -> Option<NeedleRarity> {
+    let mut terms = lexical_task_terms(needle);
+    terms.sort_unstable();
+    terms.dedup();
+    // Every file holding all the words holds any sixteen of them.
+    terms.truncate(16);
+    if terms.is_empty() {
+        return None;
+    }
+    let (files, nominated_files) = cache.lexical_document_counts(&terms, nominated).ok()?;
+    Some(NeedleRarity {
+        files,
+        in_nominated: nominated_files > 0,
+    })
+}
+
+/// Whether a literal holds a run of at least three letters or digits.
+///
+/// A quoted `", "`, `'a'` or `":-)"` is text the author marked, but it occurs
+/// in nearly every file and cannot say which one a task is about.
+fn literal_has_word(needle: &str) -> bool {
+    needle
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .any(|run| run.len() >= 3)
 }
 
 fn lexical_task_terms(query: &str) -> Vec<String> {
@@ -4683,10 +6186,47 @@ fn is_code_identifier_signal(token: &str) -> bool {
     if !token.starts_with(|character: char| character.is_ascii_alphabetic() || character == '_') {
         return false;
     }
-    token.contains('_')
-        || token.contains('-')
+    // A separator run carrying no name is not an identifier: `_`, `__`, `--`.
+    if !token.bytes().any(|byte| byte.is_ascii_alphanumeric()) {
+        return false;
+    }
+    // Markdown emphasis wraps prose in separators, so `_and_` reads as
+    // snake_case. Real code puts its separators *between* name parts, so judge
+    // the token with its edge separators removed.
+    let core = token.trim_matches(|character: char| character == '_' || character == '-');
+    if core.is_empty() {
+        return false;
+    }
+    // A dunder is a real name even without an interior separator: `__eq__`,
+    // `__version__`, `__call__` all matter and all survive edge trimming to a
+    // bare word.
+    // A version string or a line range is not a name. Bug reports carry them in
+    // bulk — environment dumps and source citations — and each one occupies a
+    // slot a real symbol could use: `Windows-10-10.0.19044-SP0`, `L1300-L1302`,
+    // `Linux-5.10.0-1029-oem-x86_64`.
+    if is_version_shaped(token) {
+        return false;
+    }
+    let dunder = token.starts_with("__") && token.ends_with("__");
+    dunder
+        || core.contains('_')
+        || core.contains('-')
         || token.contains("::")
         || has_interior_capital(token)
+}
+
+/// True when a hyphenated token carries a version or line-number segment.
+///
+/// Kebab-case names stay admissible: `conda-forge` and `hello-rust` have no
+/// numeric segment, while every segment of a version or citation does.
+fn is_version_shaped(token: &str) -> bool {
+    let mut segments = token.split('-').filter(|segment| !segment.is_empty());
+    segments.any(|segment| {
+        segment.bytes().any(|byte| byte.is_ascii_digit())
+            && segment
+                .bytes()
+                .all(|byte| byte.is_ascii_digit() || byte == b'.' || byte.is_ascii_uppercase())
+    }) && token.contains('-')
 }
 
 /// True when an uppercase letter follows a lowercase letter, as in `TimeSeries`
@@ -5200,8 +6740,139 @@ struct StructuralLimits {
     response_bytes: u32,
 }
 
+/// Supported files the build will visit, which is the fact-quota divisor.
+fn supported_file_count(
+    artifacts: &[context_workspace::ArtifactRecord],
+    file_limit: u64,
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> u32 {
+    u32::try_from(
+        artifacts
+            .iter()
+            .take(usize::try_from(file_limit).unwrap_or(usize::MAX))
+            .filter(|artifact| artifact_in_scope(&artifact.path.display_path, scope))
+            .filter(|artifact| structural_language(&artifact.path.display_path).is_some())
+            .count(),
+    )
+    .unwrap_or(u32::MAX)
+}
+
+/// Order seed candidates and drop duplicates of the same node.
+///
+/// Rank first, then the nomination position, so a name shared by several files
+/// resolves to the file the task is about rather than to whichever path sorts
+/// first alphabetically. Within one file the declaration that comes first wins.
+/// Node identity used to decide that, and it hashes the workspace snapshot,
+/// which includes where the repository is checked out, so the same commit in two
+/// directories chose different seeds.
+fn sort_seed_candidates(candidates: &mut Vec<(SeedRank, usize, String, u64, String)>) {
+    candidates.sort();
+    candidates.dedup_by(|left, right| left.4 == right.4);
+}
+
+/// Where a candidate is declared in its file; a file node sorts first.
+fn declaration_offset(node: &GraphNode) -> u64 {
+    node.span.as_ref().map_or(0, |span| span.start_byte)
+}
+
+/// Raise the fact allowance when a build is scoped to nominated files.
+///
+/// A scope is a couple of dozen files rather than a repository, so it receives
+/// the whole admitted residency allowance instead of a repository-wide budget
+/// that leaves each file a few hundred facts.
+fn scoped_limits(
+    mut limits: StructuralLimits,
+    artifacts: &[context_workspace::ArtifactRecord],
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> StructuralLimits {
+    if scope.is_some() {
+        limits.facts = scoped_fact_allowance(supported_file_count(artifacts, limits.files, scope))
+            .max(limits.facts);
+    }
+    limits
+}
+
+/// Repository-wide fact allowance for a scoped build.
+///
+/// The store caps a serialized graph at 16 MiB and one fact costs roughly 530
+/// bytes of it, so about 31,600 facts fit. This leaves headroom under that.
+///
+/// A scope is bounded at a couple of dozen files, so the whole allowance is
+/// spent on them rather than reserving a fixed share each. Measured need: a
+/// 2,229-line Python module yields 3,337 facts, and a per-file share below that
+/// truncates its later declarations — which is how a seed ends up anchored in a
+/// small sibling that fitted whole.
+const MAX_SCOPED_FACTS: u32 = 28_000;
+
+/// Fact allowance for a build scoped to `supported_files` nominated files.
+///
+/// Zero supported files ask for nothing; otherwise the scope receives the whole
+/// admitted residency allowance.
+const fn scoped_fact_allowance(supported_files: u32) -> u32 {
+    if supported_files == 0 {
+        0
+    } else {
+        MAX_SCOPED_FACTS
+    }
+}
+
+/// Whether one artifact belongs to the admitted structural scope.
+///
+/// No scope means a whole-repository build, which is thin but complete. A scope
+/// means a nominated build, which is dense but partial.
+fn artifact_in_scope(
+    display_path: &str,
+    scope: Option<&std::collections::BTreeSet<String>>,
+) -> bool {
+    scope.is_none_or(|paths| paths.contains(display_path))
+}
+
 fn structural_fact_quota(remaining_facts: u32, remaining_files: u32) -> Option<u32> {
     (remaining_facts > 0 && remaining_files > 0).then(|| remaining_facts.div_ceil(remaining_files))
+}
+
+/// Place the unspent part of a fact allowance with the files that were cut.
+///
+/// `held` is what each file received from the equal-share pass; `demand` is what
+/// each file would yield with no ceiling, which the worker reports because only
+/// the parser knows it. A file is short when it wanted more than it held.
+///
+/// The remainder is divided smallest-shortfall first, which is the max-min fair
+/// order: every file that the remainder can satisfy is satisfied, and whatever
+/// is left over is shared evenly among the files it cannot.
+///
+/// Two properties make this safe to apply unconditionally. No file is ever
+/// granted less than it already holds, so a build cannot regress; and only the
+/// unspent remainder is placed, so the total cannot exceed the allowance.
+///
+/// The cost of those properties is that it does not reach the globally fair
+/// division when the first pass already spent everything — with nothing unspent
+/// there is nothing to move, even if an even division would have been kinder to
+/// one file than another. That case is not the one measured on the corpus,
+/// where a build left 57% of its allowance unused while truncating a file.
+fn redistribute_unspent_facts(held: &[u64], demand: &[u64], allowance: u32) -> Vec<u32> {
+    let spent: u64 = held.iter().sum();
+    let mut unspent = u64::from(allowance).saturating_sub(spent);
+    let mut grant: Vec<u32> = held
+        .iter()
+        .map(|facts| u32::try_from(*facts).unwrap_or(u32::MAX))
+        .collect();
+    let mut short: Vec<usize> = (0..held.len())
+        .filter(|index| demand[*index] > held[*index])
+        .collect();
+    short.sort_by_key(|index| (demand[*index] - held[*index], *index));
+    let mut remaining_short = short.len() as u64;
+    for index in short {
+        if remaining_short == 0 || unspent == 0 {
+            break;
+        }
+        let shortfall = demand[index] - held[index];
+        let give = shortfall.min(unspent / remaining_short);
+        grant[index] = u32::try_from(held[index].saturating_add(give)).unwrap_or(u32::MAX);
+        unspent -= give;
+        remaining_short -= 1;
+    }
+    grant
 }
 
 fn structural_limits(
@@ -5280,7 +6951,7 @@ fn structural_request(
         max_facts: limits.facts,
         max_nesting_depth: limits.depth,
         max_response_bytes: limits.response_bytes,
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: context_structural::PARSER_VERSION.into(),
         grammar_version: grammar_version(language).into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -5771,10 +7442,38 @@ fn valid_identifier(value: &str) -> bool {
             .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
-fn derived_structure_query_context(context: &RequestContext) -> RequestContext {
+/// Derive the audit identity for one structural traversal.
+///
+/// `ordinal` distinguishes the traversals of a multi-seed selection, because
+/// the audit store rejects a duplicate event identity and every seed records
+/// its own traversal.
+/// Derive the audit identity for one task-scoped structural build.
+///
+/// The caller's context is still to be used for the context build that follows,
+/// and the audit store rejects a duplicate event identity.
+fn derived_task_scope_context(context: &RequestContext) -> RequestContext {
+    let mut hasher = Sha256::new();
+    hasher.update(b"impresari-context\0task-scoped-structure-event\0");
+    hasher.update(context.event_id.as_bytes());
+    let mut event_id = String::from("evt_");
+    for byte in hasher.finalize() {
+        use fmt::Write as _;
+        write!(event_id, "{byte:02x}").expect("string write");
+    }
+    RequestContext {
+        request_id: context.request_id.clone(),
+        event_id,
+        subject: context.subject.clone(),
+        occurred_at: context.occurred_at.clone(),
+    }
+}
+
+fn derived_structure_query_context(context: &RequestContext, ordinal: usize) -> RequestContext {
     let mut hasher = Sha256::new();
     hasher.update(b"impresari-context\0structural-impact-query-event\0");
     hasher.update(context.event_id.as_bytes());
+    hasher.update(b"\0");
+    hasher.update(ordinal.to_be_bytes());
     let mut event_id = String::from("evt_");
     for byte in hasher.finalize() {
         use fmt::Write as _;
@@ -5808,7 +7507,249 @@ fn contract_sha256(bytes: &[u8]) -> String {
 
 #[cfg(test)]
 mod tests {
+    /// Seed selection as every build made it before local variables were looked
+    /// through.
+    fn select_seeds(
+        graph: &StructuralGraph,
+        query: &str,
+        nominated_order: &[String],
+        admitted_identifiers: &[String],
+    ) -> Result<StructuralSeedSelection, context_core::CoreErrorCode> {
+        structural_seed_selection(
+            graph,
+            query,
+            nominated_order,
+            admitted_identifiers,
+            LocalVariables::Visit,
+        )
+    }
+
     use super::*;
+
+    /// Build a query result whose serialized size exceeds any given ceiling.
+    fn oversized_query_result(edges: usize) -> StructuralQueryResult {
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter_syntax".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "mixed-pinned-grammars".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let path = WorkerPath {
+            display_path: "src/parser.rs".into(),
+            platform_family: "unix".into(),
+            unit_encoding: "utf8".into(),
+            relative_units_base64url: "c3JjL3BhcnNlci5ycw".into(),
+        };
+        StructuralQueryResult {
+            schema_name: "structural-query-result".into(),
+            schema_version: GRAPH_VERSION.into(),
+            graph_id: format!("sha256:{}", "a".repeat(64)),
+            workspace_snapshot: format!("sha256:{}", "b".repeat(64)),
+            start_node: format!("sha256:{}", "c".repeat(64)),
+            nodes: vec![GraphNode {
+                node_id: format!("sha256:{}", "c".repeat(64)),
+                kind: "file".into(),
+                path,
+                name: None,
+                span: None,
+                declaration_kind: None,
+                confidence: "confirmed".into(),
+                provenance: provenance.clone(),
+            }],
+            edges: (0..edges)
+                .map(|index| context_structural::GraphEdge {
+                    edge_id: format!("sha256:{index:064}"),
+                    kind: "contains".into(),
+                    source_node: format!("sha256:{}", "c".repeat(64)),
+                    target_node: None,
+                    module: None,
+                    resolution: "confirmed".into(),
+                    span: context_structural::GraphSpan {
+                        start_byte: 0,
+                        end_byte: 1,
+                    },
+                    provenance: provenance.clone(),
+                })
+                .collect(),
+            truncated: false,
+            unknowns: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn merged_traversals_keep_seed_order_rather_than_identity_order() {
+        let with_ids = |ids: &[u8]| {
+            let mut result = oversized_query_result(ids.len());
+            for (edge, id) in result.edges.iter_mut().zip(ids) {
+                edge.edge_id = format!("sha256:{id:064}");
+            }
+            result
+        };
+        let merged = merge_structural_traversals(vec![with_ids(&[9, 3]), with_ids(&[5, 3])])
+            .expect("merged");
+        let order: Vec<String> = merged
+            .edges
+            .iter()
+            .map(|edge| edge.edge_id.clone())
+            .collect();
+        let expected: Vec<String> = [9_u8, 3, 5]
+            .iter()
+            .map(|id| format!("sha256:{id:064}"))
+            .collect();
+        assert_eq!(order, expected, "first seed's edges first, duplicates once");
+    }
+
+    #[test]
+    fn seed_ties_in_one_file_go_to_the_earliest_declarations_under_any_snapshot() {
+        // Five declarations share a name in one file, and the per-file rule
+        // admits three. Two snapshots give the same facts different node
+        // identities; both must admit the three declared first.
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "tree-sitter-python-0.25.0".into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let offsets = [10_u64, 30, 50, 70, 90];
+        let graph_for = |seed: &[u8]| {
+            let facts = offsets
+                .iter()
+                .enumerate()
+                .map(|(index, start)| context_structural::StructuralFact {
+                    class: FactClass::Declaration,
+                    local_key: format!("target_{index}"),
+                    syntax_kind: "class_definition".into(),
+                    name: Some("Target".into()),
+                    module: None,
+                    start_byte: *start,
+                    end_byte: start + 10,
+                    parent_key: None,
+                    confidence: "confirmed".into(),
+                    provenance: provenance.clone(),
+                })
+                .collect::<Vec<_>>();
+            // Seed selection resolves each node's path on the host, which
+            // refuses another platform's encoding, so build it the host's way.
+            let path = PathIdentity::from_portable_relative_path("src/a.py").expect("path");
+            let input = GraphFileInput {
+                path: WorkerPath {
+                    display_path: path.display_path,
+                    platform_family: path.platform_family.into(),
+                    unit_encoding: path.unit_encoding.into(),
+                    relative_units_base64url: path.relative_units_base64url,
+                },
+                response: context_structural::WorkerSuccess {
+                    schema_name: "structural-worker-success".into(),
+                    schema_version: PROTOCOL_VERSION.into(),
+                    request_id: "req_seed_ties".into(),
+                    content_hash: format!("sha256:{}", "a".repeat(64)),
+                    syntax_errors: false,
+                    total_facts_available: facts.len() as u64,
+                    facts,
+                    warnings: Vec::new(),
+                },
+            };
+            context_structural::build_graph(&contract_sha256(seed), vec![input]).expect("graph")
+        };
+        let admitted = |graph: &StructuralGraph| {
+            let selection = select_seeds(
+                graph,
+                "Target raises when called",
+                &[],
+                &["Target".to_owned()],
+            )
+            .expect("seeds");
+            selection
+                .seeds
+                .iter()
+                .map(|seed| {
+                    graph
+                        .nodes
+                        .iter()
+                        .find(|node| node.node_id == seed.node_id)
+                        .and_then(|node| node.span.as_ref())
+                        .map(|span| span.start_byte)
+                        .expect("seed span")
+                })
+                .collect::<Vec<_>>()
+        };
+        let first = graph_for(b"checkout-one");
+        let second = graph_for(b"checkout-two");
+        assert_ne!(
+            first.nodes, second.nodes,
+            "snapshots must change node identities"
+        );
+        assert_eq!(admitted(&first), vec![10, 30, 50]);
+        assert_eq!(admitted(&second), vec![10, 30, 50]);
+    }
+
+    #[test]
+    fn a_query_result_within_its_ceiling_is_returned_untouched() {
+        let result = oversized_query_result(4);
+        let bounded = bound_structural_query_output(result.clone());
+        assert_eq!(bounded, result, "a result that fits must not be altered");
+        assert!(!bounded.truncated);
+        assert!(bounded.unknowns.is_empty());
+    }
+
+    #[test]
+    fn an_oversized_query_result_is_truncated_rather_than_refused() {
+        // Enough edges to exceed a mebibyte of serialized JSON.
+        let result = oversized_query_result(6_000);
+        let raw = serde_json::to_vec(&result).expect("serialize");
+        assert!(
+            raw.len() > MAX_STRUCTURAL_QUERY_OUTPUT_BYTES,
+            "fixture must actually exceed the ceiling, was {}",
+            raw.len()
+        );
+
+        let bounded = bound_structural_query_output(result.clone());
+
+        // It fits, and it still exists — the whole point. This used to fail the
+        // build after the reads that produced it were already spent.
+        let bytes = serde_json::to_vec(&bounded).expect("serialize");
+        assert!(bytes.len() <= MAX_STRUCTURAL_QUERY_OUTPUT_BYTES);
+        assert!(
+            !bounded.edges.is_empty(),
+            "truncation must not empty the result"
+        );
+        assert!(bounded.edges.len() < result.edges.len());
+
+        // Nodes are never dropped: the consumer resolves every edge's source
+        // against the node set and fails hard on a missing one, so shrinking
+        // nodes could break that closure while shrinking edges cannot.
+        assert_eq!(bounded.nodes, result.nodes);
+        let present: std::collections::BTreeSet<&str> = bounded
+            .nodes
+            .iter()
+            .map(|node| node.node_id.as_str())
+            .collect();
+        assert!(
+            bounded
+                .edges
+                .iter()
+                .all(|edge| present.contains(edge.source_node.as_str())),
+            "every retained edge must still have its source node"
+        );
+
+        // The limit that bit is disclosed, not silent.
+        assert!(bounded.truncated);
+        assert!(
+            bounded
+                .unknowns
+                .contains(&"structural_query_output_limit_reached".to_owned())
+        );
+
+        // Deterministic: edges are ordered by edge_id, so the kept prefix is
+        // the same prefix every time.
+        assert_eq!(
+            bound_structural_query_output(result).edges,
+            bounded.edges,
+            "truncation must be reproducible"
+        );
+    }
     use context_core::validate_packet;
     use context_dashboard::{
         BudgetCeilings, BudgetSelector, LocalBudgetPolicyDraft, LocalBudgetRule, compile_policy,
@@ -5823,12 +7764,429 @@ mod tests {
     static NEXT_ROOT: AtomicU64 = AtomicU64::new(0);
 
     #[test]
+    fn a_long_task_is_bounded_not_rejected() {
+        // Four of twenty-two accepted astropy changes carry problem statements
+        // over this limit. Rejecting them failed the entire request.
+        let long = "a".repeat(MAX_TASK_QUERY_BYTES * 2);
+        assert!(valid_task_query(&long), "length must not decide validity");
+        let (bounded, truncated) = bounded_task_query(&long);
+        assert!(truncated);
+        assert_eq!(bounded.len(), MAX_TASK_QUERY_BYTES);
+
+        // A query inside the limit is untouched and not reported as shortened.
+        let short = "inspect reviewed_change in review.ts";
+        let (unchanged, shortened) = bounded_task_query(short);
+        assert_eq!(unchanged, short);
+        assert!(!shortened);
+    }
+
+    #[test]
+    fn truncation_never_splits_a_character() {
+        // A multi-byte character straddling the ceiling must not be halved.
+        let mut query = "x".repeat(MAX_TASK_QUERY_BYTES - 1);
+        query.push('\u{1F600}');
+        query.push_str("tail");
+        let (bounded, truncated) = bounded_task_query(&query);
+        assert!(truncated);
+        assert!(bounded.len() < MAX_TASK_QUERY_BYTES);
+        assert!(std::str::from_utf8(bounded.as_bytes()).is_ok());
+        assert!(!bounded.ends_with('\u{FFFD}'));
+    }
+
+    #[test]
+    fn malformed_queries_are_still_rejected() {
+        assert!(!valid_task_query(""));
+        assert!(!valid_task_query("has a \u{0}null"));
+        assert!(!valid_task_query("bell \u{7}"));
+        // Ordinary whitespace is not a control failure.
+        assert!(valid_task_query("line one\nline two\ttabbed\r"));
+    }
+
+    #[test]
+    fn a_scope_receives_the_whole_residency_allowance() {
+        // A scope is a couple of dozen files, not a repository. Measured need:
+        // a 2,229-line Python module yields 3,337 facts, and the repository
+        // budget left it 667 — enough to truncate the declaration the task
+        // named.
+        assert_eq!(scoped_fact_allowance(9), MAX_SCOPED_FACTS);
+        assert_eq!(scoped_fact_allowance(16), MAX_SCOPED_FACTS);
+        assert_eq!(scoped_fact_allowance(0), 0);
+        // Nine nominated files must each afford a real module.
+        const { assert!(MAX_SCOPED_FACTS / 9 > 3_000) };
+    }
+
+    #[test]
+    fn no_single_file_takes_every_seed_slot() {
+        // Ten candidates in one file, then two elsewhere, already rank-ordered.
+        let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = (0..10)
+            .map(|index| {
+                (
+                    SeedRank::GloballyUniqueSymbol,
+                    0,
+                    "astropy/timeseries/sampled.py".to_owned(),
+                    0,
+                    format!("node-sampled-{index}"),
+                )
+            })
+            .collect();
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            5,
+            "astropy/timeseries/core.py".to_owned(),
+            0,
+            "node-core".to_owned(),
+        ));
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            6,
+            "astropy/timeseries/binned.py".to_owned(),
+            0,
+            "node-binned".to_owned(),
+        ));
+
+        let admitted = admit_seeds(candidates);
+
+        // Without the per-file rule the first file would take all eight, and a
+        // map can only name files its seeds landed in.
+        let files = admitted.len();
+        assert!(files <= MAX_STRUCTURAL_SEEDS);
+        let from_sampled = admitted
+            .iter()
+            .filter(|seed| seed.node_id.starts_with("node-sampled"))
+            .count();
+        assert_eq!(from_sampled, MAX_SEEDS_PER_FILE);
+        assert!(
+            admitted.iter().any(|seed| seed.node_id == "node-core"),
+            "a lower-ranked file must still reach the seed set"
+        );
+        assert!(admitted.iter().any(|seed| seed.node_id == "node-binned"));
+    }
+
+    #[test]
+    fn seed_admission_preserves_rank_and_never_promotes() {
+        // A file's surplus candidate is skipped, not moved ahead of a better
+        // ranked one elsewhere. One more from `a.py` than the cap admits, so a
+        // surplus always exists whatever the cap is set to.
+        let surplus = MAX_SEEDS_PER_FILE + 1;
+        let mut candidates: Vec<(SeedRank, usize, String, u64, String)> = (0..surplus)
+            .map(|index| {
+                (
+                    SeedRank::UniqueSymbolInExactPath,
+                    0,
+                    "a.py".to_owned(),
+                    0,
+                    format!("a{index}"),
+                )
+            })
+            .collect();
+        candidates.push((
+            SeedRank::GloballyAmbiguousSymbol,
+            9,
+            "b.py".to_owned(),
+            0,
+            "b1".to_owned(),
+        ));
+
+        let admitted = admit_seeds(candidates);
+        let mut expected: Vec<String> = (0..MAX_SEEDS_PER_FILE)
+            .map(|index| format!("a{index}"))
+            .collect();
+        expected.push("b1".to_owned());
+        assert_eq!(
+            admitted
+                .iter()
+                .map(|seed| seed.node_id.clone())
+                .collect::<Vec<_>>(),
+            expected,
+            "the surplus candidate is skipped; b1 keeps its place behind the admitted ones"
+        );
+    }
+
+    #[test]
+    fn a_single_file_corpus_still_seeds_up_to_the_per_file_cap() {
+        // Nothing to spread across: the rule must not starve a one-file task.
+        let candidates = (0..5)
+            .map(|index| {
+                (
+                    SeedRank::GloballyUniqueSymbol,
+                    0,
+                    "only.py".to_owned(),
+                    0,
+                    format!("n{index}"),
+                )
+            })
+            .collect();
+        let admitted = admit_seeds(candidates);
+        assert_eq!(admitted.len(), MAX_SEEDS_PER_FILE);
+        assert!(!admitted.is_empty(), "a one-file task must still seed");
+    }
+
+    #[test]
+    fn nomination_order_breaks_a_shared_name_before_the_alphabet_does() {
+        let mut candidates = vec![
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                5,
+                "astropy/coordinates/angles.py".to_owned(),
+                0,
+                "node-angles".to_owned(),
+            ),
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                3,
+                "astropy/units/quantity.py".to_owned(),
+                0,
+                "node-quantity".to_owned(),
+            ),
+        ];
+        sort_seed_candidates(&mut candidates);
+        // Alphabetically `coordinates` wins; by nomination `units` does, and
+        // nomination is the signal that knows what the task is about.
+        assert_eq!(candidates[0].4, "node-quantity");
+
+        // Without a nomination the order stays deterministic by path.
+        let mut unranked = vec![
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                0,
+                "b.py".to_owned(),
+                0,
+                "node-b".to_owned(),
+            ),
+            (
+                SeedRank::GloballyAmbiguousSymbol,
+                0,
+                "a.py".to_owned(),
+                0,
+                "node-a".to_owned(),
+            ),
+        ];
+        sort_seed_candidates(&mut unranked);
+        assert_eq!(unranked[0].4, "node-a");
+    }
+
+    #[test]
+    fn scope_admits_only_nominated_files_and_no_scope_admits_everything() {
+        let nominated: std::collections::BTreeSet<String> =
+            ["a.py".to_owned(), "pkg/b.py".to_owned()]
+                .into_iter()
+                .collect();
+        assert!(artifact_in_scope("a.py", Some(&nominated)));
+        assert!(artifact_in_scope("pkg/b.py", Some(&nominated)));
+        assert!(!artifact_in_scope("pkg/c.py", Some(&nominated)));
+        // A prefix or suffix of a nominated path is a different file.
+        assert!(!artifact_in_scope("b.py", Some(&nominated)));
+        assert!(!artifact_in_scope("pkg/b.pyc", Some(&nominated)));
+
+        // No scope keeps whole-repository behaviour exactly.
+        assert!(artifact_in_scope("anything.py", None));
+
+        // An empty scope admits nothing rather than everything.
+        let empty = std::collections::BTreeSet::new();
+        assert!(!artifact_in_scope("a.py", Some(&empty)));
+    }
+
+    #[test]
+    fn scoping_is_what_produces_density() {
+        // The allowance is fixed and the divisor is the supported file count,
+        // which is the whole argument for nominating files: the same budget
+        // over sixteen files is hundreds of facts each, and over a repository
+        // is one.
+        let allowance = 10_000;
+        let scoped = structural_fact_quota(allowance, 16).expect("scoped quota");
+        let whole_repository = structural_fact_quota(allowance, 1_172).expect("repository quota");
+        assert!(scoped > 600, "scoped quota was {scoped}");
+        assert!(
+            whole_repository < 10,
+            "repository quota was {whole_repository}"
+        );
+        assert!(scoped > whole_repository * 60);
+    }
+
+    /// A minimal record whose fields the delivery key actually reads.
+    fn sample_evidence_record() -> EvidenceRecord {
+        EvidenceRecord {
+            schema_name: "evidence".into(),
+            schema_version: "1.0.0".into(),
+            evidence_id: "id".into(),
+            workspace_snapshot: "sha256:snapshot".into(),
+            artifact: context_core::EvidenceArtifact {
+                path: context_core::EvidencePath {
+                    display_path: "lib.rs".into(),
+                    platform_family: "unix".into(),
+                    unit_encoding: "utf8".into(),
+                    relative_units_base64url: "bGliLnJz".into(),
+                },
+                content_hash: "sha256:content".into(),
+                file_kind: "regular_file".into(),
+                decoding: "utf8".into(),
+            },
+            span: context_core::EvidenceSpan {
+                start_byte: "0".into(),
+                end_byte: "6".into(),
+            },
+            excerpt: context_core::EvidenceExcerpt {
+                encoding: "base64url".into(),
+                bytes_base64url: "WINDOW".into(),
+                match_start_byte: "0".into(),
+                match_end_byte: "6".into(),
+            },
+            kind: "exact_source".into(),
+            extraction: context_core::EvidenceExtraction {
+                method: "literal_search".into(),
+                version: "1.0.0".into(),
+            },
+            confidence: "confirmed".into(),
+            trust: "untrusted_workspace_content".into(),
+            freshness: "current".into(),
+            sensitivity: Some("normal".into()),
+        }
+    }
+
+    #[test]
+    fn one_excerpt_is_delivered_once_and_provenance_is_never_merged_away() {
+        // Two matches a few bytes apart expand to the same window, so the same
+        // bytes were delivered twice. Measured on an astropy subset, twenty
+        // delivered records carried only twelve distinct excerpts and 40% of
+        // the excerpt bytes were repeats.
+        let mut evidence = std::collections::BTreeMap::new();
+        let mut order = Vec::new();
+        let mut delivered = std::collections::BTreeSet::new();
+
+        let record = |id: &str, method: &str, excerpt: &str| {
+            let mut item = sample_evidence_record();
+            item.evidence_id = id.to_owned();
+            item.extraction.method = method.to_owned();
+            item.excerpt.bytes_base64url = excerpt.to_owned();
+            item
+        };
+
+        for item in [
+            record("id-1", "literal_search", "WINDOW"),
+            record("id-2", "literal_search", "WINDOW"),
+            record("id-3", "literal_search", "WINDOW"),
+        ] {
+            LocalEngine::insert_ranked_evidence(&mut evidence, &mut order, &mut delivered, item);
+        }
+        assert_eq!(order, vec!["id-1"], "the window is delivered once");
+
+        // Provenance is part of the finding. Structural evidence expanding to
+        // the same window is a different thing the product knows, and merging
+        // it away would erase how it was found.
+        LocalEngine::insert_ranked_evidence(
+            &mut evidence,
+            &mut order,
+            &mut delivered,
+            record("id-4", "structural_graph_edge", "WINDOW"),
+        );
+        assert_eq!(
+            order,
+            vec!["id-1", "id-4"],
+            "a different extraction method is a different delivery"
+        );
+
+        // A genuinely different window is admitted.
+        LocalEngine::insert_ranked_evidence(
+            &mut evidence,
+            &mut order,
+            &mut delivered,
+            record("id-5", "literal_search", "OTHER"),
+        );
+        assert_eq!(order, vec!["id-1", "id-4", "id-5"]);
+    }
+
+    #[test]
     fn structural_fact_quota_is_repository_wide_and_fair() {
         assert_eq!(structural_fact_quota(10_000, 1_173), Some(9));
         assert_eq!(structural_fact_quota(9_991, 1_172), Some(9));
         assert_eq!(structural_fact_quota(3, 5), Some(1));
         assert_eq!(structural_fact_quota(0, 5), None);
         assert_eq!(structural_fact_quota(5, 0), None);
+    }
+
+    #[test]
+    fn an_unspent_allowance_reaches_the_file_that_was_cut() {
+        // The measured case. Thirteen nominated files, 28,000 facts, 12,040
+        // spent — and one file truncated at its 2,154 share while 15,960 facts
+        // went unclaimed in the same build.
+        let mut held = vec![2_154_u64];
+        let mut demand = vec![6_146_u64];
+        for _ in 0..12 {
+            held.push(824);
+            demand.push(824);
+        }
+        let grant = redistribute_unspent_facts(&held, &demand, 28_000);
+        assert_eq!(
+            u64::from(grant[0]),
+            demand[0],
+            "the file that wanted more must get it when the allowance is unspent"
+        );
+        for index in 1..held.len() {
+            assert_eq!(u64::from(grant[index]), held[index], "satisfied files move");
+        }
+    }
+
+    #[test]
+    fn redistribution_never_takes_facts_back_and_never_overspends() {
+        // The two properties that make this safe to run on every build. A file
+        // cannot come out of it with less than it already had, so no build
+        // regresses; and only the unspent remainder moves, so the allowance is
+        // never exceeded however the demands fall.
+        for allowance in [10_u32, 64, 1_000, 28_000] {
+            for shape in [
+                (vec![5_u64, 5, 5], vec![50_u64, 50, 50]),
+                (vec![0, 0, 0], vec![1, 2, 3]),
+                (vec![9, 1], vec![9, 900]),
+                (vec![4, 4, 4, 4], vec![4, 4, 4, 4]),
+                (vec![1], vec![u64::from(u32::MAX) + 10]),
+            ] {
+                let (held, demand) = shape;
+                let grant = redistribute_unspent_facts(&held, &demand, allowance);
+                let spent: u64 = held.iter().sum();
+                let granted: u64 = grant.iter().map(|facts| u64::from(*facts)).sum();
+                for index in 0..held.len() {
+                    assert!(
+                        u64::from(grant[index]) >= held[index],
+                        "a file must never be granted less than it holds"
+                    );
+                    assert!(
+                        u64::from(grant[index]) <= demand[index],
+                        "a file is never granted more than it can use"
+                    );
+                }
+                assert!(
+                    granted <= u64::from(allowance).max(spent),
+                    "the allowance bounds the total unless the first pass already exceeded it"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn the_smallest_shortfall_is_satisfied_first() {
+        // Max-min fairness: a remainder that cannot satisfy everyone satisfies
+        // as many as it can, rather than spreading itself too thin to complete
+        // any of them. Held 0 of 100 total; two files want 10, one wants 500.
+        let held = vec![0_u64, 0, 0];
+        let demand = vec![500_u64, 10, 10];
+        let grant = redistribute_unspent_facts(&held, &demand, 100);
+        assert_eq!(u64::from(grant[1]), 10, "a satisfiable file is satisfied");
+        assert_eq!(u64::from(grant[2]), 10, "and so is the second");
+        assert_eq!(
+            u64::from(grant[0]),
+            80,
+            "the rest goes to the file that could not be satisfied"
+        );
+    }
+
+    #[test]
+    fn a_fully_spent_allowance_moves_nothing() {
+        // The honest limit of this approach: with nothing unspent there is
+        // nothing to place, even where an even division would have been kinder.
+        let held = vec![50_u64, 50];
+        let demand = vec![50_u64, 5_000];
+        let grant = redistribute_unspent_facts(&held, &demand, 100);
+        assert_eq!(grant, vec![50, 50]);
     }
 
     struct TestRoot(PathBuf);
@@ -5888,7 +8246,7 @@ mod tests {
             max_facts: 100,
             max_nesting_depth: 8,
             max_response_bytes: 65_536,
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-typescript-0.23.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -5976,6 +8334,104 @@ mod tests {
     }
 
     #[test]
+    fn version_strings_and_line_citations_are_not_identifiers() {
+        // Harvested verbatim from real bug reports in the evaluation corpus.
+        for noise in [
+            "Windows-10-10.0.19044-SP0",
+            "Linux-5.10.0-1029-oem-x86_64-with-glibc2.29",
+            "L1300-L1302",
+            "v1-2-3",
+        ] {
+            assert!(
+                !is_code_identifier_signal(noise),
+                "{noise} must not be a code identifier"
+            );
+        }
+
+        // Kebab-case names carry no numeric segment and stay admissible.
+        for name in [
+            "conda-forge",
+            "hello-rust",
+            "http-equiv",
+            "some-package-name",
+        ] {
+            assert!(is_code_identifier_signal(name), "{name} must be admitted");
+        }
+
+        // A digit inside a name is fine; a segment that is only digits is not.
+        assert!(is_code_identifier_signal("utf8-decoder"));
+        assert!(!is_code_identifier_signal("release-2024"));
+    }
+
+    #[test]
+    fn separator_runs_and_emphasised_prose_are_not_identifiers() {
+        // Markdown emphasis is the pollutant: `_and_` is the word "and" in
+        // italics, and it was reaching the graph as a snake_case name.
+        for prose in ["_", "__", "--", "---", "_and_", "_the_", "input_", "_value"] {
+            assert!(
+                !is_code_identifier_signal(prose),
+                "{prose} must not be a code identifier"
+            );
+        }
+
+        // Real names still qualify, including dunders, which survive edge
+        // trimming to a bare word and would otherwise be lost.
+        for name in [
+            "_required_columns",
+            "remove_column",
+            "__eq__",
+            "__call__",
+            "__version__",
+            "__array_ufunc__",
+            "TimeSeries",
+            "hello-rust",
+            "path::qualified",
+        ] {
+            assert!(is_code_identifier_signal(name), "{name} must be admitted");
+        }
+    }
+
+    #[test]
+    fn attribute_chains_yield_the_member_a_graph_node_actually_carries() {
+        // A report writes `ts.remove_column("flux")`, but the graph holds
+        // `remove_column`. Without the final component the signal never matches.
+        let signals = task_signals(
+            "ts._required_columns = [\"time\"] then ts.remove_column(\"flux\") \
+             and numpy.__version__ printed",
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "_required_columns")
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "remove_column")
+        );
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "__version__")
+        );
+
+        // The whole chain is retained too, so an exact dotted name still works.
+        assert!(
+            signals
+                .identifiers
+                .iter()
+                .any(|value| value == "ts._required_columns")
+        );
+
+        // A member that is not code-shaped is not admitted.
+        let prose = task_signals("The end. Another sentence.");
+        assert!(!prose.identifiers.iter().any(|value| value == "Another"));
+    }
+
+    #[test]
     fn scanned_token_ceiling_still_bounds_a_hostile_query() {
         let hostile = (0..100_000)
             .map(|index| format!("word{index} -- ."))
@@ -5984,6 +8440,378 @@ mod tests {
         let signals = task_signals(&hostile);
         assert!(signals.paths.len() <= MAX_TASK_SIGNAL_TOKENS);
         assert!(signals.identifiers.len() <= MAX_TASK_SIGNAL_TOKENS);
+    }
+
+    #[test]
+    fn the_selection_constants_are_pinned() {
+        // Each of these decides what the product selects, and each was set by a
+        // measurement rather than by taste. One reached `main` twice as an
+        // uncommitted experiment swept into an unrelated commit, because a bare
+        // literal inside a function body can change without review or the gate
+        // reacting. Changing any of them must now appear in this diff.
+        assert_eq!(MAX_TASK_SIGNAL_TOKENS, 16);
+        assert_eq!(MAX_STRUCTURAL_SEEDS, 8);
+        assert_eq!(MAX_SCOPED_FACTS, 28_000);
+        assert_eq!(MAX_TASK_QUERY_BYTES, 4_096);
+        assert_eq!(MAX_PROFILE_STEPS, 8);
+        assert_eq!(crate::file_nomination::MAX_NOMINATED_FILES, 16);
+        assert_eq!(crate::identifier_index::MAX_DECLARING_FILES_ADMITTED, 8);
+        assert_eq!(crate::identifier_index::MAX_IDENTIFIERS_PER_FILE, 512);
+        assert_eq!(crate::identifier_index::MAX_DECLARATIONS_PER_FILE, 256);
+        assert_eq!(crate::identifier_index::MAX_INDEXED_FILES, 20_000);
+    }
+
+    #[test]
+    fn the_seed_traversal_budget_is_pinned() {
+        // These reached `main` once as an uncommitted experiment swept into an
+        // unrelated commit. Both are product decisions with measured costs, so
+        // changing either must show up in this test's diff.
+        assert_eq!(MAX_SEED_TRAVERSAL_MATCHES, 16);
+        assert_eq!(MAX_SEED_TRAVERSAL_DEPTH, "1");
+        assert_eq!(MAX_SEED_FAMILY_EDGES, 64);
+
+        let budget = ResourceBudget {
+            max_traversal_depth: "64".into(),
+            max_matches: "1000".into(),
+            ..budget()
+        };
+        let narrowed = narrow_structural_seed_budget(&budget).expect("narrowed");
+        assert_eq!(narrowed.max_traversal_depth, "1");
+        assert_eq!(narrowed.max_matches, "16");
+    }
+
+    /// An engine over one `reader.py` whose `TableReader` class declares
+    /// `load_table` and `close_reader`.
+    fn table_reader_engine() -> (TestRoot, TestRoot, LocalEngine, StructuralGraph) {
+        python_engine(
+            "seed-family",
+            "reader.py",
+            b"class TableReader:\n    def load_table(self):\n        return 1\n\n    def close_reader(self):\n        return 2\n",
+        )
+    }
+
+    /// `compute_rows` assigns a call to `helper_value` to its local `row_total`.
+    const ROWS: &[u8] = b"def helper_value():\n    return 1\n\n\ndef compute_rows():\n    row_total = helper_value()\n    return row_total\n";
+
+    #[test]
+    fn a_map_looks_through_a_seeds_locals_and_a_packet_does_not() {
+        let (_source, _cache, mut engine, graph) = python_engine("look-through", "rows.py", ROWS);
+        let seed_request = StructuralSeedRequest {
+            nominated_order: Vec::new(),
+            admitted_identifiers: Vec::new(),
+            graph,
+            edge_kinds: Vec::new(),
+        };
+        let targets = |built: &ProfiledContextPacket| {
+            let result = &built.plan.structural_query.as_ref().expect("query").result;
+            result
+                .edges
+                .iter()
+                .filter_map(|edge| {
+                    let target = edge.target_node.as_ref()?;
+                    result
+                        .nodes
+                        .iter()
+                        .find(|node| &node.node_id == target)?
+                        .name
+                        .clone()
+                })
+                .collect::<Vec<_>>()
+        };
+        let looked_through = |built: &ProfiledContextPacket| {
+            built
+                .plan
+                .structural_query
+                .as_ref()
+                .expect("query")
+                .result
+                .unknowns
+                .iter()
+                .any(|unknown| unknown == context_structural::LOCAL_VARIABLES_LOOKED_THROUGH)
+        };
+        let packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(3, "look_through_packet"),
+                TaskProfile::BugInvestigation,
+                "Fix compute_rows",
+                &seed_request,
+                budget(),
+            )
+            .expect("packet");
+        assert!(!looked_through(&packet), "a packet looks through nothing");
+        let packet = targets(&packet);
+        assert!(
+            packet.contains(&"row_total".to_owned()),
+            "a packet visits the local"
+        );
+        assert!(
+            !packet.contains(&"helper_value".to_owned()),
+            "whose call is its own"
+        );
+        let map = engine
+            .build_profiled_seeded_progressive_context(
+                &request(4, "look_through_map"),
+                TaskProfile::BugInvestigation,
+                "Fix compute_rows",
+                &seed_request,
+                budget(),
+            )
+            .expect("map");
+        assert!(looked_through(&map), "a map says what it looked through");
+        let map = targets(&map);
+        assert!(
+            map.contains(&"helper_value".to_owned()),
+            "a map credits the call to the function"
+        );
+        assert!(
+            !map.contains(&"row_total".to_owned()),
+            "and does not deliver the local"
+        );
+    }
+
+    #[test]
+    fn a_map_never_seeds_on_a_functions_local_variable() {
+        let (_source, _cache, _engine, graph) = python_engine("local-seed", "rows.py", ROWS);
+        let seeded = |locals| {
+            structural_seed_selection(&graph, "Fix row_total", &[], &[], locals)
+                .expect("selection")
+                .seeds
+                .into_iter()
+                .filter_map(|seed| {
+                    graph
+                        .nodes
+                        .iter()
+                        .find(|node| node.node_id == seed.node_id)?
+                        .name
+                        .clone()
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(seeded(LocalVariables::Visit), ["row_total"]);
+        assert!(seeded(LocalVariables::LookThrough).is_empty());
+    }
+
+    /// An engine over one Python file, with the graph the parser makes of it.
+    /// The roots are returned so that they outlive the engine.
+    fn python_engine(
+        label: &str,
+        file: &str,
+        text: &[u8],
+    ) -> (TestRoot, TestRoot, LocalEngine, StructuralGraph) {
+        let source = TestRoot::new(&format!("{label}-source"));
+        let cache = TestRoot::new(&format!("{label}-cache"));
+        fs::write(source.0.join(file), text).expect("python source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 2_048, 2_048, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 30, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let snapshot = engine.snapshot.as_ref().expect("snapshot");
+        let artifact = &snapshot.artifacts[0];
+        let path = WorkerPath {
+            display_path: artifact.path.display_path.clone(),
+            platform_family: artifact.path.platform_family.into(),
+            unit_encoding: artifact.path.unit_encoding.into(),
+            relative_units_base64url: artifact.path.relative_units_base64url.clone(),
+        };
+        let worker_request = WorkerRequest {
+            schema_name: "structural-worker-request".into(),
+            schema_version: PROTOCOL_VERSION.into(),
+            request_id: "req_python_fixture".into(),
+            language: StructuralLanguage::Python,
+            path: path.clone(),
+            content_hash: contract_sha256(text),
+            source_base64url: URL_SAFE_NO_PAD.encode(text),
+            fact_classes: vec![
+                FactClass::Declaration,
+                FactClass::Contains,
+                FactClass::Call,
+                FactClass::Reference,
+            ],
+            max_facts: 1_000,
+            max_nesting_depth: 16,
+            max_response_bytes: 1_048_576,
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: grammar_version(StructuralLanguage::Python).into(),
+            resolver_version: RESOLVER_VERSION.into(),
+            graph_version: GRAPH_VERSION.into(),
+        };
+        let response = context_structural::process_request(&worker_request).expect("parse");
+        let input = GraphFileInput { path, response };
+        let graph =
+            context_structural::build_graph(&snapshot.snapshot_id, vec![input]).expect("graph");
+        engine.cache = Some(
+            WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
+        );
+        (source, cache, engine, graph)
+    }
+
+    #[test]
+    fn a_map_names_a_seeded_methods_class_and_a_packet_does_not() {
+        // A packet recovers every edge's exact source; a map lists
+        // relationships by name, so only a map carries a seed's family. The
+        // task names no file, so the file is not a seed that declares the class
+        // anyway.
+        let (_source, _cache, mut engine, graph) = table_reader_engine();
+        let seed_request = StructuralSeedRequest {
+            nominated_order: Vec::new(),
+            admitted_identifiers: Vec::new(),
+            graph,
+            edge_kinds: Vec::new(),
+        };
+        let query = "Fix load_table";
+        let names_class = |built: &ProfiledContextPacket| {
+            let result = &built.plan.structural_query.as_ref().expect("query").result;
+            result.edges.iter().any(|edge| {
+                edge.kind == "declares"
+                    && result.nodes.iter().any(|node| {
+                        edge.target_node.as_ref() == Some(&node.node_id)
+                            && node.name.as_deref() == Some("TableReader")
+                    })
+            })
+        };
+        let packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(3, "seed_family_packet"),
+                TaskProfile::BugInvestigation,
+                query,
+                &seed_request,
+                budget(),
+            )
+            .expect("packet");
+        assert!(!names_class(&packet), "a packet carries no family");
+        let map = engine
+            .build_profiled_seeded_progressive_context(
+                &request(4, "seed_family_map"),
+                TaskProfile::BugInvestigation,
+                query,
+                &seed_request,
+                budget(),
+            )
+            .expect("map");
+        assert!(names_class(&map), "a map names the seeded method's class");
+    }
+
+    #[test]
+    fn the_repository_can_admit_a_name_shape_alone_rejects() {
+        // Every single-word class name fails the shape rule, which is the
+        // commonest shape a class takes.
+        for name in ["Header", "Card", "Quantity", "Table", "WCS", "HDUList"] {
+            assert!(
+                !is_code_identifier_signal(name),
+                "{name} should fail the shape rule"
+            );
+        }
+        let query = "Header.fromstring does not accept Python 3 bytes";
+        let shape_only = task_signals(query);
+        assert!(!shape_only.identifiers.contains(&"Header".to_owned()));
+
+        // `astropy-8707` writes `Header.fromstring` five times and bare
+        // `Header` never, so the receiver of a dotted access has to be reached.
+        let declared = task_signals_with(query, &|name| name == "Header");
+        assert!(declared.identifiers.contains(&"Header".to_owned()));
+
+        // A receiver the repository does not declare is a variable, and stays
+        // out.
+        let variable = task_signals_with("ts.remove_column drops a column", &|_| false);
+        assert!(variable.identifiers.contains(&"remove_column".to_owned()));
+        assert!(!variable.identifiers.contains(&"ts".to_owned()));
+    }
+
+    #[test]
+    fn an_oracle_that_declares_nothing_changes_nothing() {
+        // The shape rule stays the answer whenever no index is available.
+        let query = "Investigate TimeSeries and _required_columns in table.py";
+        assert_eq!(
+            task_signals(query).identifiers,
+            task_signals_with(query, &|_| false).identifiers
+        );
+    }
+
+    #[test]
+    fn a_lowercase_word_the_repository_declares_is_not_a_bare_identifier() {
+        // Measured on `astropy-8707`, twelve of sixteen identifier slots were
+        // prose admitted because some file declared the word. The declaring
+        // file count does not separate them: `Header` is declared in one file
+        // and so are `a`, `but`, `can`, `work` and `string`.
+        let declares_everything = |_: &str| true;
+        let signals = task_signals_with(
+            "the method creates a string header that does work here",
+            &declares_everything,
+        );
+        for prose in [
+            "method", "creates", "a", "string", "header", "does", "work", "here", "that",
+        ] {
+            assert!(
+                !signals.identifiers.contains(&prose.to_owned()),
+                "{prose} must not be admitted as a bare identifier"
+            );
+        }
+    }
+
+    #[test]
+    fn a_lowercase_name_the_author_marked_as_code_still_enters() {
+        // `astropy-7671` is about `minversion`: a lowercase function named
+        // bare seven times and backticked twice. Backticks are the report
+        // author marking code explicitly, which is evidence the bare word
+        // itself does not carry.
+        let declares = |name: &str| name == "minversion";
+        let backticked = task_signals_with(
+            "The change causes `minversion` to fail in certain cases",
+            &declares,
+        );
+        assert!(backticked.identifiers.contains(&"minversion".to_owned()));
+
+        let bare = task_signals_with("The change causes minversion to fail", &declares);
+        assert!(!bare.identifiers.contains(&"minversion".to_owned()));
+    }
+
+    #[test]
+    fn quoting_a_prose_word_does_not_make_it_an_identifier() {
+        // Marking still requires the repository to declare the name.
+        let signals = task_signals_with("this is `really` annoying", &|_| false);
+        assert!(!signals.identifiers.contains(&"really".to_owned()));
+    }
+
+    #[test]
+    fn a_declared_type_name_and_a_dotted_member_both_still_enter() {
+        // The two shapes IC-DAN-131 exists for must survive the tightening.
+        let declares =
+            |name: &str| matches!(name, "Header" | "Card" | "Quantity" | "WCS" | "fromstring");
+        for bare in ["Header", "Card", "Quantity", "WCS"] {
+            let signals = task_signals_with(&format!("{bare} misbehaves"), &declares);
+            assert!(
+                signals.identifiers.contains(&bare.to_owned()),
+                "{bare} must still be admitted"
+            );
+        }
+        // `astropy-8707` writes `Header.fromstring` and bare `Header` never.
+        let dotted = task_signals_with("Header.fromstring rejects bytes", &declares);
+        assert!(dotted.identifiers.contains(&"Header".to_owned()));
+        assert!(dotted.identifiers.contains(&"fromstring".to_owned()));
+        // The same word bare, without the dotted position, stays out.
+        let bare = task_signals_with("fromstring rejects bytes", &declares);
+        assert!(!bare.identifiers.contains(&"fromstring".to_owned()));
+    }
+
+    #[test]
+    fn a_prose_word_the_repository_never_declares_is_still_rejected() {
+        let signals = task_signals_with(
+            "The Description explains that Something Happened here",
+            &|name| name == "Header",
+        );
+        for prose in ["Description", "Something", "Happened", "The"] {
+            assert!(
+                !signals.identifiers.contains(&prose.to_owned()),
+                "{prose} must stay out"
+            );
+        }
     }
 
     #[test]
@@ -6015,7 +8843,7 @@ mod tests {
         let snapshot = engine.snapshot.as_ref().expect("snapshot");
         let provenance = context_structural::FactProvenance {
             method: "tree_sitter".into(),
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-typescript-0.23.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -6072,6 +8900,7 @@ mod tests {
                         request_id: "req_structural_seed".into(),
                         content_hash: artifact.content_hash.clone(),
                         syntax_errors: false,
+                        total_facts_available: facts.len() as u64,
                         facts,
                         warnings: Vec::new(),
                     },
@@ -6087,56 +8916,74 @@ mod tests {
             WorkspaceCache::open(&cache.0, engine.workspace.identity()).expect("open shared cache"),
         );
 
-        let exact = structural_seed_decision(
+        let exact = select_seeds(
             &graph,
             "Inspect reviewed_change in review.ts and explain its helper call",
+            &[],
+            &[],
         )
         .expect("seed");
-        assert!(matches!(
-            &exact,
-            StructuralSeedDecision::Selected {
-                reason_code: "unique_symbol_in_exact_path",
-                ..
-            }
-        ));
-        let reordered_non_signal = structural_seed_decision(
+        assert_eq!(
+            exact.seeds.first().map(|seed| seed.reason_code),
+            Some("unique_symbol_in_exact_path")
+        );
+        let reordered_non_signal = select_seeds(
             &graph,
             "Could you carefully explain reviewed_change in review.ts",
+            &[],
+            &[],
         )
         .expect("reordered non-signal seed");
         assert_eq!(exact, reordered_non_signal);
-        let file = structural_seed_decision(&graph, "Inspect review.ts").expect("file seed");
-        assert!(matches!(
-            file,
-            StructuralSeedDecision::Selected {
-                reason_code: "unique_exact_file_path",
-                ..
-            }
-        ));
+
+        let file = select_seeds(&graph, "Inspect review.ts", &[], &[]).expect("file seed");
+        assert_eq!(
+            file.seeds.first().map(|seed| seed.reason_code),
+            Some("unique_exact_file_path")
+        );
+
         let global =
-            structural_seed_decision(&graph, "Inspect reviewed_change").expect("global seed");
-        assert!(matches!(
-            global,
-            StructuralSeedDecision::Selected {
-                reason_code: "globally_unique_symbol",
-                ..
-            }
-        ));
+            select_seeds(&graph, "Inspect reviewed_change", &[], &[]).expect("global seed");
+        assert_eq!(
+            global.seeds.first().map(|seed| seed.reason_code),
+            Some("globally_unique_symbol")
+        );
+
+        // An ambiguous name is now retained and disclosed rather than
+        // abandoned. Returning nothing was strictly worse than returning a
+        // ranked list with the ambiguity recorded.
         let ambiguous =
-            structural_seed_decision(&graph, "Investigate duplicate_name").expect("ambiguous seed");
-        assert!(matches!(
-            ambiguous,
-            StructuralSeedDecision::Omitted("structural_seed_ambiguous")
-        ));
-        let unavailable = structural_seed_decision(
+            select_seeds(&graph, "Investigate duplicate_name", &[], &[]).expect("ambiguous seed");
+        assert!(ambiguous.seeds.len() > 1);
+        assert!(
+            ambiguous
+                .seeds
+                .iter()
+                .all(|seed| seed.reason_code == "globally_ambiguous_symbol")
+        );
+        assert!(ambiguous.unknowns.contains(&"structural_seed_ambiguous"));
+
+        // Selection yields nothing only when no signal matches any node.
+        let unavailable = select_seeds(
             &graph,
             "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa ../escape",
+            &[],
+            &[],
         )
         .expect("unavailable seed");
-        assert!(matches!(
-            unavailable,
-            StructuralSeedDecision::Omitted("structural_seed_unavailable")
-        ));
+        assert!(unavailable.seeds.is_empty());
+        assert!(
+            unavailable
+                .unknowns
+                .contains(&"structural_seed_unavailable")
+        );
+
+        // Every seed set stays bounded and deterministically ordered.
+        assert!(exact.seeds.len() <= MAX_STRUCTURAL_SEEDS);
+        assert!(ambiguous.seeds.len() <= MAX_STRUCTURAL_SEEDS);
+        let repeated = select_seeds(&graph, "Investigate duplicate_name", &[], &[])
+            .expect("repeat ambiguous seed");
+        assert_eq!(ambiguous, repeated);
 
         let seeded = engine
             .build_profiled_seeded_structural_context(
@@ -6144,6 +8991,8 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "Inspect reviewed_change in review.ts and explain its helper call",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6188,25 +9037,63 @@ mod tests {
         );
         validate_packet(&seeded.packet).expect("valid seeded packet");
 
-        let fallback = engine
+        // An ambiguous name now produces structural context covering every
+        // candidate, with the ambiguity disclosed, instead of suppressing the
+        // query. Abandoning on ambiguity is what left maps empty on real tasks.
+        let ambiguous_packet = engine
             .build_profiled_seeded_structural_context(
                 &request(4, "structural_seed_fallback"),
                 TaskProfile::BugInvestigation,
                 "Investigate duplicate_name",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: graph.clone(),
                     edge_kinds: vec!["calls".into()],
                 },
                 budget(),
             )
-            .expect("fallback packet");
-        assert!(fallback.plan.structural_query.is_none());
-        assert!(fallback.plan.coverage.iter().any(|coverage| {
+            .expect("ambiguous packet");
+        let ambiguous_query = ambiguous_packet
+            .plan
+            .structural_query
+            .as_ref()
+            .expect("ambiguous structural query");
+        assert!(
+            ambiguous_query
+                .result
+                .unknowns
+                .iter()
+                .any(|unknown| unknown == "structural_seed_ambiguous")
+        );
+        assert!(ambiguous_packet.plan.coverage.iter().any(|coverage| {
+            coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
+                && coverage.reason_code == "globally_ambiguous_symbol"
+        }));
+        validate_packet(&ambiguous_packet.packet).expect("valid ambiguous packet");
+
+        // Nothing matching still yields no structural query.
+        let unavailable_packet = engine
+            .build_profiled_seeded_structural_context(
+                &request(7, "structural_seed_unavailable"),
+                TaskProfile::BugInvestigation,
+                "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb ../escape",
+                &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
+                    graph: graph.clone(),
+                    edge_kinds: vec!["calls".into()],
+                },
+                budget(),
+            )
+            .expect("unavailable packet");
+        assert!(unavailable_packet.plan.structural_query.is_none());
+        assert!(unavailable_packet.plan.coverage.iter().any(|coverage| {
             coverage.evidence_class == PlannerEvidenceClass::StructuralRelationship
                 && coverage.status == "unavailable"
-                && coverage.reason_code == "structural_seed_ambiguous"
+                && coverage.reason_code == "structural_seed_unavailable"
         }));
-        validate_packet(&fallback.packet).expect("valid fallback packet");
+        validate_packet(&unavailable_packet.packet).expect("valid unavailable packet");
 
         let mut stale_graph = graph;
         stale_graph.workspace_snapshot =
@@ -6217,6 +9104,8 @@ mod tests {
                 TaskProfile::BugInvestigation,
                 "Inspect reviewed_change in review.ts",
                 &StructuralSeedRequest {
+                    nominated_order: Vec::new(),
+                    admitted_identifiers: Vec::new(),
                     graph: stale_graph,
                     edge_kinds: vec!["calls".into()],
                 },
@@ -6277,6 +9166,510 @@ mod tests {
             omission.candidate == "original_query"
                 && omission.reason_code == "original_query_exceeds_retrieval_contract"
         }));
+    }
+
+    #[test]
+    fn task_signals_are_rated_before_the_step_limit_cuts_them() {
+        let snapshot = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let policy = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        // Ten widespread names precede the one that identifies a file, and
+        // after the whole query eight steps hold seven of them.
+        let common = (0..10)
+            .map(|index| format!("common_name_{index}"))
+            .collect::<Vec<_>>();
+        let query = format!("{} misbehaves near rare_name", common.join(" "));
+        let unrated =
+            deterministic_plan(TaskProfile::BugInvestigation, &query, snapshot, policy, 256)
+                .expect("plan");
+        assert!(
+            unrated
+                .steps
+                .iter()
+                .all(|step| step.step.query != "rare_name"),
+            "signal order spends every step before the rare name"
+        );
+        let rated = deterministic_plan_with(
+            TaskProfile::BugInvestigation,
+            &query,
+            snapshot,
+            policy,
+            256,
+            &|needle| {
+                let files = match needle {
+                    "rare_name" => 1,
+                    "misbehaves" => 0,
+                    _ => 900,
+                };
+                Some(NeedleRarity {
+                    files,
+                    in_nominated: files > 0,
+                })
+            },
+        )
+        .expect("rated plan");
+        assert_eq!(rated.steps[0].step.query, query);
+        assert_eq!(rated.steps[1].step.kind, QueryKind::Literal);
+        assert_eq!(rated.steps[1].step.query, "rare_name");
+        assert_eq!(rated.steps[1].reason_code, "task_signal_code_identifier");
+        assert!(
+            rated
+                .steps
+                .iter()
+                .all(|step| step.step.query != "misbehaves"),
+            "a word no nominated file holds follows every one that does"
+        );
+        assert!(rated.steps.len() <= MAX_PROFILE_STEPS);
+        assert_ne!(
+            rated.plan_id, unrated.plan_id,
+            "the identity records the order"
+        );
+    }
+
+    #[test]
+    fn signals_no_nominated_file_holds_keep_the_tasks_order() {
+        let rated = deterministic_plan_with(
+            TaskProfile::BugInvestigation,
+            "suddenly CompoundModels break separability_matrix",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            256,
+            &|needle| {
+                // Rarer than the name a nominated file holds, but in none of them.
+                Some(match needle {
+                    "separability_matrix" => NeedleRarity {
+                        files: 8,
+                        in_nominated: true,
+                    },
+                    "CompoundModels" | "compoundmodels" => NeedleRarity {
+                        files: 1,
+                        in_nominated: false,
+                    },
+                    "suddenly" => NeedleRarity {
+                        files: 2,
+                        in_nominated: false,
+                    },
+                    _ => NeedleRarity {
+                        files: 400,
+                        in_nominated: false,
+                    },
+                })
+            },
+        )
+        .expect("rated plan");
+        let queries = rated
+            .steps
+            .iter()
+            .map(|step| step.step.query.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            queries[1..6],
+            [
+                "separability_matrix",
+                "separability_matrix",
+                "CompoundModels",
+                "compoundmodels",
+                "suddenly"
+            ]
+        );
+        assert_eq!(rated.steps[1].step.kind, QueryKind::Literal);
+        assert_eq!(rated.steps[2].step.kind, QueryKind::Lexical);
+    }
+
+    #[test]
+    fn quoted_text_without_a_word_is_disclosed_not_searched() {
+        let plan = deterministic_plan(
+            TaskProfile::BugInvestigation,
+            "rare_name returns ', ' for 'a' but 'Header' works",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            256,
+        )
+        .expect("plan");
+        assert!(
+            plan.steps
+                .iter()
+                .all(|step| step.step.query != ", " && step.step.query != "a")
+        );
+        assert!(plan.steps.iter().any(|step| {
+            step.step.query == "Header" && step.reason_code == "task_signal_quoted_literal"
+        }));
+        assert!(plan.omitted_candidates.iter().any(|omission| {
+            omission.candidate == "task_signal_literal"
+                && omission.reason_code == "literal_without_word"
+                && omission.count == "2"
+        }));
+    }
+
+    #[test]
+    fn the_rarest_word_a_nominated_file_holds_leads_its_excerpt() {
+        let source = TestRoot::new("rarity-source");
+        let cache = TestRoot::new("rarity-cache");
+        // Every file holds `shared_word`; only `z_rare.rs` holds `rare_word`.
+        for name in ["a_one.rs", "b_two.rs", "c_three.rs"] {
+            fs::write(source.0.join(name), b"pub fn shared_word() {}\n").expect("common");
+        }
+        fs::write(
+            source.0.join("z_rare.rs"),
+            b"pub fn shared_word() {}\npub fn rare_word() {}\n",
+        )
+        .expect("rare");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let context = request(3, "bug_investigation");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        // `a_one.rs` was nominated first, so it leads; `z_rare.rs` follows
+        // with its match for the earliest step that reaches it.
+        let scope = ["a_one.rs".to_owned(), "z_rare.rs".to_owned()];
+        let profiled = engine
+            .build_profiled_context_internal(
+                &context,
+                TaskProfile::BugInvestigation,
+                "shared_word misbehaves beside rare_word",
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                true,
+                &scope,
+                None,
+            )
+            .expect("profiled packet");
+        assert_eq!(profiled.plan.steps[1].step.query, "rare_word");
+        let second = &profiled.packet.observed_evidence[1];
+        assert_eq!(second.artifact.path.display_path, "z_rare.rs");
+        assert_eq!(
+            second.span.start_byte, "31",
+            "the rarest word it holds, not the first one the task names"
+        );
+        validate_packet(&profiled.packet).expect("valid packet");
+    }
+
+    #[test]
+    fn the_smallest_fitting_declaration_holds_a_match() {
+        let index = DeclarationIndex {
+            spans: [(
+                "bW9kdWxl".to_owned(),
+                vec![(0, 400), (100, 180), (120, 150), (500, 900)],
+            )]
+            .into_iter()
+            .collect(),
+        };
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 125, 130, 4096),
+            Some((120, 150))
+        );
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 110, 160, 4096),
+            Some((100, 180)),
+            "a match crossing a nested declaration's edge takes the next that holds it"
+        );
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 600, 610, 300),
+            None,
+            "a declaration over the ceiling keeps the window"
+        );
+        assert_eq!(index.enclosing("bW9kdWxl", 450, 460, 4096), None);
+        assert_eq!(index.enclosing("b3RoZXI", 125, 130, 4096), None);
+    }
+
+    #[test]
+    fn a_match_is_sent_as_the_declaration_holding_it() {
+        let source = TestRoot::new("declaration-cut-source");
+        let cache = TestRoot::new("declaration-cut-cache");
+        let header = "# license header line\n".repeat(20);
+        let function = "def rare_helper():\n    return compute_rare_word()\n";
+        let text = format!(
+            "{header}{function}{}",
+            "# trailing comment line\n".repeat(20)
+        );
+        fs::write(source.0.join("module.py"), &text).expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let units = engine.snapshot.as_ref().expect("snapshot").artifacts[0]
+            .path
+            .relative_units_base64url
+            .clone();
+        let from = u64::try_from(header.len()).expect("offset");
+        let to = from + u64::try_from(function.len()).expect("length");
+        let declarations = DeclarationIndex {
+            spans: [(units, vec![(from, to)])].into_iter().collect(),
+        };
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "compute_rare_word".into(),
+            }],
+        };
+        let scope = ["module.py".to_owned()];
+        let mut build = |ordinal: u64, ranking: EvidenceRanking<'_>| {
+            let context = request(ordinal, "declaration_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    &scope,
+                    ranking,
+                )
+                .expect("packet")
+        };
+        let excerpt = |packet: &ContextPacket| {
+            URL_SAFE_NO_PAD
+                .decode(&packet.observed_evidence[0].excerpt.bytes_base64url)
+                .expect("excerpt")
+        };
+        let window = build(3, EvidenceRanking::default());
+        let cut = build(
+            4,
+            EvidenceRanking {
+                declarations: Some(&declarations),
+                ..EvidenceRanking::default()
+            },
+        );
+        assert_eq!(excerpt(&cut), function.as_bytes());
+        assert_ne!(
+            excerpt(&window),
+            function.as_bytes(),
+            "a centred window starts inside the header"
+        );
+        assert_eq!(
+            cut.observed_evidence[0].evidence_id, window.observed_evidence[0].evidence_id,
+            "the same match, cut to its declaration"
+        );
+        validate_packet(&cut).expect("valid cut packet");
+    }
+
+    #[test]
+    fn within_a_file_a_whole_declaration_leads_its_other_matches() {
+        let source = TestRoot::new("declaration-first-source");
+        let cache = TestRoot::new("declaration-first-cache");
+        // The word is first matched in the module docstring, outside any
+        // declaration, and then inside the function that uses it.
+        let header = "# license header line\n".repeat(20);
+        let docstring = "\"\"\"Helpers built on compute_rare_word.\"\"\"\n";
+        let function = "def rare_helper():\n    return compute_rare_word()\n";
+        fs::write(
+            source.0.join("module.py"),
+            format!("{header}{docstring}{function}"),
+        )
+        .expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let units = engine.snapshot.as_ref().expect("snapshot").artifacts[0]
+            .path
+            .relative_units_base64url
+            .clone();
+        let from = u64::try_from(header.len() + docstring.len()).expect("offset");
+        let to = from + u64::try_from(function.len()).expect("length");
+        let declarations = DeclarationIndex {
+            spans: [(units, vec![(from, to)])].into_iter().collect(),
+        };
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "compute_rare_word".into(),
+            }],
+        };
+        let context = request(3, "declaration_first_review");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        let packet = engine
+            .build_planned_context_with_supplemental_internal(
+                &context,
+                &plan,
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                None,
+                &["module.py".to_owned()],
+                EvidenceRanking {
+                    declarations: Some(&declarations),
+                    ..EvidenceRanking::default()
+                },
+            )
+            .expect("packet");
+        let first = URL_SAFE_NO_PAD
+            .decode(&packet.observed_evidence[0].excerpt.bytes_base64url)
+            .expect("excerpt");
+        assert_eq!(first, function.as_bytes());
+        assert_eq!(
+            packet.observed_evidence.len(),
+            2,
+            "the docstring match follows; it is not dropped"
+        );
+        validate_packet(&packet).expect("valid packet");
+    }
+
+    #[test]
+    fn supporting_files_are_tests_and_vendored_copies() {
+        for path in [
+            "astropy/io/fits/tests/test_header.py",
+            "astropy/extern/bundled/six.py",
+            "cextern/wcslib/configure",
+            "conftest.py",
+            "src/header_test.go",
+            "web/app.spec.ts",
+            // A Windows display path separates components with backslashes.
+            "astropy\\io\\fits\\tests\\header.py",
+            "cextern\\wcslib\\configure",
+        ] {
+            assert!(is_supporting_file(path), "{path}");
+        }
+        for path in [
+            "astropy/io/fits/header.py",
+            "astropy/testing_utils.py",
+            "contest.py",
+            "astropy\\io\\fits\\header.py",
+        ] {
+            assert!(!is_supporting_file(path), "{path}");
+        }
+        assert!(task_is_about_tests("the test for alpha fails"));
+        assert!(!task_is_about_tests("alpha returns the wrong value"));
+    }
+
+    #[test]
+    fn test_files_follow_the_files_a_task_changes() {
+        let source = TestRoot::new("supporting-source");
+        let cache = TestRoot::new("supporting-cache");
+        fs::create_dir_all(source.0.join("tests")).expect("tests directory");
+        fs::write(
+            source.0.join("tests/test_alpha.rs"),
+            b"fn test_alpha() { alpha(); }\n",
+        )
+        .expect("test");
+        fs::write(source.0.join("alpha.rs"), b"pub fn alpha() {}\n").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        // The test was nominated first, as a test naming its subject often is.
+        // Its display path renders the native path, so it is read back from
+        // the snapshot rather than spelled with one platform's separator.
+        let test_path = engine
+            .snapshot
+            .as_ref()
+            .expect("snapshot")
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.display_path.clone())
+            .find(|path| path.ends_with("test_alpha.rs"))
+            .expect("test file in the snapshot");
+        let scope = [test_path.clone(), "alpha.rs".to_owned()];
+        let mut build = |ordinal: u64, ranking: EvidenceRanking| {
+            let context = request(ordinal, "supporting_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    &scope,
+                    ranking,
+                )
+                .expect("packet")
+        };
+        let about_tests = build(3, EvidenceRanking::default());
+        let about_code = build(
+            4,
+            EvidenceRanking {
+                demote_supporting_files: true,
+                ..EvidenceRanking::default()
+            },
+        );
+        assert_eq!(
+            about_tests.observed_evidence[0].artifact.path.display_path,
+            test_path
+        );
+        assert_eq!(
+            about_code.observed_evidence[0].artifact.path.display_path,
+            "alpha.rs"
+        );
+        assert_eq!(
+            about_code.observed_evidence.len(),
+            about_tests.observed_evidence.len(),
+            "a test file's evidence follows; none is dropped"
+        );
     }
 
     #[test]
@@ -7052,6 +10445,136 @@ mod tests {
     }
 
     #[test]
+    fn nominated_files_lead_the_packet_evidence() {
+        let source = TestRoot::new("nominated-evidence-source");
+        let cache = TestRoot::new("nominated-evidence-cache");
+        // `a_first.rs` precedes `z_last.rs` in snapshot order, so a search of
+        // the whole snapshot reaches it first.
+        fs::write(source.0.join("a_first.rs"), b"pub fn alpha() {}\n").expect("first");
+        fs::write(source.0.join("z_last.rs"), b"pub fn alpha_nominated() {}\n").expect("last");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        let mut build = |ordinal: u64, scope: &[String]| {
+            let context = request(ordinal, "nominated_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    scope,
+                    EvidenceRanking::default(),
+                )
+                .expect("packet")
+        };
+        let unscoped = build(3, &[]);
+        let scoped = build(4, &["z_last.rs".to_owned()]);
+        assert_eq!(
+            unscoped.observed_evidence[0].artifact.path.display_path,
+            "a_first.rs"
+        );
+        assert_eq!(
+            scoped.observed_evidence[0].artifact.path.display_path,
+            "z_last.rs"
+        );
+        assert_eq!(
+            scoped.observed_evidence.len(),
+            unscoped.observed_evidence.len(),
+            "the nominated file is searched first, not delivered twice"
+        );
+    }
+
+    #[test]
+    fn a_nominated_file_leads_even_when_one_sorting_earlier_fills_the_search_budget() {
+        let source = TestRoot::new("nominated-budget-source");
+        let cache = TestRoot::new("nominated-budget-cache");
+        // `a_many.rs` sorts first and holds more matches than one search
+        // response can carry, so a single search over both nominated files is
+        // cut before it reaches `z_nominated.rs`, which the task nominated first.
+        let mut many = String::new();
+        for index in 0..60 {
+            use std::fmt::Write as _;
+            writeln!(many, "pub fn alpha_{index:02}() {{}}").expect("string write");
+        }
+        fs::write(source.0.join("a_many.rs"), many).expect("many");
+        fs::write(
+            source.0.join("z_nominated.rs"),
+            b"pub fn alpha_nominated() {}\n",
+        )
+        .expect("nominated");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        let context = request(3, "nominated_budget_review");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        let packet = engine
+            .build_planned_context_with_supplemental_internal(
+                &context,
+                &plan,
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                None,
+                &["z_nominated.rs".to_owned(), "a_many.rs".to_owned()],
+                EvidenceRanking::default(),
+            )
+            .expect("packet");
+        assert_eq!(
+            packet.observed_evidence[0].artifact.path.display_path,
+            "z_nominated.rs"
+        );
+    }
+
+    #[test]
     fn profiled_context_is_deterministic_and_reports_unavailable_evidence() {
         let source = TestRoot::new("profiled-source");
         let first_cache = TestRoot::new("profiled-first-cache");
@@ -7366,7 +10889,7 @@ mod tests {
             };
             let provenance = context_structural::FactProvenance {
                 method: "tree_sitter".into(),
-                parser_version: "tree-sitter-0.26.13".into(),
+                parser_version: context_structural::PARSER_VERSION.into(),
                 grammar_version: "tree-sitter-typescript-0.23.2".into(),
                 resolver_version: RESOLVER_VERSION.into(),
                 graph_version: GRAPH_VERSION.into(),
@@ -7393,6 +10916,7 @@ mod tests {
                             confidence: "confirmed".into(),
                             provenance,
                         }],
+                        total_facts_available: 1,
                         warnings: Vec::new(),
                     },
                 }],

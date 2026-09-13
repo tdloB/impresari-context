@@ -1,6 +1,6 @@
 # Deterministic Structural-Seed Selection PRD
 
-- PRD ID/version: IC-DSSS-118 / 1.1.
+- PRD ID/version: IC-DSSS-118 / 1.4.
 - Status: Core selector and provider-free utility comparison implemented and
   locally verified; external protocol integration remains gated.
 - Date: 2026-09-01.
@@ -9,7 +9,8 @@
   [Deterministic Structural-Seed Selection ARD](../architecture/deterministic-structural-seed-selection-ard.md).
 - Governing decisions:
   [ADR-0118](../decisions/0118-select-structural-seeds-from-admitted-task-signals.md),
-  [ADR-0124](../decisions/0124-classify-task-signals-by-code-shape-not-token-position.md).
+  [ADR-0124](../decisions/0124-classify-task-signals-by-code-shape-not-token-position.md),
+  [ADR-0125](../decisions/0125-select-ranked-seed-sets-and-traverse-to-definitions.md).
 
 ## Problem
 
@@ -42,12 +43,28 @@ exact retrieval continues without structural evidence.
     (`snake_case`, `kebab-case`, `path::qualified`) or interior capitalization
     (`CamelCase`). Reject markup runs such as `--` and `---`, and reject tokens
     that do not begin with a letter or underscore.
+2d. Reject a hyphenated token carrying a numeric or version segment. Bug
+    reports supply environment dumps and source citations in bulk, and each
+    occupies a slot a real symbol could use. A digit inside a name is fine; a
+    segment that is only digits is not.
+2e. Require the separator to be interior. Markdown emphasis wraps prose in
+    underscores, so `_and_` reads as `snake_case`; judge a token with its edge
+    separators removed. Exempt the dunder form `__name__`, which is a real
+    identifier that edge-trimming reduces to a bare word.
 2c. Reject version and measurement forms such as `1.22.3` or `99.9` as file
     paths by requiring a letter in the final path component.
-3. Prefer an exact symbol-name match inside an exact task path, then an exact
-   file-path match, then one globally unique exact symbol-name match.
-4. Select no seed when the highest applicable class is ambiguous. Report a
-   stable omission/unknown reason and retain ordinary retrieval.
+2d. Admit the final component of a dotted token as an identifier candidate
+    alongside the whole token. A report writes `ts.remove_column`, while the
+    graph carries `remove_column`; without the member the signal never matches.
+3a. Return a bounded, ranked seed set rather than one node. Retain a bounded
+    slice of an ambiguous class with the ambiguity disclosed, and yield nothing
+    only when no signal matches any node.
+3. Rank an exact symbol-name match inside an exact task path, then an exact
+   file-path match, then one globally unique exact symbol-name match, then a
+   globally ambiguous exact symbol-name match. Break ties by portable path,
+   then node identity.
+4. Disclose ambiguity as an explicit unknown while still admitting the ranked
+   candidates. Retain ordinary retrieval in every case.
 5. Select at most one seed, traverse only the existing closed edge kinds, and
    default to depth one with independent node, edge, byte, time, and memory
    ceilings no broader than the admitted request budget.

@@ -1,0 +1,677 @@
+// SPDX-License-Identifier: Apache-2.0
+#![forbid(unsafe_code)]
+#![doc = "Offline task-relative recall scorer (IC-TRFC-125)."]
+//!
+//! Scores delivered context against a reference change. Performs no model
+//! call, opens no network socket, and never hands reference data to the
+//! product: it reads the product's already-written output as opaque JSON.
+
+use std::{
+    collections::{BTreeMap, BTreeSet},
+    fs,
+    path::Path,
+    process,
+};
+
+use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+use serde::{Deserialize, Serialize};
+
+const USAGE: &str = "usage: impresari-context-recall-score <corpus.json>";
+const CORPUS_SCHEMA_NAME: &str = "impresari_context_recall_corpus";
+const CORPUS_SCHEMA_VERSION: &str = "1.0";
+const REPORT_SCHEMA_NAME: &str = "impresari_context_recall_report";
+/// 1.1 counts a file the map names as the target of a relationship, not only
+/// as an entry's own path, and reports that contribution separately. A 1.0
+/// report and a 1.1 report over the same corpus are different measurements:
+/// the same build scores 20/27 under 1.0 and 21/27 under 1.1.
+///
+/// 1.2 adds changed-line coverage: how many of the lines an accepted change
+/// touches sit inside the opening packet's evidence from the same file. Every
+/// 1.1 count is computed exactly as before.
+const REPORT_SCHEMA_VERSION: &str = "1.2";
+const MAX_CORPUS_BYTES: u64 = 64 * 1024 * 1024;
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Corpus {
+    schema_name: String,
+    schema_version: String,
+    cases: Vec<Case>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct Case {
+    instance_id: String,
+    /// Unified diff of the accepted change. Never reaches the product.
+    reference_patch: String,
+    /// Path to the product's already-written build result.
+    delivered_context: String,
+}
+
+/// What an accepted change actually touched.
+#[derive(Debug, Default, Eq, PartialEq)]
+struct Reference {
+    files: BTreeSet<String>,
+    symbols: BTreeSet<String>,
+    /// Per file, the old file's lines the change touches, stripped.
+    changed_lines: BTreeMap<String, BTreeSet<String>>,
+}
+
+/// What the product actually delivered.
+#[derive(Debug, Default, Eq, PartialEq)]
+struct Delivered {
+    /// Files the map names, as an entry's own path or as the file a
+    /// relationship points into.
+    map_files: BTreeSet<String>,
+    /// Files the map names as an entry's own path only.
+    entry_files: BTreeSet<String>,
+    map_symbols: BTreeSet<String>,
+    evidence_files: BTreeSet<String>,
+    /// Per file, the text of each evidence excerpt delivered from it.
+    evidence_text: BTreeMap<String, Vec<String>>,
+    bytes: u64,
+}
+
+#[derive(Serialize)]
+struct CaseScore {
+    instance_id: String,
+    reference_files: usize,
+    reference_symbols: usize,
+    /// Reference files named by the disclosure map. This is the number that
+    /// decides whether an agent is pointed at the right place.
+    map_file_recall_numerator: usize,
+    /// Of those, reference files the map named only as the file a relationship
+    /// points into. Reported separately so the gain from naming target files is
+    /// visible rather than folded silently into the total.
+    map_file_recall_via_target: usize,
+    map_symbol_recall_numerator: usize,
+    /// Reference files present anywhere in the packet, including evidence the
+    /// map never pointed at. A high evidence recall with a low map recall means
+    /// retrieval worked and selection did not.
+    evidence_file_recall_numerator: usize,
+    /// Lines the accepted change touches: removed lines, and for an insertion
+    /// the line just before it.
+    changed_lines: usize,
+    /// Of those, lines inside an evidence excerpt from the same file. Evidence
+    /// file recall credits an excerpt that is only a license header; this
+    /// credits only the code a fix has to see.
+    changed_lines_in_evidence: usize,
+    delivered_bytes: u64,
+    missing_files: Vec<String>,
+    missing_symbols: Vec<String>,
+}
+
+#[derive(Serialize)]
+struct Report {
+    schema_name: String,
+    schema_version: String,
+    cases: Vec<CaseScore>,
+    total_reference_files: usize,
+    total_reference_symbols: usize,
+    total_map_files_recalled: usize,
+    total_map_files_recalled_via_target: usize,
+    total_map_symbols_recalled: usize,
+    total_evidence_files_recalled: usize,
+    total_changed_lines: usize,
+    total_changed_lines_in_evidence: usize,
+    total_delivered_bytes: u64,
+    /// Percentages are integer basis points of one hundred, floored.
+    map_file_recall_percent: u64,
+    map_symbol_recall_percent: u64,
+    evidence_file_recall_percent: u64,
+    changed_line_coverage_percent: u64,
+    model_calls: u64,
+    network_requests: u64,
+}
+
+fn main() {
+    let arguments = std::env::args().skip(1).collect::<Vec<_>>();
+    let [corpus] = arguments.as_slice() else {
+        eprintln!("{USAGE}");
+        process::exit(2);
+    };
+    match run(Path::new(corpus)) {
+        Ok(report) => {
+            let Ok(text) = serde_json::to_string(&report) else {
+                eprintln!("impresari-context-recall-score: serialization failed");
+                process::exit(1);
+            };
+            println!("{text}");
+        }
+        Err(error) => {
+            eprintln!("impresari-context-recall-score: {error}");
+            process::exit(1);
+        }
+    }
+}
+
+fn run(corpus_path: &Path) -> Result<Report, String> {
+    let corpus = load_corpus(corpus_path)?;
+    let mut cases = Vec::with_capacity(corpus.cases.len());
+    for case in &corpus.cases {
+        cases.push(score_case(case)?);
+    }
+    Ok(summarize(cases))
+}
+
+fn load_corpus(path: &Path) -> Result<Corpus, String> {
+    let metadata = fs::metadata(path).map_err(|_| "corpus is unreadable".to_owned())?;
+    if !metadata.is_file() || metadata.len() > MAX_CORPUS_BYTES {
+        return Err("corpus is not a bounded regular file".to_owned());
+    }
+    let bytes = fs::read(path).map_err(|_| "corpus is unreadable".to_owned())?;
+    let corpus: Corpus =
+        serde_json::from_slice(&bytes).map_err(|_| "corpus is malformed".to_owned())?;
+    if corpus.schema_name != CORPUS_SCHEMA_NAME || corpus.schema_version != CORPUS_SCHEMA_VERSION {
+        return Err("corpus schema is unsupported".to_owned());
+    }
+    if corpus.cases.is_empty() {
+        return Err("corpus is empty".to_owned());
+    }
+    Ok(corpus)
+}
+
+fn score_case(case: &Case) -> Result<CaseScore, String> {
+    let reference = parse_reference_patch(&case.reference_patch);
+    if reference.files.is_empty() {
+        return Err(format!(
+            "reference patch for {} names no file",
+            case.instance_id
+        ));
+    }
+    let delivered = load_delivered(Path::new(&case.delivered_context))?;
+
+    let map_files = reference.files.intersection(&delivered.map_files).count();
+    let via_entry = reference.files.intersection(&delivered.entry_files).count();
+    let map_symbols = reference
+        .symbols
+        .intersection(&delivered.map_symbols)
+        .count();
+    let evidence_files = reference
+        .files
+        .intersection(&delivered.evidence_files)
+        .count();
+    // A changed line is in the evidence when its text is inside an excerpt
+    // delivered from the same file.
+    let changed_lines = reference.changed_lines.values().map(BTreeSet::len).sum();
+    let changed_lines_in_evidence = reference
+        .changed_lines
+        .iter()
+        .map(|(file, lines)| {
+            let excerpts = delivered
+                .evidence_text
+                .get(file)
+                .map_or(&[][..], Vec::as_slice);
+            lines
+                .iter()
+                .filter(|line| {
+                    excerpts
+                        .iter()
+                        .any(|excerpt| excerpt.contains(line.as_str()))
+                })
+                .count()
+        })
+        .sum();
+
+    Ok(CaseScore {
+        instance_id: case.instance_id.clone(),
+        reference_files: reference.files.len(),
+        reference_symbols: reference.symbols.len(),
+        map_file_recall_numerator: map_files,
+        map_file_recall_via_target: map_files.saturating_sub(via_entry),
+        map_symbol_recall_numerator: map_symbols,
+        evidence_file_recall_numerator: evidence_files,
+        changed_lines,
+        changed_lines_in_evidence,
+        delivered_bytes: delivered.bytes,
+        missing_files: reference
+            .files
+            .difference(&delivered.map_files)
+            .cloned()
+            .collect(),
+        missing_symbols: reference
+            .symbols
+            .difference(&delivered.map_symbols)
+            .cloned()
+            .collect(),
+    })
+}
+
+/// Extract the files, enclosing symbols and changed lines an accepted change
+/// touched.
+///
+/// File names come from the `+++ b/<path>` header. Symbols come from the hunk
+/// section heading, which the diff format already reserves for the enclosing
+/// declaration. Changed lines are the old file's removed lines and, for an
+/// insertion, the context line just before it: what a reader must see to
+/// place the change. Each is kept stripped of surrounding whitespace.
+fn parse_reference_patch(patch: &str) -> Reference {
+    let mut reference = Reference::default();
+    let mut file: Option<String> = None;
+    let mut last_context: Option<&str> = None;
+    for line in patch.lines() {
+        if let Some(rest) = line.strip_prefix("+++ ") {
+            let touched = rest.split('\t').next().unwrap_or(rest).trim();
+            let touched = touched.strip_prefix("b/").unwrap_or(touched);
+            file = (touched != "/dev/null" && !touched.is_empty()).then(|| touched.to_owned());
+            if let Some(touched) = &file {
+                reference.files.insert(touched.clone());
+            }
+            last_context = None;
+        } else if let Some(rest) = line.strip_prefix("@@") {
+            last_context = None;
+            if let Some(rest) = rest.strip_prefix(' ')
+                && let Some((_, heading)) = rest.split_once("@@")
+                && let Some(symbol) = declaration_name(heading.trim())
+            {
+                reference.symbols.insert(symbol);
+            }
+        } else if let Some(touched) = &file
+            && !line.starts_with("---")
+        {
+            if let Some(removed) = line.strip_prefix('-').map(str::trim)
+                && !removed.is_empty()
+            {
+                reference
+                    .changed_lines
+                    .entry(touched.clone())
+                    .or_default()
+                    .insert(removed.to_owned());
+            } else if line.starts_with('+')
+                && let Some(anchor) = last_context
+            {
+                reference
+                    .changed_lines
+                    .entry(touched.clone())
+                    .or_default()
+                    .insert(anchor.to_owned());
+            } else if let Some(context) = line.strip_prefix(' ').map(str::trim)
+                && !context.is_empty()
+            {
+                last_context = Some(context);
+            }
+        }
+    }
+    reference
+}
+
+/// Name declared by a hunk section heading such as `def foo(self):`.
+fn declaration_name(heading: &str) -> Option<String> {
+    let rest = heading
+        .strip_prefix("def ")
+        .or_else(|| heading.strip_prefix("class "))
+        .or_else(|| heading.strip_prefix("fn "))
+        .or_else(|| heading.strip_prefix("function "))
+        .or_else(|| heading.strip_prefix("struct "))
+        .or_else(|| heading.strip_prefix("impl "))?;
+    let name = rest
+        .trim_start()
+        .split(|character: char| {
+            !(character.is_ascii_alphanumeric() || character == '_' || character == '$')
+        })
+        .next()?;
+    (!name.is_empty()).then(|| name.to_owned())
+}
+
+/// Read the product's output as opaque JSON.
+///
+/// The scorer deliberately does not link the engine. It observes only what the
+/// product already wrote, so no reference data can reach selection.
+fn load_delivered(path: &Path) -> Result<Delivered, String> {
+    let metadata = fs::metadata(path).map_err(|_| "delivered context is unreadable".to_owned())?;
+    if !metadata.is_file() || metadata.len() > MAX_CORPUS_BYTES {
+        return Err("delivered context is not a bounded regular file".to_owned());
+    }
+    let bytes = fs::read(path).map_err(|_| "delivered context is unreadable".to_owned())?;
+    let value: serde_json::Value =
+        serde_json::from_slice(&bytes).map_err(|_| "delivered context is malformed".to_owned())?;
+    let root = structured_content(&value);
+    let mut delivered = Delivered {
+        bytes: metadata.len(),
+        ..Delivered::default()
+    };
+    if let Some(items) = root
+        .get("disclosure_map")
+        .and_then(|map| map.get("items"))
+        .and_then(serde_json::Value::as_array)
+    {
+        for item in items {
+            if let Some(path) = item.get("display_path").and_then(serde_json::Value::as_str) {
+                delivered.map_files.insert(path.to_owned());
+                delivered.entry_files.insert(path.to_owned());
+            }
+            // A relationship resolving into another file names that file. An
+            // entry reading "sampled.py — BaseTimeSeries" points a reader at
+            // `timeseries/core.py` as surely as an entry whose own path it is,
+            // so it counts toward whether the map names the reference file.
+            if let Some(path) = item
+                .get("target_display_path")
+                .and_then(serde_json::Value::as_str)
+            {
+                delivered.map_files.insert(path.to_owned());
+            }
+            if let Some(symbol) = item.get("symbol_label").and_then(serde_json::Value::as_str) {
+                delivered.map_symbols.insert(symbol.to_owned());
+            }
+        }
+    }
+    if let Some(evidence) = root
+        .get("initial_packet")
+        .and_then(|packet| packet.get("observed_evidence"))
+        .and_then(serde_json::Value::as_array)
+    {
+        for item in evidence {
+            if let Some(path) = item
+                .get("artifact")
+                .and_then(|artifact| artifact.get("path"))
+                .and_then(|path| path.get("display_path"))
+                .and_then(serde_json::Value::as_str)
+            {
+                delivered.evidence_files.insert(path.to_owned());
+                if let Some(excerpt) = item
+                    .get("excerpt")
+                    .and_then(|excerpt| excerpt.get("bytes_base64url"))
+                    .and_then(serde_json::Value::as_str)
+                    .and_then(decode_excerpt)
+                {
+                    delivered
+                        .evidence_text
+                        .entry(path.to_owned())
+                        .or_default()
+                        .push(String::from_utf8_lossy(&excerpt).into_owned());
+                }
+            }
+        }
+    }
+    Ok(delivered)
+}
+
+/// An evidence excerpt's bytes, or nothing when its encoding is malformed.
+fn decode_excerpt(encoded: &str) -> Option<Vec<u8>> {
+    URL_SAFE_NO_PAD.decode(encoded).ok()
+}
+
+/// Accept either a bare build result or one wrapped in an MCP tool response.
+fn structured_content(value: &serde_json::Value) -> &serde_json::Value {
+    value
+        .get("result")
+        .and_then(|result| result.get("structuredContent"))
+        .or_else(|| value.get("structuredContent"))
+        .unwrap_or(value)
+}
+
+fn summarize(cases: Vec<CaseScore>) -> Report {
+    let total_reference_files = cases.iter().map(|case| case.reference_files).sum();
+    let total_reference_symbols = cases.iter().map(|case| case.reference_symbols).sum();
+    let total_map_files_recalled = cases
+        .iter()
+        .map(|case| case.map_file_recall_numerator)
+        .sum();
+    let total_map_files_recalled_via_target = cases
+        .iter()
+        .map(|case| case.map_file_recall_via_target)
+        .sum();
+    let total_map_symbols_recalled = cases
+        .iter()
+        .map(|case| case.map_symbol_recall_numerator)
+        .sum();
+    let total_evidence_files_recalled = cases
+        .iter()
+        .map(|case| case.evidence_file_recall_numerator)
+        .sum();
+    let total_changed_lines = cases.iter().map(|case| case.changed_lines).sum();
+    let total_changed_lines_in_evidence = cases
+        .iter()
+        .map(|case| case.changed_lines_in_evidence)
+        .sum();
+    let total_delivered_bytes = cases
+        .iter()
+        .map(|case| case.delivered_bytes)
+        .fold(0u64, u64::saturating_add);
+    Report {
+        schema_name: REPORT_SCHEMA_NAME.to_owned(),
+        schema_version: REPORT_SCHEMA_VERSION.to_owned(),
+        map_file_recall_percent: percent(total_map_files_recalled, total_reference_files),
+        map_symbol_recall_percent: percent(total_map_symbols_recalled, total_reference_symbols),
+        evidence_file_recall_percent: percent(total_evidence_files_recalled, total_reference_files),
+        changed_line_coverage_percent: percent(
+            total_changed_lines_in_evidence,
+            total_changed_lines,
+        ),
+        cases,
+        total_reference_files,
+        total_reference_symbols,
+        total_map_files_recalled,
+        total_map_files_recalled_via_target,
+        total_map_symbols_recalled,
+        total_evidence_files_recalled,
+        total_changed_lines,
+        total_changed_lines_in_evidence,
+        total_delivered_bytes,
+        // Stated, not inferred: this tool calls no model and opens no socket.
+        model_calls: 0,
+        network_requests: 0,
+    }
+}
+
+fn percent(numerator: usize, denominator: usize) -> u64 {
+    if denominator == 0 {
+        return 0;
+    }
+    let numerator = u64::try_from(numerator).unwrap_or(u64::MAX);
+    let denominator = u64::try_from(denominator).unwrap_or(u64::MAX);
+    numerator.saturating_mul(100) / denominator
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ASTROPY_PATCH: &str = "diff --git a/astropy/timeseries/core.py b/astropy/timeseries/core.py\n\
+--- a/astropy/timeseries/core.py\n\
++++ b/astropy/timeseries/core.py\n\
+@@ -55,6 +55,13 @@ class BaseTimeSeries(QTable):\n\
+     _required_columns_relax = False\n\
+ \n\
+     def _check_required_columns(self):\n\
++        def as_scalar_or_list_str(obj):\n\
+@@ -76,9 +83,10 @@ def _check_required_columns(self):\n\
+-                raise ValueError(\"bad\")\n";
+
+    #[test]
+    fn reference_patch_yields_touched_files_and_enclosing_symbols() {
+        let reference = parse_reference_patch(ASTROPY_PATCH);
+        assert!(reference.files.contains("astropy/timeseries/core.py"));
+        assert_eq!(reference.files.len(), 1);
+        assert!(reference.symbols.contains("BaseTimeSeries"));
+        assert!(reference.symbols.contains("_check_required_columns"));
+    }
+
+    #[test]
+    fn deleted_files_and_absent_headings_are_not_counted() {
+        let patch = "--- a/gone.py\n+++ /dev/null\n@@ -1,2 +0,0 @@\n-x = 1\n";
+        let reference = parse_reference_patch(patch);
+        assert!(reference.files.is_empty());
+        assert!(reference.symbols.is_empty());
+    }
+
+    #[test]
+    fn declaration_names_are_extracted_across_languages_and_prose_is_not() {
+        assert_eq!(
+            declaration_name("def _check_required_columns(self):").as_deref(),
+            Some("_check_required_columns")
+        );
+        assert_eq!(
+            declaration_name("class BaseTimeSeries(QTable):").as_deref(),
+            Some("BaseTimeSeries")
+        );
+        assert_eq!(
+            declaration_name("fn structural_seed_decision(").as_deref(),
+            Some("structural_seed_decision")
+        );
+        assert_eq!(declaration_name("some prose about a class"), None);
+        assert_eq!(declaration_name(""), None);
+    }
+
+    #[test]
+    fn a_map_pointing_at_the_wrong_file_scores_zero_while_evidence_can_still_hit() {
+        // This is the measured astropy failure: sixteen items, all in the
+        // sibling file, while the evidence packet did contain the target.
+        let delivered = serde_json::json!({
+            "structuredContent": {
+                "disclosure_map": {"items": [
+                    {"display_path": "astropy/timeseries/sampled.py", "symbol_label": "TimeSeries"},
+                    {"display_path": "astropy/timeseries/sampled.py", "symbol_label": "add_column"}
+                ]},
+                "initial_packet": {"observed_evidence": [
+                    {"artifact": {"path": {"display_path": "astropy/timeseries/core.py"}}}
+                ]}
+            }
+        });
+        let root = structured_content(&delivered);
+        assert!(root.get("disclosure_map").is_some());
+
+        let reference = parse_reference_patch(ASTROPY_PATCH);
+        let map_files: BTreeSet<String> = ["astropy/timeseries/sampled.py".to_owned()]
+            .into_iter()
+            .collect();
+        let evidence_files: BTreeSet<String> = ["astropy/timeseries/core.py".to_owned()]
+            .into_iter()
+            .collect();
+        assert_eq!(reference.files.intersection(&map_files).count(), 0);
+        assert_eq!(reference.files.intersection(&evidence_files).count(), 1);
+    }
+
+    #[test]
+    fn a_reference_file_named_only_as_a_target_counts_and_is_attributed() {
+        // The measured shape: an entry in the sibling file whose relationship
+        // resolves into the file the change actually touched.
+        let dir = std::env::temp_dir().join(format!("recall-target-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temporary directory");
+        let path = dir.join("delivered.json");
+        let delivered = serde_json::json!({
+            "structuredContent": {"disclosure_map": {"items": [
+                {"display_path": "astropy/timeseries/sampled.py",
+                 "target_display_path": "astropy/timeseries/core.py",
+                 "symbol_label": "BaseTimeSeries"}
+            ]}}
+        });
+        fs::write(&path, serde_json::to_vec(&delivered).expect("json")).expect("write");
+        let score = score_case(&Case {
+            instance_id: "astropy__astropy-13033".into(),
+            reference_patch: ASTROPY_PATCH.into(),
+            delivered_context: path.to_string_lossy().into_owned(),
+        })
+        .expect("score");
+        fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(
+            score.map_file_recall_numerator, 1,
+            "a target names the file"
+        );
+        assert_eq!(
+            score.map_file_recall_via_target, 1,
+            "and the gain is attributed to the target, not folded in"
+        );
+        assert!(
+            score.missing_files.is_empty(),
+            "a file named as a target is not missing"
+        );
+    }
+
+    /// Context lines keep their leading space: no line continuations here.
+    const CHANGED_PATCH: &str = "--- a/pkg/core.py
++++ b/pkg/core.py
+@@ -1,4 +1,5 @@ def check(self):
+     columns = self.columns
++    columns.sort()
+-    return columns[0]
++    return columns
+";
+
+    #[test]
+    fn reference_patch_yields_removed_lines_and_insertion_anchors() {
+        let reference = parse_reference_patch(CHANGED_PATCH);
+        let lines = &reference.changed_lines["pkg/core.py"];
+        assert!(
+            lines.contains("columns = self.columns"),
+            "an insertion is placed by the line before it"
+        );
+        assert!(lines.contains("return columns[0]"));
+        assert_eq!(lines.len(), 2);
+        assert!(reference.symbols.contains("check"));
+    }
+
+    #[test]
+    fn changed_lines_count_only_in_evidence_from_the_same_file() {
+        use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
+        let dir = std::env::temp_dir().join(format!("recall-lines-{}", std::process::id()));
+        fs::create_dir_all(&dir).expect("temporary directory");
+        let path = dir.join("delivered.json");
+        let excerpt =
+            |text: &str| serde_json::json!({"bytes_base64url": URL_SAFE_NO_PAD.encode(text)});
+        // The removed line is delivered, but from another file.
+        let delivered = serde_json::json!({"structuredContent": {"initial_packet": {"observed_evidence": [
+            {"artifact": {"path": {"display_path": "pkg/core.py"}},
+             "excerpt": excerpt("def check(self):\n    columns = self.columns\n")},
+            {"artifact": {"path": {"display_path": "pkg/other.py"}},
+             "excerpt": excerpt("    return columns[0]\n")}
+        ]}}});
+        fs::write(&path, serde_json::to_vec(&delivered).expect("json")).expect("write");
+        let score = score_case(&Case {
+            instance_id: "pkg-1".into(),
+            reference_patch: CHANGED_PATCH.into(),
+            delivered_context: path.to_string_lossy().into_owned(),
+        })
+        .expect("score");
+        fs::remove_dir_all(&dir).ok();
+
+        assert_eq!(score.changed_lines, 2);
+        assert_eq!(score.changed_lines_in_evidence, 1);
+        let report = summarize(vec![score]);
+        assert_eq!(
+            (
+                report.total_changed_lines,
+                report.total_changed_lines_in_evidence,
+                report.changed_line_coverage_percent
+            ),
+            (2, 1, 50)
+        );
+    }
+
+    #[test]
+    fn percentages_floor_and_tolerate_an_empty_denominator() {
+        assert_eq!(percent(0, 0), 0);
+        assert_eq!(percent(1, 3), 33);
+        assert_eq!(percent(2, 2), 100);
+        assert_eq!(percent(0, 7), 0);
+    }
+
+    #[test]
+    fn scorer_never_hands_reference_data_to_the_product() {
+        // Oracle isolation is structural: this binary links no engine crate and
+        // names no product entry point. It reads output the product already
+        // wrote.
+        let source = include_str!("recall-score.rs");
+        // Scan only the shipped code; this list would otherwise match itself.
+        let shipped = source
+            .split_once("#[cfg(test)]")
+            .expect("test module marker")
+            .0;
+        // Network absence is enforced repository-wide by
+        // scripts/check-security-boundaries.sh; this test covers the isolation
+        // that scan cannot see — that the scorer never links the product.
+        for forbidden in [
+            "context_engine",
+            "context_store",
+            "context_workspace",
+            "LocalEngine",
+        ] {
+            assert!(
+                !shipped.contains(forbidden),
+                "scorer must not reach {forbidden}"
+            );
+        }
+    }
+}

@@ -168,7 +168,7 @@ fn graph(fixture: &Fixture, snapshot_id: &str) -> StructuralGraph {
         max_facts: 100,
         max_nesting_depth: 16,
         max_response_bytes: 1_048_576,
-        parser_version: "tree-sitter-0.26.13".into(),
+        parser_version: context_structural::PARSER_VERSION.into(),
         grammar_version: grammar_version(fixture.language).into(),
         resolver_version: RESOLVER_VERSION.into(),
         graph_version: GRAPH_VERSION.into(),
@@ -254,6 +254,7 @@ fn run_arm_with_cache(
     let structural_runtime = (mode != DeliveryMode::Ordinary).then(|| {
         let graph = graph(fixture, &snapshot.snapshot_id);
         StructuralRuntime {
+            task_scoped: None,
             receipt: StructuralLifecycleReceipt {
                 schema_name: "impresari_context_structural_lifecycle".into(),
                 schema_version: "1.0".into(),
@@ -304,6 +305,79 @@ fn run_arm_with_cache(
         tools,
         build: build_response["result"]["structuredContent"].clone(),
         initial_tool_result_bytes,
+    }
+}
+
+/// Require a progressive build to preserve every ordinary anchor.
+///
+/// The same anchors arrive in the same order, with identical identity, file,
+/// span, method and kind. An excerpt may differ only by being cut to the
+/// declaration holding its match (ADR-0155): an ordinary build has no graph to
+/// cut with. A differing excerpt must be exact source, hold its match, and be no
+/// larger than the ordinary one.
+fn assert_anchors_preserved(fixture: &Fixture, progressive: &[Value], ordinary: &[Value]) {
+    let without_excerpt = |value: &Value| {
+        let mut value = value.clone();
+        value
+            .as_object_mut()
+            .expect("evidence object")
+            .remove("excerpt");
+        value
+    };
+    assert_eq!(
+        progressive.iter().map(without_excerpt).collect::<Vec<_>>(),
+        ordinary.iter().map(without_excerpt).collect::<Vec<_>>(),
+        "{} anchors",
+        fixture.id
+    );
+    let source = fixture.source.as_bytes();
+    let decode = |value: &Value| {
+        URL_SAFE_NO_PAD
+            .decode(
+                value["excerpt"]["bytes_base64url"]
+                    .as_str()
+                    .expect("excerpt"),
+            )
+            .expect("base64url excerpt")
+    };
+    let offset = |value: &Value, field: &str| -> usize {
+        value[field]
+            .as_str()
+            .expect("offset")
+            .parse()
+            .expect("decimal offset")
+    };
+    for (cut, window) in progressive.iter().zip(ordinary) {
+        if cut["excerpt"] == window["excerpt"] {
+            continue;
+        }
+        let bytes = decode(cut);
+        let (start, end) = (
+            offset(&cut["span"], "start_byte"),
+            offset(&cut["span"], "end_byte"),
+        );
+        let (match_start, match_end) = (
+            offset(&cut["excerpt"], "match_start_byte"),
+            offset(&cut["excerpt"], "match_end_byte"),
+        );
+        let from = start - match_start;
+        assert_eq!(
+            &source[from..from + bytes.len()],
+            bytes.as_slice(),
+            "{} excerpt is exact source",
+            fixture.id
+        );
+        assert_eq!(
+            &bytes[match_start..match_end],
+            &source[start..end],
+            "{} excerpt holds its match",
+            fixture.id
+        );
+        assert!(
+            bytes.len() <= decode(window).len(),
+            "{} excerpt is no larger than the ordinary one",
+            fixture.id
+        );
     }
 }
 
@@ -443,11 +517,7 @@ fn frozen_provider_free_progressive_structural_gate_passes() {
         let progressive_anchors = progressive.build["initial_packet"]["observed_evidence"]
             .as_array()
             .expect("progressive anchors");
-        assert_eq!(
-            progressive_anchors, ordinary_evidence,
-            "{} anchors",
-            fixture.id
-        );
+        assert_anchors_preserved(fixture, progressive_anchors, ordinary_evidence);
         let eager_structural = eager.build["packet"]["observed_evidence"]
             .as_array()
             .expect("eager evidence")

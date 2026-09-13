@@ -130,6 +130,33 @@ PRD; conflicts require an explicit review and superseding record.
 | [ADR-0125](0125-select-ranked-seed-sets-and-traverse-to-definitions.md) | Select ranked structural seed sets and traverse to declarations and supertypes | Accepted |
 | [ADR-0126](0126-answer-host-executed-operations-without-execution-authority.md) | Answer host-executed operations without gaining execution authority | Accepted |
 | [ADR-0127](0127-emit-a-cache-stable-context-prefix.md) | Emit a cache-stable, keyed context prefix without performing caching | Accepted |
+| [ADR-0128](0128-extract-structure-for-nominated-files-not-whole-repositories.md) | Extract structure for nominated files rather than whole repositories | Accepted |
+| [ADR-0129](0129-build-a-bounded-task-identifier-index-at-preparation.md) | Build a bounded task identifier index at preparation | Accepted |
+| [ADR-0131](0131-admit-and-rank-identifiers-by-declaration.md) | Admit a task token the repository declares, and rank declaring files above mentioning ones | Accepted |
+| [ADR-0132](0132-resolve-references-across-the-scope-not-within-a-file.md) | Resolve call and reference targets across the admitted scope rather than within one file | Accepted |
+| [ADR-0133](0133-admit-a-bare-declared-word-only-as-a-type-or-marked-code.md) | Admit a bare declared word only when it names a type or the author marked it as code | Accepted |
+| [ADR-0134](0134-truncate-a-disclosure-at-its-ceiling-rather-than-discarding-it.md) | Truncate a disclosure at its ceiling and disclose it, rather than discarding the response | Accepted |
+| [ADR-0135](0135-reuse-a-verified-read-within-one-request.md) | Serve a repeated read within one request from bytes already verified, validated by a metadata probe | Accepted |
+| [ADR-0136](0136-substitute-a-host-read-with-declaration-spans.md) | Answer a host read offer with hash-attested declaration spans instead of the whole file | Accepted |
+| [ADR-0139](0139-raise-the-structural-worker-response-ceiling.md) | Request 4 MiB rather than 1 MiB for a structural worker response, the binding constraint on most truncated files | Accepted |
+| [ADR-0140](0140-deliver-one-excerpt-once.md) | Admit an evidence record only when the packet does not already deliver its bytes | Accepted |
+| [ADR-0137](0137-answer-the-symbol-a-map-names-not-the-path-it-sits-in.md) | Answer the symbol a read offer names rather than the whole path, and never claim absence from a truncated graph | Accepted |
+| [ADR-0138](0138-divide-a-fact-allowance-by-what-each-file-needs.md) | Report what each file yields and place the unspent fact allowance with the files a first pass cut | Accepted |
+| [ADR-0142](0142-disclose-the-files-a-scoped-graph-was-built-over.md) | Disclose the nomination a scoped structural map was built from, so nomination recall can be measured | Accepted |
+| [ADR-0143](0143-retain-a-candidate-sbom-beside-its-record.md) | Verify a frozen candidate's SBOM against a retained copy, not the live dependency inventory | Accepted |
+| [ADR-0144](0144-bound-a-structural-query-by-its-own-ceiling.md) | Bound a structural query by its own closed ceiling and narrow an oversized result rather than refusing it | Accepted |
+| [ADR-0145](0145-spread-structural-seeds-across-files.md) | Let no single file take every structural seed, so a map can name more of the places a task needs | Accepted |
+| [ADR-0146](0146-name-the-file-a-relationship-points-into.md) | Name the file a resolved relationship points into, so an entry does not name a symbol and the wrong file | Accepted |
+| [ADR-0147](0147-count-a-target-file-in-map-recall.md) | Count a file a relationship points into in map recall, attribute it separately, and govern the recall report schema | Accepted |
+| [ADR-0148](0148-search-nominated-files-first-for-packet-evidence.md) | Search the files a task nominated before the whole snapshot, so packet evidence is about the task | Accepted |
+| [ADR-0149](0149-weight-nomination-by-identifier-rarity.md) | Weight nomination by how rare each task identifier is, and nominate the file a dotted module name denotes | Accepted |
+| [ADR-0150](0150-upgrade-tree-sitter-as-a-recorded-provenance-change.md) | Upgrade Tree-sitter to 0.27.0 as a recorded provenance change, and close automated pin bumps in favour of such upgrades | Accepted |
+| [ADR-0151](0151-select-structural-context-by-what-it-is.md) | Select structural context by what a relationship is, not by identity, so the map does not move with the checkout directory or the parser label | Accepted |
+| [ADR-0152](0152-collapse-map-items-that-repeat-visible-content.md) | Collapse map items that repeat another item's visible content, keeping the first and saying so | Accepted |
+| [ADR-0153](0153-record-what-a-declaration-is-and-deliver-a-seeds-family.md) | Record what each declaration is, moving the graph to 1.1.0, and deliver each seed's enclosing declaration, members, nested declarations and bases in the map | Accepted |
+| [ADR-0154](0154-look-through-local-variables-when-building-a-map.md) | Look through a function's local variables when building a map: never seed on one, credit its calls to the function, and record what was left out | Accepted |
+| [ADR-0155](0155-rank-opening-evidence-and-send-whole-declarations.md) | Rank opening evidence by the rarest word a nominated file holds, put test and vendored files last, and send a match as the whole declaration holding it | Accepted |
+| [ADR-0156](0156-score-changed-line-coverage-of-the-opening-evidence.md) | Score how many of the lines an accepted change touches are inside the opening evidence, as recall report schema 1.2 | Accepted |
 | [ADR-0056](0056-vscode-portable-agent-host-admission.md) | Use portable workspace Agent Host MCP configuration for the candidate VS Code Copilot admission | Superseded by ADR-0057 for extension-host L1; Agent Host remains unadmitted |
 | [ADR-0057](0057-vscode-extension-host-admission.md) | Use the VS Code extension-host workspace MCP configuration for VS Code Copilot L1 admission | Accepted; L1 recorded for VS Code `1.134.0` on macOS arm64 |
 | [ADR-0058](0058-vscode-copilot-native-guidance-and-tool-schema-ergonomics.md) | Use exact-owned Copilot v3 guidance and live schema descriptions for valid bounded VS Code packet requests | Accepted; L2 recorded for VS Code `1.134.0` on macOS arm64 |

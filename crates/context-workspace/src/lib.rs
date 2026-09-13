@@ -354,6 +354,61 @@ pub struct AuthorizedWorkspace {
     root: Dir,
     workspace_identity: String,
     read_ledger: Mutex<RepositoryReadLedger>,
+    reuse: Mutex<VerifiedReadReuse>,
+}
+
+/// Largest total content retained for reuse within one request (IC-SCRR-135).
+///
+/// Retention stops at the bound rather than evicting, so the same request keeps
+/// the same files and a repeated build is deterministic.
+pub const MAX_REUSED_READ_BYTES: u64 = 64 * 1024 * 1024;
+
+/// One file's content, kept only long enough to answer a repeated read.
+#[derive(Clone, Debug)]
+struct ReusedRead {
+    len: u64,
+    modified: Option<cap_std::time::SystemTime>,
+    content_hash: String,
+    bytes: Vec<u8>,
+}
+
+/// Reads already performed and verified during the current request.
+///
+/// A context build runs one retrieval step per task signal and each literal
+/// step scans every admitted file, so the same file is read once per signal.
+/// Measured, that is 11,068 reads of 1,869 files in a single request.
+#[derive(Debug, Default)]
+struct VerifiedReadReuse {
+    entries: BTreeMap<String, ReusedRead>,
+    retained_bytes: u64,
+    bound_reached: bool,
+}
+
+impl VerifiedReadReuse {
+    /// Content for this path, if it was read here and still looks unchanged.
+    ///
+    /// The probe is length and modification time — a `stat`, not a read. It is
+    /// weaker than re-verifying the content hash, and ADR-0135 records that
+    /// weakening deliberately.
+    fn get(
+        &self,
+        key: &str,
+        len: u64,
+        modified: Option<cap_std::time::SystemTime>,
+    ) -> Option<ReusedRead> {
+        let entry = self.entries.get(key)?;
+        (entry.len == len && entry.modified == modified).then(|| entry.clone())
+    }
+
+    fn insert(&mut self, key: &str, entry: ReusedRead) {
+        let size = u64::try_from(entry.bytes.len()).unwrap_or(u64::MAX);
+        if self.retained_bytes.saturating_add(size) > MAX_REUSED_READ_BYTES {
+            self.bound_reached = true;
+            return;
+        }
+        self.retained_bytes = self.retained_bytes.saturating_add(size);
+        self.entries.insert(key.to_owned(), entry);
+    }
 }
 
 /// Process-local counters measured at the capability-relative read boundary.
@@ -446,6 +501,7 @@ impl AuthorizedWorkspace {
             root,
             workspace_identity: identity,
             read_ledger: Mutex::new(RepositoryReadLedger::new()),
+            reuse: Mutex::new(VerifiedReadReuse::default()),
         })
     }
 
@@ -598,6 +654,19 @@ impl AuthorizedWorkspace {
             return Err(WorkspaceError::new(WorkspaceErrorCode::ResourceLimit));
         }
 
+        // A repeated read of a path already read and verified in this request
+        // is served from those bytes (IC-SCRR-135). The probe above is a stat,
+        // not a read: length and modification time must both still match.
+        let key = identity.relative_units_base64url.clone();
+        let modified = before.modified().ok();
+        if let Some(reused) = self.reused_read(&key, before.len(), modified) {
+            return Ok(ExactRead {
+                path: identity.clone(),
+                content_hash: reused.content_hash,
+                bytes: reused.bytes,
+            });
+        }
+
         let mut file = self.root.open(&relative).map_err(map_not_found)?;
         let opened = file
             .metadata()
@@ -621,11 +690,51 @@ impl AuthorizedWorkspace {
             return Err(WorkspaceError::new(WorkspaceErrorCode::ChangedDuringRead));
         }
 
+        let content_hash = sha256_digest(&bytes);
+        self.retain_for_reuse(
+            &key,
+            ReusedRead {
+                len: opened.len(),
+                modified,
+                content_hash: content_hash.clone(),
+                bytes: bytes.clone(),
+            },
+        );
+
         Ok(ExactRead {
             path: identity.clone(),
-            content_hash: sha256_digest(&bytes),
+            content_hash,
             bytes,
         })
+    }
+
+    /// Content already read and verified for this path in the current request.
+    fn reused_read(
+        &self,
+        key: &str,
+        len: u64,
+        modified: Option<cap_std::time::SystemTime>,
+    ) -> Option<ReusedRead> {
+        self.reuse
+            .lock()
+            .ok()
+            .and_then(|reuse| reuse.get(key, len, modified))
+    }
+
+    fn retain_for_reuse(&self, key: &str, entry: ReusedRead) {
+        if let Ok(mut reuse) = self.reuse.lock() {
+            reuse.insert(key, entry);
+        }
+    }
+
+    /// Forget content retained for reuse.
+    ///
+    /// Retention is request-scoped: no repository content outlives the request
+    /// that read it.
+    pub fn clear_reused_reads(&self) {
+        if let Ok(mut reuse) = self.reuse.lock() {
+            *reuse = VerifiedReadReuse::default();
+        }
     }
 
     /// Discovers and hashes eligible regular files under deterministic hard limits.
@@ -1229,16 +1338,70 @@ mod tests {
             }
         );
 
+        // A repeat within the request is served from the bytes already read and
+        // verified, so it performs no read and costs nothing (ADR-0135). The
+        // counters measure work performed, and the consumer's ceiling is
+        // charged from them.
         let identity = PathIdentity::from_portable_relative_path("a.rs").expect("identity");
         workspace.read_exact(&identity, 1024).expect("repeat read");
         assert_eq!(
             workspace.repository_read_counters(),
             RepositoryReadCounters {
-                repository_file_reads: 3,
-                repeated_repository_file_reads: 1,
-                source_bytes_read: 17,
+                repository_file_reads: 2,
+                repeated_repository_file_reads: 0,
+                source_bytes_read: 11,
                 complete: true,
             }
+        );
+    }
+
+    #[test]
+    fn a_repeat_read_is_served_without_a_second_read_until_the_request_ends() {
+        let root = TestRoot::new();
+        fs::write(root.0.join("a.rs"), b"alpha\n").expect("write");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        let identity = PathIdentity::from_portable_relative_path("a.rs").expect("identity");
+
+        let first = workspace.read_exact(&identity, 1024).expect("first read");
+        let second = workspace.read_exact(&identity, 1024).expect("repeat read");
+        assert_eq!(first.bytes, second.bytes);
+        assert_eq!(first.content_hash, second.content_hash);
+        assert_eq!(
+            workspace.repository_read_counters().repository_file_reads,
+            1
+        );
+
+        // Retention is request-scoped: the next request reads and verifies
+        // again, because a workspace may change between requests.
+        workspace.clear_reused_reads();
+        workspace
+            .read_exact(&identity, 1024)
+            .expect("read after clear");
+        assert_eq!(
+            workspace.repository_read_counters().repository_file_reads,
+            2
+        );
+    }
+
+    #[test]
+    fn a_file_that_changed_under_a_reuse_is_read_again() {
+        // The probe is length and modification time, not a content hash, and
+        // ADR-0135 records that weakening. A length change must still be seen.
+        let root = TestRoot::new();
+        fs::write(root.0.join("a.rs"), b"alpha\n").expect("write");
+        let workspace = AuthorizedWorkspace::open(&root.0).expect("authorize root");
+        let identity = PathIdentity::from_portable_relative_path("a.rs").expect("identity");
+
+        let first = workspace.read_exact(&identity, 1024).expect("first read");
+        fs::write(root.0.join("a.rs"), b"alpha and more\n").expect("rewrite");
+        let second = workspace.read_exact(&identity, 1024).expect("second read");
+
+        assert_ne!(first.bytes, second.bytes);
+        assert_ne!(first.content_hash, second.content_hash);
+        assert_eq!(second.bytes, b"alpha and more\n");
+        assert_eq!(
+            workspace.repository_read_counters().repository_file_reads,
+            2
         );
     }
 

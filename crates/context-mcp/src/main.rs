@@ -6,6 +6,7 @@ use context_core::{PolicySubject, ResourceBudget, validate_utc_timestamp};
 use context_engine::{EngineConfig, LocalEngine, RequestContext};
 use context_mcp::{
     DeliveryMode, McpServer, ServerConfig, StructuralLifecycleReceipt, StructuralRuntime,
+    TaskScopedStructure,
 };
 use context_session::SessionPolicy;
 use context_store::AuditRetention;
@@ -212,6 +213,20 @@ fn prepare_structural_runtime(
         .validate()
         .map_err(|_| "invalid structural worker boundary")?;
     let started = Instant::now();
+    // Nomination needs this and it reads each admitted file once. Doing it here
+    // keeps the cost out of every request's context read budget.
+    engine
+        .build_identifier_index(&RequestContext {
+            request_id: format!("req_{seed}identifier"),
+            event_id: format!("evt_{seed}identifier"),
+            subject: PolicySubject {
+                caller_id: startup_context.subject.caller_id.clone(),
+                role: startup_context.subject.role.clone(),
+                purpose: "mcp_identifier_index_startup".into(),
+            },
+            occurred_at: startup_context.occurred_at.clone(),
+        })
+        .map_err(|_| "identifier index preparation failed")?;
     let graph = engine
         .build_structure(
             &RequestContext {
@@ -243,12 +258,32 @@ fn prepare_structural_runtime(
         },
         graph,
         edge_kinds: Vec::new(),
+        // Density comes from scoping, so the server builds a graph over the
+        // files each task nominates and keeps the startup graph as a fallback.
+        task_scoped: Some(TaskScopedStructure {
+            launcher,
+            budget: structural_budget()?,
+        }),
     })
 }
 
+/// Budget for every structural build this server performs.
+///
+/// `requested` bounds the worker's response frame, and over it the worker
+/// returns a prefix of the fact list rather than failing. At 1 MiB — about
+/// 2,760 facts at a measured 380 bytes each — that prefix stops partway through
+/// any dense file: on `astropy/io/fits/header.py` every declaration after
+/// roughly line 1,920 was missing, including seven whole top-level classes.
+///
+/// The cost is a read substitution that cannot answer for a symbol its graph
+/// never reached: measured, 378 of 494 astropy declarations were answerable at
+/// 1 MiB and all 494 at 4 MiB. Map recall does not move either way.
+///
+/// 4 MiB is the largest a conservative budget admits without widening a
+/// validated range, and it was enough for every file measured.
 fn structural_budget() -> Result<ResourceBudget, &'static str> {
     ResourceBudget::conservative(
-        1_048_576,
+        4_194_304,
         10_000,
         100_000,
         65_536,
@@ -346,6 +381,8 @@ fn civil_from_days(days_since_epoch: i64) -> (i64, i64, i64) {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
     use super::*;
 
     fn arguments() -> Vec<String> {
@@ -364,9 +401,20 @@ mod tests {
         .collect()
     }
 
+    /// Distinguishes concurrent fixtures within one test binary.
+    ///
+    /// `unique_seed` is pid plus nanoseconds, and every test in a binary shares
+    /// the pid. Two tests scheduled inside the same clock tick — routine on
+    /// Windows, whose timer is coarser — then derive the same root, and each
+    /// removes it on the way out, so the other's fixture vanishes mid-test.
+    static NEXT_FIXTURE: AtomicU64 = AtomicU64::new(0);
+
     fn absolute_fixture() -> (PathBuf, PathBuf, PathBuf, PathBuf, PathBuf) {
-        let root =
-            std::env::temp_dir().join(format!("context-mcp-main-test-{}", unique_seed().unwrap()));
+        let sequence = NEXT_FIXTURE.fetch_add(1, Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "context-mcp-main-test-{}-{sequence}",
+            unique_seed().unwrap()
+        ));
         let workspace = root.join("workspace");
         let cache = root.join("cache");
         let worker = root.join("worker");

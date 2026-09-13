@@ -9,6 +9,9 @@ use std::{
 };
 
 use context_core::{POLICY_PROFILE, PolicySubject, ResourceBudget, json_contract_identity};
+use context_engine::file_nomination::{
+    FILE_NOMINATION_SCHEMA_NAME, FILE_NOMINATION_SCHEMA_VERSION, FileNomination,
+};
 use context_engine::{
     ContextPlan, ContextPlanStep, DeclaredAssociatedTests, DeclaredChangeSet,
     DeclaredConventionExemplars, IncrementalStructuralUpdate, LocalEngine, ProfiledContextPacket,
@@ -17,7 +20,7 @@ use context_engine::{
     StructuralSeedRequest, TaskProfile,
 };
 use context_session::{SessionPolicy, SessionStore};
-use context_structural::{GraphEdge, StructuralGraph};
+use context_structural::{GraphEdge, StructuralGraph, WorkerLauncher};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
@@ -74,11 +77,30 @@ impl DeliveryMode {
 #[derive(Clone, Debug)]
 pub struct StructuralRuntime {
     /// Exact snapshot-bound graph retained only for this process.
+    ///
+    /// Thin but complete. Used when no task-scoped build is configured, and as
+    /// the fallback when one is configured but nominates nothing.
     pub graph: StructuralGraph,
     /// Closed traversal kinds; empty means every admitted graph edge kind.
     pub edge_kinds: Vec<String>,
     /// Non-authoritative lifecycle receipt returned beside every packet.
     pub receipt: StructuralLifecycleReceipt,
+    /// Present when the server may build a dense task-scoped graph per request.
+    pub task_scoped: Option<TaskScopedStructure>,
+}
+
+/// Inputs a server needs to build a task-scoped structural graph per request.
+///
+/// A whole-repository graph divides one fact allowance across every file, which
+/// on a large repository leaves roughly one fact each. Building per request over
+/// the files a task nominates gives each of them a large share of the same
+/// allowance.
+#[derive(Clone, Debug)]
+pub struct TaskScopedStructure {
+    /// Pinned, hash-attested structural worker boundary.
+    pub launcher: WorkerLauncher,
+    /// Admitted structural budget for a scoped build.
+    pub budget: ResourceBudget,
 }
 
 /// Closed metadata proving which structural lifecycle an MCP result used.
@@ -135,6 +157,16 @@ const MAX_PROGRESSIVE_RESPONSE_BYTES: u64 = 4_194_304;
 struct DisclosureMapItem {
     item_handle: String,
     display_path: String,
+    /// File the resolved relationship points into, when that is a different
+    /// file from `display_path`.
+    ///
+    /// `symbol_label` is taken from the target node, so an entry could name a
+    /// symbol while leaving the file that declares it unnamed: a map read
+    /// "`sampled.py` — `BaseTimeSeries`" while `timeseries/core.py`, where that
+    /// symbol lives, went unmentioned. The node was already resolved and
+    /// already held; only its path was discarded.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    target_display_path: Option<String>,
     relationship_class: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     symbol_label: Option<String>,
@@ -449,10 +481,15 @@ impl McpServer {
                 self.context_convention_exemplar_build(call.arguments)
             }
             "structure_incremental_update" => self.structure_incremental_update(call.arguments),
+            "context_read_substitute" => self.context_read_substitute(call.arguments),
             "context_packet_resolve" => self.packet_resolve(call.arguments),
             "context_session_close" => self.session_close(call.arguments),
             _ => return error(id, -32602, "unknown tool"),
         };
+        // A tool call is the request boundary. Content retained to answer a
+        // repeated read within this call is dropped here, so nothing outlives
+        // the request that read it (ADR-0135).
+        self.engine.end_request_read_reuse();
         match result {
             Ok(structured) => success(id, tool_result(structured, false)),
             Err(message) => success(
@@ -473,6 +510,71 @@ impl McpServer {
             .open(&args.session_id, &self.consumer_id)
             .map_err(|_| "session open failed")?;
         Ok(json!({"session_id": args.session_id, "opened": true, "authority_added": false}))
+    }
+
+    /// Answer a host's read offer with the path's declaration spans.
+    ///
+    /// A host about to read a file may offer that read here and take the
+    /// declarations instead (IC-HRS-136). Every span carries a content hash the
+    /// host verifies against its own copy, so this adds no authority and asks
+    /// for no trust: the response is an offer the host may discard.
+    fn context_read_substitute(&mut self, value: Value) -> Result<Value, &'static str> {
+        #[derive(Deserialize)]
+        #[serde(deny_unknown_fields)]
+        struct Args {
+            request_id: String,
+            event_id: String,
+            purpose: String,
+            occurred_at: String,
+            session_id: String,
+            display_path: String,
+            /// Narrows the answer to one declaration. A map points at a symbol,
+            /// and answering the symbol is what makes a substitution small.
+            #[serde(default)]
+            symbol: Option<String>,
+            maximum_returned_bytes: String,
+        }
+        let args: Args =
+            serde_json::from_value(value).map_err(|_| "invalid read substitution input")?;
+        self.sessions
+            .authorize(&args.session_id, &self.consumer_id)
+            .map_err(|_| "read substitution failed")?;
+        let maximum = canonical_decimal(&args.maximum_returned_bytes)?;
+        if maximum == 0 {
+            return Err("invalid read substitution limits");
+        }
+        // Substitution needs a dense graph for the offered path, which is the
+        // same build a task-scoped request performs. A server configured
+        // without one cannot answer, and says so rather than guessing.
+        let Some(runtime) = self.structural_runtime.as_ref() else {
+            return Err("read substitution is unavailable");
+        };
+        let Some(scoped) = runtime.task_scoped.as_ref() else {
+            return Err("read substitution is unavailable");
+        };
+        let (launcher, budget) = (scoped.launcher.clone(), scoped.budget.clone());
+        let context = RequestContext {
+            request_id: args.request_id,
+            event_id: args.event_id,
+            subject: PolicySubject {
+                caller_id: self.consumer_id.clone(),
+                role: self.role.clone(),
+                purpose: args.purpose,
+            },
+            occurred_at: args.occurred_at,
+        };
+        let substitution = self
+            .engine
+            .substitute_host_read(
+                &context,
+                &budget,
+                &launcher,
+                &args.display_path,
+                args.symbol.as_deref(),
+                maximum,
+            )
+            .map_err(|_| "read substitution failed")?;
+        serde_json::to_value(substitution).map_err(|_| "read substitution failed")
     }
 
     fn session_close(&mut self, value: Value) -> Result<Value, &'static str> {
@@ -668,15 +770,51 @@ impl McpServer {
                 None,
             ),
             (None, Some(profile), Some(query), None, None, None, None, None, None, None) => {
-                let profiled = if let Some(runtime) = &self.structural_runtime {
-                    if self.delivery_mode == DeliveryMode::ProgressiveStructural {
+                let (profiled, nomination) = if let Some(runtime) = &self.structural_runtime {
+                    // Prefer a dense graph over the files this task nominated.
+                    // Fall back to the thin whole-repository graph when nothing
+                    // is nominated, so a task naming no code still works.
+                    let scoped = runtime.task_scoped.as_ref().and_then(|scoped| {
+                        self.engine
+                            .build_task_scoped_structure(
+                                &context,
+                                &query,
+                                &scoped.budget,
+                                &scoped.launcher,
+                            )
+                            .ok()
+                            .filter(|(_, nomination)| !nomination.files.is_empty())
+                    });
+                    // Carry the nomination order so a name shared by several
+                    // files resolves to the file the task is about rather than
+                    // to whichever path sorts first. The nomination itself is
+                    // carried too, because a consumer cannot read a scoped map
+                    // safely without knowing which files it was scoped to.
+                    let (graph, nomination) = scoped.map_or_else(
+                        || (runtime.graph.clone(), None),
+                        |(graph, nomination)| (graph, Some(nomination)),
+                    );
+                    let nominated_order = nomination.as_ref().map_or_else(Vec::new, |nomination| {
+                        nomination
+                            .files
+                            .iter()
+                            .map(|file| file.display_path.clone())
+                            .collect::<Vec<_>>()
+                    });
+                    let admitted_identifiers =
+                        nomination.as_ref().map_or_else(Vec::new, |nomination| {
+                            nomination.admitted_identifiers.clone()
+                        });
+                    let profiled = if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                         self.engine
                             .build_profiled_seeded_progressive_context(
                                 &context,
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
-                                    graph: runtime.graph.clone(),
+                                    nominated_order: nominated_order.clone(),
+                                    admitted_identifiers: admitted_identifiers.clone(),
+                                    graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
                                 args.budget,
@@ -689,17 +827,23 @@ impl McpServer {
                                 profile,
                                 &query,
                                 &StructuralSeedRequest {
-                                    graph: runtime.graph.clone(),
+                                    nominated_order: nominated_order.clone(),
+                                    admitted_identifiers: admitted_identifiers.clone(),
+                                    graph,
                                     edge_kinds: runtime.edge_kinds.clone(),
                                 },
                                 args.budget,
                             )
                             .map_err(|_| "profiled structural context build failed")?
-                    }
+                    };
+                    (profiled, nomination)
                 } else {
-                    self.engine
-                        .build_profiled_context(&context, profile, &query, args.budget)
-                        .map_err(|_| "profiled context build failed")?
+                    (
+                        self.engine
+                            .build_profiled_context(&context, profile, &query, args.budget)
+                            .map_err(|_| "profiled context build failed")?,
+                        None,
+                    )
                 };
                 if self.delivery_mode == DeliveryMode::ProgressiveStructural {
                     let session_id = progressive_session_id
@@ -708,6 +852,7 @@ impl McpServer {
                     return self.progressive_context_build(
                         session_id,
                         &profiled,
+                        nomination.as_ref(),
                         progressive_budget,
                         &reads_before,
                         progressive_started,
@@ -840,6 +985,7 @@ impl McpServer {
         &mut self,
         session_id: &str,
         profiled: &ProfiledContextPacket,
+        nomination: Option<&FileNomination>,
         budget: ResourceBudget,
         reads_before: &RepositoryReadTelemetry,
         started: Instant,
@@ -868,7 +1014,7 @@ impl McpServer {
             .ok_or("progressive structural runtime unavailable")?;
         let packet = &profiled.packet;
         let initial_packet = packet.clone();
-        let items = profiled.plan.structural_query.as_ref().map_or_else(
+        let mut items = profiled.plan.structural_query.as_ref().map_or_else(
             || Ok(Vec::new()),
             |query| {
                 query
@@ -889,6 +1035,25 @@ impl McpServer {
                     .collect()
             },
         )?;
+        // An agent reads a map item as its path, target, relationship, label and
+        // confidence, and several edges often read identically: every
+        // unresolved reference from one seed carries that seed's own name, and
+        // a name called five times yields five calls to one target. On the
+        // twenty-two-task astropy corpus 44% of items repeated another item's
+        // visible content. The first occurrence is kept, where traversal order
+        // placed it, and the map says the rest were collapsed.
+        let repeats_collapsed = collapse_repeated_items(&mut items);
+        let ceiling = progressive_ceiling(&budget)?;
+        // A map larger than the session's item ceiling used to be discarded
+        // whole: the traversal ran, the items were built, and the consumer got
+        // nothing. The reads are already spent by this point and returning
+        // nothing does not refund them, so the ceiling is honoured by
+        // disclosing what fits and saying so.
+        //
+        // Truncating here, before the map identity is computed, keeps the
+        // identity, the disclosed items, the session's lookup targets and the
+        // consumption accounting describing the same set.
+        let item_ceiling_reached = truncate_to_item_ceiling(&mut items, ceiling.returned_items);
         let public_items = items
             .iter()
             .map(|item| item.public.clone())
@@ -907,7 +1072,6 @@ impl McpServer {
             }),
         )?;
         let reads_after = self.engine.repository_read_telemetry();
-        let ceiling = progressive_ceiling(&budget)?;
         let per_call = DisclosureConsumption {
             maps: 1,
             returned_items: u64::try_from(items.len()).unwrap_or(u64::MAX),
@@ -934,6 +1098,7 @@ impl McpServer {
             ceiling,
         };
         let state = if runtime.graph.completeness == "complete"
+            && !item_ceiling_reached
             && !profiled
                 .plan
                 .structural_query
@@ -956,6 +1121,17 @@ impl McpServer {
                 values
             },
         );
+        let mut omissions = omissions;
+        if item_ceiling_reached {
+            omissions.push("progressive_item_ceiling_reached".to_owned());
+            omissions.sort();
+            omissions.dedup();
+        }
+        if repeats_collapsed {
+            omissions.push("repeated_relationships_collapsed".to_owned());
+            omissions.sort();
+            omissions.dedup();
+        }
         let base = json!({
             "schema_name":"progressive-context-build-result",
             "schema_version":PROGRESSIVE_CONTRACT_VERSION,
@@ -978,6 +1154,7 @@ impl McpServer {
                 "workspace_snapshot":progressive.workspace_snapshot,
                 "graph_id":progressive.graph_id,
                 "state":state,
+                "scope":scope_disclosure(nomination),
                 "items":public_items,
                 "omissions":omissions
             },
@@ -1235,6 +1412,43 @@ impl McpServer {
     }
 }
 
+/// Disclose which files a scoped structural graph was built over.
+///
+/// A scoped graph is dense but partial, and PRD IC-SSSE-128 requires a consumer
+/// to be able to tell that coverage is limited to nominated files, how many
+/// were nominated, and why each was admitted. Without this the map reads as a
+/// whole-repository one, and nomination recall — the metric that bounds map
+/// recall from above — cannot be measured at all.
+///
+/// A whole-repository fallback graph nominates nothing and says so, rather than
+/// omitting the field and leaving the two cases indistinguishable.
+fn scope_disclosure(nomination: Option<&FileNomination>) -> Value {
+    nomination.map_or_else(
+        || {
+            json!({
+                "schema_name":FILE_NOMINATION_SCHEMA_NAME,
+                "schema_version":FILE_NOMINATION_SCHEMA_VERSION,
+                "scoped_to_nominated_files":false,
+                "nominated_files":0,
+                "considered_files":0,
+                "files":[],
+                "unknowns":["structural_scope_whole_repository"]
+            })
+        },
+        |nomination| {
+            json!({
+                "schema_name":nomination.schema_name,
+                "schema_version":nomination.schema_version,
+                "scoped_to_nominated_files":nomination.is_scoped(),
+                "nominated_files":nomination.files.len(),
+                "considered_files":nomination.considered_files,
+                "files":nomination.files,
+                "unknowns":nomination.unknowns
+            })
+        },
+    )
+}
+
 fn disclosure_item(
     query: &StructuralPlannerQuery,
     graph_id: &str,
@@ -1255,19 +1469,22 @@ fn disclosure_item(
     let path_identity = source_node
         .map(|node| node.path.relative_units_base64url.clone())
         .unwrap_or_default();
-    let symbol_label = edge
-        .target_node
-        .as_deref()
-        .and_then(|target| {
-            query
-                .result
-                .nodes
-                .iter()
-                .find(|node| node.node_id == target)
-        })
+    let target_node = edge.target_node.as_deref().and_then(|target| {
+        query
+            .result
+            .nodes
+            .iter()
+            .find(|node| node.node_id == target)
+    });
+    let symbol_label = target_node
         .and_then(|node| node.name.clone())
         .or_else(|| source_node.and_then(|node| node.name.clone()))
         .map(|label| label.chars().take(128).collect());
+    // Only a different file is worth naming. Most relationships stay inside one
+    // file, and repeating its path on every entry would be noise.
+    let target_display_path = target_node
+        .map(|node| node.path.display_path.clone())
+        .filter(|path| *path != display_path);
     let mut unknowns = Vec::new();
     if source_node.is_none() {
         unknowns.push("relationship_source_unavailable".into());
@@ -1312,6 +1529,7 @@ fn disclosure_item(
         public: DisclosureMapItem {
             item_handle,
             display_path,
+            target_display_path,
             relationship_class: edge.kind.clone(),
             symbol_label,
             confidence: edge.resolution.clone(),
@@ -1321,6 +1539,42 @@ fn disclosure_item(
         evidence_handle,
         edge_id: edge.edge_id.clone(),
     })
+}
+
+/// Narrow a map to the items its ceiling admits, reporting whether it bit.
+///
+/// A disclosure that exceeds its ceiling used to be discarded whole, after the
+/// reads that produced it were already spent (ADR-0134). Truncation honours the
+/// same bound and returns what it allows.
+fn truncate_to_item_ceiling<T>(items: &mut Vec<T>, ceiling: u64) -> bool {
+    let ceiling = usize::try_from(ceiling).unwrap_or(usize::MAX);
+    let reached = items.len() > ceiling;
+    if reached {
+        items.truncate(ceiling);
+    }
+    reached
+}
+
+/// Drop map items whose visible content repeats an earlier item's.
+///
+/// Returns whether any were dropped. The first occurrence is kept with its
+/// handles, so every relationship a consumer can see remains resolvable.
+fn collapse_repeated_items(items: &mut Vec<StoredDisclosureItem>) -> bool {
+    let before = items.len();
+    let mut seen = std::collections::BTreeSet::new();
+    items.retain(|item| {
+        let public = &item.public;
+        seen.insert((
+            public.display_path.clone(),
+            public.target_display_path.clone(),
+            public.relationship_class.clone(),
+            public.symbol_label.clone(),
+            public.confidence.clone(),
+            public.freshness.clone(),
+            public.unknowns.clone(),
+        ))
+    });
+    items.len() != before
 }
 
 fn progressive_ceiling(budget: &ResourceBudget) -> Result<DisclosureConsumption, &'static str> {
@@ -1690,6 +1944,7 @@ fn tool_definitions() -> Value {
         {"name":"context_evidence_expand","title":"Expand progressive exact evidence","description":"Expand a session-owned evidence handle through the existing exact-evidence gateway with current-source revalidation. The tool is always advertised and returns a closed unavailable result outside progressive_structural mode.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"evidence_handle":{"type":"string"},"before_bytes":decimal_schema(),"after_bytes":decimal_schema(),"max_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","evidence_handle","before_bytes","after_bytes","max_bytes"]}},
         {"name":"context_convention_exemplar_build","title":"Build verified convention exemplar context","description":"Build exact current-source evidence from caller-declared opaque labels and verified artifacts. It does not infer conventions or rank examples.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096},"declaration":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","query","declaration","budget"]}},
         {"name":"structure_incremental_update","title":"Apply verified incremental structural update","description":"Rebuild a current structural graph from exact cached unchanged results and caller-declared validated replacements. Does not watch, poll, or launch a parser.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"update":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","update","budget"]}},
+        {"name":"context_read_substitute","title":"Substitute a repository read","description":"Answer a host read offer for one admitted path with that file's declaration spans, each carrying a content hash and byte range the host can verify against its own copy. Performs no read on the host's behalf, launches nothing, and holds no veto: the response is an offer the host may discard.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"display_path":{"type":"string","minLength":1,"maxLength":4096},"symbol":{"type":"string","minLength":1,"maxLength":256,"description":"Optional. Narrows the answer to one declaration. A whole-path answer is nearly the whole file on a declaration-dense language; naming the symbol a map already points at is what makes the substitution small."},"maximum_returned_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","display_path","maximum_returned_bytes"]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -1705,6 +1960,49 @@ fn decimal_schema() -> Value {
 
 #[cfg(test)]
 mod tests {
+
+    #[test]
+    fn the_disclosure_ceilings_are_pinned() {
+        // These bound what one session may disclose. Raising the item ceiling
+        // changes how much of a map a consumer receives, which is a product
+        // decision rather than a tuning knob.
+        assert_eq!(MAX_PROGRESSIVE_ITEMS, 256);
+        assert_eq!(MAX_PROGRESSIVE_MAPS, 1);
+        assert_eq!(MAX_PROGRESSIVE_LOOKUPS, 64);
+        assert_eq!(MAX_PROGRESSIVE_EXPANSIONS, 64);
+        assert_eq!(MAX_PROGRESSIVE_RESPONSE_BYTES, 4_194_304);
+    }
+
+    #[test]
+    fn a_map_over_its_item_ceiling_is_truncated_not_discarded() {
+        // The reads are already spent when the ceiling is tested, so returning
+        // nothing spends the cost and delivers no value (ADR-0134). Measured,
+        // discarding cost six of twenty-two tasks their entire map.
+        let mut items: Vec<u64> = (0..400).collect();
+        assert!(truncate_to_item_ceiling(&mut items, 256));
+        assert_eq!(items.len(), 256);
+        // The traversal's own order survives: the prefix nearest the seeds.
+        assert_eq!(items.first(), Some(&0));
+        assert_eq!(items.last(), Some(&255));
+    }
+
+    #[test]
+    fn a_map_within_its_item_ceiling_is_untouched() {
+        let mut items: Vec<u64> = (0..10).collect();
+        assert!(!truncate_to_item_ceiling(&mut items, 256));
+        assert_eq!(items, (0..10).collect::<Vec<_>>());
+    }
+
+    #[test]
+    fn truncation_only_ever_narrows() {
+        // A ceiling of zero admits nothing; it must never admit more.
+        let mut empty: Vec<u64> = Vec::new();
+        assert!(!truncate_to_item_ceiling(&mut empty, 0));
+        assert!(empty.is_empty());
+        let mut one: Vec<u64> = vec![7];
+        assert!(truncate_to_item_ceiling(&mut one, 0));
+        assert!(one.is_empty());
+    }
     use std::{
         fs,
         io::Cursor,
@@ -1769,7 +2067,7 @@ mod tests {
         };
         let provenance = FactProvenance {
             method: "tree_sitter".into(),
-            parser_version: "tree-sitter-0.26.13".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
             grammar_version: "tree-sitter-rust-0.24.2".into(),
             resolver_version: RESOLVER_VERSION.into(),
             graph_version: GRAPH_VERSION.into(),
@@ -1796,6 +2094,7 @@ mod tests {
                 declaration("declaration:0:30", "authenticate", 0, 30),
                 declaration("declaration:31:44", "audit", 31, 44),
             ],
+            total_facts_available: 2,
             warnings: Vec::new(),
         };
         build_graph(snapshot_id, vec![GraphFileInput { path, response }]).expect("graph")
@@ -1841,6 +2140,7 @@ mod tests {
                 &snapshot.snapshot_id,
             );
             StructuralRuntime {
+                task_scoped: None,
                 receipt: StructuralLifecycleReceipt {
                     schema_name: "impresari_context_structural_lifecycle".into(),
                     schema_version: "1.0".into(),
@@ -2006,7 +2306,7 @@ mod tests {
         assert_eq!(values[1]["result"]["protocolVersion"], MCP_PROTOCOL_VERSION);
         assert_eq!(
             values[2]["result"]["tools"].as_array().map(Vec::len),
-            Some(8)
+            Some(9)
         );
         assert_eq!(values[3]["result"]["isError"], false);
         assert_eq!(values[4]["result"]["isError"], false);
@@ -2035,7 +2335,7 @@ mod tests {
         );
         assert_eq!(
             values[1]["result"]["tools"].as_array().map(Vec::len),
-            Some(8)
+            Some(9)
         );
     }
 
@@ -2396,6 +2696,230 @@ mod tests {
                 .context_build(profiled_arguments(Some("session_progressive01")))
                 .err(),
             Some("structural delivery runtime unavailable")
+        );
+    }
+
+    /// A two-file traversal: `caller.rs` holds an edge into `defines.rs`.
+    fn cross_file_query(resolved: bool) -> StructuralPlannerQuery {
+        let provenance = context_structural::FactProvenance {
+            method: "tree_sitter_syntax".into(),
+            parser_version: context_structural::PARSER_VERSION.into(),
+            grammar_version: "mixed-pinned-grammars".into(),
+            resolver_version: context_structural::RESOLVER_VERSION.into(),
+            graph_version: context_structural::GRAPH_VERSION.into(),
+        };
+        let node = |id: &str, path: &str, name: &str| context_structural::GraphNode {
+            node_id: format!("sha256:{id:0>64}"),
+            kind: "symbol".into(),
+            path: context_structural::WorkerPath {
+                display_path: path.into(),
+                platform_family: "unix".into(),
+                unit_encoding: "utf8".into(),
+                relative_units_base64url: "cGF0aA".into(),
+            },
+            name: Some(name.into()),
+            span: None,
+            declaration_kind: Some("function".into()),
+            confidence: "confirmed".into(),
+            provenance: provenance.clone(),
+        };
+        let source = node("a", "src/caller.rs", "call_site");
+        let target = node("b", "src/defines.rs", "Defined");
+        StructuralPlannerQuery {
+            query_id: format!("sha256:{:0>64}", "c"),
+            edge_kinds: vec!["references".into()],
+            result: context_structural::StructuralQueryResult {
+                schema_name: "structural-query-result".into(),
+                schema_version: context_structural::GRAPH_VERSION.into(),
+                graph_id: format!("sha256:{:0>64}", "d"),
+                workspace_snapshot: format!("sha256:{:0>64}", "e"),
+                start_node: source.node_id.clone(),
+                edges: vec![context_structural::GraphEdge {
+                    edge_id: format!("sha256:{:0>64}", "f"),
+                    kind: "references".into(),
+                    source_node: source.node_id.clone(),
+                    target_node: resolved.then(|| target.node_id.clone()),
+                    module: None,
+                    resolution: if resolved { "heuristic" } else { "unresolved" }.into(),
+                    span: context_structural::GraphSpan {
+                        start_byte: 0,
+                        end_byte: 1,
+                    },
+                    provenance,
+                }],
+                nodes: vec![source, target],
+                truncated: false,
+                unknowns: Vec::new(),
+            },
+        }
+    }
+
+    fn item_for(query: &StructuralPlannerQuery) -> DisclosureMapItem {
+        let budget = ResourceBudget::conservative(4096, 20, 100, 256, 100, 8, 30_000, 1_048_576)
+            .expect("budget");
+        disclosure_item(
+            query,
+            &format!("sha256:{:0>64}", "1"),
+            &format!("sha256:{:0>64}", "2"),
+            &format!("sha256:{:0>64}", "3"),
+            "allow",
+            &budget,
+            &query.result.edges[0],
+        )
+        .expect("item")
+        .public
+    }
+
+    #[test]
+    fn a_relationship_that_reads_the_same_is_delivered_once() {
+        // Three edges read "caller.rs - Defined (references, heuristic)" and
+        // differ only in where they occur; a fourth is unresolved and reads
+        // differently. The first of the three, and the fourth, are delivered.
+        let mut query = cross_file_query(true);
+        let template = query.result.edges[0].clone();
+        let at = |index: u8, start_byte: u64, resolved: bool| {
+            let mut edge = template.clone();
+            edge.edge_id = format!("sha256:{index:0>64}");
+            edge.span = context_structural::GraphSpan {
+                start_byte,
+                end_byte: start_byte + 1,
+            };
+            if !resolved {
+                edge.target_node = None;
+                edge.resolution = "unresolved".into();
+            }
+            edge
+        };
+        query.result.edges = vec![
+            at(1, 0, true),
+            at(2, 10, true),
+            at(3, 20, false),
+            at(4, 30, true),
+        ];
+        let budget = ResourceBudget::conservative(4096, 20, 100, 256, 100, 8, 30_000, 1_048_576)
+            .expect("budget");
+        let mut items = query
+            .result
+            .edges
+            .iter()
+            .map(|edge| {
+                disclosure_item(
+                    &query,
+                    &format!("sha256:{:0>64}", "1"),
+                    &format!("sha256:{:0>64}", "2"),
+                    &format!("sha256:{:0>64}", "3"),
+                    "allow",
+                    &budget,
+                    edge,
+                )
+            })
+            .collect::<Result<Vec<_>, _>>()
+            .expect("items");
+        assert!(collapse_repeated_items(&mut items));
+        let kept: Vec<String> = items.iter().map(|item| item.edge_id.clone()).collect();
+        assert_eq!(
+            kept,
+            vec![format!("sha256:{:0>64}", 1), format!("sha256:{:0>64}", 3)]
+        );
+        assert!(
+            !collapse_repeated_items(&mut items),
+            "a map with no repeats is left alone"
+        );
+    }
+
+    #[test]
+    fn a_relationship_into_another_file_names_that_file() {
+        let item = item_for(&cross_file_query(true));
+        // Without this the entry read "caller.rs — Defined" and the file that
+        // declares `Defined` was never mentioned, though the node was resolved
+        // and already held.
+        assert_eq!(item.display_path, "src/caller.rs");
+        assert_eq!(item.symbol_label.as_deref(), Some("Defined"));
+        assert_eq!(item.target_display_path.as_deref(), Some("src/defines.rs"));
+    }
+
+    #[test]
+    fn a_relationship_inside_one_file_names_no_target_file() {
+        let mut query = cross_file_query(true);
+        // Point the target at a node in the same file as the source.
+        query.result.nodes[1].path.display_path = "src/caller.rs".into();
+        let item = item_for(&query);
+        assert_eq!(
+            item.target_display_path, None,
+            "repeating the source path on every entry would be noise"
+        );
+    }
+
+    #[test]
+    fn an_unresolved_relationship_names_no_target_file() {
+        let item = item_for(&cross_file_query(false));
+        assert_eq!(
+            item.target_display_path, None,
+            "an unresolved edge knows no target file to name"
+        );
+    }
+
+    #[test]
+    fn a_whole_repository_map_says_so_rather_than_omitting_its_scope() {
+        let (mut progressive, _source, _cache) = progressive_server();
+        let (built, _) = open_progressive_map(&mut progressive, "session_progressive01");
+        let scope = &built["disclosure_map"]["scope"];
+
+        // Absence would make an unscoped graph and a build that discloses
+        // nothing identical to a consumer, which is the confusion this exists
+        // to remove.
+        assert!(scope.is_object(), "a map must always carry its scope");
+        assert_eq!(scope["scoped_to_nominated_files"], false);
+        assert_eq!(scope["nominated_files"], 0);
+        assert_eq!(scope["considered_files"], 0);
+        assert_eq!(scope["files"].as_array().map(Vec::len), Some(0));
+        assert_eq!(scope["unknowns"][0], "structural_scope_whole_repository");
+        assert_eq!(scope["schema_name"], FILE_NOMINATION_SCHEMA_NAME);
+        assert_eq!(scope["schema_version"], FILE_NOMINATION_SCHEMA_VERSION);
+    }
+
+    #[test]
+    fn a_scoped_map_discloses_every_file_and_the_ground_it_was_admitted_on() {
+        let nomination = FileNomination {
+            schema_name: FILE_NOMINATION_SCHEMA_NAME.into(),
+            schema_version: FILE_NOMINATION_SCHEMA_VERSION.into(),
+            files: vec![
+                context_engine::file_nomination::NominatedFile {
+                    display_path: "src/parser.rs".into(),
+                    reason_code: "exact_task_path".into(),
+                    matched_identifiers: 4,
+                },
+                context_engine::file_nomination::NominatedFile {
+                    display_path: "src/lexer.rs".into(),
+                    reason_code: "task_identifier_declared".into(),
+                    matched_identifiers: 2,
+                },
+            ],
+            considered_files: 91,
+            admitted_identifiers: vec!["parse_expression".into()],
+            unknowns: vec!["nomination_ceiling_reached".into()],
+        };
+
+        let scope = scope_disclosure(Some(&nomination));
+
+        assert_eq!(scope["scoped_to_nominated_files"], true);
+        assert_eq!(scope["nominated_files"], 2);
+        assert_eq!(scope["considered_files"], 91);
+        assert_eq!(scope["unknowns"][0], "nomination_ceiling_reached");
+        // Rank order is the disclosure: a consumer reads it best first.
+        assert_eq!(scope["files"][0]["display_path"], "src/parser.rs");
+        assert_eq!(scope["files"][0]["reason_code"], "exact_task_path");
+        assert_eq!(scope["files"][0]["matched_identifiers"], 4);
+        assert_eq!(scope["files"][1]["display_path"], "src/lexer.rs");
+        assert_eq!(scope["files"][1]["reason_code"], "task_identifier_declared");
+        assert_eq!(scope["files"][1]["matched_identifiers"], 2);
+
+        // The disclosure is emitted, never read back. Nothing here reaches
+        // nomination, seeding, or traversal on a later request.
+        assert_eq!(
+            scope.as_object().map(serde_json::Map::len),
+            Some(7),
+            "the disclosure carries exactly its documented fields"
         );
     }
 
