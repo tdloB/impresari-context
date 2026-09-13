@@ -2273,6 +2273,7 @@ impl LocalEngine {
             None,
             true,
             &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -2337,6 +2338,7 @@ impl LocalEngine {
             None,
             true,
             &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -2560,6 +2562,8 @@ impl LocalEngine {
         let started = Instant::now();
         let decision = self.authorize(context, Capability::ContextBuild, Some(budget))?;
         let budget = admitted_budget(context, Capability::ContextBuild, &decision, self.ids())?;
+        // A search match in a task's file is sent as the declaration holding it.
+        let declarations = DeclarationIndex::from_graph(&structural_request.graph);
         let result = self.build_profiled_context_internal(
             context,
             profile,
@@ -2575,6 +2579,7 @@ impl LocalEngine {
             None,
             recover_structural_evidence,
             &structural_request.nominated_order,
+            Some(&declarations),
         );
         let outcome = result
             .as_ref()
@@ -2698,6 +2703,7 @@ impl LocalEngine {
             None,
             true,
             &[],
+            None,
         );
         let outcome = result
             .as_ref()
@@ -2751,6 +2757,7 @@ impl LocalEngine {
                 None,
                 true,
                 &[],
+                None,
             )
         })();
         let outcome = result
@@ -2801,6 +2808,7 @@ impl LocalEngine {
                 None,
                 true,
                 &[],
+                None,
             )
         })();
         let outcome = result
@@ -2850,6 +2858,7 @@ impl LocalEngine {
                 Some(&conventions),
                 true,
                 &[],
+                None,
             )
         })();
         let outcome = result
@@ -2882,6 +2891,7 @@ impl LocalEngine {
         declared_convention_exemplars: Option<&VerifiedDeclaredConventionExemplars>,
         recover_structural_evidence: bool,
         preferred_scope: &[String],
+        declarations: Option<&DeclarationIndex>,
     ) -> Result<ProfiledContextPacket, EngineError> {
         let snapshot = self
             .snapshot
@@ -2901,12 +2911,22 @@ impl LocalEngine {
             .clone();
         let max_literal_bytes = resource_budget_max_literal_bytes(&budget)
             .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
-        let mut plan = deterministic_plan(
+        // A lexical step searches this index anyway, so rating the task's
+        // words in it costs the build nothing new. Without it, or without a
+        // nominated file, the plan keeps the order the task states its
+        // signals in.
+        let lexical_ready = self
+            .prepare_lexical_index(context, Capability::ContextBuild, &budget)
+            .is_ok();
+        let lexical = self.cache.as_ref().filter(|_| lexical_ready);
+        let nominated = self.nominated_units(preferred_scope);
+        let mut plan = deterministic_plan_with(
             profile,
             query,
             &snapshot,
             policy_decision,
             max_literal_bytes,
+            &|needle| lexical.and_then(|cache| needle_rarity(cache, needle, &nominated)),
         )
         .map_err(|code| core_error(context, Capability::ContextBuild, code, self.ids()))?;
         apply_structural_annotation_to_plan(&mut plan, structural_query, structural_annotation)
@@ -2986,6 +3006,10 @@ impl LocalEngine {
             structural_unknowns,
             Some(&snapshot),
             preferred_scope,
+            EvidenceRanking {
+                demote_supporting_files: !task_is_about_tests(query),
+                declarations,
+            },
         )?;
         let mut omitted_candidates = Vec::new();
         if packet.accounting.omitted_items != "0" {
@@ -3060,6 +3084,7 @@ impl LocalEngine {
             Vec::new(),
             None,
             &[],
+            EvidenceRanking::default(),
         )
     }
 
@@ -3077,6 +3102,7 @@ impl LocalEngine {
         trailing_unknowns: Vec<String>,
         expected_snapshot: Option<&str>,
         preferred_scope: &[String],
+        ranking: EvidenceRanking<'_>,
     ) -> Result<ContextPacket, EngineError> {
         if plan.steps.is_empty() || plan.steps.len() > 8 {
             Err(failure(
@@ -3108,19 +3134,7 @@ impl LocalEngine {
             // nomination order. A literal or lexical step searches them before
             // the whole snapshot, whose path order and match limit otherwise
             // decide which files lead the packet.
-            let preferred_units: Vec<String> =
-                self.snapshot.as_ref().map_or_else(Vec::new, |snapshot| {
-                    preferred_scope
-                        .iter()
-                        .filter_map(|display_path| {
-                            snapshot
-                                .artifacts
-                                .iter()
-                                .find(|artifact| artifact.path.display_path == *display_path)
-                                .map(|artifact| artifact.path.relative_units_base64url.clone())
-                        })
-                        .collect()
-                });
+            let preferred_units = self.nominated_units(preferred_scope);
             let mut preferred = Vec::new();
             let mut remaining = Vec::new();
             let plan_elapsed_limit = budget.max_elapsed_ms_u64().map_err(|error| {
@@ -3208,15 +3222,45 @@ impl LocalEngine {
                 unknowns.extend(search.unknowns);
                 remaining.extend(search.matches);
             }
-            for item in file_first_by_scope(preferred, preferred_scope) {
-                Self::insert_ranked_evidence(
-                    &mut evidence,
-                    &mut evidence_order,
-                    &mut delivered,
-                    item,
-                );
-            }
-            for item in remaining {
+            // Test and vendored files follow the rest. A test names the
+            // functions its subject defines, so it matches the same words and
+            // can take the slot of the file a fix changes.
+            let (scope, remaining) = if ranking.demote_supporting_files {
+                (
+                    supporting_last(preferred_scope.to_vec(), |path| path.as_str()),
+                    supporting_last(remaining, |item| item.artifact.path.display_path.as_str()),
+                )
+            } else {
+                (preferred_scope.to_vec(), remaining)
+            };
+            // The packet keeps this order and drops from the end, so only the
+            // leading records can reach it: cutting stops at the item limit.
+            let mut cuts = budget.max_evidence_items.parse::<usize>().unwrap_or(0);
+            let ceiling = budget
+                .max_excerpt_bytes_per_item
+                .parse::<u64>()
+                .unwrap_or(0);
+            // Within each nominated file, matches sent as a whole declaration
+            // lead the file's matches outside any. The rarest word's first
+            // match is often an import, `__all__` or the module docstring, and
+            // a window there is mostly license header.
+            let (inside, outside): (Vec<_>, Vec<_>) = self
+                .cut_records(preferred, ranking.declarations, ceiling, &mut cuts)
+                .into_iter()
+                .partition(|(_, cut)| *cut);
+            let preferred = inside
+                .into_iter()
+                .chain(outside)
+                .map(|(record, _)| record)
+                .collect();
+            let remaining = self
+                .cut_records(remaining, ranking.declarations, ceiling, &mut cuts)
+                .into_iter()
+                .map(|(record, _)| record);
+            for item in file_first_by_scope(preferred, &scope)
+                .into_iter()
+                .chain(remaining)
+            {
                 Self::insert_ranked_evidence(
                     &mut evidence,
                     &mut evidence_order,
@@ -3312,6 +3356,75 @@ impl LocalEngine {
             evidence_order.push(item.evidence_id.clone());
             evidence.insert(item.evidence_id.clone(), item);
         }
+    }
+
+    /// Send a search match as the smallest function or type holding it, when
+    /// that declaration fits the excerpt ceiling. Any other match keeps the
+    /// window centred on it.
+    ///
+    /// A centred window is blind to structure: it starts and ends mid-line,
+    /// and a match near a file's top is mostly license header and imports.
+    /// A whole declaration is the unit a reader edits, and a small one costs
+    /// the packet a fraction of the window.
+    fn cut_to_declaration(
+        &self,
+        snapshot: &WorkspaceSnapshot,
+        declarations: &DeclarationIndex,
+        record: EvidenceRecord,
+        ceiling: u64,
+    ) -> (EvidenceRecord, bool) {
+        if !matches!(
+            record.extraction.method.as_str(),
+            "literal_search" | "lexical_search"
+        ) {
+            return (record, false);
+        }
+        let (Ok(start), Ok(end)) = (
+            record.span.start_byte.parse::<u64>(),
+            record.span.end_byte.parse::<u64>(),
+        ) else {
+            return (record, false);
+        };
+        let Some((from, to)) = declarations.enclosing(
+            &record.artifact.path.relative_units_base64url,
+            start,
+            end,
+            ceiling,
+        ) else {
+            return (record, false);
+        };
+        match expand_evidence_record(
+            &self.workspace,
+            snapshot,
+            &record,
+            start - from,
+            to - end,
+            to - from,
+        ) {
+            Ok(cut) => (cut, true),
+            Err(_) => (record, false),
+        }
+    }
+
+    /// Cut records to their declarations while `left` lasts, saying which
+    /// were cut. A build without a graph cuts nothing.
+    fn cut_records(
+        &self,
+        records: Vec<EvidenceRecord>,
+        declarations: Option<&DeclarationIndex>,
+        ceiling: u64,
+        left: &mut usize,
+    ) -> Vec<(EvidenceRecord, bool)> {
+        records
+            .into_iter()
+            .map(|record| match (declarations, self.snapshot.as_ref()) {
+                (Some(declarations), Some(snapshot)) if *left > 0 => {
+                    *left -= 1;
+                    self.cut_to_declaration(snapshot, declarations, record, ceiling)
+                }
+                _ => (record, false),
+            })
+            .collect()
     }
 
     fn structural_evidence(
@@ -4389,6 +4502,72 @@ impl LocalEngine {
         })
     }
 
+    /// The snapshot path units of the nominated files, in nomination order.
+    fn nominated_units(&self, preferred_scope: &[String]) -> Vec<String> {
+        self.snapshot.as_ref().map_or_else(Vec::new, |snapshot| {
+            preferred_scope
+                .iter()
+                .filter_map(|display_path| {
+                    snapshot
+                        .artifacts
+                        .iter()
+                        .find(|artifact| artifact.path.display_path == *display_path)
+                        .map(|artifact| artifact.path.relative_units_base64url.clone())
+                })
+                .collect()
+        })
+    }
+
+    /// Make the lexical index describe the current snapshot, building it when
+    /// it is missing or was built for another.
+    fn prepare_lexical_index(
+        &mut self,
+        context: &RequestContext,
+        capability: Capability,
+        budget: &ResourceBudget,
+    ) -> Result<(), EngineError> {
+        let snapshot = self.snapshot.as_ref().ok_or_else(|| {
+            failure(
+                context,
+                capability,
+                PublicErrorCode::StaleState,
+                "workspace snapshot is unavailable",
+                Some(self.workspace.identity()),
+                None,
+                Some(RecoveryAction::RefreshSnapshot),
+            )
+        })?;
+        if self.cache.is_none() {
+            self.cache = Some(
+                WorkspaceCache::open(&self.config.cache_root, self.workspace.identity()).map_err(
+                    |error| cache_error(context, capability, error.code(), Some(self.ids())),
+                )?,
+            );
+        }
+        let current_generation = self
+            .cache
+            .as_ref()
+            .expect("cache initialized")
+            .current()
+            .map_err(|error| cache_error(context, capability, error.code(), Some(self.ids())))?;
+        let generation_is_current = current_generation
+            .as_ref()
+            .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
+        if !generation_is_current {
+            let max_memory = budget
+                .max_memory_bytes_u64()
+                .map_err(|error| core_error(context, capability, error.code(), self.ids()))?;
+            build_lexical_generation_bounded(
+                &self.workspace,
+                snapshot,
+                self.cache.as_mut().expect("cache initialized"),
+                max_memory,
+            )
+            .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
+        }
+        Ok(())
+    }
+
     /// Search the snapshot, or only the files `within` names.
     ///
     /// `within` holds snapshot path units and narrows a literal or lexical
@@ -4406,6 +4585,9 @@ impl LocalEngine {
     ) -> Result<SearchResponse, EngineError> {
         let search_budget = search_budget(budget)
             .map_err(|code| core_error(context, capability, code, self.ids()))?;
+        if kind == QueryKind::Lexical && within.is_empty() {
+            self.prepare_lexical_index(context, capability, budget)?;
+        }
         let snapshot = self.snapshot.as_ref().ok_or_else(|| {
             failure(
                 context,
@@ -4444,48 +4626,13 @@ impl LocalEngine {
             QueryKind::Lexical if !within.is_empty() => {
                 search_lexical_in(&self.workspace, snapshot, within, query, search_budget)
             }
-            QueryKind::Lexical => {
-                if self.cache.is_none() {
-                    self.cache = Some(
-                        WorkspaceCache::open(&self.config.cache_root, self.workspace.identity())
-                            .map_err(|error| {
-                                cache_error(context, capability, error.code(), Some(self.ids()))
-                            })?,
-                    );
-                }
-                let current_generation = self
-                    .cache
-                    .as_ref()
-                    .expect("cache initialized")
-                    .current()
-                    .map_err(|error| {
-                        cache_error(context, capability, error.code(), Some(self.ids()))
-                    })?;
-                let generation_is_current = current_generation
-                    .as_ref()
-                    .is_some_and(|generation| generation.snapshot_id == snapshot.snapshot_id);
-                if !generation_is_current {
-                    let max_memory = budget.max_memory_bytes_u64().map_err(|error| {
-                        core_error(context, capability, error.code(), self.ids())
-                    })?;
-                    build_lexical_generation_bounded(
-                        &self.workspace,
-                        snapshot,
-                        self.cache.as_mut().expect("cache initialized"),
-                        max_memory,
-                    )
-                    .map_err(|error| {
-                        retrieval_error(context, capability, error.code(), self.ids())
-                    })?;
-                }
-                search_lexical(
-                    &self.workspace,
-                    snapshot,
-                    self.cache.as_ref().expect("cache initialized"),
-                    query,
-                    search_budget,
-                )
-            }
+            QueryKind::Lexical => search_lexical(
+                &self.workspace,
+                snapshot,
+                self.cache.as_ref().expect("lexical index prepared"),
+                query,
+                search_budget,
+            ),
         }
         .map_err(|error| retrieval_error(context, capability, error.code(), self.ids()))?;
         let response = SearchResponse {
@@ -4952,6 +5099,7 @@ fn narrow_structural_seed_budget(
     Ok(narrowed)
 }
 
+#[cfg(test)]
 fn deterministic_plan(
     profile: TaskProfile,
     query: &str,
@@ -4959,18 +5107,49 @@ fn deterministic_plan(
     policy_decision: &str,
     max_literal_bytes: u64,
 ) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
+    deterministic_plan_with(
+        profile,
+        query,
+        snapshot_id,
+        policy_decision,
+        max_literal_bytes,
+        &|_| None,
+    )
+}
+
+/// A deterministic plan whose steps search nominated files' rarest words first.
+///
+/// `rarity` answers how many snapshot files hold every word of a needle and
+/// whether a nominated file is among them, or `None` when it cannot say. The
+/// plan identity covers the steps, so it records the order the snapshot's
+/// index chose.
+fn deterministic_plan_with(
+    profile: TaskProfile,
+    query: &str,
+    snapshot_id: &str,
+    policy_decision: &str,
+    max_literal_bytes: u64,
+    rarity: &dyn Fn(&str) -> Option<NeedleRarity>,
+) -> Result<DeterministicContextPlan, context_core::CoreErrorCode> {
     if !valid_task_query(query) {
         return Err(context_core::CoreErrorCode::InvalidInput);
     }
     let (query, _) = bounded_task_query(query);
     let (base_steps, mut omitted_candidates) = profile_base_plan(profile, query);
-    let (steps, original_query_omitted) =
-        expand_profile_steps(query, base_steps, max_literal_bytes);
-    if original_query_omitted {
+    let expanded = expand_profile_steps(query, base_steps, max_literal_bytes, rarity);
+    let steps = expanded.steps;
+    if expanded.original_query_omitted {
         omitted_candidates.push(planner_omission(
             "original_query",
             "original_query_exceeds_retrieval_contract",
         ));
+    }
+    if expanded.wordless_literals > 0 {
+        omitted_candidates.push(PlannerOmission {
+            candidate: "task_signal_literal".into(),
+            reason_code: "literal_without_word".into(),
+            count: expanded.wordless_literals.to_string(),
+        });
     }
     if steps.is_empty() {
         return Err(context_core::CoreErrorCode::InvalidInput);
@@ -5139,14 +5318,53 @@ fn bounded_task_query(query: &str) -> (&str, bool) {
     (&query[..end], true)
 }
 
+/// Task signals of each kind a plan rates by rarity. A long report quotes,
+/// names and says far more than a plan can search, and each rating is one
+/// index query, so the candidates are bounded before any is rated.
+const MAX_RATED_QUOTED_SIGNALS: usize = 16;
+const MAX_RATED_LEXICAL_SIGNALS: usize = 32;
+
+/// Steps a task's signals expand to, and what the expansion left out.
+struct ExpandedSteps {
+    steps: Vec<PlannedContextStep>,
+    original_query_omitted: bool,
+    wordless_literals: usize,
+}
+
+/// How rare a task signal is, and whether it reaches a nominated file.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+struct NeedleRarity {
+    /// Snapshot files holding every word of the needle.
+    files: u64,
+    /// Whether a file the task nominated is among them.
+    in_nominated: bool,
+}
+
+/// Expand a profile's base plan with the task's signals.
+///
+/// Quoted text, code identifiers and plain words that a nominated file holds
+/// take the steps after the whole query, rarest first. A nominated file's
+/// leading excerpt is its match for the earliest step that reaches it, so the
+/// rarest word it holds chooses that excerpt; in signal order it was whatever
+/// the report quoted first, often a license header's `", "` or `'a'`.
+///
+/// Every other signal follows in the order the task states it. Ranked across
+/// the whole snapshot, the rarest words were prose — `suddenly`,
+/// `experimenting` — found in changelogs and issue templates, and they took
+/// the steps that reached the nominated files.
 fn expand_profile_steps(
     query: &str,
     base_steps: Vec<PlannedContextStep>,
     max_literal_bytes: u64,
-) -> (Vec<PlannedContextStep>, bool) {
+    rarity: &dyn Fn(&str) -> Option<NeedleRarity>,
+) -> ExpandedSteps {
     let mut base = base_steps.into_iter();
     let Some(first) = base.next() else {
-        return (Vec::new(), false);
+        return ExpandedSteps {
+            steps: Vec::new(),
+            original_query_omitted: false,
+            wordless_literals: 0,
+        };
     };
     let fallback = base.next();
     let signals = task_signals(query);
@@ -5157,41 +5375,49 @@ fn expand_profile_steps(
         vec![first]
     };
 
-    for quoted in &signals.quoted {
-        push_unique_planned_step(
-            &mut steps,
-            QueryKind::Literal,
-            quoted,
-            "task_signal_quoted_literal",
-            max_literal_bytes,
-        );
-    }
-    for path in &signals.paths {
-        push_unique_planned_step(
-            &mut steps,
+    let quoted = &signals.quoted[..signals.quoted.len().min(MAX_RATED_QUOTED_SIGNALS)];
+    let lexical = &signals.lexical[..signals.lexical.len().min(MAX_RATED_LEXICAL_SIGNALS)];
+    let mut wordless_literals = 0;
+    let mut reaching = Vec::new();
+    let mut rest = Vec::new();
+    for (kind, needles, reason_code) in [
+        (QueryKind::Literal, quoted, "task_signal_quoted_literal"),
+        (
             QueryKind::Filename,
-            path,
+            &signals.paths[..],
             "task_signal_portable_path",
-            max_literal_bytes,
-        );
-    }
-    for identifier in &signals.identifiers {
-        push_unique_planned_step(
-            &mut steps,
+        ),
+        (
             QueryKind::Literal,
-            identifier,
+            &signals.identifiers[..],
             "task_signal_code_identifier",
-            max_literal_bytes,
-        );
+        ),
+        (QueryKind::Lexical, lexical, "task_signal_lexical_fallback"),
+    ] {
+        for needle in needles {
+            if kind == QueryKind::Literal && !literal_has_word(needle) {
+                wordless_literals += 1;
+                continue;
+            }
+            // A path names a file rather than words in one, so it is not rated.
+            match (kind != QueryKind::Filename)
+                .then(|| rarity(needle))
+                .flatten()
+            {
+                Some(rated) if rated.in_nominated => {
+                    reaching.push((rated.files, kind, needle, reason_code));
+                }
+                _ => rest.push((kind, needle, reason_code)),
+            }
+        }
     }
-    for lexical in &signals.lexical {
-        push_unique_planned_step(
-            &mut steps,
-            QueryKind::Lexical,
-            lexical,
-            "task_signal_lexical_fallback",
-            max_literal_bytes,
-        );
+    // Stable, so signals held by as many files keep the task's order.
+    reaching.sort_by_key(|(files, ..)| *files);
+    let reaching = reaching
+        .into_iter()
+        .map(|(_, kind, needle, reason_code)| (kind, needle, reason_code));
+    for (kind, needle, reason_code) in reaching.chain(rest) {
+        push_unique_planned_step(&mut steps, kind, needle, reason_code, max_literal_bytes);
     }
     if (steps.is_empty() || (steps.len() == 1 && !original_query_omitted))
         && let Some(fallback) = fallback
@@ -5205,7 +5431,11 @@ fn expand_profile_steps(
             max_literal_bytes,
         );
     }
-    (steps, original_query_omitted)
+    ExpandedSteps {
+        steps,
+        original_query_omitted,
+        wordless_literals,
+    }
 }
 
 fn full_query_compatible(step: &ContextPlanStep, max_literal_bytes: u64) -> bool {
@@ -5712,6 +5942,108 @@ fn graph_node_portable_path(node: &GraphNode) -> Result<String, context_core::Co
     .map_err(|_| context_core::CoreErrorCode::IntegrityFailure)
 }
 
+/// How a profiled build orders and cuts the evidence its plan found.
+#[derive(Clone, Copy, Debug, Default)]
+struct EvidenceRanking<'a> {
+    /// Test and vendored files follow every other file's evidence. False when
+    /// the task is about tests, or when no task text was planned from.
+    demote_supporting_files: bool,
+    /// Functions and types the task's graph declares. A match inside one is
+    /// sent as that whole declaration when it fits the excerpt ceiling.
+    declarations: Option<&'a DeclarationIndex>,
+}
+
+/// Spans of the functions and types a structural graph declares, by file.
+#[derive(Debug, Default)]
+struct DeclarationIndex {
+    /// Path units to `[start, end)` byte spans.
+    spans: std::collections::BTreeMap<String, Vec<(u64, u64)>>,
+}
+
+impl DeclarationIndex {
+    fn from_graph(graph: &StructuralGraph) -> Self {
+        let mut spans: std::collections::BTreeMap<String, Vec<(u64, u64)>> =
+            std::collections::BTreeMap::new();
+        for node in &graph.nodes {
+            if let Some(span) = &node.span
+                && matches!(node.declaration_kind.as_deref(), Some("function" | "type"))
+                && span.start_byte < span.end_byte
+            {
+                spans
+                    .entry(node.path.relative_units_base64url.clone())
+                    .or_default()
+                    .push((span.start_byte, span.end_byte));
+            }
+        }
+        Self { spans }
+    }
+
+    /// The smallest declaration holding `[start, end)` in at most `max` bytes.
+    fn enclosing(&self, path_units: &str, start: u64, end: u64, max: u64) -> Option<(u64, u64)> {
+        self.spans
+            .get(path_units)?
+            .iter()
+            .copied()
+            .filter(|&(from, to)| from <= start && end <= to && to - from <= max)
+            .min_by_key(|&(from, to)| (to - from, from))
+    }
+}
+
+/// Directories whose files a task seldom changes: tests, and code vendored
+/// from another project.
+const SUPPORTING_DIRECTORIES: [&str; 11] = [
+    "__tests__",
+    "cextern",
+    "extern",
+    "node_modules",
+    "spec",
+    "test",
+    "testing",
+    "tests",
+    "third_party",
+    "vendor",
+    "vendored",
+];
+
+/// Whether a file is a test or a vendored copy.
+///
+/// A display path renders the native path, so on Windows its components are
+/// separated by `\`. Both separators split components; on other platforms a
+/// file name holding a backslash only risks ranking one file later.
+fn is_supporting_file(display_path: &str) -> bool {
+    let mut components = display_path.split(['/', '\\']);
+    let file = components.next_back().unwrap_or_default();
+    let stem = file.split('.').next().unwrap_or_default();
+    components.any(|directory| SUPPORTING_DIRECTORIES.contains(&directory))
+        || stem.starts_with("test_")
+        || stem.ends_with("_test")
+        || stem.ends_with("_tests")
+        || stem == "conftest"
+        || file.contains(".test.")
+        || file.contains(".spec.")
+}
+
+/// Whether the task text asks about tests, so test files keep the place their
+/// evidence earned.
+fn task_is_about_tests(query: &str) -> bool {
+    lexical_task_terms(query).iter().any(|term| {
+        matches!(
+            term.as_str(),
+            "test" | "tests" | "testing" | "pytest" | "unittest"
+        )
+    })
+}
+
+/// Every item outside a test or vendored file, then the rest, each group in
+/// its original order.
+fn supporting_last<T>(items: Vec<T>, path: impl Fn(&T) -> &str) -> Vec<T> {
+    let (mut leading, trailing): (Vec<T>, Vec<T>) = items
+        .into_iter()
+        .partition(|item| !is_supporting_file(path(item)));
+    leading.extend(trailing);
+    leading
+}
+
 /// Order evidence found in nominated files file-first, in nomination order.
 ///
 /// A search returns matches in snapshot path order, so without this the file
@@ -5750,6 +6082,41 @@ fn file_first_by_scope(items: Vec<EvidenceRecord>, scope: &[String]) -> Vec<Evid
     }
     ordered.extend(unplaced);
     ordered
+}
+
+/// How many files in the current lexical index hold every word of `needle`,
+/// and whether a nominated file is among them.
+///
+/// Words are counted whole, so a literal's substring matches can only add
+/// files; the count ranks needles, it does not promise a search's result.
+fn needle_rarity(
+    cache: &WorkspaceCache,
+    needle: &str,
+    nominated: &[String],
+) -> Option<NeedleRarity> {
+    let mut terms = lexical_task_terms(needle);
+    terms.sort_unstable();
+    terms.dedup();
+    // Every file holding all the words holds any sixteen of them.
+    terms.truncate(16);
+    if terms.is_empty() {
+        return None;
+    }
+    let (files, nominated_files) = cache.lexical_document_counts(&terms, nominated).ok()?;
+    Some(NeedleRarity {
+        files,
+        in_nominated: nominated_files > 0,
+    })
+}
+
+/// Whether a literal holds a run of at least three letters or digits.
+///
+/// A quoted `", "`, `'a'` or `":-)"` is text the author marked, but it occurs
+/// in nearly every file and cannot say which one a task is about.
+fn literal_has_word(needle: &str) -> bool {
+    needle
+        .split(|character: char| !character.is_ascii_alphanumeric())
+        .any(|run| run.len() >= 3)
 }
 
 fn lexical_task_terms(query: &str) -> Vec<String> {
@@ -8801,6 +9168,510 @@ mod tests {
     }
 
     #[test]
+    fn task_signals_are_rated_before_the_step_limit_cuts_them() {
+        let snapshot = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+        let policy = "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+        // Ten widespread names precede the one that identifies a file, and
+        // after the whole query eight steps hold seven of them.
+        let common = (0..10)
+            .map(|index| format!("common_name_{index}"))
+            .collect::<Vec<_>>();
+        let query = format!("{} misbehaves near rare_name", common.join(" "));
+        let unrated =
+            deterministic_plan(TaskProfile::BugInvestigation, &query, snapshot, policy, 256)
+                .expect("plan");
+        assert!(
+            unrated
+                .steps
+                .iter()
+                .all(|step| step.step.query != "rare_name"),
+            "signal order spends every step before the rare name"
+        );
+        let rated = deterministic_plan_with(
+            TaskProfile::BugInvestigation,
+            &query,
+            snapshot,
+            policy,
+            256,
+            &|needle| {
+                let files = match needle {
+                    "rare_name" => 1,
+                    "misbehaves" => 0,
+                    _ => 900,
+                };
+                Some(NeedleRarity {
+                    files,
+                    in_nominated: files > 0,
+                })
+            },
+        )
+        .expect("rated plan");
+        assert_eq!(rated.steps[0].step.query, query);
+        assert_eq!(rated.steps[1].step.kind, QueryKind::Literal);
+        assert_eq!(rated.steps[1].step.query, "rare_name");
+        assert_eq!(rated.steps[1].reason_code, "task_signal_code_identifier");
+        assert!(
+            rated
+                .steps
+                .iter()
+                .all(|step| step.step.query != "misbehaves"),
+            "a word no nominated file holds follows every one that does"
+        );
+        assert!(rated.steps.len() <= MAX_PROFILE_STEPS);
+        assert_ne!(
+            rated.plan_id, unrated.plan_id,
+            "the identity records the order"
+        );
+    }
+
+    #[test]
+    fn signals_no_nominated_file_holds_keep_the_tasks_order() {
+        let rated = deterministic_plan_with(
+            TaskProfile::BugInvestigation,
+            "suddenly CompoundModels break separability_matrix",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            256,
+            &|needle| {
+                // Rarer than the name a nominated file holds, but in none of them.
+                Some(match needle {
+                    "separability_matrix" => NeedleRarity {
+                        files: 8,
+                        in_nominated: true,
+                    },
+                    "CompoundModels" | "compoundmodels" => NeedleRarity {
+                        files: 1,
+                        in_nominated: false,
+                    },
+                    "suddenly" => NeedleRarity {
+                        files: 2,
+                        in_nominated: false,
+                    },
+                    _ => NeedleRarity {
+                        files: 400,
+                        in_nominated: false,
+                    },
+                })
+            },
+        )
+        .expect("rated plan");
+        let queries = rated
+            .steps
+            .iter()
+            .map(|step| step.step.query.as_str())
+            .collect::<Vec<_>>();
+        assert_eq!(
+            queries[1..6],
+            [
+                "separability_matrix",
+                "separability_matrix",
+                "CompoundModels",
+                "compoundmodels",
+                "suddenly"
+            ]
+        );
+        assert_eq!(rated.steps[1].step.kind, QueryKind::Literal);
+        assert_eq!(rated.steps[2].step.kind, QueryKind::Lexical);
+    }
+
+    #[test]
+    fn quoted_text_without_a_word_is_disclosed_not_searched() {
+        let plan = deterministic_plan(
+            TaskProfile::BugInvestigation,
+            "rare_name returns ', ' for 'a' but 'Header' works",
+            "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            256,
+        )
+        .expect("plan");
+        assert!(
+            plan.steps
+                .iter()
+                .all(|step| step.step.query != ", " && step.step.query != "a")
+        );
+        assert!(plan.steps.iter().any(|step| {
+            step.step.query == "Header" && step.reason_code == "task_signal_quoted_literal"
+        }));
+        assert!(plan.omitted_candidates.iter().any(|omission| {
+            omission.candidate == "task_signal_literal"
+                && omission.reason_code == "literal_without_word"
+                && omission.count == "2"
+        }));
+    }
+
+    #[test]
+    fn the_rarest_word_a_nominated_file_holds_leads_its_excerpt() {
+        let source = TestRoot::new("rarity-source");
+        let cache = TestRoot::new("rarity-cache");
+        // Every file holds `shared_word`; only `z_rare.rs` holds `rare_word`.
+        for name in ["a_one.rs", "b_two.rs", "c_three.rs"] {
+            fs::write(source.0.join(name), b"pub fn shared_word() {}\n").expect("common");
+        }
+        fs::write(
+            source.0.join("z_rare.rs"),
+            b"pub fn shared_word() {}\npub fn rare_word() {}\n",
+        )
+        .expect("rare");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1_024, 1_024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let context = request(3, "bug_investigation");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        // `a_one.rs` was nominated first, so it leads; `z_rare.rs` follows
+        // with its match for the earliest step that reaches it.
+        let scope = ["a_one.rs".to_owned(), "z_rare.rs".to_owned()];
+        let profiled = engine
+            .build_profiled_context_internal(
+                &context,
+                TaskProfile::BugInvestigation,
+                "shared_word misbehaves beside rare_word",
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                None,
+                None,
+                None,
+                None,
+                None,
+                None,
+                true,
+                &scope,
+                None,
+            )
+            .expect("profiled packet");
+        assert_eq!(profiled.plan.steps[1].step.query, "rare_word");
+        let second = &profiled.packet.observed_evidence[1];
+        assert_eq!(second.artifact.path.display_path, "z_rare.rs");
+        assert_eq!(
+            second.span.start_byte, "31",
+            "the rarest word it holds, not the first one the task names"
+        );
+        validate_packet(&profiled.packet).expect("valid packet");
+    }
+
+    #[test]
+    fn the_smallest_fitting_declaration_holds_a_match() {
+        let index = DeclarationIndex {
+            spans: [(
+                "bW9kdWxl".to_owned(),
+                vec![(0, 400), (100, 180), (120, 150), (500, 900)],
+            )]
+            .into_iter()
+            .collect(),
+        };
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 125, 130, 4096),
+            Some((120, 150))
+        );
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 110, 160, 4096),
+            Some((100, 180)),
+            "a match crossing a nested declaration's edge takes the next that holds it"
+        );
+        assert_eq!(
+            index.enclosing("bW9kdWxl", 600, 610, 300),
+            None,
+            "a declaration over the ceiling keeps the window"
+        );
+        assert_eq!(index.enclosing("bW9kdWxl", 450, 460, 4096), None);
+        assert_eq!(index.enclosing("b3RoZXI", 125, 130, 4096), None);
+    }
+
+    #[test]
+    fn a_match_is_sent_as_the_declaration_holding_it() {
+        let source = TestRoot::new("declaration-cut-source");
+        let cache = TestRoot::new("declaration-cut-cache");
+        let header = "# license header line\n".repeat(20);
+        let function = "def rare_helper():\n    return compute_rare_word()\n";
+        let text = format!(
+            "{header}{function}{}",
+            "# trailing comment line\n".repeat(20)
+        );
+        fs::write(source.0.join("module.py"), &text).expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let units = engine.snapshot.as_ref().expect("snapshot").artifacts[0]
+            .path
+            .relative_units_base64url
+            .clone();
+        let from = u64::try_from(header.len()).expect("offset");
+        let to = from + u64::try_from(function.len()).expect("length");
+        let declarations = DeclarationIndex {
+            spans: [(units, vec![(from, to)])].into_iter().collect(),
+        };
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "compute_rare_word".into(),
+            }],
+        };
+        let scope = ["module.py".to_owned()];
+        let mut build = |ordinal: u64, ranking: EvidenceRanking<'_>| {
+            let context = request(ordinal, "declaration_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    &scope,
+                    ranking,
+                )
+                .expect("packet")
+        };
+        let excerpt = |packet: &ContextPacket| {
+            URL_SAFE_NO_PAD
+                .decode(&packet.observed_evidence[0].excerpt.bytes_base64url)
+                .expect("excerpt")
+        };
+        let window = build(3, EvidenceRanking::default());
+        let cut = build(
+            4,
+            EvidenceRanking {
+                declarations: Some(&declarations),
+                ..EvidenceRanking::default()
+            },
+        );
+        assert_eq!(excerpt(&cut), function.as_bytes());
+        assert_ne!(
+            excerpt(&window),
+            function.as_bytes(),
+            "a centred window starts inside the header"
+        );
+        assert_eq!(
+            cut.observed_evidence[0].evidence_id, window.observed_evidence[0].evidence_id,
+            "the same match, cut to its declaration"
+        );
+        validate_packet(&cut).expect("valid cut packet");
+    }
+
+    #[test]
+    fn within_a_file_a_whole_declaration_leads_its_other_matches() {
+        let source = TestRoot::new("declaration-first-source");
+        let cache = TestRoot::new("declaration-first-cache");
+        // The word is first matched in the module docstring, outside any
+        // declaration, and then inside the function that uses it.
+        let header = "# license header line\n".repeat(20);
+        let docstring = "\"\"\"Helpers built on compute_rare_word.\"\"\"\n";
+        let function = "def rare_helper():\n    return compute_rare_word()\n";
+        fs::write(
+            source.0.join("module.py"),
+            format!("{header}{docstring}{function}"),
+        )
+        .expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1 << 20, 1 << 16, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let units = engine.snapshot.as_ref().expect("snapshot").artifacts[0]
+            .path
+            .relative_units_base64url
+            .clone();
+        let from = u64::try_from(header.len() + docstring.len()).expect("offset");
+        let to = from + u64::try_from(function.len()).expect("length");
+        let declarations = DeclarationIndex {
+            spans: [(units, vec![(from, to)])].into_iter().collect(),
+        };
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "compute_rare_word".into(),
+            }],
+        };
+        let context = request(3, "declaration_first_review");
+        let decision = engine
+            .authorize(&context, Capability::ContextBuild, Some(budget()))
+            .expect("authorized");
+        let admitted = admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+            .expect("admitted budget");
+        let packet = engine
+            .build_planned_context_with_supplemental_internal(
+                &context,
+                &plan,
+                admitted,
+                &decision.decision_id,
+                Instant::now(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                Vec::new(),
+                None,
+                &["module.py".to_owned()],
+                EvidenceRanking {
+                    declarations: Some(&declarations),
+                    ..EvidenceRanking::default()
+                },
+            )
+            .expect("packet");
+        let first = URL_SAFE_NO_PAD
+            .decode(&packet.observed_evidence[0].excerpt.bytes_base64url)
+            .expect("excerpt");
+        assert_eq!(first, function.as_bytes());
+        assert_eq!(
+            packet.observed_evidence.len(),
+            2,
+            "the docstring match follows; it is not dropped"
+        );
+        validate_packet(&packet).expect("valid packet");
+    }
+
+    #[test]
+    fn supporting_files_are_tests_and_vendored_copies() {
+        for path in [
+            "astropy/io/fits/tests/test_header.py",
+            "astropy/extern/bundled/six.py",
+            "cextern/wcslib/configure",
+            "conftest.py",
+            "src/header_test.go",
+            "web/app.spec.ts",
+            // A Windows display path separates components with backslashes.
+            "astropy\\io\\fits\\tests\\header.py",
+            "cextern\\wcslib\\configure",
+        ] {
+            assert!(is_supporting_file(path), "{path}");
+        }
+        for path in [
+            "astropy/io/fits/header.py",
+            "astropy/testing_utils.py",
+            "contest.py",
+            "astropy\\io\\fits\\header.py",
+        ] {
+            assert!(!is_supporting_file(path), "{path}");
+        }
+        assert!(task_is_about_tests("the test for alpha fails"));
+        assert!(!task_is_about_tests("alpha returns the wrong value"));
+    }
+
+    #[test]
+    fn test_files_follow_the_files_a_task_changes() {
+        let source = TestRoot::new("supporting-source");
+        let cache = TestRoot::new("supporting-cache");
+        fs::create_dir_all(source.0.join("tests")).expect("tests directory");
+        fs::write(
+            source.0.join("tests/test_alpha.rs"),
+            b"fn test_alpha() { alpha(); }\n",
+        )
+        .expect("test");
+        fs::write(source.0.join("alpha.rs"), b"pub fn alpha() {}\n").expect("source");
+        let config = EngineConfig {
+            cache_root: cache.0.clone(),
+            discovery: DiscoveryPolicy::new(10, 1024, 1024, 8).expect("discovery"),
+            audit_retention: AuditRetention::new("2026-08-01T00:00:00Z", 20, 1_048_576)
+                .expect("retention"),
+        };
+        let (mut engine, _) =
+            LocalEngine::open(config, &request(1, "open"), &source.0).expect("open");
+        engine
+            .build_snapshot(&request(2, "snapshot"), budget())
+            .expect("snapshot");
+        let plan = ContextPlan {
+            steps: vec![ContextPlanStep {
+                kind: QueryKind::Literal,
+                query: "alpha".into(),
+            }],
+        };
+        // The test was nominated first, as a test naming its subject often is.
+        // Its display path renders the native path, so it is read back from
+        // the snapshot rather than spelled with one platform's separator.
+        let test_path = engine
+            .snapshot
+            .as_ref()
+            .expect("snapshot")
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.display_path.clone())
+            .find(|path| path.ends_with("test_alpha.rs"))
+            .expect("test file in the snapshot");
+        let scope = [test_path.clone(), "alpha.rs".to_owned()];
+        let mut build = |ordinal: u64, ranking: EvidenceRanking| {
+            let context = request(ordinal, "supporting_review");
+            let decision = engine
+                .authorize(&context, Capability::ContextBuild, Some(budget()))
+                .expect("authorized");
+            let admitted =
+                admitted_budget(&context, Capability::ContextBuild, &decision, engine.ids())
+                    .expect("admitted budget");
+            engine
+                .build_planned_context_with_supplemental_internal(
+                    &context,
+                    &plan,
+                    admitted,
+                    &decision.decision_id,
+                    Instant::now(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    Vec::new(),
+                    None,
+                    &scope,
+                    ranking,
+                )
+                .expect("packet")
+        };
+        let about_tests = build(3, EvidenceRanking::default());
+        let about_code = build(
+            4,
+            EvidenceRanking {
+                demote_supporting_files: true,
+                ..EvidenceRanking::default()
+            },
+        );
+        assert_eq!(
+            about_tests.observed_evidence[0].artifact.path.display_path,
+            test_path
+        );
+        assert_eq!(
+            about_code.observed_evidence[0].artifact.path.display_path,
+            "alpha.rs"
+        );
+        assert_eq!(
+            about_code.observed_evidence.len(),
+            about_tests.observed_evidence.len(),
+            "a test file's evidence follows; none is dropped"
+        );
+    }
+
+    #[test]
     fn exact_and_descriptive_tasks_recover_the_same_explicit_anchor() {
         let source = TestRoot::new("task-signal-source");
         let cache = TestRoot::new("task-signal-cache");
@@ -9618,6 +10489,7 @@ mod tests {
                     Vec::new(),
                     None,
                     scope,
+                    EvidenceRanking::default(),
                 )
                 .expect("packet")
         };
@@ -9692,6 +10564,7 @@ mod tests {
                 Vec::new(),
                 None,
                 &["z_nominated.rs".to_owned(), "a_many.rs".to_owned()],
+                EvidenceRanking::default(),
             )
             .expect("packet");
         assert_eq!(
