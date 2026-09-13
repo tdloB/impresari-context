@@ -12,6 +12,7 @@ use std::{
 
 pub mod cache_prefix;
 pub mod file_nomination;
+pub mod host_hooks;
 pub mod identifier_index;
 pub mod read_substitution;
 
