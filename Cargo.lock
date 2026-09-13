@@ -389,6 +389,7 @@ dependencies = [
  "context-store",
  "context-structural",
  "context-workspace",
+ "jsonschema",
  "serde",
  "serde_json",
 ]

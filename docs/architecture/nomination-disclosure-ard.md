@@ -65,6 +65,15 @@ consumer, which is the confusion this record exists to remove. The unscoped case
 therefore emits the field with `scoped_to_nominated_files: false`, an empty file
 list, and `structural_scope_whole_repository`.
 
+## Published schema
+
+The published map schema declares `scope` with exactly its seven fields, the
+nomination's schema name and version, and the four reason codes the nomination
+assigns. A product test validates emitted maps against that schema
+([ADR-0161](../decisions/0161-declare-the-nomination-and-target-file-in-the-published-map-schema.md)),
+so a reason code or nomination version added later fails that test until the
+schema declares it.
+
 ## Cost
 
 One serialization of a value already in memory, bounded by

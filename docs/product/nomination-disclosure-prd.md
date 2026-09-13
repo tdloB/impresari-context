@@ -63,6 +63,9 @@ so the two cases are never confused by absence.
 - A test proves the disclosure reflects the nomination actually used, and fails
   if the map is emitted without it.
 - The disclosure adds no read, no capability, and no consumer-supplied input.
+- The published map schema declares the disclosure, and a product test
+  validates emitted maps against it
+  ([ADR-0161](../decisions/0161-declare-the-nomination-and-target-file-in-the-published-map-schema.md)).
 - The full repository gate passes, including adversarial and fuzz suites.
 
 ## Non-Goals

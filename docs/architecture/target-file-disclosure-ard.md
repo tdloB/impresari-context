@@ -59,6 +59,14 @@ A disclosed target path is admitted only when the frozen source allowlist
 already admits it, the same rule the entry's own path obeys. The evaluator
 froze what an arm may see, and the product's answer does not widen it.
 
+## Published schema
+
+The published map schema declares `target_display_path` as an optional,
+non-empty path, and a product test validates emitted maps against that schema
+([ADR-0161](../decisions/0161-declare-the-nomination-and-target-file-in-the-published-map-schema.md)).
+A consumer that validates refuses any field the schema omits, so the field and
+the schema change together.
+
 ## Measured supply
 
 Across the twenty-two-task corpus, entries hold **23 distinct files** that no

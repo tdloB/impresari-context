@@ -12,6 +12,7 @@
     "workspace_snapshot": {"$ref": "common.schema.json#/$defs/sha256"},
     "graph_id": {"$ref": "common.schema.json#/$defs/sha256"},
     "state": {"enum": ["ready", "partial"]},
+    "scope": {"$ref": "#/$defs/scope"},
     "items": {
       "type": "array",
       "maxItems": 256,
@@ -27,11 +28,36 @@
       "properties": {
         "item_handle": {"$ref": "common.schema.json#/$defs/sha256"},
         "display_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "target_display_path": {"type": "string", "minLength": 1, "maxLength": 4096},
         "relationship_class": {"enum": ["declares", "contains", "imports", "exports", "calls", "references"]},
         "symbol_label": {"type": "string", "minLength": 1, "maxLength": 128},
         "confidence": {"enum": ["confirmed", "heuristic", "unresolved", "unsupported"]},
         "freshness": {"const": "current_snapshot"},
         "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+      }
+    },
+    "scope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_name", "schema_version", "scoped_to_nominated_files", "nominated_files", "considered_files", "files", "unknowns"],
+      "properties": {
+        "schema_name": {"const": "impresari_context_file_nomination"},
+        "schema_version": {"const": "1.1"},
+        "scoped_to_nominated_files": {"type": "boolean"},
+        "nominated_files": {"type": "integer", "minimum": 0, "maximum": 16},
+        "considered_files": {"type": "integer", "minimum": 0},
+        "files": {"type": "array", "maxItems": 16, "items": {"$ref": "#/$defs/nominatedFile"}},
+        "unknowns": {"$ref": "common.schema.json#/$defs/stringList"}
+      }
+    },
+    "nominatedFile": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["display_path", "reason_code", "matched_identifiers"],
+      "properties": {
+        "display_path": {"type": "string", "minLength": 1, "maxLength": 4096},
+        "reason_code": {"enum": ["exact_task_path", "task_module_path", "task_identifier_declared", "task_identifier_match"]},
+        "matched_identifiers": {"type": "integer", "minimum": 0}
       }
     }
   }

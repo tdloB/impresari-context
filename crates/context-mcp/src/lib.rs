@@ -2994,6 +2994,67 @@ mod tests {
     }
 
     #[test]
+    fn every_map_the_product_emits_satisfies_its_published_schema() {
+        // A field the map gains without the schema is otherwise first found by
+        // a consumer that refuses unknown fields, as the evaluation harness did
+        // with the scope and the target file.
+        let schemas = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../schemas/v1");
+        let read = |name: &str| -> Value {
+            serde_json::from_slice(&std::fs::read(schemas.join(name)).expect("schema bytes"))
+                .expect("schema JSON")
+        };
+        let common = read("common.schema.json");
+        let registry = jsonschema::Registry::new()
+            .add(
+                common["$id"].as_str().expect("common schema id"),
+                common.clone(),
+            )
+            .expect("register the common schema")
+            .prepare()
+            .expect("prepare the schema registry");
+        let validator = jsonschema::draft202012::options()
+            .with_registry(&registry)
+            .build(&read("progressive-disclosure-map.schema.json"))
+            .expect("the map schema compiles");
+        let violations = |map: &Value| {
+            validator
+                .iter_errors(map)
+                .map(|error| error.to_string())
+                .collect::<Vec<_>>()
+        };
+
+        let (mut progressive, _source, _cache) = progressive_server();
+        let (built, _) = open_progressive_map(&mut progressive, "session_progressive01");
+        let mut map = built["disclosure_map"].clone();
+        assert_eq!(
+            violations(&map),
+            Vec::<String>::new(),
+            "a whole-repository map"
+        );
+
+        let nomination = FileNomination {
+            schema_name: FILE_NOMINATION_SCHEMA_NAME.into(),
+            schema_version: FILE_NOMINATION_SCHEMA_VERSION.into(),
+            files: vec![context_engine::file_nomination::NominatedFile {
+                display_path: "src/caller.rs".into(),
+                reason_code: "task_identifier_declared".into(),
+                matched_identifiers: 1,
+            }],
+            considered_files: 2,
+            admitted_identifiers: vec!["call_site".into()],
+            unknowns: Vec::new(),
+        };
+        map["scope"] = scope_disclosure(Some(&nomination));
+        map["items"] = json!([item_for(&cross_file_query(true))]);
+        assert!(map["items"][0]["target_display_path"].is_string());
+        assert_eq!(
+            violations(&map),
+            Vec::<String>::new(),
+            "a scoped map with an item naming the file it points into"
+        );
+    }
+
+    #[test]
     fn progressive_expansion_rejects_source_mutation_without_evidence() {
         let (mut progressive, source, _cache) = progressive_server();
         let (_, evidence_handle) = open_progressive_map(&mut progressive, "session_progressive01");
