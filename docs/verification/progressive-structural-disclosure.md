@@ -24,7 +24,9 @@ and checks:
 
 1. byte-equal advertised tool definitions across all delivery modes;
 2. a smaller initial progressive tool result than the eager tool result;
-3. exact preservation of every ordinary initial evidence anchor;
+3. preservation of every ordinary initial evidence anchor: the same identities,
+   files, spans, methods and order, with any differing excerpt exact source that
+   holds its match and is no larger than the ordinary one (ADR-0155);
 4. byte-identical evidence across fresh and warm-cache eager arms;
 5. deterministic disclosure maps and map-receipt identities across equal fresh
    progressive runs;
