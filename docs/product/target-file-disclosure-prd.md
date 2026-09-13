@@ -58,6 +58,9 @@ consumer can follow the entry to where the symbol actually lives.
 - A test proves a cross-file relationship names the target file, and fails
   without the change.
 - A test proves a same-file relationship and an unresolved one name none.
+- The published map schema declares the field, and a product test validates
+  emitted maps against it
+  ([ADR-0161](../decisions/0161-declare-the-nomination-and-target-file-in-the-published-map-schema.md)).
 - The full repository gate passes, including adversarial and fuzz suites.
 
 ## Non-Goals

@@ -1,0 +1,22 @@
+{
+  "schema_name": "progressive-disclosure-map",
+  "schema_version": "1.0.0",
+  "map_id": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "workspace_snapshot": "sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+  "graph_id": "sha256:cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+  "state": "partial",
+  "scope": {
+    "schema_name": "impresari_context_file_nomination",
+    "schema_version": "1.1",
+    "scoped_to_nominated_files": true,
+    "nominated_files": 1,
+    "considered_files": 91,
+    "files": [
+      {"display_path": "src/parser.rs", "reason_code": "exact_task_path", "matched_identifiers": 4}
+    ],
+    "admitted_identifiers": ["parse_expression"],
+    "unknowns": []
+  },
+  "items": [],
+  "omissions": []
+}
