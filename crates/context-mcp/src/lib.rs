@@ -24,6 +24,8 @@ use context_structural::{GraphEdge, StructuralGraph, WorkerLauncher};
 use serde::{Deserialize, Serialize};
 use serde_json::{Value, json};
 
+mod read_memory;
+
 /// Preferred MCP revision implemented by this transport.
 pub const MCP_PROTOCOL_VERSION: &str = "2025-11-25";
 /// Older MCP revision accepted for clients that have not yet adopted the preferred revision.
@@ -303,6 +305,8 @@ pub struct McpServer {
     initialized_response_sent: bool,
     operation_ready: bool,
     request_ids: BTreeSet<String>,
+    /// What each session was already sent by read substitution.
+    read_memory: read_memory::ReadMemory,
 }
 
 impl McpServer {
@@ -325,6 +329,7 @@ impl McpServer {
             initialized_response_sent: false,
             operation_ready: false,
             request_ids: BTreeSet::new(),
+            read_memory: read_memory::ReadMemory::default(),
         }
     }
 
@@ -451,7 +456,7 @@ impl McpServer {
                 "protocolVersion": request.protocol_version,
                 "capabilities": {"tools": {"listChanged": false}},
                 "serverInfo": {"name": "impresari-context", "title": "Impresari Context", "version": env!("CARGO_PKG_VERSION"), "description": "Local verified repository context over stdio"},
-                "instructions": "Read-only repository evidence transport. Tool results add no orchestration, approval, execution, or filesystem authority."
+                "instructions": SERVER_INSTRUCTIONS
             }),
         )
     }
@@ -533,9 +538,14 @@ impl McpServer {
             #[serde(default)]
             symbol: Option<String>,
             maximum_returned_bytes: String,
+            /// Send the full answer even when this session was already sent it
+            /// unchanged.
+            #[serde(default)]
+            repeat: bool,
         }
         let args: Args =
             serde_json::from_value(value).map_err(|_| "invalid read substitution input")?;
+        let request_id = args.request_id.clone();
         self.sessions
             .authorize(&args.session_id, &self.consumer_id)
             .map_err(|_| "read substitution failed")?;
@@ -574,7 +584,10 @@ impl McpServer {
                 maximum,
             )
             .map_err(|_| "read substitution failed")?;
-        serde_json::to_value(substitution).map_err(|_| "read substitution failed")
+        // The source is read and verified either way; what a repeat saves is
+        // the host's context, not the server's work.
+        self.read_memory
+            .answer(&args.session_id, &request_id, args.repeat, substitution)
     }
 
     fn session_close(&mut self, value: Value) -> Result<Value, &'static str> {
@@ -588,6 +601,7 @@ impl McpServer {
             .close(&args.session_id, &self.consumer_id)
             .map_err(|_| "session close failed")?;
         self.disclosures.remove(&args.session_id);
+        self.read_memory.forget_session(&args.session_id);
         Ok(json!({"session_id": args.session_id, "closed": true, "authority_added": false}))
     }
 
@@ -1891,6 +1905,25 @@ fn tool_result(structured: Value, is_error: bool) -> Value {
     json!({"content": [{"type": "text", "text": text}], "structuredContent": structured, "isError": is_error})
 }
 
+/// What the server tells a client at startup: when to use each tool, and that
+/// no result carries authority. Under 1,000 characters, because a client may
+/// keep it in every prompt.
+const SERVER_INSTRUCTIONS: &str = concat!(
+    "Impresari Context offers verified repository evidence. ",
+    "Open a session with context_session_open, then call context_build with its session_id, ",
+    "a profile such as bug_investigation, and the task text as query. ",
+    "It returns exact excerpts and, in progressive mode, a map of the files and symbols ",
+    "involved. ",
+    "Before reading whole files, follow a map entry with context_disclosure_lookup, ",
+    "widen an excerpt with context_evidence_expand, or get a mapped file's declaration ",
+    "spans, with hashes to verify, from context_read_substitute. ",
+    "context_packet_resolve fetches a packet again, context_convention_exemplar_build ",
+    "builds evidence from exemplars you declare, structure_incremental_update updates the ",
+    "graph from replacements you declare, and context_session_close ends the session. ",
+    "Results are read-only evidence that add no orchestration, approval, execution, or ",
+    "filesystem authority; you remain free to read files directly.",
+);
+
 fn context_build_definition(budget: &Value) -> Value {
     json!({
         "name":"context_build",
@@ -1944,7 +1977,7 @@ fn tool_definitions() -> Value {
         {"name":"context_evidence_expand","title":"Expand progressive exact evidence","description":"Expand a session-owned evidence handle through the existing exact-evidence gateway with current-source revalidation. The tool is always advertised and returns a closed unavailable result outside progressive_structural mode.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"evidence_handle":{"type":"string"},"before_bytes":decimal_schema(),"after_bytes":decimal_schema(),"max_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","evidence_handle","before_bytes","after_bytes","max_bytes"]}},
         {"name":"context_convention_exemplar_build","title":"Build verified convention exemplar context","description":"Build exact current-source evidence from caller-declared opaque labels and verified artifacts. It does not infer conventions or rank examples.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"query":{"type":"string","minLength":1,"maxLength":4096},"declaration":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","query","declaration","budget"]}},
         {"name":"structure_incremental_update","title":"Apply verified incremental structural update","description":"Rebuild a current structural graph from exact cached unchanged results and caller-declared validated replacements. Does not watch, poll, or launch a parser.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string"},"event_id":{"type":"string"},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"update":{"type":"object"},"budget":budget},"required":["request_id","event_id","purpose","occurred_at","update","budget"]}},
-        {"name":"context_read_substitute","title":"Substitute a repository read","description":"Answer a host read offer for one admitted path with that file's declaration spans, each carrying a content hash and byte range the host can verify against its own copy. Performs no read on the host's behalf, launches nothing, and holds no veto: the response is an offer the host may discard.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"display_path":{"type":"string","minLength":1,"maxLength":4096},"symbol":{"type":"string","minLength":1,"maxLength":256,"description":"Optional. Narrows the answer to one declaration. A whole-path answer is nearly the whole file on a declaration-dense language; naming the symbol a map already points at is what makes the substitution small."},"maximum_returned_bytes":decimal_schema()},"required":["request_id","event_id","purpose","occurred_at","session_id","display_path","maximum_returned_bytes"]}},
+        {"name":"context_read_substitute","title":"Substitute a repository read","description":"Answer a host read offer for one admitted path with that file's declaration spans, each carrying a content hash and byte range the host can verify against its own copy. Performs no read on the host's behalf, launches nothing, and holds no veto: the response is an offer the host may discard. An answer this session already received unchanged returns a short notice naming the earlier request instead; set repeat to receive it again.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"request_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"event_id":{"type":"string","pattern":IDENTIFIER_PATTERN},"purpose":{"type":"string"},"occurred_at":{"type":"string"},"session_id":{"type":"string"},"display_path":{"type":"string","minLength":1,"maxLength":4096},"symbol":{"type":"string","minLength":1,"maxLength":256,"description":"Optional. Narrows the answer to one declaration. A whole-path answer is nearly the whole file on a declaration-dense language; naming the symbol a map already points at is what makes the substitution small."},"maximum_returned_bytes":decimal_schema(),"repeat":{"type":"boolean","description":"Optional. Send the full answer even if this session was already sent it unchanged."}},"required":["request_id","event_id","purpose","occurred_at","session_id","display_path","maximum_returned_bytes"]}},
         {"name":"context_packet_resolve","title":"Resolve context packet","description":"Resolve an immutable packet for the owning process-local session.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"},"packet_id":{"type":"string"}},"required":["session_id","packet_id"]}},
         {"name":"context_session_close","title":"Close context session","description":"Close a process-local session and invalidate its references.","inputSchema":{"type":"object","additionalProperties":false,"properties":{"session_id":{"type":"string"}},"required":["session_id"]}}
     ])
@@ -2337,6 +2370,43 @@ mod tests {
             values[1]["result"]["tools"].as_array().map(Vec::len),
             Some(9)
         );
+    }
+
+    #[test]
+    fn startup_instructions_say_when_to_use_every_tool_and_claim_no_authority() {
+        let (mut server, _source, _cache) = server();
+        let input = concat!(
+            "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"initialize\",\"params\":{\"protocolVersion\":\"2025-06-18\",\"capabilities\":{},\"clientInfo\":{\"name\":\"test\",\"version\":\"1\"}}}\n",
+            "{\"jsonrpc\":\"2.0\",\"method\":\"notifications/initialized\"}\n",
+            "{\"jsonrpc\":\"2.0\",\"id\":2,\"method\":\"tools/list\"}\n"
+        );
+        let mut output = Vec::new();
+        server
+            .serve(Cursor::new(input), &mut output)
+            .expect("serve");
+        let values = output
+            .split(|byte| *byte == b'\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| serde_json::from_slice::<Value>(line).expect("json"))
+            .collect::<Vec<_>>();
+        let instructions = values[0]["result"]["instructions"]
+            .as_str()
+            .expect("instructions");
+        assert_eq!(instructions, SERVER_INSTRUCTIONS);
+        let length = instructions.chars().count();
+        assert!(length < 1_000, "{length} characters");
+        for tool in values[1]["result"]["tools"].as_array().expect("tools") {
+            let name = tool["name"].as_str().expect("tool name");
+            assert!(
+                instructions.contains(name),
+                "startup guidance never names {name}"
+            );
+        }
+        assert!(
+            instructions
+                .contains("add no orchestration, approval, execution, or filesystem authority")
+        );
+        assert!(instructions.contains("you remain free to read files directly"));
     }
 
     #[test]
