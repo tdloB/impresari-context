@@ -6006,8 +6006,12 @@ const SUPPORTING_DIRECTORIES: [&str; 11] = [
 ];
 
 /// Whether a file is a test or a vendored copy.
+///
+/// A display path renders the native path, so on Windows its components are
+/// separated by `\`. Both separators split components; on other platforms a
+/// file name holding a backslash only risks ranking one file later.
 fn is_supporting_file(display_path: &str) -> bool {
-    let mut components = display_path.split('/');
+    let mut components = display_path.split(['/', '\\']);
     let file = components.next_back().unwrap_or_default();
     let stem = file.split('.').next().unwrap_or_default();
     components.any(|directory| SUPPORTING_DIRECTORIES.contains(&directory))
@@ -9560,6 +9564,9 @@ mod tests {
             "conftest.py",
             "src/header_test.go",
             "web/app.spec.ts",
+            // A Windows display path separates components with backslashes.
+            "astropy\\io\\fits\\tests\\header.py",
+            "cextern\\wcslib\\configure",
         ] {
             assert!(is_supporting_file(path), "{path}");
         }
@@ -9567,6 +9574,7 @@ mod tests {
             "astropy/io/fits/header.py",
             "astropy/testing_utils.py",
             "contest.py",
+            "astropy\\io\\fits\\header.py",
         ] {
             assert!(!is_supporting_file(path), "{path}");
         }
@@ -9603,7 +9611,18 @@ mod tests {
             }],
         };
         // The test was nominated first, as a test naming its subject often is.
-        let scope = ["tests/test_alpha.rs".to_owned(), "alpha.rs".to_owned()];
+        // Its display path renders the native path, so it is read back from
+        // the snapshot rather than spelled with one platform's separator.
+        let test_path = engine
+            .snapshot
+            .as_ref()
+            .expect("snapshot")
+            .artifacts
+            .iter()
+            .map(|artifact| artifact.path.display_path.clone())
+            .find(|path| path.ends_with("test_alpha.rs"))
+            .expect("test file in the snapshot");
+        let scope = [test_path.clone(), "alpha.rs".to_owned()];
         let mut build = |ordinal: u64, ranking: EvidenceRanking| {
             let context = request(ordinal, "supporting_review");
             let decision = engine
@@ -9639,7 +9658,7 @@ mod tests {
         );
         assert_eq!(
             about_tests.observed_evidence[0].artifact.path.display_path,
-            "tests/test_alpha.rs"
+            test_path
         );
         assert_eq!(
             about_code.observed_evidence[0].artifact.path.display_path,
