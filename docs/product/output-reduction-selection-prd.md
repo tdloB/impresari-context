@@ -2,14 +2,16 @@
 
 ## Document Control
 
-- PRD ID/version: IC-ORS-160 / 1.0.
+- PRD ID/version: IC-ORS-160 / 1.1.
 - Status: Accepted for implementation.
-- Date: 2026-09-13.
+- Date: 2026-09-14. Version 1.0 was dated 2026-09-13.
 - Product owner: Aaron Boldt.
 - Governing architecture:
   [Output Reduction Selection ARD](../architecture/output-reduction-selection-ard.md).
-- Governing decision:
-  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md).
+- Governing decisions:
+  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md),
+  and for terminal escape sequences (1.1),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
 - Follows: [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md).
 
 ## Problem
@@ -20,11 +22,16 @@ spent its byte budget from the start of the output. It dropped the failure and
 the verdict that tools print at the end. On real logs, simply keeping the last
 bytes kept the whole answer more often.
 
+(1.1) Tools that color their output wrap its text in terminal escape
+sequences, often even when the output is captured. On colored pytest output,
+the rules missed the failure detail, the locations and the result line, and
+the model received the codes as text.
+
 ## Product Outcome
 
 A reduced log still says which test or check failed, why, where, and what the
-run's result was. It returns a small share of the offered bytes, at no model or
-network cost.
+run's result was, whether or not the tool colored it. It returns a small share
+of the offered bytes, at no model or network cost.
 
 ## Functional Requirements
 
@@ -41,8 +48,12 @@ network cost.
    - then failures and locations, from the end backwards;
    - then warnings;
    - then the start of the output.
-4. Keep the exchange schema, the in-order subsequence guarantee, the byte bound
-   and the recorded omissions unchanged.
+4. Keep the in-order line guarantee, the byte bound and the recorded omissions
+   unchanged.
+5. (1.1) Remove terminal escape sequences from each line before classifying,
+   budgeting and returning it, by the grammar in ADR-0164. Remove nothing else.
+6. (1.1) Report the escape bytes removed from the returned lines, in exchange
+   version 1.1.
 
 ## Acceptance Criteria
 
@@ -61,6 +72,16 @@ network cost.
   - verdict recognition;
   - empty output;
   - that no budget is ever exceeded.
+- (1.1) Tests also cover:
+  - colored pytest detail, locations and result lines, classified by their
+    text;
+  - each kind of escape sequence, and each malformed case, in which only the
+    escape character goes;
+  - that removal leaves a subsequence with no escape character, and changes
+    nothing when repeated;
+  - hostile input, which stays linear;
+  - a colored failing log that keeps its detail, location and result at 8 KB,
+    with the removed bytes counted exactly.
 - The full repository gate passes.
 
 ## Non-Goals
@@ -69,4 +90,5 @@ network cost.
   decision.
 - Recognizing output in languages other than English, or failures reported only
   through an exit status.
-- Changing the exchange schema.
+- Changing the exchange schema, except as ADR-0164 records for escape removal.
+- Keeping meaning that a tool carries only in color.

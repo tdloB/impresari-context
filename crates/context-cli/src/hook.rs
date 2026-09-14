@@ -128,6 +128,16 @@ mod tests {
         assert_eq!(response["selected_base64url"], "ZXJyb3I6IGJvb20");
         assert_eq!(response["offered_bytes"], 11);
         assert_eq!(response["returned_bytes"], 11);
+        assert_eq!(response["escape_bytes_removed"], 0);
+        assert_eq!(response["omissions"], serde_json::json!([]));
+
+        // The same line printed in red: "\x1b[31merror: boom\x1b[0m".
+        let (code, response) = exchange(&request("G1szMW1lcnJvcjogYm9vbRtbMG0", 1024));
+        assert_eq!(code, 0);
+        assert_eq!(response["selected_base64url"], "ZXJyb3I6IGJvb20");
+        assert_eq!(response["offered_bytes"], 20);
+        assert_eq!(response["returned_bytes"], 11);
+        assert_eq!(response["escape_bytes_removed"], 9);
         assert_eq!(response["omissions"], serde_json::json!([]));
     }
 
