@@ -66,7 +66,7 @@ fn run_hook(words: &[&str], input: &[u8], credentials: bool) -> Output {
 #[test]
 fn hook_commands_ignore_provider_credentials_in_their_environment() {
     // "error: boom" in base64url without padding.
-    let request = br#"{"schema_name":"impresari_context_output_reduction","schema_version":"1.0","offered_base64url":"ZXJyb3I6IGJvb20","maximum_returned_bytes":1024,"context_lines":2}"#;
+    let request = br#"{"schema_name":"impresari_context_output_reduction","schema_version":"1.1","offered_base64url":"ZXJyb3I6IGJvb20","maximum_returned_bytes":1024,"context_lines":2}"#;
     let clean = run_hook(&["output-reduction"], request, false);
     let exposed = run_hook(&["output-reduction"], request, true);
     assert!(clean.status.success());

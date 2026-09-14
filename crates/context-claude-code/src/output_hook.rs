@@ -4,15 +4,18 @@
 //!
 //! Maps Claude Code's hook payload for a finished `Bash` call onto the host
 //! output-reduction rule. Claude Code ran the command; this module only selects
-//! lines from the output it was handed. It launches nothing, opens nothing, and
-//! reads no environment.
+//! lines from the output it was handed and removes their terminal escape
+//! sequences (ADR-0164). It launches nothing, opens nothing, and reads no
+//! environment.
 //!
 //! Claude Code checks a replacement against the tool's own output shape and
 //! keeps the original output when it does not match. The replacement is
 //! therefore the payload's own `tool_response`, with only `stdout` and
 //! `stderr` rewritten.
 
-use context_engine::host_hooks::reduce_host_text;
+use std::fmt::Write as _;
+
+use context_engine::host_hooks::{reduce_host_text, remove_terminal_escapes};
 use serde_json::{Value, json};
 
 /// Bytes of command output kept for the model, across `stdout` and `stderr`.
@@ -73,6 +76,13 @@ pub fn reduce_claude_bash_output(input: &[u8]) -> Option<Value> {
         stdout_kept.returned_lines + stderr_kept.returned_lines,
         stdout_kept.offered_lines + stderr_kept.offered_lines,
     );
+    let removed = stdout_kept.escape_bytes_removed + stderr_kept.escape_bytes_removed;
+    if removed > 0 {
+        let _ = write!(
+            note,
+            " It removed {removed} bytes of terminal color and cursor codes."
+        );
+    }
     if stdout_kept.limit_reached || stderr_kept.limit_reached {
         note.push_str(" Not every line reporting a result, failure, warning, or location fit.");
     }
@@ -95,15 +105,19 @@ struct Kept {
     text: String,
     offered_lines: u64,
     returned_lines: u64,
+    escape_bytes_removed: usize,
     limit_reached: bool,
 }
 
 /// Keeps a stream whole when it fits its share, and selects from it otherwise.
+/// Either way, its terminal escape sequences are removed (ADR-0164).
 fn kept(text: &str, share: usize) -> Option<Kept> {
     if text.len() <= share {
         let lines = u64::try_from(text.lines().count()).ok()?;
+        let cleaned = remove_terminal_escapes(text);
         return Some(Kept {
-            text: text.to_owned(),
+            escape_bytes_removed: text.len().saturating_sub(cleaned.len()),
+            text: cleaned.into_owned(),
             offered_lines: lines,
             returned_lines: lines,
             limit_reached: false,
@@ -122,6 +136,7 @@ fn kept(text: &str, share: usize) -> Option<Kept> {
             .any(|omission| omission == LIMIT_REACHED),
         offered_lines: reduced.offered_lines,
         returned_lines: reduced.returned_lines,
+        escape_bytes_removed: usize::try_from(reduced.escape_bytes_removed).ok()?,
         text: reduced.text,
     })
 }
@@ -142,8 +157,6 @@ const fn shares(stdout: usize, stderr: usize) -> (usize, usize) {
 
 #[cfg(test)]
 mod tests {
-    use std::fmt::Write as _;
-
     use super::*;
 
     fn payload(stdout: &str, stderr: &str) -> Value {
@@ -210,10 +223,39 @@ mod tests {
         )
     }
 
+    /// Whether `kept` is offered lines, in order, each without its terminal
+    /// escape sequences.
     fn is_subsequence(kept: &str, offered: &str) -> bool {
-        let mut offered = offered.lines();
+        let mut offered = offered.lines().map(remove_terminal_escapes);
         kept.lines()
             .all(|line| offered.any(|candidate| candidate == line))
+    }
+
+    /// `log` as a terminal would color it: passing tests and counts in green.
+    fn colored(log: &str) -> String {
+        log.replace("PASSED", "\u{1b}[32mPASSED\u{1b}[0m")
+            .replace(" passed in ", "\u{1b}[32m passed\u{1b}[0m in ")
+    }
+
+    #[test]
+    fn removes_terminal_color_codes_and_says_how_many_bytes() {
+        let log = colored(&passing_run(400));
+        let warning = "\u{1b}[33mwarning: unused manifest key: package.readme-file\u{1b}[0m\n";
+        let output = run(&payload(&log, warning)).expect("shortened");
+        let (stdout, stderr) = replacement(&output);
+        assert!(!stdout.contains('\u{1b}'));
+        assert!(stdout.contains("400 passed in 3.21s"));
+        assert!(stdout.len() <= CLAUDE_OUTPUT_RETURNED_BYTES);
+        assert!(is_subsequence(stdout, &log));
+        // A stream kept whole loses its codes too.
+        assert_eq!(
+            stderr,
+            "warning: unused manifest key: package.readme-file\n"
+        );
+        let note = output["hookSpecificOutput"]["additionalContext"]
+            .as_str()
+            .expect("note");
+        assert!(note.contains(" bytes of terminal color and cursor codes."));
     }
 
     #[test]
@@ -243,6 +285,7 @@ mod tests {
         assert!(note.starts_with("Impresari Context shortened"));
         assert!(note.contains(&format!("of {} bytes", log.len())));
         assert!(!note.contains("test_case_"));
+        assert!(!note.contains("terminal"));
     }
 
     #[test]
