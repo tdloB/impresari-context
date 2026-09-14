@@ -1,11 +1,13 @@
 # Host-Executed Context Hooks — Architecture Requirements and Design
 
-- ARD ID/version: IC-HEH-ARD-126 / 1.0.
+- ARD ID/version: IC-HEH-ARD-126 / 1.1.
 - Status: Accepted for implementation.
-- Date: 2026-09-03.
+- Date: 2026-09-13. Version 1.0 was dated 2026-09-03.
 - Governing PRD: [IC-HEH-126](../product/host-executed-context-hooks-prd.md).
-- Decision:
-  [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md).
+- Decisions:
+  [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md),
+  and for the host entry points (1.1),
+  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md).
 
 ## The distinction this design rests on
 
@@ -85,6 +87,61 @@ attribute savings honestly rather than inferring them, and so the governing
 objective's rule — treatment must not read more than baseline — is checkable
 from the record rather than from belief.
 
+## Host entry points (1.1)
+
+ADR-0162 opens output reduction to hosts through two commands of the
+`impresari-context` binary.
+- Each reads one bounded payload from standard input and writes at most one
+  JSON line to standard output.
+- Both are matched on the raw arguments before global options are parsed. So
+  neither reaches the engine, a workspace, the clock, or an identifier seed.
+
+| Command | Reads | Writes | Exit |
+| --- | --- | --- | --- |
+| `hook output-reduction` | One exchange request, at most 12 MiB | The response, or `{schema_name, schema_version, error}` with a closed category | 0, or 1 on a closed failure; 74 if standard output fails |
+| `hook claude-code post-tool-use` | Claude Code's `PostToolUse` payload, at most 16 MiB | A replacement, or nothing | Always 0 |
+
+- Input past a ceiling is drained rather than left in the pipe, and is treated
+  as malformed.
+- Nothing is read from the environment. The recipe that wires a hook, which
+  follows separately, runs the command with an empty environment.
+
+### Claude Code adapter
+
+`context_claude_code::output_hook` maps Claude Code's payload onto
+`context_engine::host_hooks::reduce_host_text`.
+- `reduce_host_text` applies the ADR-0160 rule and bounds without the base64
+  envelope.
+- `reduce_host_output` calls it too, so both paths select the same lines.
+
+```text
+PostToolUse payload: a Bash result that finished, not interrupted,
+not in the background, not an image?
+        │ no ──► print nothing
+        ▼ yes
+stdout + stderr > 8 KiB? ── no ──► print nothing
+        │ yes
+        ▼
+split the budget: a stream within half of it is kept whole,
+the other gets the rest; select from each with 2 context lines
+        │
+        ▼
+smaller than offered? ── no ──► print nothing
+        │ yes
+        ▼
+updatedToolOutput = tool_response with stdout and stderr replaced
+additionalContext = fixed note with byte and line counts
+```
+
+- **Why the replacement is the payload's own result object:** Claude Code
+  checks `updatedToolOutput` against the tool's output schema and keeps the
+  original output on a mismatch.
+- **What enters the output:** the note is fixed text and numbers. No payload
+  byte enters it, and no byte the host did not supply enters the output.
+- **Which commands it reaches:** Claude Code routes a command that exits
+  non-zero to `PostToolUseFailure`, which cannot replace output. The adapter
+  therefore reaches only commands that succeed.
+
 ## Preserved invariants
 
 `SEC-INV-002` (never writes to the source workspace), `SEC-INV-003` (repository
@@ -99,6 +156,18 @@ that is a different product and requires a new decision record.
 
 ## Deferred work
 
-Per-client adapters (Claude Code, Codex, Copilot, Cursor) map their own hook
-formats onto this channel in the existing thin-adapter crates. No client gets a
-forked core.
+Per-client adapters map their own hook formats onto this channel in the
+existing thin-adapter crates. No client gets a forked core. Still to come:
+
+- **A Claude Code recipe** that wires `hook claude-code post-tool-use` to
+  `Bash` calls of test and build runners. It waits until the ADR-0159 recipe
+  check can hold a `PostToolUse` recipe to that shape.
+- **Failing commands in Claude Code.** These need a `PreToolUse` command
+  rewrite, and that needs its own decision.
+- **The other clients**, each with a different hook model:
+  - Copilot CLI's `postToolUse` can replace a result, through
+    `modifiedResult`.
+  - Codex can replace one only by blocking with feedback, and it caps hook
+    output near 2,500 tokens.
+  - Cursor and VS Code cannot replace shell output. They can only rewrite a
+    command before it runs.
