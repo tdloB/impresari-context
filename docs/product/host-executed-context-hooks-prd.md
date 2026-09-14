@@ -2,16 +2,18 @@
 
 ## Document Control
 
-- PRD ID/version: IC-HEH-126 / 1.1.
+- PRD ID/version: IC-HEH-126 / 1.2.
 - Status: Accepted for implementation.
-- Date: 2026-09-13. Version 1.0 was dated 2026-09-03.
+- Date: 2026-09-14. Version 1.1 was dated 2026-09-13, and 1.0 2026-09-03.
 - Product owner: Aaron Boldt.
 - Governing architecture:
   [Host-Executed Context Hooks ARD](../architecture/host-executed-context-hooks-ard.md).
 - Governing decisions:
   [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md),
-  and for the host entry points (1.1),
-  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md).
+  for the host entry points (1.1),
+  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md),
+  and for terminal escape sequences (1.2),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
 - Governing objective: [CLAUDE.md](../../CLAUDE.md) — substitution, never addition.
 
 ## Problem
@@ -64,6 +66,8 @@ socket, and cannot compel the host to do anything.
    the admitted source.
 4. An output-reduction response selects from the bytes the host supplied. It
    never adds, rewrites, or paraphrases them, and records what it dropped.
+   (1.2) It also removes terminal escape sequences from the lines it keeps, and
+   records how many bytes it removed (ADR-0164).
 5. Hook payloads are untrusted data. Repository content, tool output, command
    text, and paths inside a payload cannot alter policy, capability, budget, or
    selection authority. `SEC-INV-003` and `SEC-INV-012` apply unchanged.
@@ -86,6 +90,8 @@ socket, and cannot compel the host to do anything.
     - It returns the tool's own result with only `stdout` and `stderr`
       shortened.
     - It adds a note stating how much was kept and that nothing was reworded.
+      (1.2) When it removed terminal escape sequences, the note also says how
+      many bytes.
     - It prints nothing in any case it does not own, and always exits 0.
 
 ## Acceptance Criteria
@@ -100,6 +106,8 @@ socket, and cannot compel the host to do anything.
   the recorded hash and span; a mutated workspace fails closed.
 - An output-reduction response is a strict subsequence of supplied bytes, with
   recorded omissions.
+- (1.2) Each returned line is a supplied line with only its terminal escape
+  sequences removed, and the response counts the bytes removed.
 - Oversize, malformed, NUL, non-UTF-8, and deadline cases fail closed with a
   static category and no disclosure.
 - The exchange command (1.1):
@@ -107,12 +115,16 @@ socket, and cannot compel the host to do anything.
   - returns a closed category and exit 1 for each of these: malformed JSON,
     empty input, an unknown field, invalid base64url, a zero budget, an
     unsupported schema, and oversized input.
+- The exchange command (1.2) returns a colored line without its escape
+  sequences, and counts them.
 - The Claude Code adapter (1.1):
   - keeps a long passing run's result line within 8 KiB;
   - keeps every field of the original result besides `stdout` and `stderr`;
   - returns only lines of each stream, in their original order;
   - prints nothing for another event or tool, an interrupted, background or
     image result, output within the budget, or an unreadable payload.
+- The Claude Code adapter (1.2) removes terminal escape sequences from both
+  streams, a stream kept whole included, and its note names the bytes removed.
 - A static scan of the command module and of the adapter module finds no
   process, socket, environment, or file access. The command's output is
   byte-identical with and without provider credentials in its environment.

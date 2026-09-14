@@ -6,13 +6,16 @@
 //! handed. Nothing here launches a process, opens a socket, reads a credential,
 //! or writes to a workspace, so `SEC-INV-007` stays literally true.
 
+use std::{borrow::Cow, ops::RangeInclusive};
+
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
 
 /// Schema discriminator for the output-reduction exchange.
 pub const OUTPUT_REDUCTION_SCHEMA_NAME: &str = "impresari_context_output_reduction";
-/// Schema version for the output-reduction exchange.
-pub const OUTPUT_REDUCTION_SCHEMA_VERSION: &str = "1.0";
+/// Schema version for the output-reduction exchange. Version 1.1 removes
+/// terminal escape sequences from the returned lines (ADR-0164).
+pub const OUTPUT_REDUCTION_SCHEMA_VERSION: &str = "1.1";
 
 /// Largest payload a host may offer in one exchange.
 const MAX_OFFERED_BYTES: usize = 8 * 1024 * 1024;
@@ -85,6 +88,23 @@ const MAX_EXTENSION_BYTES: usize = 5;
 const TIMESTAMP_SEARCH_BYTES: usize = 160;
 /// Shape of an ISO-8601 UTC timestamp, where `0` stands for any digit.
 const TIMESTAMP_SHAPE: &[u8; 19] = b"0000-00-00T00:00:00";
+/// The escape character that opens every terminal escape sequence.
+const ESCAPE: u8 = 0x1b;
+/// The bell character, which can end a terminal string control.
+const BELL: u8 = 0x07;
+/// Bytes after `ESC` that open a string control: an operating-system command,
+/// such as a hyperlink or a window title, and the four rarer kinds.
+const STRING_INTRODUCERS: [u8; 5] = *b"]PX^_";
+/// Parameter bytes of a control sequence, such as `31;1` in `ESC [31;1m`.
+const PARAMETER_BYTES: RangeInclusive<u8> = 0x30..=0x3f;
+/// Intermediate bytes of a control sequence or an escape, such as `(` in
+/// `ESC ( B`.
+const INTERMEDIATE_BYTES: RangeInclusive<u8> = 0x20..=0x2f;
+/// The byte that ends a control sequence, such as `m` in `ESC [31m`.
+const CONTROL_FINAL_BYTES: RangeInclusive<u8> = 0x40..=0x7e;
+/// The byte that ends any other escape, such as `B` in `ESC ( B` or `7` in
+/// `ESC 7`.
+const ESCAPE_FINAL_BYTES: RangeInclusive<u8> = 0x30..=0x7e;
 
 /// Bytes the host has already produced, offered for reduction.
 #[derive(Clone, Deserialize, Eq, PartialEq, Serialize)]
@@ -110,8 +130,9 @@ pub struct OutputReductionResponse {
     pub schema_name: String,
     /// Schema version.
     pub schema_version: String,
-    /// Selected bytes, base64url without padding. Always a subsequence of the
-    /// offered lines, in their original order.
+    /// Selected lines, base64url without padding. Always whole offered lines
+    /// in their original order, each with only its terminal escape sequences
+    /// removed.
     pub selected_base64url: String,
     /// Bytes the host offered.
     pub offered_bytes: u64,
@@ -121,6 +142,8 @@ pub struct OutputReductionResponse {
     pub offered_lines: u64,
     /// Lines returned.
     pub returned_lines: u64,
+    /// Bytes of terminal escape sequences removed from the returned lines.
+    pub escape_bytes_removed: u64,
     /// Explicit record of what was dropped and why.
     pub omissions: Vec<String>,
 }
@@ -158,9 +181,11 @@ impl std::error::Error for OutputReductionErrorCode {}
 
 /// Reduce output the host already produced to the lines that carry signal.
 ///
-/// The response is always a subsequence of the offered lines in their original
-/// order. This function cannot introduce a byte the host did not supply, which
-/// is what removes the injection surface for this exchange: reduction can lose
+/// The response is always whole offered lines in their original order. Within
+/// a returned line only terminal escape sequences are removed (ADR-0164), so
+/// every returned byte is one the host supplied, in the order supplied. This
+/// function cannot introduce a byte the host did not supply, which is what
+/// removes the injection surface for this exchange: reduction can lose
 /// information, never invent it.
 ///
 /// Lines are offered to the byte budget in priority order: the run's verdict,
@@ -201,6 +226,7 @@ pub fn reduce_host_output(
         returned_bytes: reduced.returned_bytes,
         offered_lines: reduced.offered_lines,
         returned_lines: reduced.returned_lines,
+        escape_bytes_removed: reduced.escape_bytes_removed,
         omissions: reduced.omissions,
     })
 }
@@ -209,7 +235,8 @@ pub fn reduce_host_output(
 /// envelope.
 #[derive(Clone, Eq, PartialEq)]
 pub struct ReducedText {
-    /// Selected lines joined by `\n`, in their original order.
+    /// Selected lines joined by `\n`, in their original order, each without
+    /// its terminal escape sequences.
     pub text: String,
     /// Bytes the host offered.
     pub offered_bytes: u64,
@@ -219,6 +246,8 @@ pub struct ReducedText {
     pub offered_lines: u64,
     /// Lines returned.
     pub returned_lines: u64,
+    /// Bytes of terminal escape sequences removed from the returned lines.
+    pub escape_bytes_removed: u64,
     /// Explicit record of what was dropped and why.
     pub omissions: Vec<String>,
 }
@@ -244,13 +273,33 @@ pub fn reduce_host_text(
         return Err(OutputReductionErrorCode::InvalidPayload);
     }
 
-    let lines: Vec<&str> = text.lines().collect();
+    // Lines are split before escape sequences are removed, so a host counts
+    // the same lines in the bytes it offered.
+    let offered: Vec<&str> = text.lines().collect();
+    let cleaned: Vec<Cow<'_, str>> = offered
+        .iter()
+        .copied()
+        .map(remove_terminal_escapes)
+        .collect();
+    let lines: Vec<&str> = cleaned.iter().map(AsRef::as_ref).collect();
     let selection = select_lines(&lines, context_lines, usize_budget(maximum_returned_bytes));
     let selected: Vec<&str> = selection
         .indices
         .iter()
         .filter_map(|index| lines.get(*index).copied())
         .collect();
+    let escape_bytes_removed: usize = selection
+        .indices
+        .iter()
+        .filter_map(|index| {
+            Some(
+                offered
+                    .get(*index)?
+                    .len()
+                    .saturating_sub(lines.get(*index)?.len()),
+            )
+        })
+        .sum();
 
     let mut omissions = Vec::new();
     if selected.len() < lines.len() {
@@ -268,6 +317,7 @@ pub fn reduce_host_text(
         returned_bytes: u64::try_from(joined.len()).unwrap_or(u64::MAX),
         offered_lines: u64::try_from(lines.len()).unwrap_or(u64::MAX),
         returned_lines: u64::try_from(selected.len()).unwrap_or(u64::MAX),
+        escape_bytes_removed: u64::try_from(escape_bytes_removed).unwrap_or(u64::MAX),
         text: joined,
         omissions,
     })
@@ -275,6 +325,93 @@ pub fn reduce_host_text(
 
 fn usize_budget(value: u64) -> usize {
     usize::try_from(value).unwrap_or(usize::MAX)
+}
+
+/// `text` with its terminal escape sequences removed (ADR-0164).
+///
+/// Colors, cursor movement, hyperlinks and character-set switches are removed
+/// whole. An escape character that opens no complete sequence is removed on
+/// its own. Every other byte is kept, a newline included, so the result is a
+/// subsequence of `text` with no escape character left. Text without an
+/// escape character is returned as it is.
+#[must_use]
+pub fn remove_terminal_escapes(text: &str) -> Cow<'_, str> {
+    let bytes = text.as_bytes();
+    if !bytes.contains(&ESCAPE) {
+        return Cow::Borrowed(text);
+    }
+    let mut kept = Vec::with_capacity(bytes.len());
+    let mut from = 0;
+    while let Some(offset) = bytes
+        .get(from..)
+        .and_then(|rest| rest.iter().position(|byte| *byte == ESCAPE))
+    {
+        let start = from + offset;
+        kept.extend_from_slice(bytes.get(from..start).unwrap_or_default());
+        from = escape_sequence_end(bytes, start).unwrap_or(start + 1);
+    }
+    kept.extend_from_slice(bytes.get(from..).unwrap_or_default());
+    // Every sequence starts and ends on an ASCII byte, so what is left is
+    // whole characters.
+    String::from_utf8(kept).map_or(Cow::Borrowed(text), Cow::Owned)
+}
+
+/// Index just past the terminal escape sequence whose escape character is at
+/// `start`, or `None` when that escape character opens no complete sequence
+/// on its line.
+fn escape_sequence_end(bytes: &[u8], start: usize) -> Option<usize> {
+    let introducer = *bytes.get(start + 1)?;
+    if introducer == b'[' {
+        control_sequence_end(bytes, start + 2)
+    } else if STRING_INTRODUCERS.contains(&introducer) {
+        string_control_end(bytes, start + 2)
+    } else if INTERMEDIATE_BYTES.contains(&introducer) {
+        let intermediates = run_length(bytes, start + 1, &INTERMEDIATE_BYTES);
+        final_byte_end(bytes, start + 1 + intermediates, &ESCAPE_FINAL_BYTES)
+    } else if ESCAPE_FINAL_BYTES.contains(&introducer) {
+        Some(start + 2)
+    } else {
+        None
+    }
+}
+
+/// End of a control sequence whose body starts at `from`: parameter bytes,
+/// then intermediate bytes, then one final byte, as in `ESC [1;31m`.
+fn control_sequence_end(bytes: &[u8], from: usize) -> Option<usize> {
+    let parameters = run_length(bytes, from, &PARAMETER_BYTES);
+    let intermediates = run_length(bytes, from + parameters, &INTERMEDIATE_BYTES);
+    final_byte_end(
+        bytes,
+        from + parameters + intermediates,
+        &CONTROL_FINAL_BYTES,
+    )
+}
+
+/// End of a string control whose body starts at `from`: everything up to and
+/// including a bell or `ESC \`. The body cannot cross a newline or hold another
+/// escape character, which keeps removal linear.
+fn string_control_end(bytes: &[u8], from: usize) -> Option<usize> {
+    let rest = bytes.get(from..)?;
+    let stop = rest
+        .iter()
+        .position(|byte| matches!(*byte, BELL | ESCAPE | b'\n'))?;
+    match *rest.get(stop)? {
+        BELL => Some(from + stop + 1),
+        ESCAPE if rest.get(stop + 1) == Some(&b'\\') => Some(from + stop + 2),
+        _ => None,
+    }
+}
+
+/// Index just past `bytes[at]` when that byte is in `finals`.
+fn final_byte_end(bytes: &[u8], at: usize, finals: &RangeInclusive<u8>) -> Option<usize> {
+    finals.contains(bytes.get(at)?).then_some(at + 1)
+}
+
+/// How many bytes from `from` onwards fall in `range`.
+fn run_length(bytes: &[u8], from: usize, range: &RangeInclusive<u8>) -> usize {
+    bytes.get(from..).map_or(0, |rest| {
+        rest.iter().take_while(|byte| range.contains(*byte)).count()
+    })
 }
 
 /// Lines chosen for one response.
@@ -1085,18 +1222,191 @@ astropy/modeling/tests/test_separable.py:151: AssertionError
         }
     }
 
+    /// A failing pytest run as pytest prints it with `--color=yes`, after
+    /// `passing` passing tests.
+    fn colored_pytest_failure(passing: usize) -> String {
+        let mut lines = vec![
+            "\u{1b}[1m============================= test session starts ==============================\u{1b}[0m".to_owned(),
+            "platform linux -- Python 3.9.20, pytest-7.4.0, pluggy-1.3.0".to_owned(),
+        ];
+        lines.extend((0..passing).map(|index| {
+            format!(
+                "astropy/io/ascii/tests/test_qdp.py::test_case_{index:04} \u{1b}[32mPASSED\u{1b}[0m"
+            )
+        }));
+        lines.extend(
+            [
+                "",
+                "=================================== FAILURES ===================================",
+                "\u{1b}[31m\u{1b}[1m_____________________________ test_roundtrip[True] _____________________________\u{1b}[0m",
+                "",
+                "\u{1b}[94mdef\u{1b}[39;49;00m \u{1b}[92mtest_roundtrip\u{1b}[39;49;00m(lowercase):",
+                ">       table = _read_table_qdp(example_qdp, names=[\u{1b}[33m\"a\"\u{1b}[39;49;00m])",
+                "",
+                "\u{1b}[1m\u{1b}[31mastropy/io/ascii/qdp.py\u{1b}[0m:78: in _line_type",
+                "\u{1b}[1m\u{1b}[31mE       ValueError: Unrecognized QDP line: read serr 1 2\u{1b}[0m",
+                "",
+                "\u{1b}[1m\u{1b}[31mastropy/io/ascii/qdp.py\u{1b}[0m:78: ValueError",
+                "\u{1b}[36m\u{1b}[1m=========================== short test summary info ============================\u{1b}[0m",
+                "\u{1b}[31mFAILED\u{1b}[0m astropy/io/ascii/tests/test_qdp.py::\u{1b}[1mtest_roundtrip[True]\u{1b}[0m - ValueError: Unrecognized QDP line: read serr 1 2",
+            ]
+            .map(str::to_owned),
+        );
+        lines.push(format!(
+            "\u{1b}[31m======================== \u{1b}[31m\u{1b}[1m1 failed\u{1b}[0m, \u{1b}[32m{passing} passed\u{1b}[0m\u{1b}[31m in 0.12s\u{1b}[0m\u{1b}[31m ========================\u{1b}[0m"
+        ));
+        lines.join("\n")
+    }
+
+    #[test]
+    fn a_colored_line_is_classified_by_its_text() {
+        let detail = "\u{1b}[1m\u{1b}[31mE       assert 1 == 2\u{1b}[0m";
+        let location = "\u{1b}[1m\u{1b}[31mastropy/io/ascii/qdp.py\u{1b}[0m:78: in _line_type";
+        let result = "\u{1b}[31m==== \u{1b}[31m\u{1b}[1m1 failed\u{1b}[0m, \u{1b}[32m8 passed\u{1b}[0m\u{1b}[31m in 0.12s\u{1b}[0m\u{1b}[31m ====\u{1b}[0m";
+        // Read with its codes, no line reports what it says.
+        assert_eq!(line_kind(detail).signal, Signal::Quiet);
+        assert_eq!(line_kind(location).signal, Signal::Quiet);
+        assert!(!line_kind(result).verdict);
+        // Without them, each is recognized as it is in uncolored output.
+        assert_eq!(
+            line_kind(&remove_terminal_escapes(detail)).signal,
+            Signal::Failure
+        );
+        assert_eq!(
+            line_kind(&remove_terminal_escapes(location)).signal,
+            Signal::Location
+        );
+        let result = line_kind(&remove_terminal_escapes(result));
+        assert!(result.verdict);
+        assert_eq!(result.signal, Signal::Failure);
+    }
+
+    #[test]
+    fn a_colored_failure_keeps_its_detail_location_and_result_without_codes() {
+        let log = colored_pytest_failure(400);
+        let response = reduce_host_output(&request(&log, 8 * 1024, 2)).expect("reduced");
+        let text = decoded(&response);
+        assert!(!text.contains('\u{1b}'));
+        assert!(text.contains("E       ValueError: Unrecognized QDP line: read serr 1 2"));
+        assert!(text.contains("astropy/io/ascii/qdp.py:78: in _line_type"));
+        assert!(text.contains("astropy/io/ascii/qdp.py:78: ValueError"));
+        assert!(text.contains("= 1 failed, 400 passed in 0.12s ="));
+        assert!(response.returned_bytes <= 8 * 1024);
+        assert!(response.returned_lines < response.offered_lines);
+
+        // Each returned line is an offered line without its escape sequences,
+        // in order, and the bytes removed from them are counted exactly.
+        let offered: Vec<&str> = log.lines().collect();
+        let mut cursor = 0usize;
+        let mut removed = 0usize;
+        for line in text.split('\n') {
+            let found = offered[cursor..]
+                .iter()
+                .position(|candidate| remove_terminal_escapes(candidate) == line)
+                .expect("returned line must be an offered line without its escapes");
+            removed += offered[cursor + found].len() - line.len();
+            cursor += found + 1;
+        }
+        assert!(removed > 0);
+        assert_eq!(
+            response.escape_bytes_removed,
+            u64::try_from(removed).expect("fits")
+        );
+    }
+
+    #[test]
+    fn terminal_escape_sequences_are_removed_whole_and_nothing_else_is() {
+        for (text, expected) in [
+            ("\u{1b}[31mred\u{1b}[0m", "red"),
+            ("\u{1b}[1;31;40mbold\u{1b}[m plain", "bold plain"),
+            ("\u{1b}[2K\u{1b}[1Gdownloading", "downloading"),
+            ("\u{1b}[?25lworking\u{1b}[?25h", "working"),
+            (
+                "\u{1b}]8;;https://example.com\u{7}link\u{1b}]8;;\u{7}",
+                "link",
+            ),
+            ("\u{1b}]0;title\u{1b}\\text", "text"),
+            ("\u{1b}(Bcharset", "charset"),
+            ("\u{1b}7saved\u{1b}8", "saved"),
+            ("\u{1b}Mline", "line"),
+            // An escape character that opens no complete sequence goes alone.
+            ("end\u{1b}", "end"),
+            ("\u{1b}[31", "[31"),
+            ("\u{1b}[31\u{1b}[0mred", "[31red"),
+            ("\u{1b}]8;;unterminated", "]8;;unterminated"),
+            ("\u{1b}]0;crosses\na line\u{7}", "]0;crosses\na line\u{7}"),
+            ("\u{1b}\u{7}bell", "\u{7}bell"),
+            ("\u{1b}é", "é"),
+            // Other control characters stay.
+            ("progress 10%\rprogress 20%", "progress 10%\rprogress 20%"),
+        ] {
+            assert_eq!(remove_terminal_escapes(text), expected, "{text:?}");
+        }
+        let plain = "[31m looks like a code but holds no escape character";
+        assert!(matches!(
+            remove_terminal_escapes(plain),
+            Cow::Borrowed(same) if same == plain
+        ));
+    }
+
+    #[test]
+    fn removal_leaves_a_subsequence_without_escapes_and_is_stable() {
+        let mut inputs = vec![colored_pytest_failure(3)];
+        for byte in 0u8..0x80 {
+            let next = char::from(byte);
+            for opening in ["", "[", "]", "(", "[1;"] {
+                inputs.push(format!("a\u{1b}{opening}{next}b\u{1b}[0mc"));
+            }
+        }
+        for text in &inputs {
+            let cleaned = remove_terminal_escapes(text);
+            assert!(!cleaned.contains('\u{1b}'), "{text:?}");
+            let mut rest = text.bytes();
+            assert!(
+                cleaned
+                    .bytes()
+                    .all(|byte| rest.any(|candidate| candidate == byte)),
+                "{text:?} must keep its bytes in order"
+            );
+            assert_eq!(cleaned.matches('\n').count(), text.matches('\n').count());
+            assert_eq!(remove_terminal_escapes(&cleaned), cleaned, "{text:?}");
+        }
+    }
+
+    #[test]
+    fn hostile_escapes_are_removed_in_linear_time() {
+        let count = 1 << 20;
+        assert_eq!(
+            remove_terminal_escapes(&"\u{1b}]".repeat(count)),
+            "]".repeat(count)
+        );
+        assert_eq!(
+            remove_terminal_escapes(&"\u{1b}[".repeat(count)),
+            "[".repeat(count)
+        );
+        let long = "x".repeat(count);
+        assert_eq!(
+            remove_terminal_escapes(&format!("\u{1b}]{long}")),
+            format!("]{long}")
+        );
+    }
+
     #[test]
     fn text_reduction_matches_the_exchange() {
-        for (budget, context_lines) in [(64 * 1024, 2), (256, 2), (96, 0), (1, 8)] {
-            let response =
-                reduce_host_output(&request(BUILD_LOG, budget, context_lines)).expect("exchange");
-            let reduced = reduce_host_text(BUILD_LOG, budget, context_lines).expect("text");
-            assert_eq!(reduced.text, decoded(&response));
-            assert_eq!(reduced.offered_bytes, response.offered_bytes);
-            assert_eq!(reduced.returned_bytes, response.returned_bytes);
-            assert_eq!(reduced.offered_lines, response.offered_lines);
-            assert_eq!(reduced.returned_lines, response.returned_lines);
-            assert_eq!(reduced.omissions, response.omissions);
+        let colored = colored_pytest_failure(40);
+        for log in [BUILD_LOG, colored.as_str()] {
+            for (budget, context_lines) in [(64 * 1024, 2), (256, 2), (96, 0), (1, 8)] {
+                let response =
+                    reduce_host_output(&request(log, budget, context_lines)).expect("exchange");
+                let reduced = reduce_host_text(log, budget, context_lines).expect("text");
+                assert_eq!(reduced.text, decoded(&response));
+                assert_eq!(reduced.offered_bytes, response.offered_bytes);
+                assert_eq!(reduced.returned_bytes, response.returned_bytes);
+                assert_eq!(reduced.offered_lines, response.offered_lines);
+                assert_eq!(reduced.returned_lines, response.returned_lines);
+                assert_eq!(reduced.escape_bytes_removed, response.escape_bytes_removed);
+                assert_eq!(reduced.omissions, response.omissions);
+            }
         }
         assert_eq!(
             reduce_host_text(BUILD_LOG, 0, 2).err(),

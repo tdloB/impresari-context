@@ -1,10 +1,36 @@
 # Output Reduction Selection — Architecture Requirements and Design
 
-- ARD ID/version: IC-ORS-ARD-160 / 1.0.
+- ARD ID/version: IC-ORS-ARD-160 / 1.1.
 - Status: Accepted for implementation.
-- Date: 2026-09-13.
+- Date: 2026-09-14. Version 1.0 was dated 2026-09-13.
 - Governing PRD: [IC-ORS-160](../product/output-reduction-selection-prd.md).
-- Decision: [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md).
+- Decisions:
+  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md),
+  and for terminal escape sequences (1.1),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
+
+## Removing terminal escape sequences (1.1)
+
+`reduce_host_text` splits the offered text into lines first, as `str::lines`
+does, so a host counts the same lines in the bytes it offered. Each line then
+goes through `remove_terminal_escapes`. Classification, the budget and the
+returned text all use the result.
+
+```text
+ESC [, params 0x30-0x3F, intermediates 0x20-0x2F, final 0x40-0x7E    control sequence
+ESC ] P X ^ _, then up to a bell or ESC \ on the same line           string control
+ESC, intermediates 0x20-0x2F, final 0x30-0x7E                        such as ESC ( B
+ESC, one byte 0x30-0x7E                                              such as ESC 7
+ESC before anything else, or an unfinished sequence                  the ESC alone
+```
+
+- Every sequence starts and ends on an ASCII byte, so what is left is whole
+  characters.
+- A newline never belongs to a sequence. The Claude Code adapter relies on
+  this when it removes escapes from a stream it keeps whole.
+- Text without an escape character is returned borrowed and unchanged.
+- `escape_bytes_removed` sums, over the returned lines, each offered line's
+  length less its returned length. A host can recompute it from its own lines.
 
 ## Classifying a line
 
@@ -61,13 +87,18 @@ the budget was reached and moves on. Lines are offered in this order:
 6. every warning and verdict with its context, latest first;
 7. the first three lines.
 
-The chosen indices are returned in ascending order and joined with newlines, so
-the response is still a subsequence of the offered lines.
+The chosen indices are returned in ascending order and joined with newlines.
+From 1.1 each returned line is the offered line without its terminal escape
+sequences, so the response is whole offered lines in their original order, and
+every byte in it is one the host supplied.
 
 ## Safety
 
 - **Linear work:** classification is linear in the line length and uses no
   regular expressions, so hostile output cannot cause super-linear work.
+- **Linear removal (1.1):** a scan that starts at an escape character stops at
+  the next escape character, a newline, or its terminator. Each byte is
+  therefore read a bounded number of times.
 - **No panics:** every index goes through checked access.
 - **No authority:** the module still holds no process, file or environment
   access. `module_holds_no_execution_or_workspace_authority` checks this.
@@ -98,6 +129,14 @@ context:
   the target test's assertion, and the verdict. It dropped one or two lines of
   an unrelated leap-second warning and some traceback locations.
 
+**Terminal escape sequences (1.1).** The benchmark harness's provider-free base
+run of 2026-09-14 ran this reducer on 22 SWE-bench tasks. Ten print colored
+pytest output. On those, the classification above missed pytest's detail, its
+locations and its result line. None of the 33 corpus logs holds an escape
+character. Rebuilt from `main` and from 1.1, the engine's measurement returned
+byte-identical selections and identical counts for all 33 logs at 4, 8 and
+16 KB. The harness's re-run measures the colored tasks.
+
 ## Verification
 
 - `a_late_failure_survives_early_noise_that_would_fill_the_budget` reproduces
@@ -114,4 +153,12 @@ context:
   - `timestamped_ci_lines_are_classified_by_their_message`.
 - Bounds and edge cases: `no_budget_is_ever_exceeded` and
   `empty_output_returns_nothing_and_claims_nothing`.
+- Escape removal (1.1):
+  - `terminal_escape_sequences_are_removed_whole_and_nothing_else_is`;
+  - `removal_leaves_a_subsequence_without_escapes_and_is_stable`;
+  - `hostile_escapes_are_removed_in_linear_time`.
+- Colored output (1.1):
+  - `a_colored_line_is_classified_by_its_text`;
+  - `a_colored_failure_keeps_its_detail_location_and_result_without_codes`;
+  - `text_reduction_matches_the_exchange`, which now also runs a colored log.
 - Every earlier test still passes unchanged.
