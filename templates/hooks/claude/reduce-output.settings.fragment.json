@@ -1,0 +1,77 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(pytest *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(python -m pytest *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(cargo test *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(cargo build *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(go test *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(go build *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(npm test *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(npx jest *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(npx vitest *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(npx tsc *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          },
+          {
+            "type": "command",
+            "if": "Bash(mypy *)",
+            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/impresari-context-reduce-output.sh",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
