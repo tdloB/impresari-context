@@ -1,13 +1,15 @@
 # Host-Executed Context Hooks — Architecture Requirements and Design
 
-- ARD ID/version: IC-HEH-ARD-126 / 1.1.
+- ARD ID/version: IC-HEH-ARD-126 / 1.2.
 - Status: Accepted for implementation.
-- Date: 2026-09-13. Version 1.0 was dated 2026-09-03.
+- Date: 2026-09-14. Version 1.1 was dated 2026-09-13, and 1.0 2026-09-03.
 - Governing PRD: [IC-HEH-126](../product/host-executed-context-hooks-prd.md).
 - Decisions:
   [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md),
-  and for the host entry points (1.1),
-  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md).
+  for the host entry points (1.1),
+  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md),
+  and for terminal escape sequences (1.2),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
 
 ## The distinction this design rests on
 
@@ -79,10 +81,16 @@ bytes the host supplied in the same exchange. Impresari cannot introduce a byte
 the host did not already have, which removes the injection surface entirely for
 that shape.
 
+From exchange 1.1 (ADR-0164), a returned line may lose its terminal escape
+sequences, and nothing else. Every returned byte is still one the host
+supplied, in the order supplied. A host can check this by removing escape
+sequences from its own lines by the same rule.
+
 ## Accounting
 
 Every response declares the substitution it performed: bytes offered, bytes
-returned, and what was omitted and why. This exists so a measurement can
+returned, and what was omitted and why. From exchange 1.1 it also declares the
+escape bytes removed from the returned lines. This exists so a measurement can
 attribute savings honestly rather than inferring them, and so the governing
 objective's rule — treatment must not read more than baseline — is checkable
 from the record rather than from belief.
@@ -111,8 +119,9 @@ ADR-0162 opens output reduction to hosts through two commands of the
 `context_claude_code::output_hook` maps Claude Code's payload onto
 `context_engine::host_hooks::reduce_host_text`.
 - `reduce_host_text` applies the ADR-0160 rule and bounds without the base64
-  envelope.
+  envelope. From 1.2 it also applies the ADR-0164 escape removal.
 - `reduce_host_output` calls it too, so both paths select the same lines.
+- A stream kept whole goes through `remove_terminal_escapes` instead (1.2).
 
 ```text
 PostToolUse payload: a Bash result that finished, not interrupted,
@@ -123,14 +132,16 @@ stdout + stderr > 8 KiB? ── no ──► print nothing
         │ yes
         ▼
 split the budget: a stream within half of it is kept whole,
-the other gets the rest; select from each with 2 context lines
+the other gets the rest; select from each with 2 context lines;
+remove terminal escape sequences from both (1.2)
         │
         ▼
 smaller than offered? ── no ──► print nothing
         │ yes
         ▼
 updatedToolOutput = tool_response with stdout and stderr replaced
-additionalContext = fixed note with byte and line counts
+additionalContext = fixed note with byte and line counts, and the
+                    escape bytes removed when there were any
 ```
 
 - **Why the replacement is the payload's own result object:** Claude Code

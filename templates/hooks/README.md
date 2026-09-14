@@ -51,8 +51,8 @@ and is measured.
 
 When a test run or build succeeds, Claude Code normally hands its whole output
 to the model. This recipe replaces that output with at most 8 KiB of its own
-lines, in their original order: the result, warnings, source locations and the
-end of the output come first. A note tells the model how much was kept and how
+lines, in their original order and without terminal color codes: the result,
+warnings, source locations and the end of the output come first. A note tells the model how much was kept and how
 to see the rest. It needs `impresari-context` with the `hook` command on
 `PATH`; without it, the recipe does nothing.
 
