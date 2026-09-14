@@ -17,6 +17,7 @@ ruby ./scripts/check-evaluation.rb
 ruby ./scripts/check-scale-evaluation.rb
 ruby ./scripts/check-abrupt-restart.rb
 ruby ./scripts/check-client-guidance-templates.rb
+ruby ./scripts/check-hook-recipes.rb
 ruby ./scripts/check-client-lifecycle.rb
 ruby ./scripts/check-linux-isolation-maintenance.rb
 ruby ./scripts/check-linux-isolation-topology-feasibility.rb
