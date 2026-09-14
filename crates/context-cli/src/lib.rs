@@ -2,12 +2,14 @@
 #![forbid(unsafe_code)]
 #![doc = "Thin command-line adapter over the shared Impresari Context engine."]
 
+mod hook;
+
 #[cfg(unix)]
 use std::os::unix::fs::PermissionsExt;
 use std::{
     fmt::Write as _,
     fs,
-    io::{self, Cursor, Write},
+    io::{self, Cursor, Read, Write},
     path::Path,
     path::PathBuf,
     time::Duration,
@@ -117,6 +119,9 @@ Usage:\n\
   impresari-context [global-options] doctor gemini-config <root> <cache-root> <settings-json>\n\
   impresari-context [global-options] doctor copilot-config <root> <cache-root> <mcp-json>\n\
   impresari-context [global-options] doctor vscode-config <root> <cache-root> <mcp-json>\n\
+  impresari-context hook output-reduction < <exchange-request-json>\n\
+  impresari-context hook claude-code post-tool-use < <claude-hook-input-json>\n\
+Hook commands read one payload from stdin, take no global options, and never run a process.\n\
 Global options:\n\
   --human                 Add a concise diagnostic to stderr.\n\
   --at <UTC>              Deterministic RFC3339 operation time.\n\
@@ -164,10 +169,32 @@ impl ContextSequence {
 ///
 /// Machine-readable success or error JSON is written to stdout. Optional human
 /// diagnostics are written only to stderr. The return value is a process code.
+/// Standard input is empty; use [`execute_with_input`] for hook commands.
 pub fn execute(arguments: &[String], stdout: &mut dyn Write, stderr: &mut dyn Write) -> i32 {
+    execute_with_input(arguments, &mut io::empty(), stdout, stderr)
+}
+
+/// Executes one CLI invocation with injectable input and output streams.
+///
+/// Only host hook commands read `stdin`; every other command behaves exactly as
+/// [`execute`] describes.
+pub fn execute_with_input(
+    arguments: &[String],
+    stdin: &mut dyn Read,
+    stdout: &mut dyn Write,
+    stderr: &mut dyn Write,
+) -> i32 {
     if arguments.iter().any(|argument| argument == "--help") {
         let _ = stderr.write_all(HELP.as_bytes());
         return 0;
+    }
+    if let Some((first, rest)) = arguments.split_first()
+        && first == "hook"
+    {
+        let words = rest.iter().map(String::as_str).collect::<Vec<_>>();
+        if let Some(code) = hook::run(&words, stdin, stdout) {
+            return code;
+        }
     }
     let options = match parse_globals(arguments) {
         Ok(options) => options,

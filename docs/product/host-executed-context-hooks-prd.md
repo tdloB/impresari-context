@@ -2,14 +2,16 @@
 
 ## Document Control
 
-- PRD ID/version: IC-HEH-126 / 1.0.
+- PRD ID/version: IC-HEH-126 / 1.1.
 - Status: Accepted for implementation.
-- Date: 2026-09-03.
+- Date: 2026-09-13. Version 1.0 was dated 2026-09-03.
 - Product owner: Aaron Boldt.
 - Governing architecture:
   [Host-Executed Context Hooks ARD](../architecture/host-executed-context-hooks-ard.md).
-- Governing decision:
-  [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md).
+- Governing decisions:
+  [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md),
+  and for the host entry points (1.1),
+  [ADR-0162](../decisions/0162-serve-output-reduction-to-host-hooks-over-standard-input.md).
 - Governing objective: [CLAUDE.md](../../CLAUDE.md) — substitution, never addition.
 
 ## Problem
@@ -74,6 +76,17 @@ socket, and cannot compel the host to do anything.
    yields a closed category and no partial content.
 9. The hook adds no persistence. It writes nothing to the source workspace and
    retains no cross-invocation memory.
+10. A host reaches output reduction through `impresari-context hook
+    output-reduction`.
+    - One exchange request goes in on standard input.
+    - One response, or one closed failure line, comes out on standard output.
+    - The command takes no global options and needs no workspace.
+11. A Claude Code adapter maps a finished `Bash` call's `PostToolUse` payload
+    onto the same rule.
+    - It returns the tool's own result with only `stdout` and `stderr`
+      shortened.
+    - It adds a note stating how much was kept and that nothing was reworded.
+    - It prints nothing in any case it does not own, and always exits 0.
 
 ## Acceptance Criteria
 
@@ -89,6 +102,20 @@ socket, and cannot compel the host to do anything.
   recorded omissions.
 - Oversize, malformed, NUL, non-UTF-8, and deadline cases fail closed with a
   static category and no disclosure.
+- The exchange command (1.1):
+  - returns the engine's response for a valid request;
+  - returns a closed category and exit 1 for each of these: malformed JSON,
+    empty input, an unknown field, invalid base64url, a zero budget, an
+    unsupported schema, and oversized input.
+- The Claude Code adapter (1.1):
+  - keeps a long passing run's result line within 8 KiB;
+  - keeps every field of the original result besides `stdout` and `stderr`;
+  - returns only lines of each stream, in their original order;
+  - prints nothing for another event or tool, an interrupted, background or
+    image result, output within the budget, or an unreadable payload.
+- A static scan of the command module and of the adapter module finds no
+  process, socket, environment, or file access. The command's output is
+  byte-identical with and without provider credentials in its environment.
 - The full repository gate passes.
 
 ## Non-Goals
@@ -98,3 +125,8 @@ socket, and cannot compel the host to do anything.
 - Cross-session memory or durable learned knowledge.
 - Provider requests, agent orchestration, or benchmark execution.
 - Replacing the MCP surface. Hooks are an additional integration shape.
+- Rewriting a command before the host runs it. In Claude Code, a failing
+  command reaches only `PostToolUseFailure`, which cannot replace output.
+  Reaching failing runs would need such a rewrite, and that needs its own
+  decision.
+- Installing a hook. Recipes are copied by hand.

@@ -192,13 +192,60 @@ pub fn reduce_host_output(
     }
     let text =
         std::str::from_utf8(&offered).map_err(|_| OutputReductionErrorCode::InvalidPayload)?;
+    let reduced = reduce_host_text(text, request.maximum_returned_bytes, request.context_lines)?;
+    Ok(OutputReductionResponse {
+        schema_name: OUTPUT_REDUCTION_SCHEMA_NAME.to_owned(),
+        schema_version: OUTPUT_REDUCTION_SCHEMA_VERSION.to_owned(),
+        selected_base64url: URL_SAFE_NO_PAD.encode(reduced.text.as_bytes()),
+        offered_bytes: reduced.offered_bytes,
+        returned_bytes: reduced.returned_bytes,
+        offered_lines: reduced.offered_lines,
+        returned_lines: reduced.returned_lines,
+        omissions: reduced.omissions,
+    })
+}
+
+/// Text selected from output the host already holds, without the exchange
+/// envelope.
+#[derive(Clone, Eq, PartialEq)]
+pub struct ReducedText {
+    /// Selected lines joined by `\n`, in their original order.
+    pub text: String,
+    /// Bytes the host offered.
+    pub offered_bytes: u64,
+    /// Bytes returned.
+    pub returned_bytes: u64,
+    /// Lines the host offered.
+    pub offered_lines: u64,
+    /// Lines returned.
+    pub returned_lines: u64,
+    /// Explicit record of what was dropped and why.
+    pub omissions: Vec<String>,
+}
+
+/// Reduce output a host adapter already holds as text, with the rule, bounds,
+/// and guarantees of [`reduce_host_output`].
+///
+/// A thin client adapter receives tool output as text inside the client's own
+/// hook payload, so it has no base64 envelope to build.
+///
+/// # Errors
+/// Returns a closed category for an oversized payload or a bound outside the
+/// accepted profile.
+pub fn reduce_host_text(
+    text: &str,
+    maximum_returned_bytes: u64,
+    context_lines: u32,
+) -> Result<ReducedText, OutputReductionErrorCode> {
+    if maximum_returned_bytes == 0 || context_lines > MAX_CONTEXT_LINES {
+        return Err(OutputReductionErrorCode::InvalidBudget);
+    }
+    if text.len() > MAX_OFFERED_BYTES {
+        return Err(OutputReductionErrorCode::InvalidPayload);
+    }
 
     let lines: Vec<&str> = text.lines().collect();
-    let selection = select_lines(
-        &lines,
-        request.context_lines,
-        usize_budget(request.maximum_returned_bytes),
-    );
+    let selection = select_lines(&lines, context_lines, usize_budget(maximum_returned_bytes));
     let selected: Vec<&str> = selection
         .indices
         .iter()
@@ -216,14 +263,12 @@ pub fn reduce_host_output(
     omissions.dedup();
 
     let joined = selected.join("\n");
-    Ok(OutputReductionResponse {
-        schema_name: OUTPUT_REDUCTION_SCHEMA_NAME.to_owned(),
-        schema_version: OUTPUT_REDUCTION_SCHEMA_VERSION.to_owned(),
-        selected_base64url: URL_SAFE_NO_PAD.encode(joined.as_bytes()),
-        offered_bytes: u64::try_from(offered.len()).unwrap_or(u64::MAX),
+    Ok(ReducedText {
+        offered_bytes: u64::try_from(text.len()).unwrap_or(u64::MAX),
         returned_bytes: u64::try_from(joined.len()).unwrap_or(u64::MAX),
         offered_lines: u64::try_from(lines.len()).unwrap_or(u64::MAX),
         returned_lines: u64::try_from(selected.len()).unwrap_or(u64::MAX),
+        text: joined,
         omissions,
     })
 }
@@ -1038,6 +1083,34 @@ astropy/modeling/tests/test_separable.py:151: AssertionError
                     .all(|byte| byte.is_ascii_lowercase() || byte == b'_')
             );
         }
+    }
+
+    #[test]
+    fn text_reduction_matches_the_exchange() {
+        for (budget, context_lines) in [(64 * 1024, 2), (256, 2), (96, 0), (1, 8)] {
+            let response =
+                reduce_host_output(&request(BUILD_LOG, budget, context_lines)).expect("exchange");
+            let reduced = reduce_host_text(BUILD_LOG, budget, context_lines).expect("text");
+            assert_eq!(reduced.text, decoded(&response));
+            assert_eq!(reduced.offered_bytes, response.offered_bytes);
+            assert_eq!(reduced.returned_bytes, response.returned_bytes);
+            assert_eq!(reduced.offered_lines, response.offered_lines);
+            assert_eq!(reduced.returned_lines, response.returned_lines);
+            assert_eq!(reduced.omissions, response.omissions);
+        }
+        assert_eq!(
+            reduce_host_text(BUILD_LOG, 0, 2).err(),
+            Some(OutputReductionErrorCode::InvalidBudget)
+        );
+        assert_eq!(
+            reduce_host_text(BUILD_LOG, 1024, MAX_CONTEXT_LINES + 1).err(),
+            Some(OutputReductionErrorCode::InvalidBudget)
+        );
+        let oversized = "x".repeat(MAX_OFFERED_BYTES + 1);
+        assert_eq!(
+            reduce_host_text(&oversized, 1024, 2).err(),
+            Some(OutputReductionErrorCode::InvalidPayload)
+        );
     }
 
     #[test]

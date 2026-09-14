@@ -2,6 +2,8 @@
 #![forbid(unsafe_code)]
 #![doc = "Explicit zero-tool Claude Code delivery for one context packet."]
 
+pub mod output_hook;
+
 use std::{
     env, fs,
     io::{BufRead, BufReader, Read, Write},
