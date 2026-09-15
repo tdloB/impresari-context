@@ -1,13 +1,15 @@
 # Output Reduction Selection — Architecture Requirements and Design
 
-- ARD ID/version: IC-ORS-ARD-160 / 1.1.
+- ARD ID/version: IC-ORS-ARD-160 / 1.2.
 - Status: Accepted for implementation.
-- Date: 2026-09-14. Version 1.0 was dated 2026-09-13.
+- Date: 2026-09-15. Version 1.0 was dated 2026-09-13, and 1.1 2026-09-14.
 - Governing PRD: [IC-ORS-160](../product/output-reduction-selection-prd.md).
 - Decisions:
-  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md),
-  and for terminal escape sequences (1.1),
-  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
+  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md);
+  for terminal escape sequences (1.1),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md);
+  and for offering failures before their context (1.2),
+  [ADR-0165](../decisions/0165-offer-failures-before-their-context-and-skip-repeats-when-reducing-tool-output.md).
 
 ## Removing terminal escape sequences (1.1)
 
@@ -82,10 +84,18 @@ the budget was reached and moves on. Lines are offered in this order:
 2. the first failure;
 3. the last three lines;
 4. the first failure's context;
-5. every failure and location with `context_lines` of context on either side,
-   latest first;
-6. every warning and verdict with its context, latest first;
-7. the first three lines.
+5. every failure and location line, latest first, except one identical to an
+   earlier failure or location line (1.2);
+6. the context of those lines, `context_lines` on either side, latest first
+   (1.2);
+7. every warning and verdict with its context, latest first;
+8. the first three lines.
+
+Until 1.2, steps 5 and 6 were one step: every failure and location with its
+context, latest first. A late failure's context could then spend the budget
+before an earlier failure's own line was reached, and repeated lines spent it
+on copies (ADR-0165). `fresh_evidence` finds the lines for step 5 by exact
+match against every earlier failure or location line.
 
 The chosen indices are returned in ascending order and joined with newlines.
 From 1.1 each returned line is the offered line without its terminal escape
@@ -137,6 +147,22 @@ character. Rebuilt from `main` and from 1.1, the engine's measurement returned
 byte-identical selections and identical counts for all 33 logs at 4, 8 and
 16 KB. The harness's re-run measures the colored tasks.
 
+**Failures before their context (1.2).** Measured the same way, on the same 33
+logs:
+
+| Budget | Whole answer kept, 20 failing logs (1.2 / 1.1 / tail) | Facts kept, of 198 (1.2 / 1.1) | Result kept, 13 runs of fixed code (1.2 / 1.1) | Bytes returned (1.2 / 1.1) |
+| --- | --- | --- | --- | --- |
+| 4 KB | 19 / 18 / 12 | 196 / 180 | 13 / 13 | 7.4% / 7.5% |
+| 8 KB | 20 / 20 / 18 | 198 / 198 | 13 / 13 | 9.8% / 11.1% |
+| 12 KB | 20 / 20 / 20 | 198 / 198 | 13 / 13 | 10.4% / 12.8% |
+| 16 KB | 20 / 20 / 20 | 198 / 198 | 13 / 13 | 11.0% / 13.3% |
+
+No log kept fewer facts under 1.2 than under 1.1, at any budget. The
+harness's budget sweep on 22 SWE-bench tasks agrees. At 8 KB, 1.2 kept 257 of
+257 facts against 251, and returned 74.9% fewer text bytes than the host cap
+against 73.1%. Over the 18 tasks that print tracebacks, the figures are 71.7%
+against 69.6%.
+
 ## Verification
 
 - `a_late_failure_survives_early_noise_that_would_fill_the_budget` reproduces
@@ -161,4 +187,7 @@ byte-identical selections and identical counts for all 33 logs at 4, 8 and
   - `a_colored_line_is_classified_by_its_text`;
   - `a_colored_failure_keeps_its_detail_location_and_result_without_codes`;
   - `text_reduction_matches_the_exchange`, which now also runs a colored log.
+- Failures before their context (1.2):
+  - `every_failure_line_comes_before_any_context`;
+  - `a_failure_line_identical_to_an_earlier_one_is_left_out_with_its_context`.
 - Every earlier test still passes unchanged.

@@ -2,16 +2,18 @@
 
 ## Document Control
 
-- PRD ID/version: IC-ORS-160 / 1.1.
+- PRD ID/version: IC-ORS-160 / 1.2.
 - Status: Accepted for implementation.
-- Date: 2026-09-14. Version 1.0 was dated 2026-09-13.
+- Date: 2026-09-15. Version 1.0 was dated 2026-09-13, and 1.1 2026-09-14.
 - Product owner: Aaron Boldt.
 - Governing architecture:
   [Output Reduction Selection ARD](../architecture/output-reduction-selection-ard.md).
 - Governing decisions:
-  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md),
-  and for terminal escape sequences (1.1),
-  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md).
+  [ADR-0160](../decisions/0160-keep-the-verdict-and-the-failure-when-reducing-tool-output.md);
+  for terminal escape sequences (1.1),
+  [ADR-0164](../decisions/0164-remove-terminal-escape-sequences-when-reducing-tool-output.md);
+  and for offering failures before their context (1.2),
+  [ADR-0165](../decisions/0165-offer-failures-before-their-context-and-skip-repeats-when-reducing-tool-output.md).
 - Follows: [ADR-0126](../decisions/0126-answer-host-executed-operations-without-execution-authority.md).
 
 ## Problem
@@ -26,6 +28,11 @@ bytes kept the whole answer more often.
 sequences, often even when the output is captured. On colored pytest output,
 the rules missed the failure detail, the locations and the result line, and
 the model received the codes as text.
+
+(1.2) Failures were offered together with their context. A late failure's
+context could spend the budget before an earlier failure's own line was
+reached, and repeated failure lines spent it on copies. On the real test
+output of 22 SWE-bench tasks at 8 KB, the rule lost 6 of 257 facts that way.
 
 ## Product Outcome
 
@@ -45,7 +52,9 @@ of the offered bytes, at no model or network cost.
    - passing tests whose names hold a failure word.
 3. Keep lines in this priority order:
    - the verdict, the first failure, and the end of the output first;
-   - then failures and locations, from the end backwards;
+   - then failures and locations, from the end backwards. (1.2) Every failure
+     and location line comes before any of their context, and a line
+     identical to an earlier failure or location is skipped with its context;
    - then warnings;
    - then the start of the output.
 4. Keep the in-order line guarantee, the byte bound and the recorded omissions
@@ -82,6 +91,12 @@ of the offered bytes, at no model or network cost.
   - hostile input, which stays linear;
   - a colored failing log that keeps its detail, location and result at 8 KB,
     with the removed bytes counted exactly.
+- (1.2) On the 33-log corpus, no log keeps fewer facts than under 1.1 at 4, 8,
+  12 or 16 KB, and every failing log still keeps all of its facts at 8 KB.
+- (1.2) Tests also cover:
+  - every failure line kept ahead of long context;
+  - a failure line identical to an earlier one left out with its context,
+    while an earlier, different failure is kept.
 - The full repository gate passes.
 
 ## Non-Goals

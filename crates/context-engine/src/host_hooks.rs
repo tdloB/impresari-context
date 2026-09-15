@@ -6,7 +6,7 @@
 //! handed. Nothing here launches a process, opens a socket, reads a credential,
 //! or writes to a workspace, so `SEC-INV-007` stays literally true.
 
-use std::{borrow::Cow, ops::RangeInclusive};
+use std::{borrow::Cow, collections::HashSet, ops::RangeInclusive};
 
 use base64::{Engine as _, engine::general_purpose::URL_SAFE_NO_PAD};
 use serde::{Deserialize, Serialize};
@@ -511,12 +511,27 @@ fn select_lines(lines: &[&str], context_lines: u32, budget: usize) -> Selection 
             picker.offer(index);
         }
     }
-    // Every failure and source location with its context, latest first.
-    let evidence = marked(&kinds, span, |kind| {
-        matches!(kind.signal, Signal::Failure | Signal::Location)
-    });
-    for index in evidence.into_iter().rev() {
-        picker.offer(index);
+    // Every failure and source location, latest first, before any of their
+    // context, so the context of one long failure cannot crowd out the detail
+    // of another. A line identical to an earlier failure or location adds
+    // nothing, so neither it nor its context is offered (ADR-0165).
+    let evidence = fresh_evidence(lines, &kinds);
+    for index in evidence.iter().rev() {
+        picker.offer(*index);
+    }
+    // Then their context, latest first.
+    let mut context = vec![false; count];
+    for index in &evidence {
+        for near in window(*index, span, count) {
+            if let Some(mark) = context.get_mut(near) {
+                *mark = true;
+            }
+        }
+    }
+    for (index, marked) in context.iter().enumerate().rev() {
+        if *marked {
+            picker.offer(index);
+        }
     }
     // Warnings and the remaining verdicts with their context, latest first.
     let lesser = marked(&kinds, span, |kind| {
@@ -563,6 +578,21 @@ fn marked(kinds: &[LineKind], span: usize, keep: impl Fn(LineKind) -> bool) -> V
         .iter()
         .enumerate()
         .filter_map(|(index, marked)| marked.then_some(index))
+        .collect()
+}
+
+/// Ascending indices of the failure and location lines that are not identical
+/// to an earlier failure or location line (ADR-0165).
+fn fresh_evidence(lines: &[&str], kinds: &[LineKind]) -> Vec<usize> {
+    let mut seen = HashSet::new();
+    lines
+        .iter()
+        .zip(kinds)
+        .enumerate()
+        .filter_map(|(index, (line, kind))| {
+            (matches!(kind.signal, Signal::Failure | Signal::Location) && seen.insert(*line))
+                .then_some(index)
+        })
         .collect()
 }
 
@@ -971,6 +1001,60 @@ Finished in 3.2s";
         );
         assert!(text.contains("src/f29.rs"), "the latest error is kept");
         assert!(text.contains("could not compile"));
+    }
+
+    #[test]
+    fn every_failure_line_comes_before_any_context() {
+        // Each failure is followed by long context. Offered together with
+        // their context, the latest failures spent the budget before the
+        // middle failures' own lines were reached (ADR-0165).
+        let padding = "x".repeat(300);
+        let mut log = String::from("collected 5 items\n");
+        log.extend((1..=5).map(|test| {
+            format!("E       assert {test} == 0\n    {padding}\n    {padding}\n\n\n\n")
+        }));
+        log.push_str("=== 5 failed in 0.50s ===\n");
+        let response = reduce_host_output(&request(&log, 1024, 2)).expect("reduced");
+        let text = decoded(&response);
+        for test in 1..=5 {
+            let fact = format!("assert {test} == 0");
+            assert!(text.contains(&fact), "{fact} missing from:\n{text}");
+        }
+        assert!(response.returned_bytes <= 1024);
+        assert!(
+            response
+                .omissions
+                .contains(&"output_returned_byte_limit_reached".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_failure_line_identical_to_an_earlier_one_is_left_out_with_its_context() {
+        // Sixty parametrized cases fail with the same message at the same line.
+        // Offering every copy spent the budget before an earlier, different
+        // failure was reached (ADR-0165).
+        let mut log = String::from("FAILED t.py::test_first - AssertionError: first\n");
+        log.push_str("\n\n\nE       ValueError: the distinct cause\n\n\n\n");
+        // Two blank lines keep each copy outside the context of the one before.
+        log.extend((0..60).map(|case| {
+            format!(
+                "____ test_repeat[case{case:02}] ____\nE       AssertionError: same\nt.py:12: AssertionError\n\n\n"
+            )
+        }));
+        log.push_str("=== 61 failed in 1.00s ===\n");
+        let response = reduce_host_output(&request(&log, 1024, 2)).expect("reduced");
+        let text = decoded(&response);
+        assert!(text.contains("ValueError: the distinct cause"), "{text}");
+        assert!(
+            text.contains("test_repeat[case00]"),
+            "the first copy keeps its context"
+        );
+        assert_eq!(
+            text.matches("E       AssertionError: same").count(),
+            1,
+            "only the first copy is offered:\n{text}"
+        );
+        assert!(response.returned_bytes <= 1024);
     }
 
     #[test]
