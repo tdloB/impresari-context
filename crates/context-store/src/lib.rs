@@ -33,6 +33,115 @@ pub enum CacheErrorCode {
     StorageFailure,
 }
 
+/// Who holds a writer lock, as far as the platform can say.
+///
+/// Diagnostic only. ADR-0006 keeps lock metadata from authorizing a break of a
+/// live lock, and this never does: it answers the one question a `WriterBusy`
+/// leaves open, which is whether the holder is us (a handle this process still
+/// has open) or somebody else (a concurrent writer doing its job). Source-free:
+/// a category, no path and no identifier (ADR-0166).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum WriterLockHolder {
+    /// A handle this process still holds. A caller that believes it closed the
+    /// previous holder has a leak or a double open.
+    ThisProcess,
+    /// Another process. The lock is doing its job.
+    OtherProcess,
+    /// The platform does not say, or its answer could not be read.
+    Unknown,
+}
+
+impl fmt::Display for WriterLockHolder {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        formatter.write_str(match self {
+            Self::ThisProcess => "writer lock is held by this process",
+            Self::OtherProcess => "writer lock is held by another process",
+            Self::Unknown => "writer lock holder is unknown",
+        })
+    }
+}
+
+impl Error for WriterLockHolder {}
+
+/// The `WriterBusy` error, carrying who holds the lock as its source.
+fn writer_busy(lock: &File) -> CacheError {
+    CacheError {
+        code: CacheErrorCode::WriterBusy,
+        source: Some(Box::new(writer_lock_holder(lock))),
+    }
+}
+
+/// Reads the holder from `/proc/locks`, which names a pid and the locked
+/// inode and says nothing about paths.
+#[cfg(target_os = "linux")]
+fn writer_lock_holder(lock: &File) -> WriterLockHolder {
+    use std::os::unix::fs::MetadataExt as _;
+    let Ok(metadata) = lock.metadata() else {
+        return WriterLockHolder::Unknown;
+    };
+    let Ok(locks) = fs::read_to_string("/proc/locks") else {
+        return WriterLockHolder::Unknown;
+    };
+    holder_of(&locks, metadata.dev(), metadata.ino(), std::process::id())
+}
+
+#[cfg(not(target_os = "linux"))]
+fn writer_lock_holder(_lock: &File) -> WriterLockHolder {
+    WriterLockHolder::Unknown
+}
+
+/// The holder of one locked inode, from the kernel's lock table.
+///
+/// Each line ends with `PID MAJOR:MINOR:INODE START END`, with the device in
+/// hexadecimal. A line that does not parse is skipped rather than guessed at,
+/// because a wrong answer here would send a reader after the wrong bug.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+fn holder_of(locks: &str, device: u64, inode: u64, this_process: u32) -> WriterLockHolder {
+    for line in locks.lines() {
+        let mut fields = line.split_whitespace().rev().skip(2);
+        let Some(location) = fields.next() else {
+            continue;
+        };
+        let Some(pid) = fields.next().and_then(|pid| pid.parse::<u32>().ok()) else {
+            continue;
+        };
+        let mut parts = location.split(':');
+        let (Some(major), Some(minor), Some(found)) = (parts.next(), parts.next(), parts.next())
+        else {
+            continue;
+        };
+        if parts.next().is_some() {
+            continue;
+        }
+        let (Ok(major), Ok(minor), Ok(found)) = (
+            u64::from_str_radix(major, 16),
+            u64::from_str_radix(minor, 16),
+            found.parse::<u64>(),
+        ) else {
+            continue;
+        };
+        if found != inode || (major, minor) != device_numbers(device) {
+            continue;
+        }
+        return if pid == this_process {
+            WriterLockHolder::ThisProcess
+        } else {
+            WriterLockHolder::OtherProcess
+        };
+    }
+    WriterLockHolder::Unknown
+}
+
+/// The major and minor numbers of one device identifier, as the kernel encodes
+/// them for `/proc/locks`.
+#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+const fn device_numbers(device: u64) -> (u64, u64) {
+    (
+        ((device >> 32) & 0xffff_f000) | ((device >> 8) & 0x0000_0fff),
+        ((device >> 12) & 0xffff_ff00) | (device & 0x0000_00ff),
+    )
+}
+
 /// Safe cache error that omits local paths and SQL text.
 #[derive(Debug)]
 pub struct CacheError {
@@ -326,7 +435,7 @@ impl AuditStore {
             .map_err(CacheError::storage)?;
         set_private_file_permissions(&lock_path)?;
         writer_lock.try_lock().map_err(|error| match error {
-            std::fs::TryLockError::WouldBlock => CacheError::new(CacheErrorCode::WriterBusy),
+            std::fs::TryLockError::WouldBlock => writer_busy(&writer_lock),
             std::fs::TryLockError::Error(error) => CacheError::storage(error),
         })?;
         let database_path = audit.join("audit.sqlite3");
@@ -520,7 +629,7 @@ impl WorkspaceCache {
             .map_err(CacheError::storage)?;
         set_private_file_permissions(&lock_path)?;
         writer_lock.try_lock().map_err(|error| match error {
-            std::fs::TryLockError::WouldBlock => CacheError::new(CacheErrorCode::WriterBusy),
+            std::fs::TryLockError::WouldBlock => writer_busy(&writer_lock),
             std::fs::TryLockError::Error(error) => CacheError::storage(error),
         })?;
         let database_path = namespace.join("index.sqlite3");
@@ -936,7 +1045,7 @@ pub fn purge_workspace(cache_root: &Path, workspace_identity: &str) -> Result<bo
         .open(resolved.join("lock"))
         .map_err(CacheError::storage)?;
     lock.try_lock().map_err(|error| match error {
-        std::fs::TryLockError::WouldBlock => CacheError::new(CacheErrorCode::WriterBusy),
+        std::fs::TryLockError::WouldBlock => writer_busy(&lock),
         std::fs::TryLockError::Error(error) => CacheError::storage(error),
     })?;
     fs::remove_dir_all(resolved).map_err(CacheError::storage)?;
@@ -1430,6 +1539,75 @@ mod tests {
             assert_eq!(error.to_string(), "cache operation failed");
         }
         WorkspaceCache::open(&root.0, A).expect("recover after restore");
+    }
+
+    /// The kernel's lock table names a pid and an inode, and the holder follows
+    /// from those two alone. A line that does not parse is skipped rather than
+    /// guessed at, because a wrong answer sends a reader after the wrong bug
+    /// (ADR-0166).
+    #[test]
+    fn the_lock_table_names_the_holder_or_admits_it_does_not() {
+        // Device 0x08_02 is major 8, minor 2, as /proc/locks prints it.
+        let device = (8 << 8) | 2;
+        let locks = "\
+1: POSIX  ADVISORY  WRITE 111 08:02:4242 0 EOF
+2: FLOCK  ADVISORY  WRITE 4321 08:02:9999 0 EOF
+3: FLOCK  ADVISORY  WRITE 1234 08:02:4242 0 EOF
+";
+        assert_eq!(
+            holder_of(locks, device, 9999, 4321),
+            WriterLockHolder::ThisProcess
+        );
+        assert_eq!(
+            holder_of(locks, device, 9999, 4322),
+            WriterLockHolder::OtherProcess
+        );
+        // The first line matching the inode answers, whoever holds it.
+        assert_eq!(
+            holder_of(locks, device, 4242, 111),
+            WriterLockHolder::ThisProcess
+        );
+        // An inode nobody holds, and a device nobody holds it on.
+        assert_eq!(holder_of(locks, device, 5, 4321), WriterLockHolder::Unknown);
+        assert_eq!(
+            holder_of(locks, (9 << 8) | 2, 9999, 4321),
+            WriterLockHolder::Unknown
+        );
+        // Nothing to read, and lines that do not parse.
+        assert_eq!(holder_of("", device, 9999, 1), WriterLockHolder::Unknown);
+        for malformed in [
+            "1: FLOCK ADVISORY WRITE\n",
+            "1: FLOCK ADVISORY WRITE pid 08:02:9999 0 EOF\n",
+            "1: FLOCK ADVISORY WRITE 4321 08:02 0 EOF\n",
+            "1: FLOCK ADVISORY WRITE 4321 08:02:9999:1 0 EOF\n",
+            "1: FLOCK ADVISORY WRITE 4321 0g:02:9999 0 EOF\n",
+        ] {
+            assert_eq!(
+                holder_of(malformed, device, 9999, 4321),
+                WriterLockHolder::Unknown,
+                "{malformed}"
+            );
+        }
+    }
+
+    /// A second open of a live store fails busy and says the holder is this
+    /// process, where the platform can tell (ADR-0166).
+    #[test]
+    fn a_second_open_names_this_process_as_the_holder() {
+        let root = TestRoot::new();
+        let first = AuditStore::open(&root.0).expect("first");
+        let busy = AuditStore::open(&root.0).expect_err("busy");
+        assert_eq!(busy.code(), CacheErrorCode::WriterBusy);
+        let detail = format!("{busy:?}");
+        if cfg!(target_os = "linux") {
+            assert!(detail.contains("ThisProcess"), "{detail}");
+        } else {
+            // Elsewhere the source is present and says it cannot tell.
+            assert!(detail.contains("Unknown"), "{detail}");
+        }
+        drop(first);
+        // Released, so the next open succeeds and carries no detail to give.
+        AuditStore::open(&root.0).expect("reopened");
     }
 
     #[test]
